@@ -194,6 +194,8 @@ class DataSpectrum(Spectrum):
         self.flux = self.flux[mask_empty,:]
         self.err  = self.err[mask_empty,:]
 
+        self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
+
     def get_delta_wave(self):
 
         '''
@@ -360,15 +362,14 @@ class ModelSpectrum(Spectrum):
         
         return flux_LSF
 
-    def rebin(self, new_wave, new_wave_bins, replace_flux=False):
-
-        # model_flux_rebinned = np.interp(data_wave, model_wave_even, 
-        #                                 model_flux_instr_broad)
+    def rebin(self, new_wave, new_wave_bins=None, replace_flux=False):
 
         # Interpolate onto the observed spectrum's wavelength grid
-        flux_rebinned = rgw.rebin_give_width(self.wave, self.flux, 
-                                             new_wave, new_wave_bins
-                                             )
+        flux_rebinned = np.interp(new_wave, xp=self.wave, fp=self.flux)
+
+        #flux_rebinned = rgw.rebin_give_width(self.wave, self.flux, 
+        #                                     new_wave, new_wave_bins
+        #                                     )
 
         if replace_flux:
             self.flux = flux_rebinned
@@ -377,7 +378,7 @@ class ModelSpectrum(Spectrum):
 
     def shift_broaden_rebin(self, new_wave, new_wave_bins, 
                             rv, vsini, epsilon_limb=0, 
-                            out_res=1e6, in_res=1e6
+                            out_res=1e6, in_res=1e6, rebin=True
                             ):
 
         # Apply Doppler shift, rotational/instrumental broadening, 
@@ -385,7 +386,8 @@ class ModelSpectrum(Spectrum):
         self.rv_shift(rv, replace_wave=True)
         self.rot_broadening(vsini, epsilon_limb, replace_flux=True)
         self.instr_broadening(out_res, in_res, replace_flux=True)
-        self.rebin(new_wave, new_wave_bins, replace_flux=True)
+        if rebin:
+            self.rebin(new_wave, new_wave_bins, replace_flux=True)
 
 class Photometry:
 

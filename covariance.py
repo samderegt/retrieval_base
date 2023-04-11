@@ -32,7 +32,7 @@ class Covariance:
         self.logdet = np.sum(np.log(self.cov))
 
 
-def GaussianProcesses(Covariance):
+class GaussianProcesses(Covariance):
 
     def __init__(self, err):
 

@@ -7,13 +7,15 @@ from .chemistry import Chemistry
 
 class Parameters:
 
-    def __init__(self, param_priors, param_constant, param_mathtext):
+    def __init__(self, param_priors, param_constant, param_mathtext, n_T_knots):
 
         self.param_priors   = param_priors
         self.param_constant = param_constant
         self.param_mathtext = param_mathtext
 
         self.param_keys = np.array(list(self.param_priors.keys()))
+
+        self.n_T_knots = n_T_knots
 
         # Create dictionary with constant parameter-values
         self.params = self.param_constant.copy()
@@ -68,9 +70,13 @@ class Parameters:
             low, high = self.param_priors['T_3']
             self.params['T_3'] = self.params['T_2'] * (high - (high-low)*cube[self.param_keys=='T_3'])
 
-        # Use same naming-scheme for each temperature knot
-        if 'T_bottom' in self.param_keys:
-            self.params['T_0'] = self.params['T_bottom']
+        else:
+            # Use same naming-scheme for each temperature knot
+            if 'T_bottom' in self.param_keys:
+                self.params['T_0'] = self.params['T_bottom']
+
+        # Combine the upper temperature knots into an array
+        self.params['T_knots'] = np.array([params[f'T_{i+1}'] for i in range(self.n_T_knots)])[::-1]
 
         # Convert from logarithmic to linear scale
         if 'log_gamma' in self.param_keys:
