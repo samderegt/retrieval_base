@@ -1,3 +1,7 @@
+import numpy as np
+from scipy.interpolate import interp1d, splrep, splev
+
+import petitRADTRANS.poor_mans_nonequ_chem as pm
 
 class PT_profile:
 

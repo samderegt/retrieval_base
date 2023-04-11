@@ -1,4 +1,6 @@
+import numpy as np
 from scipy.sparse import csc_matrix
+
 from sksparse.cholmod import cholesky
 
 class Covariance:

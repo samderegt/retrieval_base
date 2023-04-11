@@ -1,3 +1,6 @@
+import numpy as np
+
+import petitRADTRANS.poor_mans_nonequ_chem as pm
 
 class Chemistry:
 

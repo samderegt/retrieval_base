@@ -1,4 +1,12 @@
-from scipy.ndimage import gaussian_filter1d
+import numpy as np
+from scipy.ndimage import gaussian_filter1d, gaussian_filter
+
+import pickle
+import os
+
+from PyAstronomy import pyasl
+import petitRADTRANS.nat_cst as nc
+from petitRADTRANS.retrieval import rebin_give_width as rgw
 
 class Spectrum:
 
@@ -16,7 +24,7 @@ class Spectrum:
     n_dets   = 3
     n_pixels = 2048
 
-    def __init__(self, wave, flux, err):
+    def __init__(self, wave, flux, err=None):
 
         self.wave = wave
         self.flux = flux
@@ -62,17 +70,20 @@ class Spectrum:
         if removal_mode == 'divide':
             # Divide out the low-frequency structure
             high_pass_flux = self.flux / low_pass_flux
-            high_pass_err  = self.err / low_pass_flux
+            if self.err is not None:
+                high_pass_err  = self.err / low_pass_flux
 
         elif removal_mode == 'subtract':
             # Subtract away the low-frequency structure
             high_pass_flux = self.flux - low_pass_flux
-            # TODO: how to handle errors for this case?
-            high_pass_err  = None
+            if self.err is not None:
+                # TODO: how to handle errors for this case?
+                high_pass_err  = None
 
         if replace_flux_err:
             self.flux = high_pass_flux
-            self.err  = high_pass_err
+            if self.err is not None:
+                self.err  = high_pass_err
 
         return high_pass_flux, high_pass_err
 
@@ -304,9 +315,9 @@ class DataSpectrum(Spectrum):
 
 class ModelSpectrum(Spectrum):
 
-    def __init__(self, wave, flux, err):
+    def __init__(self, wave, flux):
 
-        super().__init__(wave, flux, err)
+        super().__init__(wave, flux)
 
     def rot_broadening(self, vsini, epsilon_limb=0, replace_flux=False):
 
