@@ -258,7 +258,13 @@ class DataSpectrum(Spectrum):
         self.transm_err = self.err / ref_flux 
         self.transm_err /= np.nanmax(self.flux / ref_flux)
 
-    def flux_calib_2MASS(self, transm, transm_err, skycalc_transm, photom_2MASS, filter_2MASS, tell_threshold=0.2):
+    def add_transmission(self, transm, transm_err):
+        
+        # Add transmission (e.g. from another instance) as attributes
+        self.transm     = transm
+        self.transm_err = transm_err
+
+    def flux_calib_2MASS(self, skycalc_transm, photom_2MASS, filter_2MASS, tell_threshold=0.2):
 
         # Retrieve an approximate telluric transmission spectrum
         wave_skycalc, transm_skycalc = run_skycalc(ra=self.ra, dec=self.dec, mjd=self.mjd, pwv=self.pwv)
@@ -268,18 +274,18 @@ class DataSpectrum(Spectrum):
         # Linear fit to the continuum, where telluric absorption is minimal
         mask_high_transm = (transm_skycalc > 0.98)
         p = np.polyfit(self.wave[mask_high_transm & self.mask_isfinite].flatten(), 
-                       transm[mask_high_transm & self.mask_isfinite].flatten(), 
+                       self.transm[mask_high_transm & self.mask_isfinite].flatten(), 
                        deg=1
                        )
         poly_model = np.poly1d(p)(self.wave)
 
         # Apply correction for telluric transmission
-        tell_corr_flux = self.flux / transm
+        tell_corr_flux = self.flux / self.transm
         # Replace the deepest tellurics with NaNs
-        tell_corr_flux[(transm/poly_model / np.nanmax(transm/poly_model)) < tell_threshold] = np.nan
+        tell_corr_flux[(self.transm/poly_model / np.nanmax(self.transm/poly_model)) < tell_threshold] = np.nan
 
-        tell_corr_err = np.sqrt((self.err/transm)**2 + \
-                                (tell_corr_flux*transm_err/transm)**2
+        tell_corr_err = np.sqrt((self.err/self.transm)**2 + \
+                                (tell_corr_flux*self.transm_err/self.transm)**2
                                 )
 
         # Read in the transmission curve of the broadband instrument

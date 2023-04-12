@@ -7,7 +7,7 @@ from .chemistry import Chemistry
 
 class Parameters:
 
-    def __init__(self, param_priors, param_constant, param_mathtext, n_T_knots):
+    def __init__(self, param_priors, param_constant, param_mathtext, n_T_knots, n_orders=7, n_dets=3):
 
         self.param_priors   = param_priors
         self.param_constant = param_constant
@@ -94,24 +94,28 @@ class Parameters:
         self.params['a']   = 10**self.params['log_a']
         self.params['tau'] = 10**self.params['log_tau']
 
-        if not isinstance(self.params['a'], (np.ndarray, list)):
-            self.params['a'] = [self.params['a']] * len(Spectrum.order_wlen_ranges)
-        if not isinstance(self.params['tau'], (np.ndarray, list)):
-            self.params['tau'] = [self.params['tau']] * len(Spectrum.order_wlen_ranges)
+        # Reshape if only one value is given
+        if not isinstance(self.params['a'], (float, int)):
+            self.params['a'] = np.ones((self.n_orders, self.n_dets)) * self.params['a']
+        if not isinstance(self.params['tau'], (float, int)):
+            self.params['tau'] = np.ones((self.n_orders, self.n_dets)) * self.params['tau']
 
         # Make a copy of the global values
         a, tau, beta = np.copy(self.params['a']), np.copy(self.params['tau']), np.copy(self.params['beta'])
-        for i in range(Spectrum.n_orders):
-            # Replace the constants with the free parameters
-            if f'log_a_{i+1}' in self.param_keys:
-                a[i*3:i*3+3] = 10**self.params[f'log_a_{i+1}']
-                self.params['a'] = a
-            if f'log_tau_{i+1}' in self.param_keys:
-                tau[i*3:i*3+3] = 10**self.params[f'log_tau_{i+1}']
-                self.params['tau'] = tau
-            if f'beta_{i+1}' in self.param_keys:
-                beta[i*3:i*3+3] = self.params[f'beta_{i+1}']
-                self.params['beta'] = beta
+        
+        for i in range(self.n_orders):
+            for j in range(self.n_dets):
+
+                # Replace the constants with the free parameters
+                if f'log_a_{i+1}' in self.param_keys:
+                    a[i,:] = 10**self.params[f'log_a_{i+1}']
+                    self.params['a'] = a
+                if f'log_tau_{i+1}' in self.param_keys:
+                    tau[i,:] = 10**self.params[f'log_tau_{i+1}']
+                    self.params['tau'] = tau
+                if f'beta_{i+1}' in self.param_keys:
+                    beta[i,:] = self.params[f'beta_{i+1}']
+                    self.params['beta'] = beta
 
     def read_chemistry_params(self):
 
