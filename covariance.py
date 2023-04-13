@@ -94,13 +94,19 @@ class GaussianProcesses(Covariance):
             # Calculate the sparse Cholesky decomposition
             self.cov_cholesky = cholesky(self.cov)
 
-            # Calculate the log of the determinant
-            self.logdet = self.cov_cholesky.logdet()
-
             # Set the solve function 
             self.solve = self.solve_sparse_cholesky
         else:
             # TODO: non-sparse decomposition
+            pass
+
+    def get_logdet(self):
+        
+        if self.is_sparse:
+            # Calculate the log of the determinant
+            self.logdet = self.cov_cholesky.logdet()
+        else:
+            # TODO: non-sparse logdet
             pass
 
     def solve_sparse_cholesky(self, b):

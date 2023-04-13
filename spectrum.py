@@ -204,7 +204,7 @@ class DataSpectrum(Spectrum):
                                    self.n_data_points)) * np.nan
         '''
         # Wavelength separation between pixels (within an order/detector)
-        self.delta_wave = self.wave[:,:,:,None] - self.wave[:,:,None,:]
+        self.delta_wave = np.abs(self.wave[:,:,:,None] - self.wave[:,:,None,:])
 
     def clip_det_edges(self, n_edge_pixels=50):
         
