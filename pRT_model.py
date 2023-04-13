@@ -106,6 +106,11 @@ class pRT_model:
                                    out_res=d_resolution, 
                                    in_res=m_spec.resolution, 
                                    )
+        # Convert to observation by scaling with planetary radius
+        m_spec.flux *= (
+            (self.params['R_p']*nc.r_jup_mean) / \
+            (1e3/self.params['parallax']*nc.pc)
+            )**2
 
         return m_spec
 

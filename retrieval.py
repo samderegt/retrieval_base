@@ -111,23 +111,16 @@ def pre_processing():
     # Save as pickle
     af.pickle_save(prefix+'data/d_spec.pkl', d_spec)
 
-    '''
-    #plt.plot(d_spec.wave, d_spec.transm, c='b', lw=1)
-    for i in range(d_spec.n_orders):
-        for j in range(d_spec.n_dets):
-            plt.plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=1)
-    plt.show()
-    '''
-
     # --- Set up a pRT model --------------------------------------------
 
     # pRT model is somewhat wider than observed spectrum
     wave_range_micron = np.concatenate(
         (d_spec.wave.min(axis=(1,2))[None,:]-1, 
          d_spec.wave.max(axis=(1,2))[None,:]+1
-         ))
+         )).T
     wave_range_micron *= 1e-3
 
+    # Create the Radtrans objects
     pRT_atm = pRT_model(
         line_species=line_species, 
         wave_range_micron=wave_range_micron, 
@@ -140,6 +133,7 @@ def pre_processing():
         n_atm_layers=50
         )
 
+    # Save as pickle
     af.pickle_save(prefix+'data/pRT_atm.pkl', pRT_atm)
 
 def retrieval():
@@ -147,6 +141,13 @@ def retrieval():
     # Load the DataSpectrum and pRT_model classes
     d_spec  = af.pickle_load(prefix+'data/d_spec.pkl')
     pRT_atm = af.pickle_load(prefix+'data/pRT_atm.pkl')
+
+    Parameters(
+        param_free, 
+        param_constant, 
+        n_orders=d_spec.n_orders, 
+        n_dets=d_spec.n_dets
+        )
 
 if __name__ == '__main__':
 
@@ -163,7 +164,6 @@ if __name__ == '__main__':
 
     if args.retrieval:
         retrieval()
-        pass
 
     if args.evaluation:
         pass

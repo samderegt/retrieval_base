@@ -7,18 +7,53 @@ from chemistry import Chemistry
 
 class Parameters:
 
-    def __init__(self, param_priors, param_constant, param_mathtext, n_T_knots, n_orders=7, n_dets=3):
+    # Dictionary of parameters that need not be 
+    # supplied for a functional retrieval
+    param_optional = {
+        # Uncertainty scaling
+        'log_a': -np.inf, 
+        'log_tau': 0, 
+        'beta': 1,  
+        'beta_tell': None, 
+        'x_tol': None, 
 
-        self.param_priors   = param_priors
+        # Cloud properties
+        'log_X_cloud_base_MgSiO3': None, 
+        'log_P_base_MgSiO3': None, 
+
+        'log_X_MgSiO3': None, 
+        'f_sed': None, 
+        'log_K_zz': None, 
+        'sigma_g': None, 
+
+        'log_opa_base_gray': None, 
+        'log_P_base_gray': None, 
+        'f_sed_gray': None, 
+
+        # Chemistry
+        'log_C_ratio': -np.inf,
+        'log_O_ratio': -np.inf,
+    }
+
+    def __init__(self, param_free, param_constant, n_orders=7, n_dets=3):
+
+        # Separate the prior range from the mathtext label
+        self.param_priors, self.param_mathtext = {}, {}
+        for key_i, (prior_i, mathtext_i) in param_free.items():
+            self.param_priors[key_i]   = prior_i
+            self.param_mathtext[key_i] = mathtext_i
+
         self.param_constant = param_constant
-        self.param_mathtext = param_mathtext
-
         self.param_keys = np.array(list(self.param_priors.keys()))
 
-        self.n_T_knots = n_T_knots
+        for i in range(1,100):
+            if f'T_{i}' not in self.param_keys:
+                self.n_T_knots = i-1
+                break
 
         # Create dictionary with constant parameter-values
-        self.params = self.param_constant.copy()
+        self.params = self.param_optional.copy()
+        self.params.update(param_constant)
 
         # Check if Molliere et al. (2020) PT-profile is used
         Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
