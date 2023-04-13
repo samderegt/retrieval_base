@@ -3,7 +3,7 @@ import numpy as np
 from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
 
-from .spectrum import Spectrum, ModelSpectrum
+from spectrum import Spectrum, ModelSpectrum
 
 class pRT_model:
 
@@ -53,7 +53,38 @@ class pRT_model:
             atm_i.setup_opa_structure(self.pressure)
             self.atm.append(atm_i)
 
-    def __call__(self, mass_fractions, temperature, params):
+    def __call__(self, 
+                 mass_fractions, 
+                 temperature, 
+                 params, 
+                 d_wave, 
+                 d_wave_bins=None, 
+                 d_resolution=1e5, 
+                 get_contr=False
+                 ):
+        '''
+        Create a new model spectrum with the given arguments.
+
+        Input
+        -----
+        mass_fractions : dict
+            Species' mass fractions in the pRT format.
+        temperature : np.ndarray
+            Array of temperatures at each atmospheric layer.
+        params : dict
+            Parameters of the current model.
+        d_wave : np.ndarray
+            Wavelength grid of observed spectrum.
+        d_wave_bins : np.ndarray
+            Wavelength separation between neighboring pixels.
+        d_resolution : float
+            Spectral resolution of observed spectrum. 
+
+        Returns
+        -------
+        m_spec : ModelSpectrum class
+            Instance of the ModelSpectrum class. 
+        '''
 
         # Update certain attributes
         self.mass_fractions = mass_fractions
@@ -63,7 +94,26 @@ class pRT_model:
         # Add clouds if requested
         self.add_clouds()
 
+        # Generate a model spectrum
+        m_spec = self.get_model_spectrum(get_contr=get_contr)
+        # Apply radial-velocity shift, rotational/instrumental 
+        # broadening and rebin onto the data's wavelength grid
+        m_spec.shift_broaden_rebin(new_wave=d_wave, 
+                                   new_wave_bins=d_wave_bins, 
+                                   rv=self.params['rv'], 
+                                   vsini=self.params['vsini'], 
+                                   epsilon_limb=self.params['epsilon_limb'], 
+                                   out_res=d_resolution, 
+                                   in_res=m_spec.resolution, 
+                                   )
+
+        return m_spec
+
+
     def add_clouds(self):
+        '''
+        Add clouds to the model atmosphere using the given parameters.
+        '''
 
         if self.params['log_X_cloud_base_MgSiO3'] is not None:
             
@@ -120,6 +170,21 @@ class pRT_model:
         return opa_gray_cloud
 
     def get_model_spectrum(self, get_contr=False):
+        '''
+        Generate a model spectrum with the given parameters.
+
+        Input
+        -----
+        get_contr : bool
+            If True, computes the emission contribution 
+            and cloud opacity. Updates the contr_em and 
+            opa_cloud attributes.
+        
+        Returns
+        -------
+        m_spec : ModelSpectrum class
+            Instance of the ModelSpectrum class
+        '''
 
         # Loop over all orders
         wave, flux = [], []

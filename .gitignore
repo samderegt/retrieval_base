@@ -1,0 +1,7 @@
+__pycache__/
+data/
+*retrieval_output*/
+
+transm_curves.pk
+species_config.ini
+species_database.hdf5

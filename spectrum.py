@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter1d, gaussian_filter
+from scipy.interpolate import interp1d
+from scipy.sparse import triu
 
 import pickle
 import os
@@ -33,8 +35,12 @@ class Spectrum:
         # Make the isfinite mask
         self.update_isfinite_mask()
 
-    def update_isfinite_mask(self):
-        self.mask_isfinite = np.isfinite(self.flux)
+    def update_isfinite_mask(self, array=None):
+
+        if array is None:
+            self.mask_isfinite = np.isfinite(self.flux)
+        else:
+            self.mask_isfinite = np.isfinite(array)
         self.n_data_points = self.mask_isfinite.sum()
 
     def rv_shift(self, rv, replace_wave=False):
@@ -87,7 +93,7 @@ class Spectrum:
 
         return high_pass_flux, high_pass_err
 
-    def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=False):
+    def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=True):
 
         flux_copy = self.flux.copy()
 
@@ -101,7 +107,7 @@ class Spectrum:
 
             if mask_order.any():
 
-                flux_i = flux_copy[mask_clipped]
+                flux_i = flux_copy[mask_order]
                 
                 # Fit an n-th degree polynomial to this order
                 p = np.polyfit(self.wave[mask_order], flux_i, 
@@ -129,18 +135,105 @@ class Spectrum:
             self.update_isfinite_mask()
 
         return flux_copy
+
+    @classmethod
+    def instr_broadening(cls, wave, flux, out_res=1e6, in_res=1e6):
+
+        # Delta lambda of resolution element is FWHM of the LSF's standard deviation
+        sigma_LSF = np.sqrt(1/out_res**2 - 1/in_res**2) / \
+                    (2*np.sqrt(2*np.log(2)))
+
+        spacing = np.mean(2*np.diff(wave) / (wave[1:] + wave[:-1]))
+
+        # Calculate the sigma to be used in the gauss filter in pixels
+        sigma_LSF_gauss_filter = sigma_LSF / spacing
+        
+        # Apply gaussian filter to broaden with the spectral resolution
+        flux_LSF = gaussian_filter(flux, sigma=sigma_LSF_gauss_filter, 
+                                   mode='nearest'
+                                   )        
+        return flux_LSF
     
 
 class DataSpectrum(Spectrum):
 
-    def __init__(self, wave, flux, err, ra, dec, mjd, pwv):
+    def __init__(self, 
+                 wave, 
+                 flux, 
+                 err, 
+                 ra, 
+                 dec, 
+                 mjd, 
+                 pwv, 
+                 file_target=None, 
+                 file_wave=None, 
+                 slit='w_0.2', 
+                 wave_range=(1900,2500), 
+                 ):
 
+        if file_target is not None:
+            wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)    
+        
         super().__init__(wave, flux, err)
 
         # Reshape the orders and detectors
-        self.reshape_orders_dets()
+        #self.reshape_orders_dets()
 
         self.ra, self.dec, self.mjd, self.pwv = ra, dec, mjd, pwv
+
+        # Set to None initially
+        self.transm, self.transm_err = None, None
+
+        # Get the spectral resolution
+        self.slit = slit
+        if self.slit == 'w_0.2':
+            self.resolution = 1e5
+        elif self.slit == 'w_0.4':
+            self.resolution = 5e4
+
+        self.wave_range = wave_range
+
+    def load_spectrum_excalibuhr(self, file_target, file_wave=None):
+
+        # Load in the data of the target
+        if not isinstance(file_target, (list, np.ndarray)):
+            wave, flux, err = np.loadtxt(file_target).T
+
+        else:
+            # Combine multiple runs
+            wave, flux, err = [], [], []
+            for file_i in file_target:
+                wave_i, flux_i, err_i = np.loadtxt(file_i).T
+            
+                wave.append(wave_i)
+                flux.append(flux_i)
+                err.append(err_i)
+
+                # TODO: apply wavelength correction for each run and then combine
+                # (or fit for the nights separately?)
+            
+            wave = np.nanmean(np.array(wave), axis=0)
+            flux = np.nansum(np.array(flux), axis=0)
+            err  = np.nansum(np.array(err)**2, axis=0)**(1/2)
+
+        # Load in (other) corrected wavelengths
+        if file_wave is not None:
+            wave, _, _ = np.loadtxt(file_wave).T
+
+        return wave, flux, err
+
+    def crop_spectrum(self):
+
+        # Crop the spectrum to within a given wavelength range
+        mask_wave = (self.wave >= self.wave_range[0]) & \
+                    (self.wave <= self.wave_range[1])
+
+        self.wave = self.wave[mask_wave]
+        self.flux = self.flux[mask_wave]
+        self.err  = self.err[mask_wave]
+
+        if self.transm is not None:
+            self.transm = self.transm[mask_wave]
 
     def bary_corr(self):
 
@@ -160,6 +253,7 @@ class DataSpectrum(Spectrum):
         wave_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
         flux_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
         err_ordered  = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
+        transm_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
 
         # Loop over the orders and detectors
         for i in range(Spectrum.n_orders):
@@ -174,9 +268,13 @@ class DataSpectrum(Spectrum):
                     flux_ordered[i,j] = self.flux[mask_wave]
                     err_ordered[i,j]  = self.err[mask_wave]
 
+                    if self.transm is not None:
+                        transm_ordered[i,j] = self.transm[mask_wave]
+
         self.wave = wave_ordered
         self.flux = flux_ordered
         self.err  = err_ordered
+        self.transm = transm_ordered
 
         # Remove empty orders / detectors
         self.clear_empty_orders_dets()
@@ -186,27 +284,36 @@ class DataSpectrum(Spectrum):
 
     def clear_empty_orders_dets(self):
 
-        # If all pixels are NaNs within an order/detector...
-        mask_empty = (~np.isfinite(self.flux)).all(axis=-1)
+        # If all pixels are NaNs within an order...
+        mask_empty = (~np.isfinite(self.flux)).all(axis=(1,2))
         
-        # ... remove that order/detector
-        self.wave = self.wave[mask_empty,:]
-        self.flux = self.flux[mask_empty,:]
-        self.err  = self.err[mask_empty,:]
+        # ... remove that order
+        self.wave = self.wave[~mask_empty,:,:]
+        self.flux = self.flux[~mask_empty,:,:]
+        self.err  = self.err[~mask_empty,:,:]
+        self.transm = self.transm[~mask_empty,:,:]
 
         self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
 
+    '''
     def get_delta_wave(self):
+        
+        self.delta_wave = []
+        for i in range(self.n_orders):
+            self.delta_wave.append([])
+            
+            for j in range(self.n_dets):
+                # Wavelength separation between pixels (within an order/detector)
+                delta_wave_ij = self.wave[i,j,:,None] - self.wave[i,j,None,:]
+                # Store as sparse matrix to save memory
+                delta_wave_ij = triu(np.abs(delta_wave_ij), k=0, format='csc')
+                self.delta_wave[-1].append(delta_wave_ij)
 
-        '''
-        self.delta_wave = np.ones((self.n_orders, self.n_dets, 
-                                   self.n_data_points, 
-                                   self.n_data_points)) * np.nan
-        '''
-        # Wavelength separation between pixels (within an order/detector)
-        self.delta_wave = np.abs(self.wave[:,:,:,None] - self.wave[:,:,None,:])
+        self.delta_wave = np.array(self.delta_wave)
+        print(self.delta_wave.shape)
+    '''
 
-    def clip_det_edges(self, n_edge_pixels=50):
+    def clip_det_edges(self, n_edge_pixels=30):
         
         # Loop over the orders and detectors
         for i, (wave_min, wave_max) in enumerate(Spectrum.order_wlen_ranges):
@@ -264,10 +371,13 @@ class DataSpectrum(Spectrum):
         self.transm     = transm
         self.transm_err = transm_err
 
-    def flux_calib_2MASS(self, skycalc_transm, photom_2MASS, filter_2MASS, tell_threshold=0.2):
+        # Update the isfinite mask
+        self.update_isfinite_mask(transm)
+
+    def flux_calib_2MASS(self, photom_2MASS, filter_2MASS, tell_threshold=0.2, replace_flux_err=True):
 
         # Retrieve an approximate telluric transmission spectrum
-        wave_skycalc, transm_skycalc = run_skycalc(ra=self.ra, dec=self.dec, mjd=self.mjd, pwv=self.pwv)
+        wave_skycalc, transm_skycalc = self.get_skycalc_transm()
         # Interpolate onto the data wavelength grid
         transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
@@ -283,6 +393,8 @@ class DataSpectrum(Spectrum):
         tell_corr_flux = self.flux / self.transm
         # Replace the deepest tellurics with NaNs
         tell_corr_flux[(self.transm/poly_model / np.nanmax(self.transm/poly_model)) < tell_threshold] = np.nan
+        # Update the NaN mask
+        self.update_isfinite_mask(tell_corr_flux)
 
         tell_corr_err = np.sqrt((self.err/self.transm)**2 + \
                                 (tell_corr_flux*self.transm_err/self.transm)**2
@@ -320,12 +432,51 @@ class DataSpectrum(Spectrum):
 
         return calib_flux, calib_err
 
+    def get_skycalc_transm(self, resolution_skycalc=2e5):
+
+        import skycalc_ipy
+
+        sky_calc = skycalc_ipy.SkyCalc()
+        sky_calc.get_almanac_data(ra=self.ra, dec=self.dec, date=None, mjd=self.mjd, 
+                                  observatory='paranal', update_values=True
+                                  )
+        
+        # See https://skycalc-ipy.readthedocs.io/en/latest/GettingStarted.html
+        sky_calc['msolflux'] = 130
+
+        # K-band
+        sky_calc['wmin'] = self.wave.min()-100  # (nm)
+        sky_calc['wmax'] = self.wave.max()+100  # (nm)
+
+        sky_calc['wgrid_mode'] = 'fixed_spectral_resolution'
+        sky_calc['wres'] = resolution_skycalc
+        sky_calc['pwv']  = self.pwv
+
+        # Get the telluric spectrum from skycalc
+        wave_skycalc, transm_skycalc, _ = sky_calc.get_sky_spectrum(return_type='arrays')
+        wave_skycalc   = wave_skycalc.flatten()
+        transm_skycalc = transm_skycalc.flatten()
+        
+        # Convert [um] -> [nm]
+        wave_skycalc = wave_skycalc.value * 1e3
+
+        # Apply instrumental broadening
+        transm_skycalc = self.instr_broadening(
+            wave=wave_skycalc, 
+            flux=transm_skycalc, 
+            out_res=self.resolution, 
+            in_res=sky_calc['wres']
+            )
+
+        return wave_skycalc, transm_skycalc
 
 class ModelSpectrum(Spectrum):
 
-    def __init__(self, wave, flux):
+    def __init__(self, wave, flux, lbl_opacity_sampling=1):
 
         super().__init__(wave, flux)
+
+        self.resolution = int(1e6/lbl_opacity_sampling)
 
     def rot_broadening(self, vsini, epsilon_limb=0, replace_flux=False):
 
@@ -344,29 +495,6 @@ class ModelSpectrum(Spectrum):
             self.flux = flux_rot_broad
         
         return flux_rot_broad
-
-    def instr_broadening(self, out_res=1e6, in_res=1e6, replace_flux=False):
-
-        # Delta lambda of resolution element is FWHM of the LSF's standard deviation
-        sigma_LSF = np.sqrt(1/out_res**2 - 1/in_res**2) / \
-                    (2*np.sqrt(2*np.log(2)))
-
-        spacing = np.mean(2*np.diff(self.wave) / \
-                          (self.wave[1:] + self.wave[:-1])
-                          )
-
-        # Calculate the sigma to be used in the gauss filter in pixels
-        sigma_LSF_gauss_filter = sigma_LSF / spacing
-        
-        # Apply gaussian filter to broaden with the spectral resolution
-        flux_LSF = gaussian_filter(flux, sigma=sigma_LSF_gauss_filter, 
-                                   mode='nearest'
-                                   )
-
-        if replace_flux:
-            self.flux = flux_LSF
-        
-        return flux_LSF
 
     def rebin(self, new_wave, new_wave_bins=None, replace_flux=False):
 
@@ -391,7 +519,7 @@ class ModelSpectrum(Spectrum):
         # and rebin onto a new wavelength grid
         self.rv_shift(rv, replace_wave=True)
         self.rot_broadening(vsini, epsilon_limb, replace_flux=True)
-        self.instr_broadening(out_res, in_res, replace_flux=True)
+        self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:
             self.rebin(new_wave, new_wave_bins, replace_flux=True)
 
@@ -431,8 +559,6 @@ class Photometry:
 
     def get_transm_curves(self):
 
-        filters_to_download = []
-
         self.transm_curves = {}
         if os.path.exists('./transm_curves.pk'):
             # Read the filter information
@@ -440,9 +566,12 @@ class Photometry:
                 self.transm_curves = pickle.load(f)
             
             # Retrieve the filter if not downloaded before
+            filters_to_download = []
             for filter_i in self.filters:
                 if filter_i not in list(self.transm_curves.keys()):
                     filters_to_download.append(filter_i)
+        else:
+            filters_to_download = self.filters
 
         if len(filters_to_download) > 0:
             import urllib.request

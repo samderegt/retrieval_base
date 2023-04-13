@@ -1,6 +1,6 @@
 import numpy as np
 
-from .covariance import Covariance, GaussianProcesses
+from covariance import Covariance, GaussianProcesses
 
 class LogLikelihood:
 
@@ -60,8 +60,11 @@ class LogLikelihood:
                 # Set up the covariance matrix
                 if self.params['a'][i,j] != 0:
 
-                    # Mask the delta wavelength array
-                    d_delta_wave_ij = self.d_spec.delta_wave[i,j,:,:][mask_ij,mask_ij]
+                    # Wavelengths within this order/detector
+                    d_wave_ij = self.d_spec.wave[i,j,:][mask_ij]
+
+                    # Wavelength separation between pixels
+                    d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
 
                     # Use Gaussian Processes
                     cov_ij = GaussianProcesses(d_err_ij)
