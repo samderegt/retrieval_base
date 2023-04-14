@@ -46,14 +46,14 @@ T_std = 14700
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-wave_range = (2200, 2500)
+wave_range = (2050, 2300)
 
 ####################################################################################
 # Model parameters
 ####################################################################################
 
 # Define the priors of the parameters
-param_free = {
+free_params = {
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
@@ -88,12 +88,12 @@ param_free = {
 }
 
 # Constants to use if prior is not given
-param_constant = {
+constant_params = {
     # General properties
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'P_knots': np.array([1e-6, 1e-4, 1e-2, 1e-1, 1e0, 10**(0.5), 1e1, 1e2]), 
+    'log_P_knots': [-6, -4, -2, -1, 0, 0.5, 1, 2], 
 }
 
 # Number of knots to define PT profile
@@ -111,8 +111,10 @@ line_species = ['H2O_main_iso',
                 ]
 cloud_species = None
 
-scale_flux_per_detector = True
-apply_high_pass_filter = False
+scale_flux = True
+scale_err  = True
+
+apply_high_pass_filter = True
 
 ####################################################################################
 # Multinest parameters
@@ -121,5 +123,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
-n_iter_before_update = 200
+n_live_points = 50
+n_iter_before_update = 5

@@ -10,7 +10,9 @@ def pickle_save(file, object_to_pickle):
 def pickle_load(file):
     
     with open(file, 'rb') as f:
-        object_to_pickle = pickle.load(f)
+        pickled_object = pickle.load(f)
+
+    return pickled_object
 
 def create_output_dir(prefix, file_params):
     

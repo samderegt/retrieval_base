@@ -39,7 +39,12 @@ import numpy as np
 import argparse
 
 from spectrum import DataSpectrum, ModelSpectrum, Photometry
+from parameters import Parameters
 from pRT_model import pRT_model
+from log_likelihood import LogLikelihood
+from PT_profile import PT_profile_free, PT_profile_Molliere
+from chemistry import FreeChemistry, EqChemistry
+
 import auxiliary_functions as af
 
 from params_DENIS import *
@@ -108,6 +113,20 @@ def pre_processing():
     # Apply barycentric correction
     d_spec.bary_corr()
 
+    if apply_high_pass_filter:
+        # Apply high-pass filter
+        d_spec.high_pass_filter(
+            removal_mode='divide', 
+            filter_mode='gaussian', 
+            sigma=300, 
+            replace_flux_err=True
+            )
+
+    for i in range(d_spec.n_orders):
+        for j in range(d_spec.n_dets):
+            plt.plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=1)
+    plt.show()
+
     # Save as pickle
     af.pickle_save(prefix+'data/d_spec.pkl', d_spec)
 
@@ -142,11 +161,104 @@ def retrieval():
     d_spec  = af.pickle_load(prefix+'data/d_spec.pkl')
     pRT_atm = af.pickle_load(prefix+'data/pRT_atm.pkl')
 
-    Parameters(
-        param_free, 
-        param_constant, 
+    # Create a Parameters instance
+    Param = Parameters(
+        free_params=free_params, 
+        constant_params=constant_params, 
         n_orders=d_spec.n_orders, 
         n_dets=d_spec.n_dets
+        )
+
+    LogLike = LogLikelihood(
+        d_spec, 
+        scale_flux=scale_flux, 
+        scale_err=scale_err
+        )
+
+    if Param.PT_mode == 'Molliere':
+        PT = PT_profile_Molliere(pRT_atm.pressure, 
+                                 conv_adiabat=True
+                                 )
+    elif Param.PT_mode == 'free':
+        PT = PT_profile_free(pRT_atm.pressure, 
+                             ln_L_penalty_order=ln_L_penalty_order
+                             )
+
+    if Param.chem_mode == 'free':
+        Chem = FreeChemistry(pRT_atm.line_species, 
+                             pRT_atm.pressure
+                             )
+    elif Param.chem_mode == 'eqchem':
+        Chem = EqChemistry(pRT_atm.line_species, 
+                           pRT_atm.pressure
+                           )
+
+
+    # Function to give to pymultinest
+    def MN_lnL_func(cube, ndim, nparams):
+
+        # Param.params is already updated
+
+        # Retrieve the temperatures
+        try:
+            temperature = PT(Param.params)
+        except:
+            # Something went wrong with interpolating
+            return -np.inf
+
+        if temperature.min() < 0:
+            # Negative temperatures are rejected
+            return -np.inf
+
+        # Retrieve the ln L penalty (=0 by default)
+        ln_L_penalty = PT.ln_L_penalty
+
+        # Retrieve the chemical abundances
+        if Param.chem_mode == 'free':
+            mass_fractions = Chem(Param.VMR_species)
+        elif Param.chem_mode == 'eqchem':
+            mass_fractions = Chem(Param.params)
+
+        if not isinstance(mass_fractions, dict):
+            # Non-H2 abundances added up to > 1
+            return -np.inf
+
+        # Retrieve the model spectrum
+        m_spec = pRT_atm(
+            mass_fractions, 
+            temperature, 
+            Param.params, 
+            d_spec.wave, 
+            d_wave_bins=None, 
+            d_resolution=d_spec.resolution, 
+            apply_high_pass_filter=apply_high_pass_filter, 
+            get_contr=False, 
+            )
+
+        # Retrieve the log-likelihood
+        ln_L = LogLike(m_spec, 
+                       Param.params, 
+                       ln_L_penalty=ln_L_penalty
+                       )
+
+        return ln_L
+
+    # Set-up the multinest retrieval
+    import pymultinest
+    pymultinest.run(
+        LogLikelihood=MN_lnL_func, 
+        Prior=Param, 
+        n_dims=Param.n_params, 
+        outputfiles_basename=prefix, 
+        #resume=True, 
+        resume=False, 
+        verbose=True, 
+        const_efficiency_mode=const_efficiency_mode, 
+        sampling_efficiency=sampling_efficiency, 
+        n_live_points=n_live_points, 
+        evidence_tolerance=evidence_tolerance, 
+        #dump_callback=dump_callback, 
+        n_iter_before_update=n_iter_before_update, 
         )
 
 if __name__ == '__main__':

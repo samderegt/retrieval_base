@@ -4,7 +4,7 @@ from covariance import Covariance, GaussianProcesses
 
 class LogLikelihood:
 
-    def __init__(self, d_spec, scale_flux=None, scale_err=None):
+    def __init__(self, d_spec, scale_flux=False, scale_err=False):
 
         self.d_spec = d_spec
 
@@ -33,8 +33,8 @@ class LogLikelihood:
         self.ln_L = ln_L_penalty
         
         # Arrays to store log-likelihood and chi-squared per pixel in
-        self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec)
-        self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec)
+        self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec.flux)
+        self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
 
         # Array to store the linear flux-scaling terms
         self.f    = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
@@ -48,14 +48,16 @@ class LogLikelihood:
                 # Apply mask to model and data, calculate residuals
                 mask_ij = self.d_spec.mask_isfinite[i,j,:]
 
+                # Number of data points
+                N_ij = mask_ij.sum()
+                if N_ij == 0:
+                    continue
+
                 m_flux_ij = m_spec.flux[i,j,:][mask_ij]
                 d_flux_ij = self.d_spec.flux[i,j,:][mask_ij]
                 d_err_ij  = self.d_spec.err[i,j,:][mask_ij]
 
                 res_ij = (d_flux_ij - m_flux_ij)
-                
-                # Number of data points
-                N_ij = len(d_flux_ij)
 
                 # Set up the covariance matrix
                 if self.params['a'][i,j] != 0:
@@ -113,13 +115,12 @@ class LogLikelihood:
                     res_ij_scaled = (d_flux_ij - m_flux_ij_scaled)
 
                     # Chi-squared for the optimal linear scaling
-                    chi_squared_ij_scaled = res_ij_scaled * cov_ij.solve(res_ij_scaled)
-
+                    chi_squared_ij_scaled = np.dot(res_ij_scaled, cov_ij.solve(res_ij_scaled))
                 else:
                     # Chi-squared without linear scaling of detectors
                     f_ij = 1
-                    chi_squared_ij_scaled = res_ij * cov_ij.solve(res_ij)
-
+                    chi_squared_ij_scaled = np.dot(res_ij, cov_ij.solve(res_ij))
+                
                 if self.scale_err:
                     # Scale the flux uncertainty that maximizes the log-likelihood
                     beta_ij = self.get_err_scaling(chi_squared_ij_scaled, N_ij)
@@ -141,12 +142,17 @@ class LogLikelihood:
                 self.beta[i,j] = beta_ij
 
                 # This is not perfect for off-diagonal elements in covariance matrix
-                self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/np.diag(cov_ij.cov)
+                if cov_ij.is_matrix:
+                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/np.diag(cov_ij.cov)
+                else:
+                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/cov_ij.cov
                 self.ln_L_per_pixel[i,j,mask_ij] = -(
                     N_ij/2*np.log(2*np.pi) + \
                     N_ij/2*np.log(beta_ij**2) + \
                     1/2*self.chi_squared_per_pixel[i,j,mask_ij]
                     )
+
+        return self.ln_L
 
     def get_flux_scaling(self, d_flux_ij, m_flux_ij, cov_ij):
         '''

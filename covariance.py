@@ -101,7 +101,7 @@ class GaussianProcesses(Covariance):
             pass
 
     def get_logdet(self):
-        
+
         if self.is_sparse:
             # Calculate the log of the determinant
             self.logdet = self.cov_cholesky.logdet()

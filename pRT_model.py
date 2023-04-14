@@ -60,6 +60,7 @@ class pRT_model:
                  d_wave, 
                  d_wave_bins=None, 
                  d_resolution=1e5, 
+                 apply_high_pass_filter=False, 
                  get_contr=False
                  ):
         '''
@@ -111,6 +112,15 @@ class pRT_model:
             (self.params['R_p']*nc.r_jup_mean) / \
             (1e3/self.params['parallax']*nc.pc)
             )**2
+
+        if apply_high_pass_filter:
+            # High-pass filter the model spectrum
+            m_spec.high_pass_filter(
+                removal_mode='divide', 
+                filter_mode='gaussian', 
+                sigma=300, 
+                replace_flux_err=True
+                )
 
         return m_spec
 
@@ -200,12 +210,12 @@ class pRT_model:
             atm_i.calc_flux(self.temperature, 
                             self.mass_fractions, 
                             gravity=10**self.params['log_g'], 
-                            MMW=self.mass_fractions['MMW'], 
+                            mmw=self.mass_fractions['MMW'], 
                             Kzz=self.params['K_zz'], 
                             fsed=self.f_seds, 
                             sigma_lnorm=self.params['sigma_g'],
                             give_absorption_opacity=self.give_absorption_opacity, 
-                            contribution=return_contr, 
+                            contribution=get_contr, 
                             )
             wave_i = nc.c / atm_i.freq
             flux_i = atm_i.flux
@@ -228,7 +238,7 @@ class pRT_model:
         flux = np.concatenate(flux, axis=0)
 
         # Convert [erg cm^{-2} s^{-1} Hz^{-1}] -> [erg cm^{-2} s^{-1} cm^{-1}]
-        flux *= nc.c / (self.wave**2)
+        flux *= nc.c / (wave**2)
 
         # Convert [erg cm^{-2} s^{-1} cm^{-1}] -> [erg cm^{-2} s^{-1} nm^{-1}]
         flux /= 1e7
@@ -238,10 +248,3 @@ class pRT_model:
 
         # Return a ModelSpectrum instance
         return ModelSpectrum(wave, flux)
-
-'''
-model_spec.shift_broaden_rebin(new_wave, new_wave_bins, 
-                    rv, vsini, epsilon_limb=0, 
-                    out_res=1e6, in_res=1e6
-                    )
-'''

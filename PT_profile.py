@@ -8,34 +8,53 @@ class PT_profile:
     def __init__(self, pressure):
         
         self.pressure = pressure
-
+        self.ln_L_penalty = 0
 
 class PT_profile_free(PT_profile):
 
-    def __init__(self, pressure, T_knots, T_bottom, P_knots=None):
+    def __init__(self, pressure, ln_L_penalty_order=3):
         
         # Give arguments to the parent class
         super().__init__(pressure)
 
-        # Combine all temperature knots
-        self.T_knots = np.concatenate((T_knots, [T_bottom]))
+        self.ln_L_penalty_order = ln_L_penalty_order
 
-        if P_knots is not None:
-            # Use the supplied pressure knots
-            self.P_knots = P_knots
-        else:
+    def __call__(self, params):
+
+        # Combine all temperature knots
+        self.T_knots = np.concatenate((params['T_knots'], 
+                                       [params['T_0']]
+                                       ))
+
+        self.P_knots = params['P_knots']
+
+        if self.P_knots is None:
             # Use evenly-spaced (in log) pressure knots
             self.P_knots = np.logspace(np.log10(self.pressure.min()), 
                                        np.log10(self.pressure.max()), 
                                        num=len(self.T_knots))
 
-    def get_temperature(self):
+        # Log-likelihood penalty scaling factor
+        self.gamma = params['gamma']
+
+        # Cubic spline interpolation over all layers
+        self.spline_interp()
+        # Compute the log-likelihood penalty
+        if self.gamma is not None:
+            self.get_ln_L_penalty()
+            
+        return self.temperature
+
+    def spline_interp(self):
 
         # Spline interpolation over a number of knots
-        self.knots, self.coeffs, deg = splrep(np.log10(self.P_knots), np.log10(self.T_knots))
-        self.temperature = 10**splev(np.log10(self.pressure), (self.knots, self.coeffs, deg), der=0)
+        self.knots, self.coeffs, deg = splrep(np.log10(self.P_knots), 
+                                              np.log10(self.T_knots))
+        self.temperature = 10**splev(np.log10(self.pressure), 
+                                     (self.knots, self.coeffs, deg), 
+                                     der=0)
 
-    def get_ln_L_penalty(self, ln_L_penalty_order):
+    def get_ln_L_penalty(self):
 
         # Compute the log-likelihood penalty based on the wiggliness
         # (Inverted) weight matrices, scaling the penalty of small/large segments
@@ -60,28 +79,28 @@ class PT_profile_free(PT_profile):
         D_3 = np.dot(inv_W_3, np.dot(delta[2:,2:], D_2))
         
         # General difference penalty, computed with L2-norm
-        if ln_L_penalty_order == 1:
-            self.ln_L_penalty = np.nansum(np.dot(D_1, self.coeffs[:-4])**2)
-        elif ln_L_penalty_order == 2:
-            self.ln_L_penalty = np.nansum(np.dot(D_2, self.coeffs[:-4])**2)
-        elif ln_L_penalty_order == 3:
-            self.ln_L_penalty = np.nansum(np.dot(D_3, self.coeffs[:-4])**2)
+        if self.ln_L_penalty_order == 1:
+            gen_diff_penalty = np.nansum(np.dot(D_1, self.coeffs[:-4])**2)
+        elif self.ln_L_penalty_order == 2:
+            gen_diff_penalty = np.nansum(np.dot(D_2, self.coeffs[:-4])**2)
+        elif self.ln_L_penalty_order == 3:
+            gen_diff_penalty = np.nansum(np.dot(D_3, self.coeffs[:-4])**2)
 
+        self.ln_L_penalty = -(1/2*gen_diff_penalty/self.gamma + \
+                              1/2*np.log(2*np.pi*self.gamma)
+                              )
 
 class PT_profile_Molliere(PT_profile):
 
-    def __init__(self, pressure, T_knots, T_int, P_phot, alpha):
+    def __init__(self, pressure, conv_adiabat=True):
 
         # Give arguments to the parent class
         super().__init__(pressure)
 
         # Go from bar to cgs
         self.pressure_cgs = self.pressure * 1e6
-        self.P_phot       = P_phot * 1e6
 
-        self.T_knots_init = T_knots
-        self.T_int   = T_int
-        self.alpha   = alpha
+        self.conv_adiabat = conv_adiabat
 
     def pressure_tau(self, tau):
         
@@ -97,13 +116,16 @@ class PT_profile_Molliere(PT_profile):
         # Eddington temperature at middle altitudes
         self.T_photo = (3/4 * self.T_int**4 * (2/3 + self.tau))**(1/4)
 
-    def troposphere(self, CO=None, FeH=None, conv_adiabat=True):
+    def troposphere(self):
         # Low altitudes
 
-        if conv_adiabat:
+        if self.conv_adiabat and ((self.CO is None) or (self.FeH is None)):
+            # conv_adiabat requires equilibrium chemistry to compute 
+            # adiabatic gradient, use Eddington approximation instead
+            self.conv_adiabat = False
+
+        if self.conv_adiabat:
             # Enforce convective adiabat at low altitudes
-            assert(CO is not None)
-            assert(FeH is not None)
 
             # Retrieve the adiabatic temperature gradient
             nabla_ad = pm.interpol_abundances(CO*np.ones_like(self.T_photo), 
@@ -227,9 +249,22 @@ class PT_profile_Molliere(PT_profile):
                 self.P_knots = P_support/1e6
                 self.T_knots = T_support
 
-    def get_temperature(self, CO=None, FeH=None, conv_adiabat=True):
+    def __call__(self, params):
+
+        # Update the parameters
+        # Convert from bar to cgs
+        self.P_phot = params['P_phot'] * 1e6
+
+        self.T_knots_init = params['T_knots']
+        self.T_int = params['T_int']
+        self.alpha = params['alpha']
+
+        self.CO  = params['C/O']
+        self.FeH = params['Fe/H']
 
         # Calculate for each segment of the atmosphere
         self.photosphere()
-        self.troposphere(CO, FeH, conv_adiabat)
+        self.troposphere()
         self.high_altitudes()
+
+        return self.temperature

@@ -14,13 +14,13 @@ class Spectrum:
 
     # The wavelength ranges of each detector and order
     order_wlen_ranges = np.array([
-        [1921.318,1934.583], [1935.543,1948.213], [1949.097,1961.128],
-        [1989.978,2003.709], [2004.701,2017.816], [2018.708,2031.165],
-        [2063.711,2077.942], [2078.967,2092.559], [2093.479,2106.392],
-        [2143.087,2157.855], [2158.914,2173.020], [2173.983,2187.386],
-        [2228.786,2244.133], [2245.229,2259.888], [2260.904,2274.835],
-        [2321.596,2337.568], [2338.704,2353.961], [2355.035,2369.534],
-        [2422.415,2439.061], [2440.243,2456.145], [2457.275,2472.388],
+        [[1921.318,1934.583], [1935.543,1948.213], [1949.097,1961.128]],
+        [[1989.978,2003.709], [2004.701,2017.816], [2018.708,2031.165]],
+        [[2063.711,2077.942], [2078.967,2092.559], [2093.479,2106.392]],
+        [[2143.087,2157.855], [2158.914,2173.020], [2173.983,2187.386]],
+        [[2228.786,2244.133], [2245.229,2259.888], [2260.904,2274.835]],
+        [[2321.596,2337.568], [2338.704,2353.961], [2355.035,2369.534]],
+        [[2422.415,2439.061], [2440.243,2456.145], [2457.275,2472.388]],
         ])
     n_orders = 7
     n_dets   = 3
@@ -55,41 +55,43 @@ class Spectrum:
     def high_pass_filter(self, removal_mode='divide', filter_mode='gaussian', sigma=300, replace_flux_err=False):
 
         # Prepare an array of low-frequency structure
-        low_pass_flux = np.ones_like(flux) * np.nan
+        low_pass_flux = np.ones_like(self.flux) * np.nan
 
-        for i, (wave_min, wave_max) in enumerate(Spectrum.order_wlen_ranges):
+        for i in range(self.n_orders):
+            for j in range(self.n_dets):
 
-            # Apply high-pass filter to each detector/order separately
-            mask_wave = (self.wave >= wave_min - 0.5) & \
-                        (self.wave <= wave_max + 0.5)
-            mask_det  = (mask_wave & self.mask_isfinite)
-    
-            if mask_det.any():
-                if filter_mode == 'gaussian':
-                    # Find low-frequency structure
-                    low_pass_flux[mask_det] = gaussian_filter1d(self.flux[mask_det], sigma=sigma)
+                # Apply high-pass filter to each detector separately
+                mask_ij = self.mask_isfinite[i,j,:]
+                if mask_ij.sum() != 0:
+                    flux_ij = self.flux[i,j,:][mask_ij]
 
-                else:
-                    # TODO: savgol filter
-                    pass
+                    if filter_mode == 'gaussian':
+                        # Find low-frequency structure
+                        low_pass_flux[i,j,mask_ij] = gaussian_filter1d(flux_ij, sigma=sigma, mode='reflect')
+
+                    elif filter_mode == 'savgol':
+                        # TODO: savgol filter
+                        pass
 
         if removal_mode == 'divide':
             # Divide out the low-frequency structure
             high_pass_flux = self.flux / low_pass_flux
             if self.err is not None:
-                high_pass_err  = self.err / low_pass_flux
+                high_pass_err = self.err / low_pass_flux
+            else:
+                high_pass_err = None
 
         elif removal_mode == 'subtract':
             # Subtract away the low-frequency structure
             high_pass_flux = self.flux - low_pass_flux
             if self.err is not None:
-                # TODO: how to handle errors for this case?
-                high_pass_err  = None
+                high_pass_err = self.err
+            else:
+                high_pass_err = None
 
         if replace_flux_err:
             self.flux = high_pass_flux
-            if self.err is not None:
-                self.err  = high_pass_err
+            self.err = high_pass_err
 
         return high_pass_flux, high_pass_err
 
@@ -98,11 +100,11 @@ class Spectrum:
         flux_copy = self.flux.copy()
 
         # Loop over the orders
-        for i in range(Spectrum.n_orders):
+        for i in range(self.n_orders):
 
             # Select only pixels within the order, should be 3*2048
-            mask_wave  = (self.wave >= Spectrum.order_wlen_ranges[i*3+0].min() - 0.5) & \
-                         (self.wave <= Spectrum.order_wlen_ranges[i*3+2].max() + 0.5)
+            mask_wave  = (self.wave >= self.order_wlen_ranges[i,0].min() - 0.5) & \
+                         (self.wave <= self.order_wlen_ranges[i,2].max() + 0.5)
             mask_order = (mask_wave & self.mask_isfinite)
 
             if mask_order.any():
@@ -250,18 +252,18 @@ class DataSpectrum(Spectrum):
     def reshape_orders_dets(self):
 
         # Ordered arrays of shape (n_orders, n_dets, n_pixels)
-        wave_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
-        flux_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
-        err_ordered  = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
-        transm_ordered = np.ones((Spectrum.n_orders, Spectrum.n_dets, Spectrum.n_pixels)) * np.nan
+        wave_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
+        flux_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
+        err_ordered  = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
+        transm_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
 
         # Loop over the orders and detectors
-        for i in range(Spectrum.n_orders):
-            for j in range(Spectrum.n_dets):
+        for i in range(self.n_orders):
+            for j in range(self.n_dets):
 
                 # Select only pixels within the detector, should be 2048
-                mask_wave = (self.wave >= Spectrum.order_wlen_ranges[i*3+j].min() - 0.5) & \
-                            (self.wave <= Spectrum.order_wlen_ranges[i*3+j].max() + 0.5)
+                mask_wave = (self.wave >= self.order_wlen_ranges[i,j].min() - 0.5) & \
+                            (self.wave <= self.order_wlen_ranges[i,j].max() + 0.5)
 
                 if mask_wave.any():
                     wave_ordered[i,j] = self.wave[mask_wave]
@@ -293,45 +295,34 @@ class DataSpectrum(Spectrum):
         self.err  = self.err[~mask_empty,:,:]
         self.transm = self.transm[~mask_empty,:,:]
 
+        # Update the wavelength ranges for this instance
+        self.order_wlen_ranges = self.order_wlen_ranges[~mask_empty]
+
+        # Update the number of orders, detectors, and pixels 
+        # for this instance
         self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
-
-    '''
-    def get_delta_wave(self):
-        
-        self.delta_wave = []
-        for i in range(self.n_orders):
-            self.delta_wave.append([])
-            
-            for j in range(self.n_dets):
-                # Wavelength separation between pixels (within an order/detector)
-                delta_wave_ij = self.wave[i,j,:,None] - self.wave[i,j,None,:]
-                # Store as sparse matrix to save memory
-                delta_wave_ij = triu(np.abs(delta_wave_ij), k=0, format='csc')
-                self.delta_wave[-1].append(delta_wave_ij)
-
-        self.delta_wave = np.array(self.delta_wave)
-        print(self.delta_wave.shape)
-    '''
 
     def clip_det_edges(self, n_edge_pixels=30):
         
         # Loop over the orders and detectors
-        for i, (wave_min, wave_max) in enumerate(Spectrum.order_wlen_ranges):
-            
-            mask_wave = (self.wave >= wave_min - 0.5) & \
-                        (self.wave <= wave_max + 0.5)
-            mask_det  = (mask_wave & self.mask_isfinite)
+        for i in range(self.n_orders):
+            for j in range(self.n_dets):
+                wave_min, wave_max = self.order_wlen_ranges[i,j]
+                
+                mask_wave = (self.wave >= wave_min - 0.5) & \
+                            (self.wave <= wave_max + 0.5)
+                mask_det  = (mask_wave & self.mask_isfinite)
 
-            if mask_det.any():
+                if mask_det.any():
 
-                flux_i = self.flux[mask_det]
+                    flux_i = self.flux[mask_det]
 
-                # Set the first and last N pixels of each detector to NaN
-                flux_i[:n_edge_pixels]  = np.nan
-                flux_i[-n_edge_pixels:] = np.nan
+                    # Set the first and last N pixels of each detector to NaN
+                    flux_i[:n_edge_pixels]  = np.nan
+                    flux_i[-n_edge_pixels:] = np.nan
 
-                # Set clipped values to NaNs
-                self.flux[mask_det] = flux_i
+                    # Set clipped values to NaNs
+                    self.flux[mask_det] = flux_i
 
         # Update the isfinite mask
         self.update_isfinite_mask()
@@ -507,6 +498,10 @@ class ModelSpectrum(Spectrum):
 
         if replace_flux:
             self.flux = flux_rebinned
+
+            # Update the isfinite mask
+            self.update_isfinite_mask()
+            self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
         
         return flux_rebinned
 

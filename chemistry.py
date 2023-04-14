@@ -33,12 +33,11 @@ class Chemistry:
                        #'H2': False, 
                        }
 
-    def __init__(self, line_species, pressure, temperature):
+    def __init__(self, line_species, pressure):
 
         self.line_species = line_species
 
         self.pressure     = pressure
-        self.temperature  = temperature
         self.n_atm_layers = len(self.pressure)
 
     def remove_species(self, species):
@@ -71,14 +70,14 @@ class Chemistry:
 
 class FreeChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, temperature, VMRs):
+    def __init__(self, line_species, pressure):
 
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, temperature)
+        super().__init__(line_species, pressure)
+
+    def __call__(self, VMRs):
 
         self.VMRs = VMRs
-
-    def get_mass_fractions(self):
 
          # Total VMR without H2, starting with He
         VMR_wo_H2 = 0.15
@@ -87,7 +86,7 @@ class FreeChemistry(Chemistry):
         self.mass_fractions = {}
 
         C, O, H = 0, 0, 0
-        for species_i, (line_species_i, mass_i, COH_i) in Chemistry.species_info.items():
+        for species_i, (line_species_i, mass_i, COH_i) in self.species_info.items():
 
             if species_i in ['H2', 'He']:
                 continue
@@ -112,7 +111,7 @@ class FreeChemistry(Chemistry):
         if self.mass_fractions['H2'] < 0:
             # Other species are too abundant
             self.mass_fractions = -np.inf
-            return
+            return self.mass_fractions
 
         # Compute the mean molecular weight from all species
         self.mass_fractions['MMW'] = 0
@@ -131,29 +130,24 @@ class FreeChemistry(Chemistry):
         self.FeH = np.log10(C/H) - log_CH_solar
         self.CH  = self.FeH
 
+        return self.mass_fractions
 
 class EqChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, temperature, CO, FeH, C_ratio=None, O_ratio=None, P_quench=None):
+    def __init__(self, line_species, pressure):
 
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, temperature)
+        super().__init__(line_species, pressure)
 
-        self.CO  = CO
-        self.FeH = FeH
-
-        self.C_ratio = C_ratio
+        # Retrieve the mass ratios of the isotopologues
         self.mass_ratio_13CO_12CO = self.read_species_info('13CO', 'mass') / \
                                     self.read_species_info('12CO', 'mass')
 
-        self.O_ratio = O_ratio
         self.mass_ratio_C18O_12CO = self.read_species_info('C18O', 'mass') / \
                                     self.read_species_info('12CO', 'mass')
         self.mass_ratio_H2_18O_H2O = self.read_species_info('H2O_181', 'mass') / \
                                      self.read_species_info('H2O', 'mass')
 
-
-        self.P_quench = P_quench
 
     def quench_carbon_chemistry(self, pm_mass_fractions):
 
@@ -173,7 +167,15 @@ class EqChemistry(Chemistry):
 
         return pm_mass_fractions
 
-    def get_mass_fractions(self):
+    def __call__(self, params):
+
+        # Update the parameters
+        self.CO = params['C/O']
+        self.FeH = params['Fe/H']
+        self.P_quench = params['P_quench']
+
+        self.C_ratio = params['C_ratio']
+        self.O_ratio = params['O_ratio']
 
         # Retrieve the mass fractions from the chem-eq table
         pm_mass_fractions = pm.interpol_abundances(self.CO*np.ones(self.n_atm_layers), 
@@ -206,3 +208,5 @@ class EqChemistry(Chemistry):
         # Add the H2 and He abundances
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
+
+        return self.mass_fractions
