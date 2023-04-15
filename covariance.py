@@ -45,6 +45,8 @@ class Covariance:
         
         Returns
         -------
+        x : np.ndarray
+
         '''
         
         if not self.is_matrix:
@@ -65,7 +67,7 @@ class GaussianProcesses(Covariance):
 
         self.is_sparse = is_sparse
 
-    def add_RBF_kernel(self, a, l, delta_wave, trunc_dist=3):
+    def add_RBF_kernel(self, a, l, delta_wave, err=None, trunc_dist=5):
 
         # Hann window function to ensure sparsity
         w_ij = (delta_wave < trunc_dist*l)
@@ -73,6 +75,10 @@ class GaussianProcesses(Covariance):
         # Gaussian radial-basis function kernel
         Sigma_ij = np.zeros_like(delta_wave)
         Sigma_ij[w_ij] = a**2 * np.exp(-(delta_wave[w_ij])**2/(2*l**2))
+
+        if err is not None:
+            # Use amplitude as fraction of flux uncertainty
+            Sigma_ij[w_ij] *= 1/2*(err[None,:]**2 + err[:,None]**2)[w_ij]
         
         # Add the (scaled) Poisson noise
         if self.is_matrix:
@@ -121,6 +127,8 @@ class GaussianProcesses(Covariance):
         
         Returns
         -------
+        x : np.ndarray
+
         '''
 
         return self.cov_cholesky.solve_A(b)

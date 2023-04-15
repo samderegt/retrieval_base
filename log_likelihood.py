@@ -73,11 +73,12 @@ class LogLikelihood:
 
                     # Add a radial-basis function kernel
                     cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
-                                          l=self.params['tau'][i,j], 
+                                          l=self.params['l'][i,j], 
                                           delta_wave=d_delta_wave_ij, 
-                                          trunc_dist=3
+                                          err=d_err_ij, 
+                                          trunc_dist=5
                                           )
-                
+
                 else:
                     # Use only diagonal terms in covariance matrix
                     cov_ij = Covariance(d_err_ij)
@@ -107,7 +108,7 @@ class LogLikelihood:
                 # Chi-squared and optimal uncertainty scaling terms still need to be added
                 ln_L_ij = -(N_ij/2*np.log(2*np.pi) + 1/2*cov_ij.logdet)
 
-                if self.scale_flux and (i!=0 and j!=0):
+                if self.scale_flux and not (i==0 and j==0):
                     # Only scale the flux relative to the first order/detector
 
                     # Scale the model flux to minimize the chi-squared error
@@ -143,7 +144,7 @@ class LogLikelihood:
 
                 # This is not perfect for off-diagonal elements in covariance matrix
                 if cov_ij.is_matrix:
-                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/np.diag(cov_ij.cov)
+                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/cov_ij.cov.diagonal()
                 else:
                     self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/cov_ij.cov
                 self.ln_L_per_pixel[i,j,mask_ij] = -(

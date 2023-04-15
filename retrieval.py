@@ -47,7 +47,7 @@ from chemistry import FreeChemistry, EqChemistry
 
 import auxiliary_functions as af
 
-from params_DENIS import *
+from config_DENIS import *
 
 
 def pre_processing():
@@ -122,10 +122,12 @@ def pre_processing():
             replace_flux_err=True
             )
 
+    '''
     for i in range(d_spec.n_orders):
         for j in range(d_spec.n_dets):
             plt.plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=1)
     plt.show()
+    '''
 
     # Save as pickle
     af.pickle_save(prefix+'data/d_spec.pkl', d_spec)
@@ -197,6 +199,8 @@ def retrieval():
     # Function to give to pymultinest
     def MN_lnL_func(cube, ndim, nparams):
 
+        time_A = time.time()
+
         # Param.params is already updated
 
         # Retrieve the temperatures
@@ -240,6 +244,9 @@ def retrieval():
                        Param.params, 
                        ln_L_penalty=ln_L_penalty
                        )
+
+        time_B = time.time()
+        print('{:.2f} seconds'.format(time_B-time_A))
 
         return ln_L
 

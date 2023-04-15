@@ -12,7 +12,7 @@ class Parameters:
 
         # Uncertainty scaling
         'log_a': -np.inf, 
-        'log_tau': 0, 
+        'log_l': 0, 
         'beta': 1,  
         'beta_tell': None, 
         'x_tol': None, 
@@ -191,18 +191,18 @@ class Parameters:
     def read_uncertainty_params(self):
 
         # Convert the global value to linear scale
-        self.params = self.log_to_linear(self.params, ['log_a', 'log_tau'], ['a', 'tau'])
+        self.params = self.log_to_linear(self.params, ['log_a', 'log_l'], ['a', 'l'])
 
         # Reshape if only one value is given
         if isinstance(self.params['a'], (float, int)):
             self.params['a'] = np.ones((self.n_orders, self.n_dets)) * self.params['a']
-        if isinstance(self.params['tau'], (float, int)):
-            self.params['tau'] = np.ones((self.n_orders, self.n_dets)) * self.params['tau']
+        if isinstance(self.params['l'], (float, int)):
+            self.params['l'] = np.ones((self.n_orders, self.n_dets)) * self.params['l']
         if isinstance(self.params['beta'], (float, int)):
             self.params['beta'] = np.ones((self.n_orders, self.n_dets)) * self.params['beta']
 
         # Make a copy of the global values
-        a, tau, beta = np.copy(self.params['a']), np.copy(self.params['tau']), np.copy(self.params['beta'])
+        a, l, beta = np.copy(self.params['a']), np.copy(self.params['l']), np.copy(self.params['beta'])
         
         for i in range(self.n_orders):
             for j in range(self.n_dets):
@@ -211,9 +211,9 @@ class Parameters:
                 if f'log_a_{i+1}' in self.param_keys:
                     a[i,:] = 10**self.params[f'log_a_{i+1}']
                     self.params['a'] = a
-                if f'log_tau_{i+1}' in self.param_keys:
-                    tau[i,:] = 10**self.params[f'log_tau_{i+1}']
-                    self.params['tau'] = tau
+                if f'log_l_{i+1}' in self.param_keys:
+                    l[i,:] = 10**self.params[f'log_l_{i+1}']
+                    self.params['l'] = l
                 if f'beta_{i+1}' in self.param_keys:
                     beta[i,:] = self.params[f'beta_{i+1}']
                     self.params['beta'] = beta

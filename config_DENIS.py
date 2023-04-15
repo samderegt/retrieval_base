@@ -46,7 +46,8 @@ T_std = 14700
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-wave_range = (2050, 2300)
+#wave_range = (2050, 2300)
+wave_range = (2300, 2400)
 
 ####################################################################################
 # Model parameters
@@ -54,6 +55,11 @@ wave_range = (2050, 2300)
 
 # Define the priors of the parameters
 free_params = {
+    # Uncertainty scaling
+    #'log_a': [(-18,-14), r'$\log\ a$'], 
+    'log_a': [(-4,-1), r'$\log\ a$'], 
+    'log_l': [(-3,0), r'$\log\ l$'], 
+
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
@@ -123,5 +129,5 @@ apply_high_pass_filter = True
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 50
+n_live_points = 100
 n_iter_before_update = 5
