@@ -10,6 +10,8 @@ from PyAstronomy import pyasl
 import petitRADTRANS.nat_cst as nc
 from petitRADTRANS.retrieval import rebin_give_width as rgw
 
+import figures as figs
+
 class Spectrum:
 
     # The wavelength ranges of each detector and order
@@ -99,6 +101,8 @@ class Spectrum:
 
         flux_copy = self.flux.copy()
 
+        sigma_clip_bounds = np.ones((3, self.n_orders, 3*self.n_pixels)) * np.nan
+
         # Loop over the orders
         for i in range(self.n_orders):
 
@@ -124,11 +128,22 @@ class Spectrum:
                 # Sigma-clip the residuals
                 mask_clipped = (np.abs(residuals) > sigma*np.std(residuals))
 
+                sigma_clip_bounds[1,i] = np.poly1d(p)(self.wave[mask_wave])
+                sigma_clip_bounds[0,i] = sigma_clip_bounds[1,i] - sigma*np.std(residuals)
+                sigma_clip_bounds[2,i] = sigma_clip_bounds[1,i] + sigma*np.std(residuals)
+
                 # Set clipped values to NaNs
                 flux_i[mask_clipped]  = np.nan
                 flux_copy[mask_order] = flux_i
 
         # TODO: figure
+        figs.fig_sigma_clip(wave=self.wave, 
+                            flux=flux_copy, 
+                            flux_wo_clip=self.flux, 
+                            sigma_clip_bounds=sigma_clip_bounds,
+                            order_wlen_ranges=self.order_wlen_ranges, 
+                            sigma=sigma, 
+                            )
 
         if replace_flux:
             self.flux = flux_copy
@@ -415,8 +430,21 @@ class DataSpectrum(Spectrum):
         calib_flux = tell_corr_flux * calib_factor
         calib_err  = tell_corr_err * calib_factor
 
-        # TODO: figure
-        
+        # Plot the flux calibration
+        figs.fig_flux_calib_2MASS(
+            wave=self.wave, 
+            calib_flux=calib_flux, 
+            #calib_flux_wo_tell_corr=self.flux*poly_model*calib_flux, 
+            calib_flux_wo_tell_corr=self.flux*calib_factor, 
+            #transm=self.transm/poly_model, 
+            transm=self.transm, 
+            poly_model=poly_model, 
+            wave_2MASS=wave_2MASS, 
+            transm_2MASS=photom_2MASS.transm_curves[filter_2MASS].T[1], 
+            tell_threshold=tell_threshold, 
+            order_wlen_ranges=self.order_wlen_ranges, 
+            )
+
         if replace_flux_err:
             self.flux = calib_flux
             self.err  = calib_err

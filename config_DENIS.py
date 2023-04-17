@@ -1,6 +1,6 @@
 import numpy as np
 
-file_params = 'params_DENIS.py'
+file_params = 'config_DENIS.py'
 
 plot_counter             = 0
 return_PT                = False
@@ -119,6 +119,7 @@ cloud_species = None
 
 scale_flux = True
 scale_err  = True
+scale_GP_amp = True
 
 apply_high_pass_filter = True
 

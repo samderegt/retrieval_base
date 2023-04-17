@@ -4,12 +4,13 @@ from covariance import Covariance, GaussianProcesses
 
 class LogLikelihood:
 
-    def __init__(self, d_spec, scale_flux=False, scale_err=False):
+    def __init__(self, d_spec, scale_flux=False, scale_err=False, scale_GP_amp=False):
 
         self.d_spec = d_spec
 
-        self.scale_flux = scale_flux
-        self.scale_err  = scale_err
+        self.scale_flux   = scale_flux
+        self.scale_err    = scale_err
+        self.scale_GP_amp = scale_GP_amp
 
     def __call__(self, m_spec, params, ln_L_penalty=0):
         '''
@@ -71,11 +72,17 @@ class LogLikelihood:
                     # Use Gaussian Processes
                     cov_ij = GaussianProcesses(d_err_ij)
 
+                    if self.scale_GP_amp:
+                        # Scale the GP amplitude by flux uncertainty
+                        GP_err = d_err_ij
+                    else:
+                        GP_err = None
+
                     # Add a radial-basis function kernel
                     cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
                                           l=self.params['l'][i,j], 
                                           delta_wave=d_delta_wave_ij, 
-                                          err=d_err_ij, 
+                                          err=GP_err, 
                                           trunc_dist=5
                                           )
 

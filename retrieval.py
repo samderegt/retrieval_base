@@ -1,27 +1,3 @@
-# create parameters instance
-
-# retrieval function
-# ------------------
-# get temperature
-# save ln_L penalty (if exists)
-#
-# get mass_fractions
-# 
-# get model spectrum
-# shift_broaden_rebin
-# apply radius-scaling
-# 
-# (high_pass_filter)
-# 
-# get covariance
-#
-# marginalize over linear detector-scaling
-# compute log-likelihood per order/detector
-#
-# callback to make figures/save some info
-
-# multinest set-up
-
 import os
 # To not have numpy start parallelizing on its own
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -32,7 +8,7 @@ import time
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 # Pause the process to not overload memory
-time.sleep(1*rank)
+time.sleep(1.5*rank)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,13 +23,12 @@ from chemistry import FreeChemistry, EqChemistry
 
 import auxiliary_functions as af
 
-from config_DENIS import *
-
+import config_DENIS as conf
 
 def pre_processing():
 
     # Set up the output directories
-    af.create_output_dir(prefix, file_params)
+    af.create_output_dir(conf.prefix, conf.file_params)
 
     # --- Pre-process data ----------------------------------------------
 
@@ -63,14 +38,14 @@ def pre_processing():
         wave=None, 
         flux=None, 
         err=None, 
-        ra=ra, 
-        dec=dec, 
-        mjd=mjd, 
-        pwv=pwv, 
-        file_target=file_target, 
-        file_wave=file_wave, 
-        slit=slit, 
-        wave_range=wave_range, 
+        ra=conf.ra, 
+        dec=conf.dec, 
+        mjd=conf.mjd, 
+        pwv=conf.pwv, 
+        file_target=conf.file_target, 
+        file_wave=conf.file_wave, 
+        slit=conf.slit, 
+        wave_range=conf.wave_range, 
         )
     d_spec.clip_det_edges()
     
@@ -78,27 +53,27 @@ def pre_processing():
         wave=None, 
         flux=None, 
         err=None, 
-        ra=ra_std, 
-        dec=dec_std, 
-        mjd=mjd_std, 
-        pwv=pwv, 
-        file_target=file_std, 
-        file_wave=file_wave, 
-        slit=slit, 
-        wave_range=wave_range, 
+        ra=conf.ra_std, 
+        dec=conf.dec_std, 
+        mjd=conf.mjd_std, 
+        pwv=conf.pwv, 
+        file_target=conf.file_std, 
+        file_wave=conf.file_wave, 
+        slit=conf.slit, 
+        wave_range=conf.wave_range, 
         )
     d_std_spec.clip_det_edges()
 
     # Instance of the Photometry class for the given magnitudes
-    photom_2MASS = Photometry(magnitudes=magnitudes)
+    photom_2MASS = Photometry(magnitudes=conf.magnitudes)
 
     # Get transmission from telluric std and add to target's class
-    d_std_spec.get_transmission(T=T_std, ref_rv=0, mode='bb')
+    d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
     d_spec.add_transmission(d_std_spec.transm, d_std_spec.transm_err)
     del d_std_spec
 
     # Apply flux calibration using the 2MASS broadband magnitude
-    d_spec.flux_calib_2MASS(photom_2MASS, filter_2MASS, tell_threshold=0.2)
+    d_spec.flux_calib_2MASS(photom_2MASS, conf.filter_2MASS, tell_threshold=0.2)
     del photom_2MASS
 
     # Apply sigma-clipping
@@ -113,7 +88,7 @@ def pre_processing():
     # Apply barycentric correction
     d_spec.bary_corr()
 
-    if apply_high_pass_filter:
+    if conf.apply_high_pass_filter:
         # Apply high-pass filter
         d_spec.high_pass_filter(
             removal_mode='divide', 
@@ -130,7 +105,7 @@ def pre_processing():
     '''
 
     # Save as pickle
-    af.pickle_save(prefix+'data/d_spec.pkl', d_spec)
+    af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
 
     # --- Set up a pRT model --------------------------------------------
 
@@ -143,11 +118,11 @@ def pre_processing():
 
     # Create the Radtrans objects
     pRT_atm = pRT_model(
-        line_species=line_species, 
+        line_species=conf.line_species, 
         wave_range_micron=wave_range_micron, 
         mode='lbl', 
-        lbl_opacity_sampling=lbl_opacity_sampling, 
-        cloud_species=cloud_species, 
+        lbl_opacity_sampling=conf.lbl_opacity_sampling, 
+        cloud_species=conf.cloud_species, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
         log_P_range=(-6,2), 
@@ -155,26 +130,27 @@ def pre_processing():
         )
 
     # Save as pickle
-    af.pickle_save(prefix+'data/pRT_atm.pkl', pRT_atm)
+    af.pickle_save(conf.prefix+'data/pRT_atm.pkl', pRT_atm)
 
 def retrieval():
 
     # Load the DataSpectrum and pRT_model classes
-    d_spec  = af.pickle_load(prefix+'data/d_spec.pkl')
-    pRT_atm = af.pickle_load(prefix+'data/pRT_atm.pkl')
+    d_spec  = af.pickle_load(conf.prefix+'data/d_spec.pkl')
+    pRT_atm = af.pickle_load(conf.prefix+'data/pRT_atm.pkl')
 
     # Create a Parameters instance
     Param = Parameters(
-        free_params=free_params, 
-        constant_params=constant_params, 
+        free_params=conf.free_params, 
+        constant_params=conf.constant_params, 
         n_orders=d_spec.n_orders, 
         n_dets=d_spec.n_dets
         )
 
     LogLike = LogLikelihood(
         d_spec, 
-        scale_flux=scale_flux, 
-        scale_err=scale_err
+        scale_flux=conf.scale_flux, 
+        scale_err=conf.scale_err, 
+        scale_GP_amp=conf.scale_GP_amp, 
         )
 
     if Param.PT_mode == 'Molliere':
@@ -183,7 +159,7 @@ def retrieval():
                                  )
     elif Param.PT_mode == 'free':
         PT = PT_profile_free(pRT_atm.pressure, 
-                             ln_L_penalty_order=ln_L_penalty_order
+                             ln_L_penalty_order=conf.ln_L_penalty_order
                              )
 
     if Param.chem_mode == 'free':
@@ -235,7 +211,7 @@ def retrieval():
             d_spec.wave, 
             d_wave_bins=None, 
             d_resolution=d_spec.resolution, 
-            apply_high_pass_filter=apply_high_pass_filter, 
+            apply_high_pass_filter=conf.apply_high_pass_filter, 
             get_contr=False, 
             )
 
@@ -256,16 +232,16 @@ def retrieval():
         LogLikelihood=MN_lnL_func, 
         Prior=Param, 
         n_dims=Param.n_params, 
-        outputfiles_basename=prefix, 
+        outputfiles_basename=conf.prefix, 
         #resume=True, 
         resume=False, 
         verbose=True, 
-        const_efficiency_mode=const_efficiency_mode, 
-        sampling_efficiency=sampling_efficiency, 
-        n_live_points=n_live_points, 
-        evidence_tolerance=evidence_tolerance, 
+        const_efficiency_mode=conf.const_efficiency_mode, 
+        sampling_efficiency=conf.sampling_efficiency, 
+        n_live_points=conf.n_live_points, 
+        evidence_tolerance=conf.evidence_tolerance, 
         #dump_callback=dump_callback, 
-        n_iter_before_update=n_iter_before_update, 
+        n_iter_before_update=conf.n_iter_before_update, 
         )
 
 if __name__ == '__main__':
