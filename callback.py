@@ -9,6 +9,7 @@ import json
 import corner
 
 import auxiliary_functions as af
+import figures as figs
 
 class CallBack:
 
@@ -46,10 +47,6 @@ class CallBack:
 
     def __call__(self, Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior):
 
-        # Display the mean elapsed time per lnL evaluation
-        print('\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))
-        self.elapsed_times.clear()
-
         time_A = time.time()
         self.cb_count += 1
 
@@ -61,7 +58,13 @@ class CallBack:
         self.m_spec  = m_spec
         self.pRT_atm = pRT_atm
 
-        self.posterior = posterior
+        # Use only the last n samples to plot the posterior
+        n_samples = min([len(posterior), self.n_samples_to_use])
+        self.posterior = posterior[:n_samples]
+
+        # Display the mean elapsed time per lnL evaluation
+        print('\n\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))
+        self.elapsed_times.clear()
 
         # Compute the 0.16, 0.5, and 0.84 quantiles
         self.param_quantiles = np.array([af.quantiles(self.posterior[:,i], q=[0.16,0.5,0.84]) \
@@ -73,8 +76,24 @@ class CallBack:
         # Create the labels
         self.param_labels = list(self.Param.param_mathtext.values())
 
-        self.bestfit_params = [self.Param.params[key_i] \
-                               for key_i in self.Param.param_keys]
+        print('\nReduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
+            self.LogLike.chi_squared_red, self.LogLike.chi_squared, self.LogLike.n_dof
+            ))
+
+        # Read the best-fitting free parameters
+        self.bestfit_params = []
+        print('\nBest-fitting free parameters:')
+        for key_i in self.Param.param_keys:
+            print('{} = {:.2f}'.format(key_i, self.Param.params[key_i]))
+            self.bestfit_params.append(self.Param.params[key_i])
+
+        if self.LogLike.scale_flux:
+            print('\nOptimal flux-scaling parameters:')
+            print(self.LogLike.f.round(2))
+        if self.LogLike.scale_err:
+            print('\nOptimal uncertainty-scaling parameters:')
+            print(self.LogLike.beta.round(2))
+        
         self.median_params  = list(self.param_quantiles[:,1])
 
         # Make a summary figure
@@ -172,7 +191,14 @@ class CallBack:
         l, b, w, h = ax_spec.get_position().bounds
         ax_res = fig.add_axes([l,b-h/3,w,h/3])
 
-        ax_spec, ax_res = self.fig_spectrum(ax_spec, ax_res)
+        ax_spec, ax_res = figs.fig_bestfit_model(
+            d_spec=self.d_spec, 
+            m_spec=self.m_spec, 
+            LogLike=self.LogLike, 
+            bestfit_color=self.bestfit_color, 
+            ax_spec=ax_spec, 
+            ax_res=ax_res
+            )
 
         # Plot the VMR per species
         ax_VMR = fig.add_axes([0.63,0.475,0.1,0.22])
@@ -185,10 +211,20 @@ class CallBack:
 
         #plt.show()
         plt.savefig(self.prefix+'plots/live_summary.pdf')
-        #plt.savefig(self.prefix+'plots/live_summary.png', dpi=100)
+        plt.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
         plt.close()
-        #corner.overplot_lines(fig, )
 
+        # Plot the best-fit spectrum in subplots
+        figs.fig_bestfit_model(
+            d_spec=self.d_spec, 
+            m_spec=self.m_spec, 
+            LogLike=self.LogLike, 
+            bestfit_color=self.bestfit_color, 
+            ax_spec=None, 
+            ax_res=None
+            )
+            
+    '''
     def fig_spectrum(
         self, 
         ax_spec, 
@@ -205,22 +241,16 @@ class CallBack:
                     c='k', lw=0.5, label='Observation'
                     )
 
-                '''
-                label = 'Best-fit model\n' + \
-                        r'$(\chi^2_\mathrm{red}=' + '{:.2f}'.format(self.LogLike.chi_squared_red) + \
-                        r',\ \chi^2=' + '{:.2f}'.format(self.LogLike.chi_squared) + \
-                        r')$'
-                '''
                 label = 'Best-fit model ' + \
                         r'$(\chi^2_\mathrm{red}$ (w/o $\sigma$-model)$=' + \
                         '{:.2f}'.format(self.LogLike.chi_squared_red) + \
                         r')$'
                 ax_spec.plot(
                     self.d_spec.wave[i,j], self.LogLike.f[i,j]*self.m_spec.flux[i,j], 
-                    c=self.bestfit_color, lw=1, 
-                    label=label
+                    c=self.bestfit_color, lw=1, label=label
                     )
 
+                # Plot the residuals
                 res_ij = self.d_spec.flux[i,j] - self.LogLike.f[i,j]*self.m_spec.flux[i,j]
                 ax_res.plot(self.d_spec.wave[i,j], res_ij, c='k', lw=0.5)
                 ax_res.plot(
@@ -232,9 +262,11 @@ class CallBack:
                 mean_err_ij = np.mean(self.d_spec.err[i,j][self.d_spec.mask_isfinite[i,j]])
                 ax_res.errorbar(
                     self.d_spec.wave[i,j].min()-0.2, 0, yerr=1*mean_err_ij, 
-                    fmt='none', lw=1, ecolor='k', capsize=2, color='k', label=r'$\langle\sigma_{ij}\rangle$'
+                    fmt='none', lw=1, ecolor='k', capsize=2, color='k', 
+                    label=r'$\langle\sigma_{ij}\rangle$'
                     )
 
+                # Show the mean error after scaling with beta
                 mean_scaled_err_ij = self.LogLike.beta[i,j]*mean_err_ij
                 ax_res.errorbar(
                     self.d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
@@ -256,10 +288,8 @@ class CallBack:
                 )
 
         ax_spec.set(
-            xticklabels=[], 
-            xlim=(self.d_spec.wave.min()-2, self.d_spec.wave.max()+2), 
-            ylabel=ylabel, 
-            ylim=ylim, 
+            xticks=[], xlim=(self.d_spec.wave.min()-2, self.d_spec.wave.max()+2), 
+            ylabel=ylabel, ylim=ylim, 
             )
 
 
@@ -274,6 +304,7 @@ class CallBack:
             )
 
         return ax_spec, ax_res
+    '''
 
     def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
 

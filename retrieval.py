@@ -177,7 +177,7 @@ def retrieval():
         n_samples_to_use=5000, 
         prefix=conf.prefix, 
         posterior_color='C0', 
-        bestfit_color='C1', 
+        bestfit_color='C3', 
         )
     CB.active = False
 
@@ -283,8 +283,7 @@ def retrieval():
         Prior=Param, 
         n_dims=Param.n_params, 
         outputfiles_basename=conf.prefix, 
-        #resume=True, 
-        resume=False, 
+        resume=True, 
         verbose=True, 
         const_efficiency_mode=conf.const_efficiency_mode, 
         sampling_efficiency=conf.sampling_efficiency, 

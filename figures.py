@@ -144,3 +144,112 @@ def fig_spec_to_fit(d_spec):
     plt.savefig(prefix+'plots/spec_to_fit.pdf')
     #plt.show()
     plt.close()
+
+def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None, ax_res=None):
+
+    if (ax_spec is None) and (ax_res is None):
+        # Create a new figure
+        is_new_fig = True
+        n_orders = d_spec.n_orders
+
+        fig, ax = plt.subplots(
+            figsize=(10,2.5*n_orders*2), nrows=n_orders*3, 
+            gridspec_kw={'hspace':0, 'height_ratios':[1,1/3,1/5]*n_orders, 
+                        'left':0.1, 'right':0.95, 
+                        'top':(1-0.02*7/(n_orders*3)), 
+                        'bottom':0.035*7/(n_orders*3), 
+                        }
+            )
+    else:
+        is_new_fig = False
+
+    ylabel_spec = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+    if d_spec.high_pass_filtered:
+        ylabel_spec = r'$F_\lambda$ (high-pass filtered)'
+
+    # Use the same ylim, also for multiple axes
+    ylim_spec = (np.nanmean(d_spec.flux)-4*np.nanstd(d_spec.flux), 
+                 np.nanmean(d_spec.flux)+4*np.nanstd(d_spec.flux)
+                )
+    ylim_res = (1/3*(ylim_spec[0]-np.nanmean(d_spec.flux)), 
+                1/3*(ylim_spec[1]-np.nanmean(d_spec.flux))
+                )
+
+    for i in range(d_spec.n_orders):
+
+        if is_new_fig:
+            # Spectrum and residual axes
+            ax_spec = ax[i*3]
+            ax_res  = ax[i*3+1]
+
+            # Remove the temporary axis
+            ax[i*3+2].remove()
+
+            # Use a different xlim for the separate figures
+            xlim = (d_spec.wave[i,:].min()-2, 
+                    d_spec.wave[i,:].max()+2)
+        else:
+            xlim = (d_spec.wave.min()-2, 
+                    d_spec.wave.max()+2)
+
+        ax_spec.set(xlim=xlim, xticks=[], ylim=ylim_spec)
+        ax_res.set(xlim=xlim, ylim=ylim_res)
+
+        for j in range(d_spec.n_dets):
+        
+            mask_ij = d_spec.mask_isfinite[i,j]
+            if mask_ij.any():
+                # Show the observed and model spectra
+                ax_spec.plot(
+                    d_spec.wave[i,j], d_spec.flux[i,j], 
+                    c='k', lw=0.5, label='Observation'
+                    )
+
+            label = 'Best-fit model ' + \
+                    r'$(\chi^2_\mathrm{red}$ (w/o $\sigma$-model)$=' + \
+                    '{:.2f}'.format(LogLike.chi_squared_red) + \
+                    r')$'
+            ax_spec.plot(
+                d_spec.wave[i,j], m_spec.flux[i,j], 
+                c=bestfit_color, lw=1, label=label
+                )
+
+            if mask_ij.any():
+
+                # Plot the residuals
+                res_ij = d_spec.flux[i,j] - LogLike.f[i,j]*m_spec.flux[i,j]
+                ax_res.plot(d_spec.wave[i,j], res_ij, c='k', lw=0.5)
+                ax_res.plot(
+                    [d_spec.wave[i,j].min(), d_spec.wave[i,j].max()], 
+                    [0,0], c=bestfit_color, lw=1
+                )
+
+                # Show the mean error
+                mean_err_ij = np.mean(d_spec.err[i,j][d_spec.mask_isfinite[i,j]])
+                ax_res.errorbar(
+                    d_spec.wave[i,j].min()-0.2, 0, yerr=1*mean_err_ij, 
+                    fmt='none', lw=1, ecolor='k', capsize=2, color='k', 
+                    label=r'$\langle\sigma_{ij}\rangle$'
+                    )
+
+                # Show the mean error after scaling with beta
+                mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
+                ax_res.errorbar(
+                    d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
+                    fmt='none', lw=1, ecolor=bestfit_color, capsize=2, color=bestfit_color, 
+                    label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
+                    )
+
+            if i==0 and j==0 and (not is_new_fig):
+                ax_spec.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
+                ax_res.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
+
+    # Set the labels for the final axis
+    ax_spec.set(ylabel=ylabel_spec)
+    ax_res.set(xlabel='Wavelength (nm)', ylabel='Residuals')
+
+    if is_new_fig:
+        plt.savefig(prefix+'plots/live_bestfit_spec.pdf')
+        plt.close()
+    else:
+        return ax_spec, ax_res
