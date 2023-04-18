@@ -144,24 +144,27 @@ class Parameters:
         '''
 
         # Update values in the params-dictionary
-        self.cube = np.array(cube[:ndim])
+        #cube = np.array(cube[:ndim])
+        self.cube_copy = np.array(cube[:ndim])
 
         # Loop over all parameters
         for i, key_i in enumerate(self.param_keys):
 
             # Sample within the boundaries
             low, high = self.param_priors[key_i]
-            self.params[key_i] = low + (high-low)*self.cube[i]
+            cube[i] = low + (high-low)*cube[i]
+
+            self.params[key_i] = cube[i]
 
         # Read the parameters for the model's segments
-        self.read_PT_params()
+        cube = self.read_PT_params(cube)
         self.read_uncertainty_params()
         self.read_chemistry_params()
         self.read_cloud_params()
 
         return
     
-    def read_PT_params(self):
+    def read_PT_params(self, cube):
 
         # PT profile parameterization from Molliere et al. (2020)
         if self.PT_mode == 'Molliere':
@@ -171,13 +174,19 @@ class Parameters:
 
             # Define the prior based on the other knots
             low, high = self.param_priors['T_1']
-            self.params['T_1'] = T_0 * (high - (high-low)*self.cube[self.param_keys=='T_1'])
+            idx = np.argwhere(self.param_keys=='T_1').flatten()[0]
+            self.params['T_1'] = T_0 * (high - (high-low)*self.cube_copy[idx])
+            cube[idx] = self.params['T_1']
 
             low, high = self.param_priors['T_2']
-            self.params['T_2'] = self.params['T_1'] * (high - (high-low)*self.cube[self.param_keys=='T_2'])
+            idx = np.argwhere(self.param_keys=='T_2').flatten()[0]
+            self.params['T_2'] = self.params['T_1'] * (high - (high-low)*self.cube_copy[idx])
+            cube[idx] = self.params['T_2']
 
             low, high = self.param_priors['T_3']
-            self.params['T_3'] = self.params['T_2'] * (high - (high-low)*self.cube[self.param_keys=='T_3'])
+            idx = np.argwhere(self.param_keys=='T_3').flatten()[0]
+            self.params['T_3'] = self.params['T_2'] * (high - (high-low)*self.cube[idx])
+            cube[idx] = self.params['T_3']
 
         # Combine the upper temperature knots into an array
         self.params['T_knots'] = np.array([self.params[f'T_{i+1}'] for i in range(self.n_T_knots)])[::-1]
@@ -187,6 +196,8 @@ class Parameters:
             ['log_gamma', 'log_P_knots'], 
             ['gamma', 'P_knots']
             )
+
+        return cube
 
     def read_uncertainty_params(self):
 
@@ -247,7 +258,7 @@ class Parameters:
                     self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_12CO']
                 elif species_i == 'H2O_181' and ('log_O_ratio' in self.param_keys):
                     self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_H2O']
-
+        
     def read_cloud_params(self):
 
         if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):

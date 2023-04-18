@@ -4,9 +4,14 @@ from covariance import Covariance, GaussianProcesses
 
 class LogLikelihood:
 
-    def __init__(self, d_spec, scale_flux=False, scale_err=False, scale_GP_amp=False):
+    def __init__(self, d_spec, n_params, scale_flux=False, scale_err=False, scale_GP_amp=False):
 
-        self.d_spec = d_spec
+        # Observed spectrum is constant
+        self.d_spec   = d_spec
+        self.n_params = n_params
+
+        # Number of degrees of freedom
+        self.n_dof = self.d_spec.mask_isfinite.sum() - self.n_params
 
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
@@ -32,6 +37,7 @@ class LogLikelihood:
         # Set up the total log-likelihood for this model 
         # (= 0 if there is no penalty)
         self.ln_L = ln_L_penalty
+        self.chi_squared = 0
         
         # Arrays to store log-likelihood and chi-squared per pixel in
         self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec.flux)
@@ -142,8 +148,10 @@ class LogLikelihood:
                 # Add chi-squared and optimal uncertainty scaling terms to log-likelihood
                 ln_L_ij += -(N_ij/2*np.log(beta_ij**2) + 1/2*chi_squared_ij)
 
-                # Add to the total log-likelihood
+                # Add to the total log-likelihood and chi-squared
                 self.ln_L += ln_L_ij
+                #self.chi_squared += chi_squared_ij
+                self.chi_squared += np.nansum((res_ij/d_err_ij)**2)
 
                 # Store in the arrays
                 self.f[i,j]    = f_ij
@@ -159,6 +167,9 @@ class LogLikelihood:
                     N_ij/2*np.log(beta_ij**2) + \
                     1/2*self.chi_squared_per_pixel[i,j,mask_ij]
                     )
+
+        # Reduced chi-squared
+        self.chi_squared_red = self.chi_squared / self.n_dof
 
         return self.ln_L
 

@@ -20,7 +20,9 @@ from pRT_model import pRT_model
 from log_likelihood import LogLikelihood
 from PT_profile import PT_profile_free, PT_profile_Molliere
 from chemistry import FreeChemistry, EqChemistry
+from callback import CallBack
 
+import figures as figs
 import auxiliary_functions as af
 
 import config_DENIS as conf
@@ -73,7 +75,7 @@ def pre_processing():
     del d_std_spec
 
     # Apply flux calibration using the 2MASS broadband magnitude
-    d_spec.flux_calib_2MASS(photom_2MASS, conf.filter_2MASS, tell_threshold=0.2)
+    d_spec.flux_calib_2MASS(photom_2MASS, conf.filter_2MASS, tell_threshold=0.3)
     del photom_2MASS
 
     # Apply sigma-clipping
@@ -97,12 +99,8 @@ def pre_processing():
             replace_flux_err=True
             )
 
-    '''
-    for i in range(d_spec.n_orders):
-        for j in range(d_spec.n_dets):
-            plt.plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=1)
-    plt.show()
-    '''
+    # Plot the pre-processed spectrum
+    figs.fig_spec_to_fit(d_spec)
 
     # Save as pickle
     af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
@@ -148,6 +146,7 @@ def retrieval():
 
     LogLike = LogLikelihood(
         d_spec, 
+        n_params=Param.n_params, 
         scale_flux=conf.scale_flux, 
         scale_err=conf.scale_err, 
         scale_GP_amp=conf.scale_GP_amp, 
@@ -171,9 +170,19 @@ def retrieval():
                            pRT_atm.pressure
                            )
 
+    CB = CallBack(
+        d_spec=d_spec, 
+        cb_count=0, 
+        evaluation=False, 
+        n_samples_to_use=5000, 
+        prefix=conf.prefix, 
+        posterior_color='C0', 
+        bestfit_color='C1', 
+        )
+    CB.active = False
 
     # Function to give to pymultinest
-    def MN_lnL_func(cube, ndim, nparams):
+    def PMN_lnL_func(cube, ndim, nparams):
 
         time_A = time.time()
 
@@ -211,7 +220,7 @@ def retrieval():
             d_spec.wave, 
             d_wave_bins=None, 
             d_resolution=d_spec.resolution, 
-            apply_high_pass_filter=conf.apply_high_pass_filter, 
+            apply_high_pass_filter=d_spec.high_pass_filtered, 
             get_contr=False, 
             )
 
@@ -224,12 +233,53 @@ def retrieval():
         time_B = time.time()
         print('{:.2f} seconds'.format(time_B-time_A))
 
+        if CB.active:
+
+            # Return the class instances during callback
+            return (LogLike, PT, Chem, m_spec, pRT_atm)
+
         return ln_L
+
+    def PMN_callback_func(
+        n_samples, 
+        n_live, 
+        n_params, 
+        live_points, 
+        posterior, 
+        stats,
+        max_ln_L, 
+        ln_Z, 
+        ln_Z_err, 
+        nullcontext
+        ):
+
+        print('\nCallback')
+        CB.active = True
+
+        # Read the parameters of the best-fitting model
+        bestfit_params = posterior[np.argmax(posterior[:,-2]),:-2]
+        for i, key_i in enumerate(Param.param_keys):
+            # Update the Parameters instance
+            Param.params[key_i] = bestfit_params[i]
+
+        # Update the parameters
+        Param.read_uncertainty_params()
+        Param.read_chemistry_params()
+        Param.read_cloud_params()
+
+        # Class instances with best-fitting parameters
+        LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func(
+            cube=None, ndim=None, nparams=None
+            )
+        CB.active = False
+
+        # Call the CallBack class and make summarizing figures
+        CB(Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior[:,:-2])
 
     # Set-up the multinest retrieval
     import pymultinest
     pymultinest.run(
-        LogLikelihood=MN_lnL_func, 
+        LogLikelihood=PMN_lnL_func, 
         Prior=Param, 
         n_dims=Param.n_params, 
         outputfiles_basename=conf.prefix, 
@@ -240,7 +290,7 @@ def retrieval():
         sampling_efficiency=conf.sampling_efficiency, 
         n_live_points=conf.n_live_points, 
         evidence_tolerance=conf.evidence_tolerance, 
-        #dump_callback=dump_callback, 
+        dump_callback=PMN_callback_func, 
         n_iter_before_update=conf.n_iter_before_update, 
         )
 

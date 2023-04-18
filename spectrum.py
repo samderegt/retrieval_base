@@ -37,6 +37,8 @@ class Spectrum:
         # Make the isfinite mask
         self.update_isfinite_mask()
 
+        self.high_pass_filtered = False
+
     def update_isfinite_mask(self, array=None):
 
         if array is None:
@@ -95,6 +97,8 @@ class Spectrum:
             self.flux = high_pass_flux
             self.err = high_pass_err
 
+            self.high_pass = True
+
         return high_pass_flux, high_pass_err
 
     def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=True):
@@ -136,7 +140,7 @@ class Spectrum:
                 flux_i[mask_clipped]  = np.nan
                 flux_copy[mask_order] = flux_i
 
-        # TODO: figure
+        # Plot the sigma-clipping procedure
         figs.fig_sigma_clip(wave=self.wave, 
                             flux=flux_copy, 
                             flux_wo_clip=self.flux, 

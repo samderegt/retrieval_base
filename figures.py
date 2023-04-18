@@ -3,6 +3,22 @@ import numpy as np
 
 from config_DENIS import prefix
 
+def fig_order_subplots(n_orders, ylabel, xlabel=r'Wavelength (nm)'):
+
+    fig, ax = plt.subplots(
+        figsize=(10,2.5*n_orders), nrows=n_orders, 
+        gridspec_kw={'hspace':0.22, 'left':0.1, 'right':0.95, 
+                     'top':(1-0.02*7/n_orders), 'bottom':0.035*7/n_orders, 
+                     }
+        )
+    if n_orders == 1:
+        ax = np.array([ax])
+
+    ax[n_orders//2].set(ylabel=ylabel)
+    ax[-1].set(xlabel=xlabel)
+
+    return fig, ax
+
 def fig_flux_calib_2MASS(wave, 
                          calib_flux, 
                          calib_flux_wo_tell_corr, 
@@ -50,11 +66,11 @@ def fig_flux_calib_2MASS(wave,
         # Plot zoom-ins of the telluric correction
         n_orders = order_wlen_ranges.shape[0]
 
-        fig, ax = plt.subplots(
-            figsize=(10,1.8*n_orders), nrows=n_orders, 
-            gridspec_kw={'hspace':0.22, 'left':0.1, 'right':0.95, 'top':0.95, 'bottom':0.05, }
+        fig, ax = fig_order_subplots(
+            n_orders, 
+            ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
             )
-        
+
         for i in range(n_orders):
             # Only plot within a wavelength range
             wave_min = order_wlen_ranges[i,:].min() - 2
@@ -70,9 +86,6 @@ def fig_flux_calib_2MASS(wave,
             ax[i].plot(wave[mask_wave], calib_flux[mask_wave], c='k', lw=0.5)
 
             ax[i].set(xlim=(wave_min, wave_max))
-
-        ax[n_orders//2].set(ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$')
-        ax[-1].set(xlabel=r'Wavelength (nm)')
         
         plt.savefig(prefix+'plots/tell_corr_zoom_ins.pdf')
         #plt.show()
@@ -83,9 +96,9 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
     # Plot zoom-ins of the sigma-clipping procedure
     n_orders = order_wlen_ranges.shape[0]
 
-    fig, ax = plt.subplots(
-        figsize=(10,1.8*n_orders), nrows=n_orders, 
-        gridspec_kw={'hspace':0.22, 'left':0.1, 'right':0.95, 'top':0.95, 'bottom':0.05, }
+    fig, ax = fig_order_subplots(
+        n_orders, 
+        ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
         )
     
     for i in range(n_orders):
@@ -105,11 +118,29 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
         ax[i].plot(wave[mask_wave], sigma_clip_bounds[1,i], c='C0')
 
         ax[i].set(xlim=(wave_min, wave_max))
-        
-    ax[n_orders//2].set(ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$')
-    ax[-1].set(xlabel=r'Wavelength (nm)')
+
     ax[-1].legend()
     
     plt.savefig(prefix+'plots/sigma_clip_zoom_ins.pdf')
+    #plt.show()
+    plt.close()
+
+def fig_spec_to_fit(d_spec):
+
+    ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+    if d_spec.high_pass_filtered:
+        ylabel = r'$F_\lambda$ (high-pass filtered)'
+
+    fig, ax = fig_order_subplots(d_spec.n_orders, ylabel=ylabel)
+
+    for i in range(d_spec.n_orders):
+        for j in range(d_spec.n_dets):
+            ax[i].plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=0.5)
+        
+        ax[i].set(xlim=(d_spec.order_wlen_ranges[i].min()-2, 
+                        d_spec.order_wlen_ranges[i].max()+2)
+                  )
+
+    plt.savefig(prefix+'plots/spec_to_fit.pdf')
     #plt.show()
     plt.close()

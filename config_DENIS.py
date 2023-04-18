@@ -57,8 +57,8 @@ wave_range = (2300, 2400)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    'log_a': [(-4,-1), r'$\log\ a$'], 
-    'log_l': [(-3,0), r'$\log\ l$'], 
+    #'log_a': [(-4,-1), r'$\log\ a$'], 
+    #'log_l': [(-3,0), r'$\log\ l$'], 
 
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
@@ -121,7 +121,7 @@ scale_flux = True
 scale_err  = True
 scale_GP_amp = True
 
-apply_high_pass_filter = True
+apply_high_pass_filter = False
 
 ####################################################################################
 # Multinest parameters
@@ -130,5 +130,5 @@ apply_high_pass_filter = True
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
-n_iter_before_update = 5
+n_live_points = 50
+n_iter_before_update = 2
