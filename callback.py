@@ -46,6 +46,10 @@ class CallBack:
 
     def __call__(self, Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior):
 
+        # Display the mean elapsed time per lnL evaluation
+        print('\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))
+        self.elapsed_times.clear()
+
         time_A = time.time()
         self.cb_count += 1
 
@@ -177,7 +181,7 @@ class CallBack:
         # Plot the best-fitting PT profile
         l, b, w, h = ax_VMR.get_position().bounds
         ax_PT = fig.add_axes([l+w,b,h,h])
-        ax_PT = self.fig_PT(ax_PT, ylabel=None, yticklabels=[])
+        ax_PT = self.fig_PT(ax_PT, ylabel=None, yticks=[])
 
         #plt.show()
         plt.savefig(self.prefix+'plots/live_summary.pdf')
@@ -271,7 +275,7 @@ class CallBack:
 
         return ax_spec, ax_res
 
-    def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticklabels=None):
+    def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
 
         # Plot the best-fitting PT profile and median
         ax_PT.plot(self.PT.temperature, self.PT.pressure, c=self.bestfit_color, lw=1)
@@ -280,19 +284,19 @@ class CallBack:
             c=self.bestfit_color, ls='', marker='o', markersize=3
             )
         
-        if yticklabels is None:
-            yticklabels = np.logspace(-6, 2, 9)
+        if yticks is None:
+            yticks = np.logspace(-6, 2, 9)
             
         ax_PT.set(
             xlabel=r'$T\ \mathrm{(K)}$', xlim=(1,3500), 
             ylabel=ylabel, ylim=(self.PT.pressure.min(), self.PT.pressure.max()), 
-            yscale='log', yticklabels=yticklabels
+            yscale='log', yticks=yticks
             )
         ax_PT.invert_yaxis()
 
         return ax_PT
 
-    def fig_VMR(self, ax_VMR, ylabel=r'$P\ \mathrm{(bar)}$', yticklabels=None):
+    def fig_VMR(self, ax_VMR, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
 
         MMW = self.Chem.mass_fractions['MMW']
 
@@ -317,21 +321,15 @@ class CallBack:
                 # Plot volume-mixing ratio as function of pressure
                 ax_VMR.plot(VMR_i, self.PT.pressure, c=color_i, lw=1, label=label_i)
 
-        if yticklabels is None:
-            yticklabels = np.logspace(-6, 2, 9)
+        if yticks is None:
+            yticks = np.logspace(-6, 2, 9)
 
         ax_VMR.legend(handlelength=0.5)
         ax_VMR.set(
-            xlabel='VMR', xscale='log', #xlim=(1e-8, 1e-2), 
-            xticks=[1e-12,1e-10,1e-8,1e-6,1e-4,1e-2,1e0], 
-            ylabel=ylabel, yscale='log', ylim=(self.PT.pressure.min(), self.PT.pressure.max())
+            xlabel='VMR', xscale='log', xlim=(1e-8, 1e-2), 
+            ylabel=ylabel, yscale='log', yticks=yticks, 
+            ylim=(self.PT.pressure.min(), self.PT.pressure.max()), 
             )
-        '''
-        ax_VMR.set(xlabel='VMR', xlim=(1e-8,1e-2), xscale='log', 
-                   ylabel=ylabel, ylim=(self.PT.pressure.min(), self.PT.pressure.max()), 
-                   yscale='log', yticklabels=yticklabels, 
-                   )
-        '''
         ax_VMR.invert_yaxis()
 
         return ax_VMR

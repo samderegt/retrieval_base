@@ -231,7 +231,7 @@ def retrieval():
                        )
 
         time_B = time.time()
-        print('{:.2f} seconds'.format(time_B-time_A))
+        CB.elapsed_times.append(time_B-time_A)
 
         if CB.active:
 
@@ -253,7 +253,6 @@ def retrieval():
         nullcontext
         ):
 
-        print('\nCallback')
         CB.active = True
 
         # Read the parameters of the best-fitting model
@@ -263,6 +262,7 @@ def retrieval():
             Param.params[key_i] = bestfit_params[i]
 
         # Update the parameters
+        Param.read_PT_params(cube=None)
         Param.read_uncertainty_params()
         Param.read_chemistry_params()
         Param.read_cloud_params()

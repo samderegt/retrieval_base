@@ -164,10 +164,12 @@ class Parameters:
 
         return
     
-    def read_PT_params(self, cube):
+    def read_PT_params(self, cube=None):
 
-        # PT profile parameterization from Molliere et al. (2020)
-        if self.PT_mode == 'Molliere':
+        if (self.PT_mode == 'Molliere') and (cube is not None):
+
+            # Update the parameters in the MultiNest cube 
+            # for the Molliere et al. (2020) PT parameterization
 
             # T_0 is connection temperature at P=0.1 bar
             T_0 = (3/4 * self.params['T_int']**4 * (0.1 + 2/3))**(1/4)
@@ -189,7 +191,10 @@ class Parameters:
             cube[idx] = self.params['T_3']
 
         # Combine the upper temperature knots into an array
-        self.params['T_knots'] = np.array([self.params[f'T_{i+1}'] for i in range(self.n_T_knots)])[::-1]
+        self.params['T_knots'] = np.array(
+            [self.params[f'T_{i+1}'] \
+             for i in range(self.n_T_knots)]
+            )[::-1]
 
         # Convert from logarithmic to linear scale
         self.params = self.log_to_linear(self.params, 
