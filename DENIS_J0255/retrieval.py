@@ -4,6 +4,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 from mpi4py import MPI
 import time
+import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -14,16 +15,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-from spectrum import DataSpectrum, ModelSpectrum, Photometry
-from parameters import Parameters
-from pRT_model import pRT_model
-from log_likelihood import LogLikelihood
-from PT_profile import PT_profile_free, PT_profile_Molliere
-from chemistry import FreeChemistry, EqChemistry
-from callback import CallBack
+from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
+from retrieval_base.parameters import Parameters
+from retrieval_base.pRT_model import pRT_model
+from retrieval_base.log_likelihood import LogLikelihood
+from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere
+from retrieval_base.chemistry import FreeChemistry, EqChemistry
+from retrieval_base.callback import CallBack
 
-import figures as figs
-import auxiliary_functions as af
+import retrieval_base.figures as figs
+import retrieval_base.auxiliary_functions as af
 
 import config_DENIS as conf
 
@@ -75,11 +76,17 @@ def pre_processing():
     del d_std_spec
 
     # Apply flux calibration using the 2MASS broadband magnitude
-    d_spec.flux_calib_2MASS(photom_2MASS, conf.filter_2MASS, tell_threshold=0.3)
+    d_spec.flux_calib_2MASS(
+        photom_2MASS, 
+        conf.filter_2MASS, 
+        tell_threshold=0.3, 
+        prefix=conf.prefix, 
+        file_skycalc_transm=conf.file_skycalc_transm, 
+        )
     del photom_2MASS
 
     # Apply sigma-clipping
-    d_spec.sigma_clip_poly(sigma=3)
+    d_spec.sigma_clip_poly(sigma=3, prefix=conf.prefix)
 
     # Crop the spectrum
     d_spec.crop_spectrum()
@@ -100,7 +107,7 @@ def pre_processing():
             )
 
     # Plot the pre-processed spectrum
-    figs.fig_spec_to_fit(d_spec)
+    figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
 
     # Save as pickle
     af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
@@ -117,7 +124,7 @@ def pre_processing():
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
         log_P_range=(-6,2), 
-        n_atm_layers=50
+        n_atm_layers=50, 
         )
 
     # Save as pickle
@@ -136,6 +143,15 @@ def retrieval():
         n_orders=d_spec.n_orders, 
         n_dets=d_spec.n_dets
         )
+
+    if 'beta_tell' not in Param.param_keys:
+        # Transmissivity will not be requested, save on memory
+        d_spec.transm     = None
+        d_spec.transm_err = None
+
+    # Update the cloud/chemistry-mode
+    pRT_atm.cloud_mode = Param.cloud_mode
+    pRT_atm.chem_mode  = Param.chem_mode
 
     LogLike = LogLikelihood(
         d_spec, 
@@ -214,10 +230,11 @@ def retrieval():
             )
 
         # Retrieve the log-likelihood
-        ln_L = LogLike(m_spec, 
-                       Param.params, 
-                       ln_L_penalty=ln_L_penalty
-                       )
+        ln_L = LogLike(
+            m_spec, 
+            Param.params, 
+            ln_L_penalty=ln_L_penalty
+            )
 
         time_B = time.time()
         CB.elapsed_times.append(time_B-time_A)
@@ -229,18 +246,17 @@ def retrieval():
 
         return ln_L
 
-    def PMN_callback_func(
-        n_samples, 
-        n_live, 
-        n_params, 
-        live_points, 
-        posterior, 
-        stats,
-        max_ln_L, 
-        ln_Z, 
-        ln_Z_err, 
-        nullcontext
-        ):
+    def PMN_callback_func(n_samples, 
+                          n_live, 
+                          n_params, 
+                          live_points, 
+                          posterior, 
+                          stats,
+                          max_ln_L, 
+                          ln_Z, 
+                          ln_Z_err, 
+                          nullcontext
+                          ):
 
         CB.active = True
 

@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config_DENIS import prefix
-
 def fig_order_subplots(n_orders, ylabel, xlabel=r'Wavelength (nm)'):
 
     fig, ax = plt.subplots(
@@ -28,6 +26,7 @@ def fig_flux_calib_2MASS(wave,
                          transm_2MASS, 
                          tell_threshold=0.2, 
                          order_wlen_ranges=None, 
+                         prefix=None, 
                          ):
 
     fig, ax = plt.subplots(
@@ -58,9 +57,10 @@ def fig_flux_calib_2MASS(wave,
               )
     ax[1].legend(loc='upper left')
 
-    plt.savefig(prefix+'plots/flux_calib_tell_corr.pdf')
+    if prefix is not None:
+        plt.savefig(prefix+'plots/flux_calib_tell_corr.pdf')
     #plt.show()
-    plt.close()
+    plt.close(fig)
 
     if order_wlen_ranges is not None:
         # Plot zoom-ins of the telluric correction
@@ -87,11 +87,12 @@ def fig_flux_calib_2MASS(wave,
 
             ax[i].set(xlim=(wave_min, wave_max))
         
-        plt.savefig(prefix+'plots/tell_corr_zoom_ins.pdf')
+        if prefix is not None:
+            plt.savefig(prefix+'plots/tell_corr_zoom_ins.pdf')
         #plt.show()
-        plt.close()
+        plt.close(fig)
 
-def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma):
+def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma, prefix=None):
 
     # Plot zoom-ins of the sigma-clipping procedure
     n_orders = order_wlen_ranges.shape[0]
@@ -121,11 +122,12 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
 
     ax[-1].legend()
     
-    plt.savefig(prefix+'plots/sigma_clip_zoom_ins.pdf')
+    if prefix is not None:
+        plt.savefig(prefix+'plots/sigma_clip_zoom_ins.pdf')
     #plt.show()
-    plt.close()
+    plt.close(fig)
 
-def fig_spec_to_fit(d_spec):
+def fig_spec_to_fit(d_spec, prefix=None):
 
     ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
     if d_spec.high_pass_filtered:
@@ -141,11 +143,12 @@ def fig_spec_to_fit(d_spec):
                         d_spec.order_wlen_ranges[i].max()+2)
                   )
 
-    plt.savefig(prefix+'plots/spec_to_fit.pdf')
+    if prefix is not None:
+        plt.savefig(prefix+'plots/spec_to_fit.pdf')
     #plt.show()
-    plt.close()
+    plt.close(fig)
 
-def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None, ax_res=None):
+def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None, ax_res=None, prefix=None):
 
     if (ax_spec is None) and (ax_res is None):
         # Create a new figure
@@ -240,7 +243,7 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
                     )
 
-            if i==0 and j==0 and (not is_new_fig):
+            if i==0 and j==0:
                 ax_spec.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
                 ax_res.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
 
@@ -248,8 +251,8 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
     ax_spec.set(ylabel=ylabel_spec)
     ax_res.set(xlabel='Wavelength (nm)', ylabel='Residuals')
 
-    if is_new_fig:
+    if is_new_fig and (prefix is not None):
         plt.savefig(prefix+'plots/live_bestfit_spec.pdf')
-        plt.close()
+        plt.close(fig)
     else:
         return ax_spec, ax_res

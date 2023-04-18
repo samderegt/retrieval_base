@@ -1,10 +1,16 @@
 import numpy as np
 
-from covariance import Covariance, GaussianProcesses
+from .covariance import Covariance, GaussianProcesses
 
 class LogLikelihood:
 
-    def __init__(self, d_spec, n_params, scale_flux=False, scale_err=False, scale_GP_amp=False):
+    def __init__(self, 
+                 d_spec, 
+                 n_params, 
+                 scale_flux=False, 
+                 scale_err=False, 
+                 scale_GP_amp=False
+                 ):
 
         # Observed spectrum is constant
         self.d_spec   = d_spec

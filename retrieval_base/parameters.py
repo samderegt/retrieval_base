@@ -2,8 +2,8 @@ import numpy as np
 
 from petitRADTRANS.retrieval import cloud_cond as fc
 
-from spectrum import Spectrum
-from chemistry import Chemistry
+from .spectrum import Spectrum
+from .chemistry import Chemistry
 
 class Parameters:
 

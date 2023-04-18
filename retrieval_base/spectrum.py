@@ -10,7 +10,7 @@ from PyAstronomy import pyasl
 import petitRADTRANS.nat_cst as nc
 from petitRADTRANS.retrieval import rebin_give_width as rgw
 
-import figures as figs
+import retrieval_base.figures as figs
 
 class Spectrum:
 
@@ -101,7 +101,7 @@ class Spectrum:
 
         return high_pass_flux, high_pass_err
 
-    def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=True):
+    def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=True, prefix=None):
 
         flux_copy = self.flux.copy()
 
@@ -147,6 +147,7 @@ class Spectrum:
                             sigma_clip_bounds=sigma_clip_bounds,
                             order_wlen_ranges=self.order_wlen_ranges, 
                             sigma=sigma, 
+                            prefix=prefix, 
                             )
 
         if replace_flux:
@@ -193,7 +194,7 @@ class DataSpectrum(Spectrum):
                  ):
 
         if file_target is not None:
-            wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)    
+            wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)
         
         super().__init__(wave, flux, err)
 
@@ -384,10 +385,10 @@ class DataSpectrum(Spectrum):
         # Update the isfinite mask
         self.update_isfinite_mask(transm)
 
-    def flux_calib_2MASS(self, photom_2MASS, filter_2MASS, tell_threshold=0.2, replace_flux_err=True):
+    def flux_calib_2MASS(self, photom_2MASS, filter_2MASS, tell_threshold=0.2, replace_flux_err=True, prefix=None, file_skycalc_transm=None):
 
         # Retrieve an approximate telluric transmission spectrum
-        wave_skycalc, transm_skycalc = self.get_skycalc_transm()
+        wave_skycalc, transm_skycalc = self.get_skycalc_transm(file_skycalc_transm=file_skycalc_transm)
         # Interpolate onto the data wavelength grid
         transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
@@ -447,6 +448,7 @@ class DataSpectrum(Spectrum):
             transm_2MASS=photom_2MASS.transm_curves[filter_2MASS].T[1], 
             tell_threshold=tell_threshold, 
             order_wlen_ranges=self.order_wlen_ranges, 
+            prefix=prefix, 
             )
 
         if replace_flux_err:
@@ -455,8 +457,16 @@ class DataSpectrum(Spectrum):
 
         return calib_flux, calib_err
 
-    def get_skycalc_transm(self, resolution_skycalc=2e5):
+    def get_skycalc_transm(self, resolution_skycalc=2e5, file_skycalc_transm=None):
 
+        if file_skycalc_transm is not None:
+            if os.path.exists(file_skycalc_transm):
+                # Load the skycalc transmissivity
+                wave_skycalc, transm_skycalc = np.loadtxt(file_skycalc_transm).T
+            
+                return wave_skycalc, transm_skycalc
+            
+        # Download the skycalc transmissivity
         import skycalc_ipy
 
         sky_calc = skycalc_ipy.SkyCalc()
@@ -491,11 +501,25 @@ class DataSpectrum(Spectrum):
             in_res=sky_calc['wres']
             )
 
+        if file_skycalc_transm is not None:
+            # Save the skycalc transmissivity
+            np.savetxt(
+                file_skycalc_transm, 
+                np.concatenate((wave_skycalc[:,None], 
+                                transm_skycalc[:,None]), axis=1)
+                )
+
         return wave_skycalc, transm_skycalc
 
 class ModelSpectrum(Spectrum):
 
-    def __init__(self, wave, flux, lbl_opacity_sampling=1, multiple_orders=False, high_pass_filtered=False):
+    def __init__(self, 
+                 wave, 
+                 flux, 
+                 lbl_opacity_sampling=1, 
+                 multiple_orders=False, 
+                 high_pass_filtered=False
+                 ):
 
         super().__init__(wave, flux)
 

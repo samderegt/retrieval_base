@@ -18,11 +18,12 @@ run_optimize  = False
 ####################################################################################
 
 prefix = 'DENIS_J0255_retrieval_outputs_142'
-prefix = f'./{prefix}/test_'
+prefix = f'./retrieval_outputs/{prefix}/test_'
 
-file_target = '/home/sam/Documents/PhD/CRIRES_data_reduction/DENIS_J0255/data/DENIS_J0255.dat'
-file_std    = '/home/sam/Documents/PhD/CRIRES_data_reduction/DENIS_J0255/data/DENIS_J0255_std.dat'
-file_wave   = '/home/sam/Documents/PhD/CRIRES_data_reduction/DENIS_J0255/data/DENIS_J0255.dat'
+file_target = './data/DENIS_J0255.dat'
+file_std    = './data/DENIS_J0255_std.dat'
+file_wave   = './data/DENIS_J0255.dat'
+file_skycalc_transm = './data/skycalc_transm.dat'
 
 magnitudes = {
     '2MASS/2MASS.J': (13.25, 0.03), # Dupuy et al. (2012)
@@ -46,8 +47,8 @@ T_std = 14700
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-wave_range = (2120, 2400)
-#wave_range = (2300, 2400)
+#wave_range = (2120, 2400)
+wave_range = (2300, 2400)
 
 ####################################################################################
 # Model parameters

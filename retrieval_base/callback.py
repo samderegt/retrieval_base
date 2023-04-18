@@ -8,21 +8,20 @@ import time
 import json
 import corner
 
-import auxiliary_functions as af
-import figures as figs
+import retrieval_base.auxiliary_functions as af
+import retrieval_base.figures as figs
 
 class CallBack:
 
-    def __init__(
-        self, 
-        d_spec, 
-        cb_count=0, 
-        evaluation=False, 
-        n_samples_to_use=5000, 
-        prefix=None, 
-        posterior_color='C0', 
-        bestfit_color='C1', 
-        ):
+    def __init__(self, 
+                 d_spec, 
+                 cb_count=0, 
+                 evaluation=False, 
+                 n_samples_to_use=5000, 
+                 prefix=None, 
+                 posterior_color='C0', 
+                 bestfit_color='C1', 
+                 ):
         
         self.elapsed_times = []
 
@@ -100,7 +99,7 @@ class CallBack:
         self.fig_summary()
 
         # Remove attributes from memory
-        del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm
+        del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
 
         time_B = time.time()
         print('\nPlotting took {:.0f} seconds\n'.format(time_B-time_A))
@@ -197,7 +196,8 @@ class CallBack:
             LogLike=self.LogLike, 
             bestfit_color=self.bestfit_color, 
             ax_spec=ax_spec, 
-            ax_res=ax_res
+            ax_res=ax_res, 
+            prefix=self.prefix, 
             )
 
         # Plot the VMR per species
@@ -212,7 +212,7 @@ class CallBack:
         #plt.show()
         plt.savefig(self.prefix+'plots/live_summary.pdf')
         plt.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
-        plt.close()
+        plt.close(fig)
 
         # Plot the best-fit spectrum in subplots
         figs.fig_bestfit_model(
@@ -221,7 +221,8 @@ class CallBack:
             LogLike=self.LogLike, 
             bestfit_color=self.bestfit_color, 
             ax_spec=None, 
-            ax_res=None
+            ax_res=None, 
+            prefix=self.prefix, 
             )
 
     def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):

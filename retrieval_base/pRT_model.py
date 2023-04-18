@@ -3,7 +3,7 @@ import numpy as np
 from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
 
-from spectrum import Spectrum, ModelSpectrum
+from .spectrum import Spectrum, ModelSpectrum
 
 class pRT_model:
 
@@ -17,7 +17,38 @@ class pRT_model:
                  continuum_opacities=['H2-H2', 'H2-He'], 
                  log_P_range=(-6,2), 
                  n_atm_layers=50, 
+                 cloud_mode=None, 
+                 chem_mode='free', 
                  ):
+        '''
+        Create instance of the pRT_model class.
+
+        Input
+        -----
+        line_species : list
+            Names of line-lists to include.
+        d_spec : DataSpectrum
+            Instance of the DataSpectrum class.
+        mode : str
+            pRT mode to use, can be 'lbl' or 'c-k'.
+        lbl_opacity_sampling : int
+            Let pRT sample every n-th datapoint.
+        cloud_species : list or None
+            Chemical cloud species to include. 
+        rayleigh_species : list
+            Rayleigh-scattering species.
+        continuum_opacities : list
+            CIA-induced absorption species.
+        log_P_range : tuple or list
+            Logarithm of modelled pressure range.
+        n_atm_layers : int
+            Number of atmospheric layers to model.
+        cloud_mode : None or str
+            Cloud mode to use, can be 'MgSiO3', 'gray' or None.
+        chem_mode : str
+            Chemistry mode to use for clouds, can be 'free' or 'eqchem'.
+        
+        '''
 
         # Read in attributes of the observed spectrum
         self.d_wave = d_spec.wave
@@ -38,10 +69,14 @@ class pRT_model:
         self.rayleigh_species  = rayleigh_species
         self.continuum_species = continuum_opacities
 
+        # Clouds
         if self.cloud_species is None:
             do_scat_emis = False
         else:
             do_scat_emis = True
+
+        self.cloud_mode = cloud_mode
+        self.chem_mode  = chem_mode
 
         # Define the atmospheric layers
         self.pressure = np.logspace(log_P_range[0], log_P_range[1], n_atm_layers)
@@ -50,15 +85,16 @@ class pRT_model:
         for wave_range_i in self.wave_range_micron:
             
             # Make a pRT.Radtrans object
-            atm_i = Radtrans(line_species=self.line_species, 
-                             rayleigh_species=self.rayleigh_species, 
-                             continuum_opacities=self.continuum_species, 
-                             cloud_species=self.cloud_species, 
-                             wlen_bords_micron=wave_range_i, 
-                             mode=mode, 
-                             lbl_opacity_sampling=self.lbl_opacity_sampling, 
-                             do_scat_emis=do_scat_emis
-                             )
+            atm_i = Radtrans(
+                line_species=self.line_species, 
+                rayleigh_species=self.rayleigh_species, 
+                continuum_opacities=self.continuum_species, 
+                cloud_species=self.cloud_species, 
+                wlen_bords_micron=wave_range_i, 
+                mode=mode, 
+                lbl_opacity_sampling=self.lbl_opacity_sampling, 
+                do_scat_emis=do_scat_emis
+                )
 
             # Set up the atmospheric layers
             atm_i.setup_opa_structure(self.pressure)
@@ -81,6 +117,8 @@ class pRT_model:
             Array of temperatures at each atmospheric layer.
         params : dict
             Parameters of the current model.
+        get_contr : bool
+            If True, compute the emission contribution function. 
 
         Returns
         -------
@@ -105,8 +143,12 @@ class pRT_model:
         Add clouds to the model atmosphere using the given parameters.
         '''
 
-        if self.params['log_X_cloud_base_MgSiO3'] is not None:
-            
+        self.give_absorption_opacity = None
+        self.f_seds = None
+
+        if self.cloud_mode == 'MgSiO3':
+
+            # Mask the pressure above the cloud deck
             mask_above_deck = (self.pressure < self.params['P_base_MgSiO3'])
 
             # Add the MgSiO3 particles
@@ -117,16 +159,10 @@ class pRT_model:
 
             self.f_seds = {'MgSiO3(c)': self.params['f_sed']}
         
-        else:
-            self.f_seds = None
-        
-
-        if self.params['log_opa_base_gray'] is not None:
+        elif self.cloud_mode == 'gray':
+            
             # Gray cloud opacity
             self.give_absorption_opacity = self.gray_cloud_opacity
-
-        else:
-            self.give_absorption_opacity = None
 
     def gray_cloud_opacity(self, wave_micron, pressure):
         '''
@@ -183,16 +219,17 @@ class pRT_model:
         for i, atm_i in enumerate(self.atm):
             
             # Compute the emission spectrum
-            atm_i.calc_flux(self.temperature, 
-                            self.mass_fractions, 
-                            gravity=10**self.params['log_g'], 
-                            mmw=self.mass_fractions['MMW'], 
-                            Kzz=self.params['K_zz'], 
-                            fsed=self.f_seds, 
-                            sigma_lnorm=self.params['sigma_g'],
-                            give_absorption_opacity=self.give_absorption_opacity, 
-                            contribution=get_contr, 
-                            )
+            atm_i.calc_flux(
+                self.temperature, 
+                self.mass_fractions, 
+                gravity=10**self.params['log_g'], 
+                mmw=self.mass_fractions['MMW'], 
+                Kzz=self.params['K_zz'], 
+                fsed=self.f_seds, 
+                sigma_lnorm=self.params['sigma_g'],
+                give_absorption_opacity=self.give_absorption_opacity, 
+                contribution=get_contr, 
+                )
             wave_i = nc.c / atm_i.freq
             flux_i = atm_i.flux
 
@@ -258,5 +295,8 @@ class pRT_model:
             multiple_orders=True, 
             high_pass_filtered=self.apply_high_pass_filter, 
             )
+
+        # Save memory, same attributes in DataSpectrum
+        del m_spec.wave, m_spec.mask_isfinite
 
         return m_spec

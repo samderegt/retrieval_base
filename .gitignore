@@ -1,6 +1,9 @@
 __pycache__/
-data/
-*retrieval_output*/
+*egg-info/
+
+#DENIS_J0255/data/*.fits
+DENIS_J0255/data/
+DENIS_J0255/retrieval_outputs/
 
 transm_curves.pk
 species_config.ini
