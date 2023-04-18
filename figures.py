@@ -210,7 +210,7 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     '{:.2f}'.format(LogLike.chi_squared_red) + \
                     r')$'
             ax_spec.plot(
-                d_spec.wave[i,j], m_spec.flux[i,j], 
+                d_spec.wave[i,j], LogLike.f[i,j]*m_spec.flux[i,j], 
                 c=bestfit_color, lw=1, label=label
                 )
 

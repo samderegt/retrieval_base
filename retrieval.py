@@ -107,17 +107,10 @@ def pre_processing():
 
     # --- Set up a pRT model --------------------------------------------
 
-    # pRT model is somewhat wider than observed spectrum
-    wave_range_micron = np.concatenate(
-        (d_spec.wave.min(axis=(1,2))[None,:]-1, 
-         d_spec.wave.max(axis=(1,2))[None,:]+1
-         )).T
-    wave_range_micron *= 1e-3
-
     # Create the Radtrans objects
     pRT_atm = pRT_model(
         line_species=conf.line_species, 
-        wave_range_micron=wave_range_micron, 
+        d_spec=d_spec, 
         mode='lbl', 
         lbl_opacity_sampling=conf.lbl_opacity_sampling, 
         cloud_species=conf.cloud_species, 
@@ -217,10 +210,6 @@ def retrieval():
             mass_fractions, 
             temperature, 
             Param.params, 
-            d_spec.wave, 
-            d_wave_bins=None, 
-            d_resolution=d_spec.resolution, 
-            apply_high_pass_filter=d_spec.high_pass_filtered, 
             get_contr=False, 
             )
 

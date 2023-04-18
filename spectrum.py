@@ -495,13 +495,32 @@ class DataSpectrum(Spectrum):
 
 class ModelSpectrum(Spectrum):
 
-    def __init__(self, wave, flux, lbl_opacity_sampling=1):
+    def __init__(self, wave, flux, lbl_opacity_sampling=1, multiple_orders=False, high_pass_filtered=False):
 
         super().__init__(wave, flux)
 
+        if multiple_orders:
+            # New instance is combination of previous (order) instances
+            assert(self.wave.ndim == 3)
+            assert(self.flux.ndim == 3)
+
+            # Update the shape of the model spectrum
+            self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
+
+            # Update whether the orders were high-pass filtered
+            self.high_pass_filtered = high_pass_filtered
+
+            # Update the order wavelength ranges
+            mask_order_wlen_ranges = \
+                (self.order_wlen_ranges.min(axis=(1,2)) > self.wave.min() - 5) & \
+                (self.order_wlen_ranges.max(axis=(1,2)) < self.wave.max() + 5)
+                
+            self.order_wlen_ranges = self.order_wlen_ranges[mask_order_wlen_ranges,:,:]
+
+        # Model resolution depends on the opacity sampling
         self.resolution = int(1e6/lbl_opacity_sampling)
 
-    def rot_broadening(self, vsini, epsilon_limb=0, replace_flux=False):
+    def rot_broadening(self, vsini, epsilon_limb=0, replace_wave_flux=False):
 
         # Evenly space the wavelength grid
         wave_even = np.linspace(self.wave.min(), self.wave.max(), 
@@ -514,41 +533,43 @@ class ModelSpectrum(Spectrum):
                                             epsilon=epsilon_limb, 
                                             vsini=vsini
                                             )
-        if replace_flux:
+        if replace_wave_flux:
+            self.wave = wave_even
             self.flux = flux_rot_broad
         
         return flux_rot_broad
 
-    def rebin(self, new_wave, new_wave_bins=None, replace_flux=False):
+    def rebin(self, new_wave, replace_wave_flux=False):
 
         # Interpolate onto the observed spectrum's wavelength grid
         flux_rebinned = np.interp(new_wave, xp=self.wave, fp=self.flux)
 
-        #flux_rebinned = rgw.rebin_give_width(self.wave, self.flux, 
-        #                                     new_wave, new_wave_bins
-        #                                     )
-
-        if replace_flux:
+        if replace_wave_flux:
             self.flux = flux_rebinned
+            self.wave = new_wave
 
             # Update the isfinite mask
             self.update_isfinite_mask()
-            self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
         
         return flux_rebinned
 
-    def shift_broaden_rebin(self, new_wave, new_wave_bins, 
-                            rv, vsini, epsilon_limb=0, 
-                            out_res=1e6, in_res=1e6, rebin=True
+    def shift_broaden_rebin(self, 
+                            new_wave, 
+                            rv, 
+                            vsini, 
+                            epsilon_limb=0, 
+                            out_res=1e6, 
+                            in_res=1e6, 
+                            rebin=True
                             ):
 
         # Apply Doppler shift, rotational/instrumental broadening, 
         # and rebin onto a new wavelength grid
         self.rv_shift(rv, replace_wave=True)
-        self.rot_broadening(vsini, epsilon_limb, replace_flux=True)
-        self.instr_broadening(self.wave, self.flux, out_res, in_res)
+        self.rot_broadening(vsini, epsilon_limb, replace_wave_flux=True)
+        self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:
-            self.rebin(new_wave, new_wave_bins, replace_flux=True)
+            self.rebin(new_wave, replace_wave_flux=True)
 
 class Photometry:
 
