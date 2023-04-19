@@ -1,8 +1,7 @@
 __pycache__/
 *egg-info/
 
-#DENIS_J0255/data/*.fits
-DENIS_J0255/data/
+DENIS_J0255/data/*.fits
 DENIS_J0255/retrieval_outputs/
 
 transm_curves.pk
