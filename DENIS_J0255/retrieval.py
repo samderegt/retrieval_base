@@ -181,9 +181,10 @@ def retrieval():
 
     CB = CallBack(
         d_spec=d_spec, 
-        cb_count=0, 
+        #cb_count=0, 
+        cb_count=-2, 
         evaluation=False, 
-        n_samples_to_use=5000, 
+        n_samples_to_use=2000, 
         prefix=conf.prefix, 
         posterior_color='C0', 
         bestfit_color='C3', 

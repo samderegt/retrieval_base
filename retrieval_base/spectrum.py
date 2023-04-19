@@ -267,7 +267,7 @@ class DataSpectrum(Spectrum):
         print('Barycentric velocity: {:.2f} km/s'.format(self.v_bary))
 
         # Apply barycentric correction
-        self.rv_shift(self.v_bary, replace_wave=True)
+        self.rv_shift(-self.v_bary, replace_wave=True)
 
     def reshape_orders_dets(self):
 

@@ -59,7 +59,7 @@ class CallBack:
 
         # Use only the last n samples to plot the posterior
         n_samples = min([len(posterior), self.n_samples_to_use])
-        self.posterior = posterior[:n_samples]
+        self.posterior = posterior[-n_samples:]
 
         # Display the mean elapsed time per lnL evaluation
         print('\n\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))
