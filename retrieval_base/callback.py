@@ -15,20 +15,23 @@ class CallBack:
 
     def __init__(self, 
                  d_spec, 
-                 cb_count=0, 
                  evaluation=False, 
-                 n_samples_to_use=5000, 
+                 n_samples_to_use=2000, 
                  prefix=None, 
                  posterior_color='C0', 
                  bestfit_color='C1', 
+                 species_to_plot=['12CO', 'H2O', '13CO', 'CH4', 'NH3'], 
                  ):
         
         self.elapsed_times = []
 
         self.active = False
-        self.cb_count = cb_count
 
         self.evaluation = evaluation
+        self.cb_count = 0
+        if self.evaluation:
+            self.cb_count = -2
+
         self.n_samples_to_use = n_samples_to_use
 
         self.d_spec = d_spec
@@ -44,7 +47,19 @@ class CallBack:
         self.envelope_colors = envelope_cmap([0.0,0.2,0.4,0.6,0.8])
         self.envelope_colors[0,-1] = 0.0
 
-    def __call__(self, Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior):
+        self.species_to_plot = species_to_plot
+
+    def __call__(self, 
+                 Param, 
+                 LogLike, 
+                 PT, 
+                 Chem, 
+                 m_spec, 
+                 pRT_atm, 
+                 posterior, 
+                 temperature_envelopes=None, 
+                 mass_fractions_envelopes=None, 
+                 ):
 
         time_A = time.time()
         self.cb_count += 1
@@ -56,6 +71,9 @@ class CallBack:
         self.Chem    = Chem
         self.m_spec  = m_spec
         self.pRT_atm = pRT_atm
+
+        self.temperature_envelopes    = temperature_envelopes
+        self.mass_fractions_envelopes = mass_fractions_envelopes
 
         # Use only the last n samples to plot the posterior
         n_samples = min([len(posterior), self.n_samples_to_use])
@@ -98,6 +116,10 @@ class CallBack:
         # Make a summary figure
         self.fig_summary()
 
+        # Save the bestfit parameters in a .json file
+        # and the ModelSpectrum instance as .pkl
+        self.save_bestfit()
+
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
 
@@ -107,20 +129,25 @@ class CallBack:
     def save_bestfit(self):
         
         # Save the bestfit parameters
+        params_to_save = {}
+        for key_i, val_i in self.Param.params.items():
+            if isinstance(val_i, np.ndarray):
+                val_i = val_i.tolist()
+            params_to_save[key_i] = val_i
+
         dict_to_save = {
-            'params': self.Param.params, 
-            'f': self.LogLike.f, 
-            'beta': self.LogLike.beta, 
-            'temperature': self.PT.temperature, 
-            'pressure': self.PT.pressure, 
+            'params': params_to_save, 
+            'f': self.LogLike.f.tolist(), 
+            'beta': self.LogLike.beta.tolist(), 
+            'temperature': self.PT.temperature.tolist(), 
+            'pressure': self.PT.pressure.tolist(), 
         }
 
-        with open(prefix+'data/bestfit.json', 'w') as fp:
+        with open(self.prefix+'data/bestfit.json', 'w') as fp:
             json.dump(dict_to_save, fp, indent=4)
 
         # Save the bestfit spectrum
-        pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
-        #np.save(prefix+'data/bestfit_flux.npy', self.m_spec.flux)
+        af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
         
     def fig_summary(self):
 
@@ -233,6 +260,20 @@ class CallBack:
             self.PT.T_knots, self.PT.P_knots, 
             c=self.bestfit_color, ls='', marker='o', markersize=3
             )
+            
+        if self.evaluation:
+            # Plot the PT envelope as well
+            for i in range(3):
+                ax_PT.fill_betweenx(
+                    y=self.PT.pressure, x1=self.temperature_envelopes[i], 
+                    x2=self.temperature_envelopes[-i-1], 
+                    color=self.envelope_colors[i+1], ec='none', 
+                    )
+            # Plot the median PT
+            ax_PT.plot(
+                self.temperature_envelopes[3], self.PT.pressure, 
+                c=self.posterior_color, lw=1
+            )
         
         if yticks is None:
             yticks = np.logspace(-6, 2, 9)
@@ -252,7 +293,7 @@ class CallBack:
 
         for species_i in self.Chem.species_info.keys():
             
-            if species_i not in ['12CO', 'H2O', '13CO', 'CH4', 'NH3']:
+            if species_i not in self.species_to_plot:
                 continue
 
             # Check if the line species was included in the model
@@ -270,6 +311,21 @@ class CallBack:
 
                 # Plot volume-mixing ratio as function of pressure
                 ax_VMR.plot(VMR_i, self.PT.pressure, c=color_i, lw=1, label=label_i)
+
+                if self.evaluation:
+                    # Plot the VMR envelope as well
+                    cmap_i = mpl.colors.LinearSegmentedColormap.from_list(
+                        'cmap_i', colors=['w', color_i]
+                        )
+                    VMR_envelope_colors_i = cmap_i([0.0,0.2,0.4,0.6,0.8])
+
+                    for j in range(3):
+                        ax_VMR.fill_betweenx(
+                            y=self.PT.pressure, x1=MMW/mass_i * self.mass_fractions_envelopes[line_species_i][j], 
+                            x2=MMW/mass_i * self.mass_fractions_envelopes[line_species_i][-j-1], 
+                            color=VMR_envelope_colors_i[j+1], ec='none', 
+                            )
+
 
         if yticks is None:
             yticks = np.logspace(-6, 2, 9)
