@@ -79,7 +79,7 @@ free_params = {
 
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
-    'rv': [(18,22), r'$v_\mathrm{rad}$'], 
+    'rv': [(21,28), r'$v_\mathrm{rad}$'], 
     
     # PT profile
     'log_gamma': [(-3,4), r'$\log\ \gamma$'], 
@@ -132,4 +132,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 20
+n_iter_before_update = 200

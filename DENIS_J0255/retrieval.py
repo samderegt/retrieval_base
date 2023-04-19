@@ -179,10 +179,14 @@ def retrieval():
                            pRT_atm.pressure
                            )
 
+    if args.evaluation:
+        cb_count = -2
+    else:
+        cb_count = 0
+
     CB = CallBack(
         d_spec=d_spec, 
-        #cb_count=0, 
-        cb_count=-2, 
+        cb_count=cb_count, 
         evaluation=False, 
         n_samples_to_use=2000, 
         prefix=conf.prefix, 
@@ -316,4 +320,4 @@ if __name__ == '__main__':
         retrieval()
 
     if args.evaluation:
-        pass
+        retrieval()
