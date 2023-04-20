@@ -9,7 +9,8 @@ class LogLikelihood:
                  n_params, 
                  scale_flux=False, 
                  scale_err=False, 
-                 scale_GP_amp=False
+                 scale_GP_amp=False, 
+                 cholesky_mode='banded', 
                  ):
 
         # Observed spectrum is constant
@@ -22,6 +23,8 @@ class LogLikelihood:
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
         self.scale_GP_amp = scale_GP_amp
+        
+        self.cholesky_mode = cholesky_mode
 
     def __call__(self, m_spec, params, ln_L_penalty=0):
         '''
@@ -79,23 +82,20 @@ class LogLikelihood:
                     d_wave_ij = self.d_spec.wave[i,j,:][mask_ij]
 
                     # Wavelength separation between pixels
-                    d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
+                    #d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
 
                     # Use Gaussian Processes
-                    cov_ij = GaussianProcesses(d_err_ij)
-
-                    if self.scale_GP_amp:
-                        # Scale the GP amplitude by flux uncertainty
-                        GP_err = d_err_ij
-                    else:
-                        GP_err = None
+                    cov_ij = GaussianProcesses(
+                        d_err_ij, cholesky_mode=self.cholesky_mode
+                        )
 
                     # Add a radial-basis function kernel
                     cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
                                           l=self.params['l'][i,j], 
-                                          delta_wave=d_delta_wave_ij, 
-                                          err=GP_err, 
-                                          trunc_dist=5
+                                          #delta_wave=d_delta_wave_ij, 
+                                          wave=d_wave_ij, 
+                                          trunc_dist=5, 
+                                          scale_GP_amp=self.scale_GP_amp
                                           )
 
                 else:

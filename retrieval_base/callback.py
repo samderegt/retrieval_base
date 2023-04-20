@@ -24,7 +24,6 @@ class CallBack:
                  ):
         
         self.elapsed_times = []
-
         self.active = False
 
         self.evaluation = evaluation

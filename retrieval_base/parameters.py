@@ -129,7 +129,7 @@ class Parameters:
         self.n_orders = n_orders
         self.n_dets   = n_dets
 
-    def __call__(self, cube, ndim, nparams):
+    def __call__(self, cube, ndim=None, nparams=None):
         '''
         Update values in the params dictionary.
 
@@ -137,15 +137,17 @@ class Parameters:
         -----
         cube : np.ndarray
             Array of values between 0-1 for the free parameters.
-        ndim : int
+        ndim : int or None
             Number of dimensions. (Equal to number of free parameters)
-        nparams : int
+        nparams : int or None
             Number of free parameters.
         '''
 
-        # Update values in the params-dictionary
-        #cube = np.array(cube[:ndim])
-        self.cube_copy = np.array(cube[:ndim])
+        # Convert to numpy array if necessary
+        if (ndim is None) and (nparams is None):
+            self.cube_copy = cube
+        else:
+            self.cube_copy = np.array(cube[:ndim])
 
         # Loop over all parameters
         for i, key_i in enumerate(self.param_keys):
@@ -162,7 +164,10 @@ class Parameters:
         self.read_chemistry_params()
         self.read_cloud_params()
 
-        return
+        if (ndim is None) and (nparams is None):
+            return cube
+        else:
+            return
     
     def read_PT_params(self, cube=None):
 
