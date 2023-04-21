@@ -60,19 +60,33 @@ class Covariance:
 class GaussianProcesses(Covariance):
 
     def __init__(self, err, delta_wave, avg_squared_err=None, cholesky_mode='banded'):
+        '''
+        Create a covariance matrix suited for Gaussian processes. 
+
+        Input
+        -----
+        err : np.ndarray
+            Uncertainty in the flux.
+        delta_wave : np.ndarray
+            Wavelength separation between pixels.
+        avg_squared_err : np.ndarray
+            Average squared error between pixels.
+        cholesky_mode : str
+            Method of Cholesky decomposition, can be either 
+            'sparse' or 'banded'.
+        '''
 
         # Give arguments to the parent class
         super().__init__(err)
         
-        #self.err = err
-
         # Pre-computed average error and wavelength separation
         self.avg_squared_err = avg_squared_err
         self.delta_wave = delta_wave
 
-        # Make covariance 2-dimensional
-        self.cov = np.diag(self.cov)
-        self.is_matrix = True
+        if not self.is_matrix:
+            # Make covariance 2-dimensional
+            self.cov = np.diag(self.cov)
+            self.is_matrix = True
 
         self.cholesky_mode = cholesky_mode
 
@@ -99,32 +113,74 @@ class GaussianProcesses(Covariance):
 
         '''
 
-        if not self.is_matrix:
-            # Create diagonal matrix
-            self.cov = np.diag(self.cov)
-            self.is_matrix = True
+        # Hann window function to ensure sparsity
+        w_ij = (self.delta_wave < trunc_dist*l)
+
+        # GP amplitude
+        GP_amp = a**2
+        if scale_GP_amp:
+            # Use amplitude as fraction of flux uncertainty
+            GP_amp *= self.avg_squared_err[w_ij]
+
+        # Gaussian radial-basis function kernel
+        self.cov[w_ij] += GP_amp * np.exp(-(self.delta_wave[w_ij])**2/(2*l**2))
+
+    def add_RQ_kernel(self, a, l, w, trunc_dist=5, scale_GP_amp=False):
+        '''
+        Add a rational quadratic kernel to the covariance matrix. 
+        The amplitude can be scaled by the flux-uncertainties of 
+        pixels i and j if scale_GP_amp=True. 
+
+        Input
+        -----
+        a : float
+            Square-root of amplitude of the RQ kernel.
+        l : float
+            Length-scale of the RQ kernel.
+        w : float
+            Weighting of large and small scale variations.
+        trunc_dist : float
+            Distance at which to truncate the kernel 
+            (|wave_i-wave_j| < trunc_dist*l). This ensures
+            a relatively sparse covariance matrix. 
+        scale_GP_amp : bool
+            If True, scale the amplitude at each covariance element, 
+            using the flux-uncertainties of the corresponding pixels
+            (A = a**2 * (err_i**2 + err_j**2)/2).
+
+        '''
 
         # Hann window function to ensure sparsity
         w_ij = (self.delta_wave < trunc_dist*l)
 
+        # GP amplitude
+        GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            GP_amp = a**2 * self.avg_squared_err[w_ij]
+            GP_amp *= self.avg_squared_err[w_ij]
 
-            # Geometric mean
-            #GP_amp = a**2 * np.sqrt(err[None,:]**2 * err[:,None]**2)[w_ij]
-        else:
-            GP_amp = a**2
-
-        # Gaussian radial-basis function kernel
-        self.cov[w_ij] = self.cov[w_ij] + GP_amp * np.exp(-(self.delta_wave[w_ij])**2/(2*l**2))
+        # Rational quadratic kernel (approaches RBF if w -> infty)
+        self.cov[w_ij] += GP_amp * (1 + self.delta_wave[w_ij]**2/(2*w*l**2))**(-w)
         
+    def get_cholesky(self):
+        '''
+        Get the Cholesky decomposition. Either employs a sparse
+        decomposition using scikit-sparse, or a banded decomposition
+        with scipy. 
+
+        '''
+
         if self.cholesky_mode == 'sparse':
+
             # Create a sparse CSC matrix
             self.cov = csc_matrix(self.cov)
 
+            # Compute sparse Cholesky decomposition
+            self.cov_cholesky = cholesky(self.cov)
+
         elif self.cholesky_mode == 'banded':
-            # Banded Cholesky decomposition
+            
+            # Make banded covariance matrix
             self.cov_banded = []
 
             for i in range(len(self.cov)):
@@ -144,24 +200,16 @@ class GaussianProcesses(Covariance):
             # Convert to array for scipy
             self.cov_banded = np.asarray(self.cov_banded)
 
-        # Retrieve a (sparse) Cholesky decomposition
-        self.get_cholesky()
-        
-    def get_cholesky(self):
-
-        if self.cholesky_mode == 'sparse':
-            # Compute sparse Cholesky decomposition
-            self.cov_cholesky = cholesky(self.cov)
-
-        elif self.cholesky_mode == 'banded':
             # Compute banded Cholesky decomposition
             self.cov_cholesky = cholesky_banded(
                 self.cov_banded, lower=True
                 )
 
     def get_logdet(self):
+        '''
+        Calculate the log of the determinant.
+        '''
         
-        # Calculate the log of the determinant
         if self.cholesky_mode == 'sparse':
             # Sparse Cholesky decomposition
             self.logdet = self.cov_cholesky.logdet()

@@ -130,6 +130,10 @@ class LogLikelihood:
                     # Add a model uncertainty (Line et al. 2015)
                     cov_ij.add_model_err(np.sqrt(10**self.params['b']))
 
+                if cov_ij.is_matrix:
+                    # Retrieve a (sparse) Cholesky decomposition
+                    cov_ij.get_cholesky()
+
                 # Get the log of the determinant (log prevents over/under-flow)
                 cov_ij.get_logdet()
 
