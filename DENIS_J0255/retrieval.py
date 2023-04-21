@@ -159,8 +159,7 @@ def retrieval():
         scale_flux=conf.scale_flux, 
         scale_err=conf.scale_err, 
         scale_GP_amp=conf.scale_GP_amp, 
-        #cholesky_mode='banded', 
-        cholesky_mode='sparse', 
+        cholesky_mode='banded', 
         )
 
     if Param.PT_mode == 'Molliere':
@@ -379,7 +378,7 @@ def retrieval():
         sampling_efficiency=conf.sampling_efficiency, 
         n_live_points=conf.n_live_points, 
         evidence_tolerance=conf.evidence_tolerance, 
-        #dump_callback=PMN_callback_func, 
+        dump_callback=PMN_callback_func, 
         n_iter_before_update=conf.n_iter_before_update, 
         )
 

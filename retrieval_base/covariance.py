@@ -96,26 +96,6 @@ class GaussianProcesses(Covariance):
         # Gaussian radial-basis function kernel
         self.cov[w_ij] = self.cov[w_ij] + GP_amp * np.exp(-(delta_wave[w_ij])**2/(2*l**2))
         
-        '''
-        # Gaussian radial-basis function kernel
-        Sigma_ij = np.zeros_like(delta_wave)
-        Sigma_ij[w_ij] = a**2 * np.exp(-(delta_wave[w_ij])**2/(2*l**2))
-
-        if err is not None:
-            # Use amplitude as fraction of flux uncertainty
-            Sigma_ij[w_ij] *= 1/2*(err[None,:]**2 + err[:,None]**2)[w_ij]
-
-            # Geometric mean
-            #GP_amp = a**2 * np.sqrt(err[i]**2 * err[j]**2)
-        
-        # Add the (scaled) Poisson noise
-        if self.is_matrix:
-            self.cov = Sigma_ij + self.cov
-        else:
-            self.cov = Sigma_ij + np.diag(self.cov)
-            self.is_matrix = True
-        '''
-
         if self.cholesky_mode == 'sparse':
             # Create a sparse CSC matrix
             self.cov = csc_matrix(self.cov)
@@ -139,7 +119,7 @@ class GaussianProcesses(Covariance):
                     break
             
             # Convert to array for scipy
-            self.cov_banded = np.array(self.cov_banded)
+            self.cov_banded = np.asarray(self.cov_banded)
 
         # Retrieve a (sparse) Cholesky decomposition
         self.get_cholesky()
@@ -155,9 +135,6 @@ class GaussianProcesses(Covariance):
             self.cov_cholesky = cholesky_banded(
                 self.cov_banded, lower=True
                 )
-            
-        # Set the solve function
-        self.solve = self.solve_cholesky
 
     def get_logdet(self):
         
@@ -170,7 +147,7 @@ class GaussianProcesses(Covariance):
             # Use diagonal elements of banded Cholesky decomposition
             self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
 
-    def solve_cholesky(self, b):
+    def solve(self, b):
         '''
         Solve the system cov*x = b, for x (x = cov^{-1}*b). 
         Employs a sparse or banded Cholesky decomposition.
