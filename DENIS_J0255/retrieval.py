@@ -26,7 +26,9 @@ from retrieval_base.callback import CallBack
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-import config_DENIS as conf
+#import config_DENIS as conf
+#import config_DENIS_144 as conf
+import config_DENIS_146 as conf
 
 def pre_processing():
 
@@ -193,7 +195,9 @@ def retrieval():
         n_samples_to_use=2000, 
         prefix=conf.prefix, 
         posterior_color='C0', 
-        bestfit_color='C3', 
+        #bestfit_color='C3', 
+        #bestfit_color='orangered', 
+        bestfit_color='C1', 
         )
             
     def PMN_lnL_func(cube=None, ndim=None, nparams=None):
@@ -235,7 +239,7 @@ def retrieval():
             mass_fractions, 
             temperature, 
             Param.params, 
-            get_contr=False, 
+            get_contr=args.evaluation, 
             )
 
         # Retrieve the log-likelihood
@@ -244,15 +248,15 @@ def retrieval():
             Param.params, 
             ln_L_penalty=ln_L_penalty, 
             )
+        
+        time_B = time.time()
+        CB.elapsed_times.append(time_B-time_A)
 
         if CB.active:
 
             # Return the class instances during callback
             return (LogLike, PT, Chem, m_spec, pRT_atm)
 
-        time_B = time.time()
-        CB.elapsed_times.append(time_B-time_A)
-        
         return ln_L
 
     def PMN_callback_func(n_samples, 

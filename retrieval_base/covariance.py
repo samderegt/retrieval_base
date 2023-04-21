@@ -81,7 +81,7 @@ class GaussianProcesses(Covariance):
         
         # Pre-computed average error and wavelength separation
         self.avg_squared_err = avg_squared_err
-        self.delta_wave = delta_wave
+        self.delta_wave = np.abs(delta_wave)
 
         if not self.is_matrix:
             # Make covariance 2-dimensional

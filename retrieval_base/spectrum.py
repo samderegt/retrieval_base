@@ -176,6 +176,14 @@ class Spectrum:
                                    )        
         return flux_LSF
     
+    @classmethod
+    def spectrally_weighted_integration(cls, wave, flux, array):
+
+        # Integrate and weigh the array by the spectrum
+        integral1 = np.trapz(wave*flux*array, wave)
+        integral2 = np.trapz(wave*flux, wave)
+
+        return integral1/integral2
 
 class DataSpectrum(Spectrum):
 

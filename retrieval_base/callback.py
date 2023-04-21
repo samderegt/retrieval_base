@@ -4,6 +4,7 @@ from matplotlib.gridspec import GridSpec
 
 import numpy as np
 
+import os
 import time
 import json
 import corner
@@ -230,18 +231,62 @@ class CallBack:
             prefix=self.prefix, 
             )
 
-        # Plot the VMR per species
         ax_VMR = fig.add_axes([0.63,0.475,0.1,0.22])
+        l, b, w, h = ax_VMR.get_position().bounds
+        ax_PT = fig.add_axes([l+w,b,h,h])
+        ax_contr = ax_PT.twiny()
+
+        # Plot the VMR per species
         ax_VMR = self.fig_VMR(ax_VMR)
 
         # Plot the best-fitting PT profile
-        l, b, w, h = ax_VMR.get_position().bounds
-        ax_PT = fig.add_axes([l+w,b,h,h])
         ax_PT = self.fig_PT(ax_PT, ylabel=None, yticks=[])
 
+        # Plot the integrated emission contribution function
+        ax_contr = self.fig_contr_em(ax_contr)
+
         #plt.show()
-        plt.savefig(self.prefix+'plots/live_summary.pdf')
-        plt.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
+        if self.evaluation:
+            
+            # Make the histograms directory
+            if not os.path.exists(self.prefix+'plots/hists'):
+                os.makedirs(self.prefix+'plots/hists')
+
+            # Save the histograms separately
+            for i in range(ax.shape[0]):
+
+                self.fig_hist(
+                    posterior_i=self.posterior[:,i], 
+                    param_range_i=self.param_range[i], 
+                    param_quantiles_i=self.param_quantiles[i], 
+                    param_key_i=self.Param.param_keys[i], 
+                    title=ax[i,i].get_title(), 
+                    bins=20
+                    )
+
+                if self.Param.param_keys[i].startswith('log_'):
+
+                    # Plot the logarithmic parameters as linear as well
+                    title = self.param_labels[i].replace('\\log', '')
+                    title = title.replace('\\ ', '')
+                    title = title + r'$=' + '{:.3f}'.format(10**self.param_quantiles[i][1])
+                    title = title + '^{' + '+{:.3f}'.format(10**self.param_quantiles[i][2]-10**self.param_quantiles[i][1]) + '}'
+                    title = title + '_{' + '{:.3f}'.format(10**self.param_quantiles[i][1]-10**self.param_quantiles[i][0]) + '}$'
+
+                    self.fig_hist(
+                        posterior_i=10**self.posterior[:,i], 
+                        param_range_i=(10**self.param_range[i][0], 10**self.param_range[i][1]), 
+                        param_quantiles_i=10**self.param_quantiles[i], 
+                        param_key_i=self.Param.param_keys[i].replace('log_', ''), 
+                        title=title, bins=20
+                        )
+                                
+            fig.savefig(self.prefix+'plots/final_summary.pdf')
+            fig.savefig(self.prefix+f'plots/final_summary.png', dpi=100)
+
+        else:
+            fig.savefig(self.prefix+'plots/live_summary.pdf')
+            fig.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
         plt.close(fig)
 
         # Plot the best-fit spectrum in subplots
@@ -255,14 +300,22 @@ class CallBack:
             prefix=self.prefix, 
             )
 
-    def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
+    def fig_hist(self, posterior_i, param_range_i, param_quantiles_i, param_key_i, title=None, bins=20):
 
-        # Plot the best-fitting PT profile and median
-        ax_PT.plot(self.PT.temperature, self.PT.pressure, c=self.bestfit_color, lw=1)
-        ax_PT.plot(
-            self.PT.T_knots, self.PT.P_knots, 
-            c=self.bestfit_color, ls='', marker='o', markersize=3
+        fig_hist, ax_hist = plt.subplots(figsize=(3,3))
+        ax_hist.hist(
+            posterior_i, bins=bins, range=param_range_i, 
+            color=self.posterior_color, histtype='step', 
             )
+        ax_hist.axvline(param_quantiles_i[0], c=self.posterior_color, ls='--')
+        ax_hist.axvline(param_quantiles_i[1], c=self.posterior_color, ls='-')
+        ax_hist.axvline(param_quantiles_i[2], c=self.posterior_color, ls='--')
+
+        ax_hist.set(yticks=[], xlim=param_range_i, title=title)
+        fig_hist.savefig(self.prefix+f'plots/hists/{param_key_i}.pdf')
+        plt.close(fig_hist)
+
+    def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
             
         if self.evaluation:
             # Plot the PT envelope as well
@@ -278,6 +331,13 @@ class CallBack:
                 c=self.posterior_color, lw=1
             )
         
+        # Plot the best-fitting PT profile and median
+        ax_PT.plot(self.PT.temperature, self.PT.pressure, c=self.bestfit_color, lw=1)
+        ax_PT.plot(
+            self.PT.T_knots, self.PT.P_knots, 
+            c=self.bestfit_color, ls='', marker='o', markersize=3
+            )
+
         if yticks is None:
             yticks = np.logspace(-6, 2, 9)
             
@@ -342,3 +402,14 @@ class CallBack:
         ax_VMR.invert_yaxis()
 
         return ax_VMR
+
+    def fig_contr_em(self, ax_contr):
+
+        ax_contr.plot(
+            self.pRT_atm.int_contr_em, self.PT.pressure, 
+            c=self.bestfit_color, ls='--', alpha=0.7
+            )
+        ax_contr.tick_params(axis='x', which='both', top=False, labeltop=False)
+        ax_contr.set(xlim=(0, 1.1*np.nanmax(self.pRT_atm.int_contr_em)))
+
+        return ax_contr

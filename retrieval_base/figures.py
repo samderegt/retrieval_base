@@ -236,16 +236,24 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     )
 
                 # Show the mean error after scaling with beta
+                #mean_err_ij += np.sqrt(LogLike.params['a'][i,j])*mean_err_ij
                 mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
                 ax_res.errorbar(
                     d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
                     fmt='none', lw=1, ecolor=bestfit_color, capsize=2, color=bestfit_color, 
-                    label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
+                    #label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
+                    label=r'Modelled $\langle\sigma_{ij}\rangle$'
                     )
 
             if i==0 and j==0:
-                ax_spec.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
-                ax_res.legend(loc='upper right', ncol=2, handlelength=1, framealpha=0.7)
+                ax_spec.legend(
+                    loc='upper right', ncol=2, handlelength=1, 
+                    framealpha=0.7, handletextpad=0.3, columnspacing=0.8
+                    )
+                ax_res.legend(
+                    loc='upper right', ncol=2, handlelength=1, 
+                    framealpha=0.7, handletextpad=0.3, columnspacing=0.8
+                    )
 
     # Set the labels for the final axis
     ax_spec.set(ylabel=ylabel_spec)
