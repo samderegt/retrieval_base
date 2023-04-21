@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 00:20:00
+#SBATCH -t 01:00:00
 #SBATCH -p thin
-#SBATCH -n 110
+#SBATCH -n 100
 #SBATCH --mem=224G
 
-#SBATCH --job-name=DENIS_retrieval_142
+#SBATCH --job-name=DENIS_retrieval_145
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -33,6 +33,6 @@ echo "Starting Python script"
 # Run pre-processing and retrieval
 python retrieval.py --pre_processing
 mpirun -np $SLURM_NTASKS python retrieval.py --retrieval
-#python retrieval.py --evaluation
+python retrieval.py --evaluation
 
 echo "Done"

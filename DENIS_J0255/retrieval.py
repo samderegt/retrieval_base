@@ -159,7 +159,7 @@ def retrieval():
         scale_flux=conf.scale_flux, 
         scale_err=conf.scale_err, 
         scale_GP_amp=conf.scale_GP_amp, 
-        cholesky_mode='banded', 
+        cholesky_mode=conf.cholesky_mode, 
         )
 
     if Param.PT_mode == 'Molliere':
@@ -190,10 +190,8 @@ def retrieval():
         posterior_color='C0', 
         bestfit_color='C3', 
         )
-        
-    return_PT_mf = False
-    
-    def PMN_lnL_func(params, ndim=None, nparams=None):
+            
+    def PMN_lnL_func(cube=None, ndim=None, nparams=None):
 
         time_A = time.time()
 
@@ -223,7 +221,7 @@ def retrieval():
             # Non-H2 abundances added up to > 1
             return -np.inf
 
-        if return_PT_mf:
+        if CB.return_PT_mf:
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
@@ -269,7 +267,7 @@ def retrieval():
         if args.evaluation:
             
             # Return the PT profile and mass fractions
-            return_PT_mf = True
+            CB.return_PT_mf = True
 
             # Set-up analyzer object
             analyzer = pymultinest.Analyzer(
@@ -287,7 +285,7 @@ def retrieval():
            
             # Objects to store the envelopes in 
             mass_fractions_envelopes = {}
-            for line_species_i in pRT_atm.line_species:
+            for line_species_i in conf.line_species:
                 mass_fractions_envelopes[line_species_i] = []
             temperature_envelopes = []
 
@@ -305,7 +303,7 @@ def retrieval():
                 Param.read_cloud_params()
 
                 # Class instances with best-fitting parameters
-                returned = PMN_lnL_func(params=None)
+                returned = PMN_lnL_func()
                 if isinstance(returned, float):
                     # PT profile or mass fractions failed
                     continue
@@ -314,7 +312,7 @@ def retrieval():
                 temperature_i, mass_fractions_i = returned
                 temperature_envelopes.append(temperature_i)
                 # Loop over the line species
-                for line_species_i in pRT_atm.line_species:
+                for line_species_i in conf.line_species:
                     mass_fractions_envelopes[line_species_i].append(
                         mass_fractions_i[line_species_i]
                         )
@@ -328,12 +326,12 @@ def retrieval():
             temperature_envelopes = af.quantiles(
                 np.array(temperature_envelopes), q=q, axis=0
                 )
-            for line_species_i in pRT_atm.line_species:
+            for line_species_i in conf.line_species:
                 mass_fractions_envelopes[line_species_i] = af.quantiles(
                     np.array(mass_fractions_envelopes[line_species_i]), q=q, axis=0
                     )
 
-            return_PT_mf = False
+            CB.return_PT_mf = False
 
         else:
 
@@ -357,7 +355,7 @@ def retrieval():
         Param.read_cloud_params()
 
         # Update class instances with best-fitting parameters
-        LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func(params=None)
+        LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
         CB.active = False
 
         # Call the CallBack class and make summarizing figures
@@ -397,11 +395,6 @@ if __name__ == '__main__':
 
     if args.retrieval:
         retrieval()
-        #ret = PMN_Retrieval()
-        #ret.run()
 
     if args.evaluation:
-        #retrieval()
-        #ret = PMN_Retrieval()
-        #ret.run()
-        pass
+        retrieval()

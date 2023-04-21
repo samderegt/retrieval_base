@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_144'
+prefix = 'DENIS_J0255_retrieval_outputs_145'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -58,7 +58,7 @@ wave_range = (2300, 2400)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    'log_a': [(-4,-1), r'$\log\ a$'], 
+    'log_a': [(-4,-0.4), r'$\log\ a$'], 
     'log_l': [(-3,0), r'$\log\ l$'], 
 
     # General properties
@@ -79,7 +79,7 @@ free_params = {
 
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
-    'rv': [(21,28), r'$v_\mathrm{rad}$'], 
+    'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
     'log_gamma': [(-3,4), r'$\log\ \gamma$'], 
@@ -121,6 +121,7 @@ cloud_species = None
 scale_flux = True
 scale_err  = True
 scale_GP_amp = True
+cholesky_mode = 'sparse'
 
 apply_high_pass_filter = False
 
@@ -131,5 +132,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
-n_iter_before_update = 5
+n_live_points = 200
+n_iter_before_update = 200

@@ -25,6 +25,7 @@ class CallBack:
         
         self.elapsed_times = []
         self.active = False
+        self.return_PT_mf = False
 
         self.evaluation = evaluation
         self.cb_count = 0
@@ -74,9 +75,12 @@ class CallBack:
         self.temperature_envelopes    = temperature_envelopes
         self.mass_fractions_envelopes = mass_fractions_envelopes
 
-        # Use only the last n samples to plot the posterior
-        n_samples = min([len(posterior), self.n_samples_to_use])
-        self.posterior = posterior[-n_samples:]
+        if not self.evaluation:
+            # Use only the last n samples to plot the posterior
+            n_samples = min([len(posterior), self.n_samples_to_use])
+            self.posterior = posterior[-n_samples:]
+        else:
+            self.posterior = posterior
 
         # Display the mean elapsed time per lnL evaluation
         print('\n\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))

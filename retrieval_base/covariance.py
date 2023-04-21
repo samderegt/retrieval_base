@@ -72,6 +72,29 @@ class GaussianProcesses(Covariance):
         self.cholesky_mode = cholesky_mode
 
     def add_RBF_kernel(self, a, l, wave, trunc_dist=5, scale_GP_amp=False):
+        '''
+        Add a radial-basis function kernel to the covariance matrix. 
+        The amplitude can be scaled by the flux-uncertainties of 
+        pixels i and j if scale_GP_amp=True. 
+
+        Input
+        -----
+        a : float
+            Square-root of amplitude of the RBF kernel.
+        l : float
+            Length-scale of the RBF kernel.
+        wave : np.ndarray
+            Wavelengths at each pixel.
+        trunc_dist : float
+            Distance at which to truncate the kernel 
+            (|wave_i-wave_j| < trunc_dist*l). This ensures
+            a relatively sparse covariance matrix. 
+        scale_GP_amp : bool
+            If True, scale the amplitude at each covariance element, 
+            using the flux-uncertainties of the corresponding pixels
+            (A = a**2 * (err_i**2 + err_j**2)/2).
+
+        '''
 
         if not self.is_matrix:
             # Create diagonal matrix
