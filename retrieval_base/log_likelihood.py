@@ -69,31 +69,41 @@ class LogLikelihood:
                 if N_ij == 0:
                     continue
 
-                m_flux_ij = m_spec.flux[i,j,:][mask_ij]
-                d_flux_ij = self.d_spec.flux[i,j,:][mask_ij]
-                d_err_ij  = self.d_spec.err[i,j,:][mask_ij]
+                m_flux_ij = m_spec.flux[i,j,mask_ij]
+                d_flux_ij = self.d_spec.flux[i,j,mask_ij]
+                d_err_ij  = self.d_spec.err[i,j,mask_ij]
 
                 res_ij = (d_flux_ij - m_flux_ij)
 
                 # Set up the covariance matrix
                 if self.params['a'][i,j] != 0:
 
-                    # Wavelengths within this order/detector
-                    d_wave_ij = self.d_spec.wave[i,j,:][mask_ij]
+                    if self.d_spec.delta_wave is not None:
+                        # Read wavelength separation between pixels from memory
+                        d_delta_wave_ij = self.d_spec.delta_wave[i,j,mask_ij,mask_ij]
+                    else:
+                        # Compute wavelength separation between pixels
+                        d_wave_ij = self.d_spec.wave[i,j,mask_ij]
+                        d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
 
-                    # Wavelength separation between pixels
-                    #d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
+                    if self.d_spec.avg_squared_err is not None:
+                        # Read average squared errors from memory
+                        d_avg_squared_err_ij = self.d_spec.avg_squared_err[i,j,mask_ij,mask_ij]
+                    else:
+                        # Compute average squared errors between pixels
+                        d_avg_squared_err_ij = 1/2*(d_err_ij[None,:]**2 + d_err_ij[:,None]**2)
 
                     # Use Gaussian Processes
                     cov_ij = GaussianProcesses(
-                        d_err_ij, cholesky_mode=self.cholesky_mode
+                        err=d_err_ij, 
+                        delta_wave=d_delta_wave_ij, 
+                        avg_squared_err=d_avg_squared_err_ij, 
+                        cholesky_mode=self.cholesky_mode
                         )
 
                     # Add a radial-basis function kernel
                     cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
                                           l=self.params['l'][i,j], 
-                                          #delta_wave=d_delta_wave_ij, 
-                                          wave=d_wave_ij, 
                                           trunc_dist=5, 
                                           scale_GP_amp=self.scale_GP_amp
                                           )

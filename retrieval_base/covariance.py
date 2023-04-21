@@ -59,11 +59,16 @@ class Covariance:
 
 class GaussianProcesses(Covariance):
 
-    def __init__(self, err, cholesky_mode='banded'):
+    def __init__(self, err, delta_wave, avg_squared_err=None, cholesky_mode='banded'):
 
         # Give arguments to the parent class
         super().__init__(err)
-        self.err = err
+        
+        #self.err = err
+
+        # Pre-computed average error and wavelength separation
+        self.avg_squared_err = avg_squared_err
+        self.delta_wave = delta_wave
 
         # Make covariance 2-dimensional
         self.cov = np.diag(self.cov)
@@ -71,7 +76,7 @@ class GaussianProcesses(Covariance):
 
         self.cholesky_mode = cholesky_mode
 
-    def add_RBF_kernel(self, a, l, wave, trunc_dist=5, scale_GP_amp=False):
+    def add_RBF_kernel(self, a, l, trunc_dist=5, scale_GP_amp=False):
         '''
         Add a radial-basis function kernel to the covariance matrix. 
         The amplitude can be scaled by the flux-uncertainties of 
@@ -83,8 +88,6 @@ class GaussianProcesses(Covariance):
             Square-root of amplitude of the RBF kernel.
         l : float
             Length-scale of the RBF kernel.
-        wave : np.ndarray
-            Wavelengths at each pixel.
         trunc_dist : float
             Distance at which to truncate the kernel 
             (|wave_i-wave_j| < trunc_dist*l). This ensures
@@ -101,15 +104,12 @@ class GaussianProcesses(Covariance):
             self.cov = np.diag(self.cov)
             self.is_matrix = True
 
-        # Wavelength separation between pixels
-        delta_wave = np.abs(wave[None,:] - wave[:,None])
-
         # Hann window function to ensure sparsity
-        w_ij = (delta_wave < trunc_dist*l)
+        w_ij = (self.delta_wave < trunc_dist*l)
 
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            GP_amp = a**2 * 1/2*(self.err[None,:]**2 + self.err[:,None]**2)[w_ij]
+            GP_amp = a**2 * self.avg_squared_err[w_ij]
 
             # Geometric mean
             #GP_amp = a**2 * np.sqrt(err[None,:]**2 * err[:,None]**2)[w_ij]
@@ -117,7 +117,7 @@ class GaussianProcesses(Covariance):
             GP_amp = a**2
 
         # Gaussian radial-basis function kernel
-        self.cov[w_ij] = self.cov[w_ij] + GP_amp * np.exp(-(delta_wave[w_ij])**2/(2*l**2))
+        self.cov[w_ij] = self.cov[w_ij] + GP_amp * np.exp(-(self.delta_wave[w_ij])**2/(2*l**2))
         
         if self.cholesky_mode == 'sparse':
             # Create a sparse CSC matrix

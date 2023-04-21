@@ -106,6 +106,11 @@ def pre_processing():
             replace_flux_err=True
             )
 
+    if conf.prepare_for_covariance:
+        # Prepare the wavelength separation and 
+        # average squared error arrays
+        d_spec.prepare_for_covariance()
+
     # Plot the pre-processed spectrum
     figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
 
@@ -247,7 +252,7 @@ def retrieval():
 
         time_B = time.time()
         CB.elapsed_times.append(time_B-time_A)
-
+        
         return ln_L
 
     def PMN_callback_func(n_samples, 

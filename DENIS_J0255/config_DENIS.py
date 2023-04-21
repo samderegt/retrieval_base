@@ -123,6 +123,11 @@ scale_err  = True
 scale_GP_amp = True
 cholesky_mode = 'sparse'
 
+# Prepare the wavelength separation and
+# average squared error arrays and keep 
+# in memory
+prepare_for_covariance = False
+
 apply_high_pass_filter = False
 
 ####################################################################################

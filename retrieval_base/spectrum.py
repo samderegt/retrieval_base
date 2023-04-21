@@ -215,6 +215,10 @@ class DataSpectrum(Spectrum):
 
         self.wave_range = wave_range
 
+        # Set to None by default
+        self.delta_wave = None
+        self.avg_squared_err = None
+
     def load_spectrum_excalibuhr(self, file_target, file_wave=None):
 
         # Load in the data of the target
@@ -321,6 +325,14 @@ class DataSpectrum(Spectrum):
         # Update the number of orders, detectors, and pixels 
         # for this instance
         self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
+
+    def prepare_for_covariance(self):
+
+        # Wavelength separation between all pixels within order/detector
+        self.delta_wave = np.abs(self.wave[:,:,None,:] - self.wave[:,:,:,None])
+
+        # Arithmetic mean of the squared flux-errors
+        self.avg_squared_err = 1/2*(self.err[:,:,None,:]**2 + self.err[:,:,:,None]**2)
 
     def clip_det_edges(self, n_edge_pixels=30):
         
