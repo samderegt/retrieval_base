@@ -41,11 +41,11 @@ class CallBack:
         self.posterior_color = posterior_color
         self.bestfit_color = bestfit_color
 
-        envelope_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        self.envelope_cmap = mpl.colors.LinearSegmentedColormap.from_list(
             name='envelope_cmap', 
             colors=['w', self.posterior_color], 
             )
-        self.envelope_colors = envelope_cmap([0.0,0.2,0.4,0.6,0.8])
+        self.envelope_colors = self.envelope_cmap([0.0,0.2,0.4,0.6,0.8])
         self.envelope_colors[0,-1] = 0.0
 
         self.species_to_plot = species_to_plot
@@ -91,11 +91,12 @@ class CallBack:
         self.param_quantiles = np.array([af.quantiles(self.posterior[:,i], q=[0.16,0.5,0.84]) \
                                          for i in range(self.posterior.shape[1])])
         # Base the axes-limits off of the quantiles
-        self.param_range = [(4*(q_i[0]-q_i[1])+q_i[1], 4*(q_i[2]-q_i[1])+q_i[1]) \
-                            for q_i in self.param_quantiles]
+        self.param_range = np.array(
+            [(4*(q_i[0]-q_i[1])+q_i[1], 4*(q_i[2]-q_i[1])+q_i[1]) for q_i in self.param_quantiles]
+            )
 
         # Create the labels
-        self.param_labels = list(self.Param.param_mathtext.values())
+        self.param_labels = np.array(list(self.Param.param_mathtext.values()))
 
         print('\nReduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
             self.LogLike.chi_squared_red, self.LogLike.chi_squared, self.LogLike.n_dof
@@ -115,7 +116,14 @@ class CallBack:
             print('\nOptimal uncertainty-scaling parameters:')
             print(self.LogLike.beta.round(2))
         
-        self.median_params  = list(self.param_quantiles[:,1])
+        self.bestfit_params = np.array(self.bestfit_params)
+        self.median_params  = np.array(list(self.param_quantiles[:,1]))
+
+        # Plot the covariance matrices
+        figs.fig_cov(
+            LogLike=self.LogLike, d_spec=self.d_spec, 
+            cmap=self.envelope_cmap, prefix=self.prefix
+            )
 
         # Make a summary figure
         self.fig_summary()
@@ -123,6 +131,22 @@ class CallBack:
         # Save the bestfit parameters in a .json file
         # and the ModelSpectrum instance as .pkl
         self.save_bestfit()
+
+        # Plot the abundances
+        if self.Param.chem_mode == 'free':
+            included_params = ['log_12CO', 'log_H2O', 'log_CH4', 'log_C_ratio']
+            figsize = (8,8)
+        elif self.Param.chem_mode == 'eqchem':
+            included_params = ['C/O', 'Fe/H', 'log_C_ratio']
+            figsize = (7,7)
+        fig, ax = self.fig_corner(
+            included_params=included_params, 
+            fig=plt.figure(figsize=figsize), 
+            smooth=False, ann_fs=10
+            )
+        plt.subplots_adjust(left=0.11, right=0.95, top=0.95, bottom=0.11, wspace=0, hspace=0)
+        fig.savefig(self.prefix+'plots/abundances.pdf')
+        plt.close(fig)
 
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
@@ -153,21 +177,33 @@ class CallBack:
         # Save the bestfit spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
         
-    def fig_summary(self):
+    def fig_corner(self, included_params=None, fig=None, smooth=False, ann_fs=9):
+        
+        if fig is None:
+            fig = plt.figure(figsize=(15,15))
+        
+        # Only select the included parameters
+        mask_params = np.ones(len(self.Param.param_keys), dtype=np.bool)
+        if included_params is not None:
+            mask_params = np.isin(
+                self.Param.param_keys, test_elements=included_params
+                )
+        
+        # Number of parameters
+        n_params = mask_params.sum()
 
-        fig = plt.figure(figsize=(15,15))
         fig = corner.corner(
-            self.posterior, 
+            self.posterior[:,mask_params], 
             fig=fig, 
             quiet=True, 
 
-            labels=self.param_labels, 
+            labels=self.param_labels[mask_params], 
             show_titles=True, 
             use_math_text=True, 
             title_fmt='.2f', 
             title_kwargs={'fontsize':9}, 
-            labelpad=0.25*self.Param.n_params/17, 
-            range=self.param_range, 
+            labelpad=0.25*n_params/17, 
+            range=self.param_range[mask_params], 
             bins=20, 
             max_n_ticks=3, 
 
@@ -181,17 +217,20 @@ class CallBack:
             #plot_datapoints=False, 
 
             contourf_kwargs={'colors':self.envelope_colors}, 
-            #smooth=True, 
+            smooth=smooth, 
 
             contour_kwargs={'linewidths':0.5}, 
             )
 
         # Add the best-fit and median values as lines
-        corner.overplot_lines(fig, self.bestfit_params, c=self.bestfit_color, lw=0.5)
-        corner.overplot_lines(fig, self.median_params, c=self.posterior_color, lw=0.5)
+        corner.overplot_lines(fig, self.bestfit_params[mask_params], c=self.bestfit_color, lw=0.5)
+        corner.overplot_lines(fig, self.median_params[mask_params], c=self.posterior_color, lw=0.5)
 
         # Reshape the axes to a square matrix
         ax = np.array(fig.axes)
+        for ax_i in ax:
+            ax_i.tick_params(axis='both', direction='inout')
+
         ax = ax.reshape((int(np.sqrt(len(ax))), 
                          int(np.sqrt(len(ax))))
                         )
@@ -203,18 +242,24 @@ class CallBack:
 
             # Show the best-fitting value in histograms
             ax[i,i].annotate(
-                r'$'+'{:.2f}'.format(self.bestfit_params[i])+'$', 
-                xy=(1,0.95), xycoords=ax[i,i].transAxes, 
+                r'$'+'{:.2f}'.format(self.bestfit_params[mask_params][i])+'$', 
+                xy=(0.95,0.95), xycoords=ax[i,i].transAxes, 
                 color=self.bestfit_color, rotation=0, ha='right', va='top', 
-                fontsize=9
+                fontsize=ann_fs
                 )
             # Adjust the axis-limits
             for j in range(i):
-                ax[i,j].set(ylim=self.param_range[i])
+                ax[i,j].set(ylim=self.param_range[mask_params][i])
             for h in range(ax.shape[0]):
-                ax[h,i].set(xlim=self.param_range[i])
+                ax[h,i].set(xlim=self.param_range[mask_params][i])
             
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0, hspace=0)
+
+        return fig, ax
+
+    def fig_summary(self):
+
+        fig, ax = self.fig_corner()
 
         # Plot the best-fitting spectrum
         ax_spec = fig.add_axes([0.4,0.8,0.55,0.15])
@@ -393,7 +438,7 @@ class CallBack:
         if yticks is None:
             yticks = np.logspace(-6, 2, 9)
 
-        ax_VMR.legend(handlelength=0.5)
+        ax_VMR.legend(handlelength=0.5, handletextpad=0.3, framealpha=0.7)
         ax_VMR.set(
             xlabel='VMR', xscale='log', xlim=(1e-8, 1e-2), 
             ylabel=ylabel, yscale='log', yticks=yticks, 

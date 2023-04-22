@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_146'
+prefix = 'DENIS_J0255_retrieval_outputs_144'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -58,8 +58,8 @@ wave_range = (2300, 2400)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    #'log_a': [(-4,-0.4), r'$\log\ a$'], 
-    #'log_l': [(-3,0), r'$\log\ l$'], 
+    'log_a': [(-4,-0.4), r'$\log\ a$'], 
+    'log_l': [(-3,0), r'$\log\ l$'], 
 
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
@@ -121,7 +121,7 @@ cloud_species = None
 scale_flux = True
 scale_err  = True
 scale_GP_amp = True
-cholesky_mode = 'sparse'
+cholesky_mode = 'banded'
 
 # Prepare the wavelength separation and
 # average squared error arrays and keep 

@@ -247,11 +247,11 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
 
             if i==0 and j==0:
                 ax_spec.legend(
-                    loc='upper right', ncol=2, handlelength=1, 
+                    loc='upper right', ncol=2, fontsize=8, handlelength=1, 
                     framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                     )
                 ax_res.legend(
-                    loc='upper right', ncol=2, handlelength=1, 
+                    loc='upper right', ncol=2, fontsize=8, handlelength=1, 
                     framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                     )
 
@@ -264,3 +264,90 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
         plt.close(fig)
     else:
         return ax_spec, ax_res
+
+def fig_cov(LogLike, d_spec, cmap, prefix=None):
+
+    all_cov = np.zeros(
+        (d_spec.n_orders, d_spec.n_dets, 
+         d_spec.n_pixels, d_spec.n_pixels)
+        )
+    vmax = np.zeros((d_spec.n_orders, d_spec.n_dets))
+    for i in range(d_spec.n_orders):
+        for j in range(d_spec.n_dets):
+            
+            # Only store the valid pixels
+            mask_ij = d_spec.mask_isfinite[i,j]
+
+            # Get the covariance matrix for this order/detector
+            cov_ij = LogLike.cov[i,j]
+
+            if cov_ij.is_matrix:
+                if cov_ij.cholesky_mode == 'sparse':
+                    cov = cov_ij.cov.todense()
+                elif cov_ij.cholesky_mode == 'banded':
+                    cov = cov_ij.cov
+            else:
+                cov = np.diag(cov_ij.cov)
+
+            # Scale with the optimal uncertainty scaling
+            cov *= LogLike.beta[i,j]
+
+            # Insert the masked rows into the covariance matrix
+            indices = np.arange(0, d_spec.n_pixels, 1)[~mask_ij]
+            for idx in indices:
+                cov = np.insert(cov, idx, np.zeros(mask_ij.sum()), axis=0)
+            for idx in indices:
+                cov = np.insert(cov, idx, np.zeros(d_spec.n_pixels), axis=1)
+
+            # Add to the complete array
+            all_cov[i,j,:,:] = cov
+
+            # Store the median of the diagonal
+            vmax[i,j] = np.median(np.diag(cov))
+
+    # Use a single range in the matshows
+    vmin, vmax = 0, np.max(vmax)
+
+
+    fig, ax = plt.subplots(
+        figsize=(10*d_spec.n_dets/3, 3.5*d_spec.n_orders), 
+        nrows=d_spec.n_orders, ncols=d_spec.n_dets, 
+        gridspec_kw={
+            'wspace':0.1, 'hspace':0.1, 
+            'left':0.08, 'right':0.95, 
+            'top':0.95, 'bottom':0.08
+            }
+        )
+    if d_spec.n_orders == 1:
+        ax = np.array([ax])
+
+    for i in range(d_spec.n_orders):
+        for j in range(d_spec.n_dets):
+
+            extent = [
+                d_spec.wave[i,j].min(), d_spec.wave[i,j].max(), 
+                d_spec.wave[i,j].max(), d_spec.wave[i,j].min(), 
+                ]
+            ax[i,j].matshow(
+                all_cov[i,j], aspect=1, extent=extent, cmap=cmap, 
+                interpolation='none', vmin=vmin, vmax=vmax
+                )
+            ticks = np.linspace(d_spec.wave[i,j].min()+2, d_spec.wave[i,j].max()-2, num=4)
+            ax[i,j].set_xticks(
+                ticks, labels=['{:.0f}'.format(t_i) for t_i in ticks]
+                )
+            ax[i,j].set_yticks(
+                ticks, labels=['{:.0f}'.format(t_i) for t_i in ticks], 
+                rotation=90, va='center'
+                )
+            ax[i,j].tick_params(
+                axis='x', which='both', bottom=False, top=True, labelbottom=False
+                )
+            ax[i,j].grid(True, alpha=0.1)
+
+    ax[-1,1].set(xlabel='Wavelength (nm)')
+    ax[d_spec.n_orders//2,0].set(ylabel='Wavelength (nm)')
+
+    if prefix is not None:
+        plt.savefig(prefix+'plots/live_cov.pdf')
+        plt.close(fig)

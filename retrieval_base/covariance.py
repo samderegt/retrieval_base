@@ -120,7 +120,10 @@ class GaussianProcesses(Covariance):
         GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            GP_amp *= self.avg_squared_err[w_ij]
+            if isinstance(self.avg_squared_err, float):
+                GP_amp *= self.avg_squared_err
+            else:
+                GP_amp *= self.avg_squared_err[w_ij]
 
         # Gaussian radial-basis function kernel
         self.cov[w_ij] += GP_amp * np.exp(-(self.delta_wave[w_ij])**2/(2*l**2))
@@ -157,7 +160,10 @@ class GaussianProcesses(Covariance):
         GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            GP_amp *= self.avg_squared_err[w_ij]
+            if isinstance(self.avg_squared_err, float):
+                GP_amp *= self.avg_squared_err
+            else:
+                GP_amp *= self.avg_squared_err[w_ij]
 
         # Rational quadratic kernel (approaches RBF if w -> infty)
         self.cov[w_ij] += GP_amp * (1 + self.delta_wave[w_ij]**2/(2*w*l**2))**(-w)

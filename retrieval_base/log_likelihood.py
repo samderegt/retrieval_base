@@ -57,6 +57,9 @@ class LogLikelihood:
         # Array to store the uncertainty-scaling terms
         self.beta = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
         
+        # Store all Covariance instances
+        self.cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
+
         # Loop over all orders and detectors
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
@@ -176,6 +179,7 @@ class LogLikelihood:
                 # Store in the arrays
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
+                self.cov[i,j] = cov_ij
 
                 # This is not perfect for off-diagonal elements in covariance matrix
                 if cov_ij.is_matrix:
