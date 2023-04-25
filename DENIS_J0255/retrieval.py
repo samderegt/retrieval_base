@@ -16,6 +16,8 @@ import numpy as np
 import argparse
 import copy
 
+import pymultinest
+
 from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
 from retrieval_base.parameters import Parameters
 from retrieval_base.pRT_model import pRT_model
@@ -140,80 +142,85 @@ def pre_processing():
     # Save as pickle
     af.pickle_save(conf.prefix+'data/pRT_atm.pkl', pRT_atm)
 
-def retrieval():
+class Retrieval:
 
-    # Load the DataSpectrum and pRT_model classes
-    d_spec  = af.pickle_load(conf.prefix+'data/d_spec.pkl')
-    pRT_atm = af.pickle_load(conf.prefix+'data/pRT_atm.pkl')
+    def __init__(self):
+        # Load the DataSpectrum and pRT_model classes
+        self.d_spec  = af.pickle_load(conf.prefix+'data/d_spec.pkl')
+        self.pRT_atm = af.pickle_load(conf.prefix+'data/pRT_atm.pkl')
 
-    # Create a Parameters instance
-    Param = Parameters(
-        free_params=conf.free_params, 
-        constant_params=conf.constant_params, 
-        n_orders=d_spec.n_orders, 
-        n_dets=d_spec.n_dets
-        )    
+        # Create a Parameters instance
+        self.Param = Parameters(
+            free_params=conf.free_params, 
+            constant_params=conf.constant_params, 
+            n_orders=self.d_spec.n_orders, 
+            n_dets=self.d_spec.n_dets
+            )    
 
-    if 'beta_tell' not in Param.param_keys:
-        # Transmissivity will not be requested, save on memory
-        d_spec.transm     = None
-        d_spec.transm_err = None
+        if 'beta_tell' not in self.Param.param_keys:
+            # Transmissivity will not be requested, save on memory
+            self.d_spec.transm     = None
+            self.d_spec.transm_err = None
 
-    # Update the cloud/chemistry-mode
-    pRT_atm.cloud_mode = Param.cloud_mode
-    pRT_atm.chem_mode  = Param.chem_mode
+        # Update the cloud/chemistry-mode
+        self.pRT_atm.cloud_mode = self.Param.cloud_mode
+        self.pRT_atm.chem_mode  = self.Param.chem_mode
 
-    LogLike = LogLikelihood(
-        d_spec, 
-        n_params=Param.n_params, 
-        scale_flux=conf.scale_flux, 
-        scale_err=conf.scale_err, 
-        scale_GP_amp=conf.scale_GP_amp, 
-        cholesky_mode=conf.cholesky_mode, 
-        )
-
-    if Param.PT_mode == 'Molliere':
-        PT = PT_profile_Molliere(
-            pRT_atm.pressure, 
-            conv_adiabat=True
-            )
-    elif Param.PT_mode == 'free':
-        PT = PT_profile_free(
-            pRT_atm.pressure, 
-            ln_L_penalty_order=conf.ln_L_penalty_order
+        self.LogLike = LogLikelihood(
+            self.d_spec, 
+            n_params=self.Param.n_params, 
+            scale_flux=conf.scale_flux, 
+            scale_err=conf.scale_err, 
+            scale_GP_amp=conf.scale_GP_amp, 
+            cholesky_mode=conf.cholesky_mode, 
             )
 
-    if Param.chem_mode == 'free':
-        Chem = FreeChemistry(
-            pRT_atm.line_species, pRT_atm.pressure
-            )
-    elif Param.chem_mode == 'eqchem':
-        Chem = EqChemistry(
-            pRT_atm.line_species, pRT_atm.pressure
-            )
-    
-    CB = CallBack(
-        d_spec=d_spec, 
-        evaluation=args.evaluation, 
-        n_samples_to_use=2000, 
-        prefix=conf.prefix, 
-        posterior_color='C0', 
-        #posterior_color='k', 
-        #bestfit_color='C3', 
-        #bestfit_color='orangered', 
-        bestfit_color='C1', 
-        )
+        if self.Param.PT_mode == 'Molliere':
+            self.PT = PT_profile_Molliere(
+                self.pRT_atm.pressure, 
+                conv_adiabat=True
+                )
+        elif self.Param.PT_mode == 'free':
+            self.PT = PT_profile_free(
+                self.pRT_atm.pressure, 
+                ln_L_penalty_order=conf.ln_L_penalty_order
+                )
 
-    if rank == 0:
-        # Create wider pRT models
-        pRT_atm_broad = copy.deepcopy(pRT_atm)
-        pRT_atm_broad.get_atmospheres(CB_active=True)
+        if self.Param.chem_mode == 'free':
+            self.Chem = FreeChemistry(
+                self.pRT_atm.line_species, self.pRT_atm.pressure
+                )
+        elif self.Param.chem_mode == 'eqchem':
+            self.Chem = EqChemistry(
+                self.pRT_atm.line_species, self.pRT_atm.pressure
+                )
+        
+        self.CB = CallBack(
+            d_spec=self.d_spec, 
+            evaluation=args.evaluation, 
+            n_samples_to_use=2000, 
+            prefix=conf.prefix, 
+            posterior_color='C0', 
+            #posterior_color='k', 
+            #bestfit_color='C3', 
+            #bestfit_color='orangered', 
+            bestfit_color='C1', 
+            )
 
-        # Add as attributes, necessary for cross-correlation
-        #pRT_atm_broad.d_flux = d_spec.flux
-        #pRT_atm_broad.d_err = d_spec.err
-            
-    def PMN_lnL_func(cube=None, ndim=None, nparams=None):
+        if rank == 0:
+            # Create wider pRT models
+            self.pRT_atm_broad = copy.deepcopy(self.pRT_atm)
+            self.pRT_atm_broad.get_atmospheres(CB_active=True)
+
+        # Set to None initially, changed during evaluation
+        self.Chem.mass_fractions_envelopes = None
+        self.PT.temperature_envelopes = None
+
+        self.m_spec_species  = None
+        self.pRT_atm_species = None
+        self.LogLike_species = None
+
+    def PMN_lnL_func(self, cube=None, ndim=None, nparams=None):
 
         time_A = time.time()
 
@@ -221,7 +228,7 @@ def retrieval():
 
         # Retrieve the temperatures
         try:
-            temperature = PT(Param.params)
+            temperature = self.PT(self.Param.params)
         except:
             # Something went wrong with interpolating
             return -np.inf
@@ -231,54 +238,127 @@ def retrieval():
             return -np.inf
 
         # Retrieve the ln L penalty (=0 by default)
-        ln_L_penalty = PT.ln_L_penalty
+        ln_L_penalty = self.PT.ln_L_penalty
 
         # Retrieve the chemical abundances
-        if Param.chem_mode == 'free':
-            mass_fractions = Chem(Param.VMR_species)
-        elif Param.chem_mode == 'eqchem':
-            mass_fractions = Chem(Param.params)
+        if self.Param.chem_mode == 'free':
+            mass_fractions = self.Chem(self.Param.VMR_species)
+        elif self.Param.chem_mode == 'eqchem':
+            mass_fractions = self.Chem(self.Param.params)
 
         if not isinstance(mass_fractions, dict):
             # Non-H2 abundances added up to > 1
             return -np.inf
 
-        if CB.return_PT_mf:
+        if self.CB.return_PT_mf:
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
-        if CB.active:
+        if self.CB.active:
             # Retrieve the model spectrum, with the wider pRT model
-            pRT_atm_to_use = pRT_atm_broad
+            pRT_atm_to_use = self.pRT_atm_broad
         else:
-            pRT_atm_to_use = pRT_atm
+            pRT_atm_to_use = self.pRT_atm
         
         # Retrieve the model spectrum
-        m_spec = pRT_atm_to_use(
+        self.m_spec = pRT_atm_to_use(
             mass_fractions, 
             temperature, 
-            Param.params, 
+            self.Param.params, 
             get_contr=args.evaluation, 
-            get_full_spectrum=CB.active, 
+            get_full_spectrum=self.CB.active, 
             )
 
         # Retrieve the log-likelihood
-        ln_L = LogLike(
-            m_spec, 
-            Param.params, 
+        ln_L = self.LogLike(
+            self.m_spec, 
+            self.Param.params, 
             ln_L_penalty=ln_L_penalty, 
             )
         
         time_B = time.time()
-        CB.elapsed_times.append(time_B-time_A)
-
-        if CB.active:
-            # Return the class instances during callback
-            return (LogLike, PT, Chem, m_spec, pRT_atm_to_use)
+        self.CB.elapsed_times.append(time_B-time_A)
 
         return ln_L
 
-    def PMN_callback_func(n_samples, 
+    def get_PT_mf_envelopes(self, posterior):
+
+        # Return the PT profile and mass fractions
+        self.CB.return_PT_mf = True
+
+        # Objects to store the envelopes in
+        self.Chem.mass_fractions_envelopes = {}
+        for line_species_i in self.Chem.line_species:
+            self.Chem.mass_fractions_envelopes[line_species_i] = []
+        self.PT.temperature_envelopes = []
+
+        # Sample envelopes from the posterior 
+        for params_i in posterior:
+
+            for j, key_j in enumerate(self.Param.param_keys):
+                # Update the Parameters instance
+                self.Param.params[key_j] = params_i[j]
+
+            # Update the parameters
+            self.Param.read_PT_params(cube=None)
+            self.Param.read_uncertainty_params()
+            self.Param.read_chemistry_params()
+            self.Param.read_cloud_params()
+
+            # Class instances with best-fitting parameters
+            returned = self.PMN_lnL_func()
+            if isinstance(returned, float):
+                # PT profile or mass fractions failed
+                continue
+
+            # Store the temperatures and mass fractions
+            temperature_i, mass_fractions_i = returned
+            self.PT.temperature_envelopes.append(temperature_i)
+            # Loop over the line species
+            for line_species_i in self.Chem.line_species:
+                self.Chem.mass_fractions_envelopes[line_species_i].append(
+                    mass_fractions_i[line_species_i]
+                    )
+
+        # Convert profiles to 1, 2, 3-sigma equivalent and median
+        q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+             0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+             ]            
+
+        # Retain the pressure-axis
+        self.PT.temperature_envelopes = af.quantiles(
+            np.array(self.PT.temperature_envelopes), q=q, axis=0
+            )
+        for line_species_i in self.Chem.line_species:
+            self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
+                np.array(self.Chem.mass_fractions_envelopes[line_species_i]), q=q, axis=0
+                )
+
+        self.CB.return_PT_mf = False
+
+    def get_species_contribution(self):
+
+        self.m_spec_species, self.pRT_atm_species = {}, {}
+
+        # Assess the species' contribution
+        for species_i in self.Chem.species_info:
+            line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
+
+            if line_species_i in self.Chem.line_species:
+                # Ignore this species for now
+                self.Chem.neglect_species[species_i] = True
+
+                # Create the spectrum and evaluate lnL
+                self.PMN_lnL_func()
+
+                self.m_spec_species[species_i]  = self.m_spec
+                self.pRT_atm_species[species_i] = self.pRT_atm_broad
+
+                # Include this species again
+                self.Chem.neglect_species[species_i] = False
+
+    def PMN_callback_func(self, 
+                          n_samples, 
                           n_live, 
                           n_params, 
                           live_points, 
@@ -290,12 +370,9 @@ def retrieval():
                           nullcontext
                           ):
 
-        CB.active = True
+        self.CB.active = True
 
         if args.evaluation:
-            
-            # Return the PT profile and mass fractions
-            CB.return_PT_mf = True
 
             # Set-up analyzer object
             analyzer = pymultinest.Analyzer(
@@ -310,56 +387,9 @@ def retrieval():
 
             # Read the parameters of the best-fitting model
             bestfit_params = np.array(stats['modes'][0]['maximum a posterior'])
-           
-            # Objects to store the envelopes in 
-            mass_fractions_envelopes = {}
-            for line_species_i in conf.line_species:
-                mass_fractions_envelopes[line_species_i] = []
-            temperature_envelopes = []
 
-            # Sample envelopes from the posterior 
-            for params_i in posterior:
-
-                for j, key_j in enumerate(Param.param_keys):
-                    # Update the Parameters instance
-                    Param.params[key_j] = params_i[j]
-
-                # Update the parameters
-                Param.read_PT_params(cube=None)
-                Param.read_uncertainty_params()
-                Param.read_chemistry_params()
-                Param.read_cloud_params()
-
-                # Class instances with best-fitting parameters
-                returned = PMN_lnL_func()
-                if isinstance(returned, float):
-                    # PT profile or mass fractions failed
-                    continue
-                
-                # Store the temperatures and mass fractions
-                temperature_i, mass_fractions_i = returned
-                temperature_envelopes.append(temperature_i)
-                # Loop over the line species
-                for line_species_i in conf.line_species:
-                    mass_fractions_envelopes[line_species_i].append(
-                        mass_fractions_i[line_species_i]
-                        )
-
-            # Convert profiles to 1, 2, 3-sigma equivalent and median
-            q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
-                 0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
-                 ]            
-
-            # Retain the pressure-axis
-            temperature_envelopes = af.quantiles(
-                np.array(temperature_envelopes), q=q, axis=0
-                )
-            for line_species_i in conf.line_species:
-                mass_fractions_envelopes[line_species_i] = af.quantiles(
-                    np.array(mass_fractions_envelopes[line_species_i]), q=q, axis=0
-                    )
-
-            CB.return_PT_mf = False
+            # Get the PT and mass-fraction envelopes
+            self.get_PT_mf_envelopes(posterior)
 
         else:
 
@@ -369,85 +399,69 @@ def retrieval():
             # Remove the last 2 columns
             posterior = posterior[:,:-2]
 
-            mass_fractions_envelopes, temperature_envelopes = None, None
-
         # Evaluate the model with best-fitting parameters
-        for i, key_i in enumerate(Param.param_keys):
+        for i, key_i in enumerate(self.Param.param_keys):
             # Update the Parameters instance
-            Param.params[key_i] = bestfit_params[i]
+            self.Param.params[key_i] = bestfit_params[i]
 
         # Update the parameters
-        Param.read_PT_params(cube=None)
-        Param.read_uncertainty_params()
-        Param.read_chemistry_params()
-        Param.read_cloud_params()
+        self.Param.read_PT_params(cube=None)
+        self.Param.read_uncertainty_params()
+        self.Param.read_chemistry_params()
+        self.Param.read_cloud_params()
 
-        '''
-        # Assess the species' contribution
-        for species_i in Chem.species_info:
-            line_species_i = Chem.read_species_info(species_i, 'pRT_atm')
 
-            if line_species_i in conf.line_species:
-                # Ignore this species' for now
-                Chem.neglect_species[species_i] = True
-                
-                # Get the spectrum with other chemical species'
-                LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
-
-                # Include again
-                Chem.neglect_species[species_i] = False
-        '''
+        if args.evaluation:
+            self.get_species_contribution()
 
         # Update class instances with best-fitting parameters
-        LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
-        
-        # Make attributes of the PT and Chemistry classes
-        PT.temperature_envelopes = temperature_envelopes
-        Chem.mass_fractions_envelopes = mass_fractions_envelopes
+        #LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
+        self.PMN_lnL_func()
 
+        '''
         # Get the cross-correlation functions
-        m_spec.rv_CCF, m_spec.CCF, m_spec.d_ACF, m_spec.m_ACF = \
-            m_spec.cross_correlation(
-                d_wave=d_spec.wave, 
-                d_flux=d_spec.flux, 
-                d_err=d_spec.err, 
-                d_mask_isfinite=d_spec.mask_isfinite, 
-                m_wave=pRT_atm.wave_pRT_grid, 
-                m_flux=pRT_atm.flux_pRT_grid, 
+        self.m_spec.rv_CCF, self.m_spec.CCF, \
+        self.m_spec.d_ACF, self.m_spec.m_ACF = \
+            self.m_spec.cross_correlation(
+                d_wave=self.d_spec.wave, 
+                d_flux=self.d_spec.flux, 
+                d_err=self.d_spec.err, 
+                d_mask_isfinite=self.d_spec.mask_isfinite, 
+                m_wave=self.pRT_atm_broad.wave_pRT_grid, 
+                m_flux=self.pRT_atm_broad.flux_pRT_grid, 
                 rv_CCF=np.arange(-500,500,1), 
                 high_pass_filter_method='subtract', 
                 sigma=300, 
                 )
+        '''
 
-        '''
-        import matplotlib.pyplot as plt
-        plt.plot(rv_CCF, CCF.sum(axis=(0,1)), c='k', lw=1)
-        plt.plot(rv_CCF, m_ACF.sum(axis=(0,1)), c='C1', lw=1)
-        plt.plot(rv_CCF, d_ACF.sum(axis=(0,1)), c='k', lw=1, ls='--', alpha=0.5)
-        plt.show()
-        '''
-            
-        CB.active = False
+        self.CB.active = False
 
         # Call the CallBack class and make summarizing figures
-        CB(Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior)
+        self.CB(
+            self.Param, self.LogLike, self.PT, self.Chem, 
+            self.m_spec, self.pRT_atm_broad, posterior, 
+            m_spec_species=self.m_spec_species, 
+            pRT_atm_species=self.pRT_atm_species
+            )
 
-    # Set-up the MultiNest retrieval
-    import pymultinest
-    pymultinest.solve(
-        LogLikelihood=PMN_lnL_func, 
-        Prior=Param, 
-        n_dims=Param.n_params, 
-        outputfiles_basename=conf.prefix, 
-        resume=True, 
-        verbose=True, 
-        const_efficiency_mode=conf.const_efficiency_mode, 
-        sampling_efficiency=conf.sampling_efficiency, 
-        n_live_points=conf.n_live_points, 
-        evidence_tolerance=conf.evidence_tolerance, 
-        dump_callback=PMN_callback_func, 
-        n_iter_before_update=conf.n_iter_before_update, 
-        )
+    def PMN_run(self):
+        
+        # Run the MultiNest retrieval
+        pymultinest.solve(
+            LogLikelihood=self.PMN_lnL_func, 
+            Prior=self.Param, 
+            n_dims=self.Param.n_params, 
+            outputfiles_basename=conf.prefix, 
+            resume=True, 
+            verbose=True, 
+            const_efficiency_mode=conf.const_efficiency_mode, 
+            sampling_efficiency=conf.sampling_efficiency, 
+            n_live_points=conf.n_live_points, 
+            evidence_tolerance=conf.evidence_tolerance, 
+            dump_callback=self.PMN_callback_func, 
+            n_iter_before_update=conf.n_iter_before_update, 
+            )
 
 if __name__ == '__main__':
 
@@ -463,7 +477,10 @@ if __name__ == '__main__':
         pre_processing()
 
     if args.retrieval:
-        retrieval()
+        #retrieval()
+        ret = Retrieval()
+        ret.PMN_run()
 
     if args.evaluation:
-        retrieval()
+        ret = Retrieval()
+        ret.PMN_run()

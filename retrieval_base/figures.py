@@ -11,7 +11,7 @@ import retrieval_base.auxiliary_functions as af
 def fig_order_subplots(n_orders, ylabel, xlabel=r'Wavelength (nm)'):
 
     fig, ax = plt.subplots(
-        figsize=(10,2.5*n_orders), nrows=n_orders, 
+        figsize=(10,2.8*n_orders), nrows=n_orders, 
         gridspec_kw={'hspace':0.22, 'left':0.1, 'right':0.95, 
                      'top':(1-0.02*7/n_orders), 'bottom':0.035*7/n_orders, 
                      }
@@ -101,7 +101,6 @@ def fig_flux_calib_2MASS(wave,
 
 def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma, prefix=None):
 
-    from scipy.ndimage import generic_filter
     # Plot zoom-ins of the sigma-clipping procedure
     n_orders = order_wlen_ranges.shape[0]
 
@@ -691,3 +690,69 @@ def fig_res_ACF(rv_CCF, ACF, d_spec, all_cov, bestfit_color='C1', prefix=None):
 
     #plt.show()
     plt.close(fig)
+
+def fig_species_contribution(d_spec, m_spec, m_spec_species, Chem, species_to_plot, prefix=None):
+
+    if not os.path.exists(prefix+'plots/species'):
+        os.makedirs(prefix+'plots/species')
+
+    for species_h in Chem.species_info.keys():
+        
+        if species_h not in species_to_plot:
+            continue
+
+        # Check if the line species was included in the model
+        line_species_h = Chem.read_species_info(species_h, info_key='pRT_name')
+        if line_species_h in Chem.line_species:
+
+            # Read the ModelSpectrum class for this species
+            m_spec_h = m_spec_species[species_h]
+
+            # Read the mass, color and label
+            color_h = Chem.read_species_info(species_h, info_key='color')
+            label_h = Chem.read_species_info(species_h, info_key='label')
+            
+            ylim = (np.nanmean(d_spec.flux-m_spec_h.flux) - \
+                               5*np.nanstd(d_spec.flux-m_spec_h.flux), 
+                    np.nanmean(d_spec.flux-m_spec_h.flux) + \
+                               4*np.nanstd(d_spec.flux-m_spec_h.flux)
+                    )
+
+            fig, ax = fig_order_subplots(
+                d_spec.n_orders, 
+                ylabel='Residuals\n'+r'$\mathrm{(erg\ s^{-1}\ cm^{-2}\ nm^{-1})}$'
+                )
+
+            for i in range(d_spec.n_orders):
+                
+                ax[i].axhline(0, lw=0.1, c='k')
+                
+                for j in range(d_spec.n_dets):
+                    
+                    # Residual between data and model w/o species_i
+                    d_res_ij = d_spec.flux[i,j] - m_spec_h.flux[i,j]
+
+                    # Residual between complete model and model w/o species_i
+                    m_res_ij = m_spec.flux[i,j] - m_spec_h.flux[i,j]
+
+                    ax[i].plot(
+                        d_spec.wave[i,j], d_res_ij, c='k', lw=0.5, 
+                        label=r'$d-m_\mathrm{w/o\ ' + \
+                              label_h.replace('$', '') + r'}$'
+                        )
+                    ax[i].plot(
+                        d_spec.wave[i,j], m_res_ij, c=color_h, lw=1, 
+                        label=r'$m_\mathrm{complete}-m_\mathrm{w/o\ ' + \
+                              label_h.replace('$', '') + r'}$'
+                        )
+
+                    if (i == 0) and (j == 0):
+                        ax[i].legend(
+                            loc='upper right', ncol=2, fontsize=8, handlelength=1, 
+                            framealpha=0.7, handletextpad=0.3, columnspacing=0.8
+                            )
+                ax[i].set(ylim=ylim)
+
+            if prefix is not None:
+                fig.savefig(prefix+f'plots/species/{species_h}_spec.pdf')
+            plt.close(fig)

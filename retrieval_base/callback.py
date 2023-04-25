@@ -57,6 +57,8 @@ class CallBack:
                  m_spec, 
                  pRT_atm, 
                  posterior, 
+                 m_spec_species=None, 
+                 pRT_atm_species=None, 
                  ):
 
         time_A = time.time()
@@ -69,6 +71,9 @@ class CallBack:
         self.Chem    = Chem
         self.m_spec  = m_spec
         self.pRT_atm = pRT_atm
+
+        self.m_spec_species  = m_spec_species
+        self.pRT_atm_species = pRT_atm_species
 
         if not self.evaluation:
             # Use only the last n samples to plot the posterior
@@ -119,29 +124,16 @@ class CallBack:
             cmap=self.envelope_cmap, prefix=self.prefix
             )
 
-        rv_CCF, _, res_ACF, _ = \
-            self.d_spec.cross_correlation(
-                #d_wave=self.d_spec.wave[:,:1000:], 
-                #d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None])[:,:1000:], 
-                #d_err=self.d_spec.err[:,:1000:], 
-                #d_mask_isfinite=self.d_spec.mask_isfinite[:,:1000:], 
-                d_wave=self.d_spec.wave, 
-                d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None]), 
-                d_err=self.d_spec.err, 
-                d_mask_isfinite=self.d_spec.mask_isfinite, 
-                m_wave=self.d_spec.wave, 
-                m_flux=self.m_spec.flux, 
-                rv_CCF=np.arange(-500,500+1e-6,1), 
-                high_pass_filter_method=None, 
-                )
-        figs.fig_res_ACF(
-            rv_CCF=rv_CCF, 
-            ACF=res_ACF, 
+        self.fig_CCF(all_cov)
+
+        figs.fig_species_contribution(
             d_spec=self.d_spec, 
-            all_cov=all_cov, 
+            m_spec=self.m_spec, 
+            m_spec_species=self.m_spec_species, 
+            Chem=self.Chem, 
+            species_to_plot=self.species_to_plot, 
             prefix=self.prefix
             )
-        #self.fig_CCF()
 
         # Save a separate figure of the PT profile
         figs.fig_PT(
@@ -206,6 +198,28 @@ class CallBack:
         # Save the bestfit spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
 
+    def fig_CCF(self, all_cov):
+
+        # Plot the auto-correlation of the residuals
+        rv_CCF, _, res_ACF, _ = \
+            self.d_spec.cross_correlation(
+                d_wave=self.d_spec.wave, 
+                d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None]), 
+                d_err=self.d_spec.err, 
+                d_mask_isfinite=self.d_spec.mask_isfinite, 
+                rv_CCF=np.arange(-500,500+1e-6,1), 
+                high_pass_filter_method=None, 
+                )
+        figs.fig_res_ACF(
+            rv_CCF=rv_CCF, 
+            ACF=res_ACF, 
+            d_spec=self.d_spec, 
+            all_cov=all_cov, 
+            prefix=self.prefix
+            )
+
+
+    '''
     def fig_CCF(self):
 
         fig, ax = plt.subplots(
@@ -235,7 +249,7 @@ class CallBack:
 
         fig.show()
         plt.close(fig)
-
+    '''
 
     def fig_corner(self, included_params=None, fig=None, smooth=False, ann_fs=9):
         

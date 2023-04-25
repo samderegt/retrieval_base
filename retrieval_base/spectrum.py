@@ -250,12 +250,28 @@ class Spectrum:
                           d_flux, 
                           d_err, 
                           d_mask_isfinite, 
-                          m_wave, 
-                          m_flux, 
+                          m_wave=None, 
+                          m_flux=None, 
                           rv_CCF=np.arange(-500,500+1e-6,1), 
                           high_pass_filter_method='divide', 
                           sigma=300, 
                           ):
+
+        def high_pass_filter(flux, err=None):
+
+            low_pass_flux = gaussian_filter1d(
+                flux, sigma=sigma, mode='reflect'
+                )
+
+            if high_pass_filter_method == 'divide':
+                flux /= low_pass_flux
+                if err is not None:
+                    err /= low_pass_flux
+            elif high_pass_filter_method == 'subtract':
+                flux -= low_pass_flux
+
+            return flux, err
+            
 
         n_orders, n_dets, n_pixels = d_flux.shape
 
@@ -266,9 +282,16 @@ class Spectrum:
         # Loop over all orders and detectors
         for i in range(n_orders):
 
-            m_wave_i = m_wave[i].flatten()
-            m_flux_i = m_flux[i].flatten()
-            
+            if (m_wave is not None) and (m_flux is not None):
+                m_wave_i = m_wave[i].flatten()
+                m_flux_i = m_flux[i].flatten()
+
+                # Function to interpolate the model spectrum
+                m_interp_func = interp1d(
+                    m_wave_i, m_flux_i, bounds_error=False, 
+                    fill_value=np.nan
+                    )
+
             for j in range(n_dets):
 
                 # Select only the pixels within this order
@@ -285,45 +308,35 @@ class Spectrum:
                 plt.show()
                 '''
 
-                # Function to interpolate the spectra
-                m_interp_func = interp1d(
-                    m_wave_i, m_flux_i, bounds_error=False, fill_value=np.nan
-                    )
+                # Function to interpolate the observed
                 d_interp_func = interp1d(
-                    d_wave_ij, d_flux_ij, bounds_error=False, fill_value=np.nan
+                    d_wave_ij, d_flux_ij, bounds_error=False, 
+                    fill_value=np.nan
                     )
 
-                # Static template flux
-                m_flux_static = m_interp_func(d_wave_ij)
-
-                low_pass_d_flux = gaussian_filter1d(d_flux_ij, sigma=sigma, mode='reflect')
-                low_pass_m_flux = gaussian_filter1d(m_flux_static, sigma=sigma, mode='reflect')
-
+                if (m_wave is not None) and (m_flux is not None):
+                    # Static template flux
+                    m_flux_static = m_interp_func(d_wave_ij)
+                    m_flux_static, _ = high_pass_filter(m_flux_static)
+                
                 # High-pass filter the observed and template spectra
-                if high_pass_filter_method == 'divide':
-                    d_flux_ij /= low_pass_d_flux
-                    d_err_ij  /= low_pass_d_flux
+                d_flux_ij, d_err_ij = high_pass_filter(d_flux_ij, d_err_ij)
 
-                    m_flux_static = low_pass_m_flux
-
-                elif high_pass_filter_method == 'subtract':
-                    d_flux_ij -= low_pass_d_flux
-
-                    m_flux_static -= low_pass_m_flux
-
-                # Assess if the model spectrum is wide enough to cover the observed spectrum
-                max_d_wave_shifted = cls.rv_shift(
-                    None, rv_CCF.max(), wave=d_wave_ij.max(), replace_wave=False
-                    )
-                min_d_wave_shifted = cls.rv_shift(
-                    None, rv_CCF.min(), wave=d_wave_ij.min(), replace_wave=False
-                    )
-                if (m_wave_i.min() > min_d_wave_shifted) or \
-                    (m_wave_i.max() < max_d_wave_shifted):
-                    print('\nWarning: Template is too narrow to cover the observed spectrum at the extreme RV shifts.' + \
-                        '\nmin(wave_t), max(wave_t) = {:.2f}, {:.2f} | '.format(m_wave_i.min(), m_wave_i.max()) + \
-                        'min(wave_d_shifted), max(wave_d_shifted) = {:.2f}, {:.2f}'.format(min_d_wave_shifted, max_d_wave_shifted)
+                if (m_wave is not None) and (m_flux is not None):
+                    # Assess if the model spectrum is wide enough to cover the observed spectrum
+                    max_d_wave_shifted = cls.rv_shift(
+                        None, rv_CCF.max(), wave=d_wave_ij.max(), replace_wave=False
                         )
+                    min_d_wave_shifted = cls.rv_shift(
+                        None, rv_CCF.min(), wave=d_wave_ij.min(), replace_wave=False
+                        )
+                    if (m_wave_i.min() > min_d_wave_shifted) or \
+                        (m_wave_i.max() < max_d_wave_shifted):
+                        print(
+'\nWarning: Template is too narrow to cover the observed spectrum at the extreme RV shifts.' + \
+'\nmin(wave_t), max(wave_t) = {:.2f}, {:.2f} | '.format(m_wave_i.min(), m_wave_i.max()) + \
+'min(wave_d_shifted), max(wave_d_shifted) = {:.2f}, {:.2f}'.format(min_d_wave_shifted, max_d_wave_shifted)
+)
 
                 for k, rv_k in enumerate(rv_CCF):
 
@@ -333,28 +346,18 @@ class Spectrum:
                         )
 
                     # Interpolate the spectra onto the new wavelength grid
-                    m_flux_shifted = m_interp_func(d_wave_shifted)
+                    if (m_wave is not None) and (m_flux is not None):
+                        m_flux_shifted = m_interp_func(d_wave_shifted)
+                        m_flux_shifted, _ = high_pass_filter(m_flux_shifted)
+
                     d_flux_shifted = d_interp_func(d_wave_shifted)
-
-                    if high_pass_filter_method == 'divide':
-                        m_flux_shifted /= gaussian_filter1d(
-                            m_flux_shifted, sigma=sigma, mode='reflect'
-                            )
-                        d_flux_shifted /= gaussian_filter1d(
-                            d_flux_shifted, sigma=sigma, mode='reflect'
-                            )
-
-                    elif high_pass_filter_method == 'subtract':
-                        m_flux_shifted -= gaussian_filter1d(
-                            m_flux_shifted, sigma=sigma, mode='reflect'
-                            )
-                        d_flux_shifted -= gaussian_filter1d(
-                            d_flux_shifted, sigma=sigma, mode='reflect'
-                            )
+                    d_flux_shifted, _ = high_pass_filter(d_flux_shifted)
 
                     # Compute cross- and auto-correlation coefficients
-                    CCF[i,j,k] = np.nansum(m_flux_shifted * d_flux_ij / d_err_ij**2)
-                    m_ACF[i,j,k] = np.nansum(m_flux_shifted * m_flux_static / d_err_ij**2)
+                    if (m_wave is not None) and (m_flux is not None):
+                        CCF[i,j,k] = np.nansum(m_flux_shifted * d_flux_ij / d_err_ij**2)
+                        m_ACF[i,j,k] = np.nansum(m_flux_shifted * m_flux_static / d_err_ij**2)
+
                     d_ACF[i,j,k] = np.nansum(d_flux_shifted * d_flux_ij / d_err_ij**2)
 
         return rv_CCF, CCF, d_ACF, m_ACF
