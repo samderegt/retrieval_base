@@ -124,12 +124,23 @@ class CallBack:
             cmap=self.envelope_cmap, prefix=self.prefix
             )
 
-        self.fig_CCF(all_cov)
+        # Plot the auto-correlation of the residuals
+        figs.fig_residual_ACF(
+            d_spec=self.d_spec, 
+            m_spec=self.m_spec, 
+            all_cov=all_cov, 
+            LogLike=self.LogLike, 
+            bestfit_color=self.bestfit_color, 
+            prefix=self.prefix
+            )
 
+        # Plot the CCFs + spectra of species' contributions
         figs.fig_species_contribution(
             d_spec=self.d_spec, 
             m_spec=self.m_spec, 
             m_spec_species=self.m_spec_species, 
+            pRT_atm=self.pRT_atm, 
+            pRT_atm_species=self.pRT_atm_species, 
             Chem=self.Chem, 
             species_to_plot=self.species_to_plot, 
             prefix=self.prefix
@@ -197,59 +208,6 @@ class CallBack:
 
         # Save the bestfit spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
-
-    def fig_CCF(self, all_cov):
-
-        # Plot the auto-correlation of the residuals
-        rv_CCF, _, res_ACF, _ = \
-            self.d_spec.cross_correlation(
-                d_wave=self.d_spec.wave, 
-                d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None]), 
-                d_err=self.d_spec.err, 
-                d_mask_isfinite=self.d_spec.mask_isfinite, 
-                rv_CCF=np.arange(-500,500+1e-6,1), 
-                high_pass_filter_method=None, 
-                )
-        figs.fig_res_ACF(
-            rv_CCF=rv_CCF, 
-            ACF=res_ACF, 
-            d_spec=self.d_spec, 
-            all_cov=all_cov, 
-            prefix=self.prefix
-            )
-
-
-    '''
-    def fig_CCF(self):
-
-        fig, ax = plt.subplots(
-            figsize=(5,3*len(self.Chem.line_species)+1), 
-            nrows=len(self.Chem.line_species)+1
-            )
-
-        CCF_SNR = af.CCF_to_SNR(
-            self.m_spec.rv_CCF, self.m_spec.CCF, 
-            rv_to_exlude=(-100,100)
-            )
-        m_ACF_SNR = af.CCF_to_SNR(
-            self.m_spec.rv_CCF, self.m_spec.m_ACF, 
-            rv_to_exlude=(-100,100)
-            )
-        ax[0].plot(self.m_spec.rv_CCF, CCF_SNR, c='k', lw=1)
-        ax[0].plot(self.m_spec.rv_CCF, m_ACF_SNR, c='k', lw=1, ls='--', alpha=0.3)
-
-        for species_i in self.Chem.species_info.keys():
-
-            line_species_i = self.Chem.read_species_info(species_i, info_key='pRT_name')
-            if line_species_i in self.Chem.line_species:
-                i += 1
-
-                color_i = self.Chem.read_species_info(species_i, info_key='color')
-                label_i = self.Chem.read_species_info(species_i, info_key='label')
-
-        fig.show()
-        plt.close(fig)
-    '''
 
     def fig_corner(self, included_params=None, fig=None, smooth=False, ann_fs=9):
         

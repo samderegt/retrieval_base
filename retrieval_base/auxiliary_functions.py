@@ -74,10 +74,10 @@ def quantiles(x, q, weights=None, axis=-1):
         quantiles = np.interp(q, cdf, x[idx]).tolist()
         return quantiles
 
-def CCF_to_SNR(rv, CCF, rv_to_exlude=(-100,100)):
+def CCF_to_SNR(rv, CCF, rv_to_exclude=(-100,100)):
 
     # Select samples from outside the expected peak
-    rv_mask = (rv < rv_to_exlude[0]) | (rv > rv_to_exlude[1])
+    rv_mask = (rv < rv_to_exclude[0]) | (rv > rv_to_exclude[1])
 
     # Correct the offset
     CCF -= np.nanmean(CCF[rv_mask])

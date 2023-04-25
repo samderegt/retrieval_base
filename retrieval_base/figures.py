@@ -591,8 +591,25 @@ def fig_hist_posterior(posterior_i,
             # Update the mathtext title
             title = title.replace('\\log\\ ', '')
 
-def fig_res_ACF(rv_CCF, ACF, d_spec, all_cov, bestfit_color='C1', prefix=None):
+def fig_residual_ACF(d_spec, 
+                     m_spec, 
+                     all_cov, 
+                     LogLike, 
+                     rv_CCF=np.arange(-500,500+1e-6,1), 
+                     bestfit_color='C1', 
+                     prefix=None
+                     ):
 
+    rv_CCF, _, res_ACF, _ = \
+        d_spec.cross_correlation(
+            d_wave=d_spec.wave, 
+            d_flux=(d_spec.flux-m_spec.flux*LogLike.f[:,:,None]), 
+            d_err=d_spec.err, 
+            d_mask_isfinite=d_spec.mask_isfinite, 
+            rv_CCF=rv_CCF, 
+            high_pass_filter_method=None, 
+            )
+            
     n_orders, n_dets = d_spec.n_orders, d_spec.n_dets
 
     # Get the wavelength separations of each pixel-pair
@@ -645,8 +662,8 @@ def fig_res_ACF(rv_CCF, ACF, d_spec, all_cov, bestfit_color='C1', prefix=None):
             wave_ij = d_spec.wave[i,j,mask_ij]
 
             # Plot the auto-correlation of residuals
-            ax[i,j].plot(rv_CCF, ACF[i,j]/ACF.max(), lw=0.5, c='k')
-            ax[i,j].plot(rv_CCF, ACF[i,j]*0, lw=0.1, c='k')
+            ax[i,j].plot(rv_CCF, res_ACF[i,j]/res_ACF.max(), lw=0.5, c='k')
+            ax[i,j].plot(rv_CCF, res_ACF[i,j]*0, lw=0.1, c='k')
 
             # Plot the average of the covariance diagonals
             ax_delta_wave = ax[i,j].twiny()
@@ -691,11 +708,65 @@ def fig_res_ACF(rv_CCF, ACF, d_spec, all_cov, bestfit_color='C1', prefix=None):
     #plt.show()
     plt.close(fig)
 
-def fig_species_contribution(d_spec, m_spec, m_spec_species, Chem, species_to_plot, prefix=None):
+def fig_species_contribution(d_spec, 
+                             m_spec, 
+                             m_spec_species, 
+                             pRT_atm, 
+                             pRT_atm_species, 
+                             Chem, 
+                             species_to_plot, 
+                             rv_CCF=np.arange(-1000,1000+1e-6,10), 
+                             rv_to_exclude=(-100,100), 
+                             prefix=None
+                             ):
 
     if not os.path.exists(prefix+'plots/species'):
         os.makedirs(prefix+'plots/species')
 
+    fig_CCF, ax_CCF = plt.subplots(
+        figsize=(5,2*(len(species_to_plot)+1)), 
+        nrows=len(species_to_plot)+1, 
+        sharex=True, sharey=True, 
+        gridspec_kw={
+            'hspace':0.05, 'left':0.13, 'right':0.95, 
+            'top':0.97, 'bottom':0.05
+            }
+        )
+    h = 0
+    
+    # Obtain the cross-correlation functions
+    rv_CCF, CCF, d_ACF, m_ACF = \
+        m_spec.cross_correlation(
+            d_wave=d_spec.wave, 
+            d_flux=d_spec.flux, 
+            d_err=d_spec.err, 
+            d_mask_isfinite=d_spec.mask_isfinite, 
+            m_wave=pRT_atm.wave_pRT_grid, 
+            m_flux=pRT_atm.flux_pRT_grid, 
+            rv_CCF=rv_CCF, 
+            high_pass_filter_method='subtract', 
+            sigma=300
+            )
+
+    # Convert to signal-to-noise functions
+    CCF_SNR = af.CCF_to_SNR(
+        rv_CCF, CCF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+        )
+    m_ACF_SNR = af.CCF_to_SNR(
+        rv_CCF, m_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+        )
+    ax_CCF[0].plot(rv_CCF, m_ACF_SNR, c='k', lw=1, ls='--', alpha=0.5)
+    ax_CCF[0].plot(rv_CCF, CCF_SNR, c='k', lw=1, label='Complete')
+    ax_CCF[0].axvspan(
+        rv_to_exclude[0], rv_to_exclude[1], 
+        color='k', alpha=0.1, ec='none'
+        )
+
+    ax_CCF[0].legend(
+        loc='upper right', handlelength=1, framealpha=0.7, 
+        handletextpad=0.3, columnspacing=0.8
+        )
+        
     for species_h in Chem.species_info.keys():
         
         if species_h not in species_to_plot:
@@ -705,17 +776,66 @@ def fig_species_contribution(d_spec, m_spec, m_spec_species, Chem, species_to_pl
         line_species_h = Chem.read_species_info(species_h, info_key='pRT_name')
         if line_species_h in Chem.line_species:
 
-            # Read the ModelSpectrum class for this species
-            m_spec_h = m_spec_species[species_h]
+            h += 1
 
-            # Read the mass, color and label
+            # Read the ModelSpectrum class for this species
+            m_spec_h  = m_spec_species[species_h]
+            pRT_atm_h = pRT_atm_species[species_h]
+
+            # Residual between data and model w/o species_i
+            d_res = d_spec.flux - m_spec_h.flux
+
+            # Residual between complete model and model w/o species_i
+            m_res = m_spec.flux - m_spec_h.flux
+
+            # Obtain the cross-correlation functions
+            rv_CCF, CCF, d_ACF, m_ACF = \
+                m_spec_h.cross_correlation(
+                    d_wave=d_spec.wave, 
+                    d_flux=d_res, 
+                    d_err=d_spec.err, 
+                    d_mask_isfinite=d_spec.mask_isfinite, 
+                    m_wave=pRT_atm_h.wave_pRT_grid, 
+                    m_flux=(pRT_atm.flux_pRT_grid-pRT_atm_h.flux_pRT_grid), 
+                    rv_CCF=rv_CCF, 
+                    high_pass_filter_method='subtract', 
+                    sigma=300
+                    )
+
+            # Convert to signal-to-noise functions
+            CCF_SNR = af.CCF_to_SNR(
+                rv_CCF, CCF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+                )
+            d_ACF_SNR = af.CCF_to_SNR(
+                rv_CCF, d_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+                )
+            m_ACF_SNR = af.CCF_to_SNR(
+                rv_CCF, m_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+                )
+
+            # Read the color and label
             color_h = Chem.read_species_info(species_h, info_key='color')
             label_h = Chem.read_species_info(species_h, info_key='label')
-            
-            ylim = (np.nanmean(d_spec.flux-m_spec_h.flux) - \
-                               5*np.nanstd(d_spec.flux-m_spec_h.flux), 
-                    np.nanmean(d_spec.flux-m_spec_h.flux) + \
-                               4*np.nanstd(d_spec.flux-m_spec_h.flux)
+
+            # Plot the cross-correlation function
+            #ax_CCF[h].plot(rv_CCF, d_ACF_SNR, c='k', lw=1, ls='--')
+            ax_CCF[h].plot(rv_CCF, m_ACF_SNR, c=color_h, lw=1, ls='--', alpha=0.5)
+            ax_CCF[h].plot(rv_CCF, CCF_SNR, c=color_h, lw=1, label=label_h)
+
+            ax_CCF[h].axvspan(
+                rv_to_exclude[0], rv_to_exclude[1], 
+                color='k', alpha=0.1, ec='none'
+                )
+
+            ax_CCF[h].legend(
+                loc='upper right', handlelength=1, framealpha=0.7, 
+                handletextpad=0.3, columnspacing=0.8
+                )
+
+
+            # Use a common ylim for all orders
+            ylim = (np.nanmean(d_res) - 5*np.nanstd(d_res), 
+                    np.nanmean(d_res) + 4*np.nanstd(d_res)
                     )
 
             fig, ax = fig_order_subplots(
@@ -728,20 +848,14 @@ def fig_species_contribution(d_spec, m_spec, m_spec_species, Chem, species_to_pl
                 ax[i].axhline(0, lw=0.1, c='k')
                 
                 for j in range(d_spec.n_dets):
-                    
-                    # Residual between data and model w/o species_i
-                    d_res_ij = d_spec.flux[i,j] - m_spec_h.flux[i,j]
-
-                    # Residual between complete model and model w/o species_i
-                    m_res_ij = m_spec.flux[i,j] - m_spec_h.flux[i,j]
 
                     ax[i].plot(
-                        d_spec.wave[i,j], d_res_ij, c='k', lw=0.5, 
+                        d_spec.wave[i,j], d_res[i,j], c='k', lw=0.5, 
                         label=r'$d-m_\mathrm{w/o\ ' + \
                               label_h.replace('$', '') + r'}$'
                         )
                     ax[i].plot(
-                        d_spec.wave[i,j], m_res_ij, c=color_h, lw=1, 
+                        d_spec.wave[i,j], m_res[i,j], c=color_h, lw=1, 
                         label=r'$m_\mathrm{complete}-m_\mathrm{w/o\ ' + \
                               label_h.replace('$', '') + r'}$'
                         )
@@ -756,3 +870,15 @@ def fig_species_contribution(d_spec, m_spec, m_spec_species, Chem, species_to_pl
             if prefix is not None:
                 fig.savefig(prefix+f'plots/species/{species_h}_spec.pdf')
             plt.close(fig)
+
+    ax_CCF[-1].set(
+        xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$', 
+        xlim=(rv_CCF.min(), rv_CCF.max()), 
+        yticks=np.arange(-6,30,3), 
+        ylim=ax_CCF[-1].get_ylim()
+        )
+    ax_CCF[len(species_to_plot)//2].set(ylabel='S/N')
+
+    if prefix is not None:
+        fig_CCF.savefig(prefix+f'plots/species/CCF.pdf')
+    plt.close(fig_CCF)

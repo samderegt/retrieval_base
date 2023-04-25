@@ -352,7 +352,7 @@ class Retrieval:
                 self.PMN_lnL_func()
 
                 self.m_spec_species[species_i]  = self.m_spec
-                self.pRT_atm_species[species_i] = self.pRT_atm_broad
+                self.pRT_atm_species[species_i] = copy.deepcopy(self.pRT_atm_broad)
 
                 # Include this species again
                 self.Chem.neglect_species[species_i] = False
@@ -415,7 +415,6 @@ class Retrieval:
             self.get_species_contribution()
 
         # Update class instances with best-fitting parameters
-        #LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
         self.PMN_lnL_func()
 
         '''

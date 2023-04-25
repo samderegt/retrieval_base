@@ -301,13 +301,6 @@ class Spectrum:
                 d_flux_ij = d_flux[i,j,mask_ij]
                 d_err_ij  = d_err[i,j,mask_ij]
 
-                '''
-                import matplotlib.pyplot as plt
-                plt.plot(d_wave_i, d_flux_i, c='k', lw=1)
-                plt.plot(m_wave_i, m_flux_i, c='C1', lw=2)
-                plt.show()
-                '''
-
                 # Function to interpolate the observed
                 d_interp_func = interp1d(
                     d_wave_ij, d_flux_ij, bounds_error=False, 
