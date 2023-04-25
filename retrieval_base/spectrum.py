@@ -47,10 +47,14 @@ class Spectrum:
             self.mask_isfinite = np.isfinite(array)
         self.n_data_points = self.mask_isfinite.sum()
 
-    def rv_shift(self, rv, replace_wave=False):
+    def rv_shift(self, rv, wave=None, replace_wave=False):
+
+        # Use the supplied wavelengths
+        if wave is None:
+            wave = self.wave
 
         # Apply a Doppler shift to the model spectrum
-        wave_shifted = self.wave * (1 + rv/(nc.c*1e-5))
+        wave_shifted = wave * (1 + rv/(nc.c*1e-5))
         if replace_wave:
             self.wave = wave_shifted
         
@@ -158,6 +162,61 @@ class Spectrum:
 
         return flux_copy
 
+    def sigma_clip_median_filter(self, sigma=3, filter_width=3, replace_flux=True, prefix=None):
+        
+        from scipy.ndimage import generic_filter
+
+        flux_copy = self.flux.copy()
+        sigma_clip_bounds = np.ones((3, self.n_orders, 3*self.n_pixels)) * np.nan
+
+        # Loop over the orders
+        for i in range(self.n_orders):
+
+            # Select only pixels within the order, should be 3*2048
+            mask_wave  = (self.wave >= self.order_wlen_ranges[i,0].min() - 0.5) & \
+                         (self.wave <= self.order_wlen_ranges[i,2].max() + 0.5)
+            mask_order = (mask_wave & self.mask_isfinite)
+
+            if mask_order.any():
+
+                flux_i = flux_copy[mask_order]
+
+                # Apply a median filter to this order
+                filtered_flux_i = generic_filter(flux_i, np.nanmedian, size=filter_width)
+                
+                # Subtract the filtered flux
+                residuals = flux_i - filtered_flux_i
+
+                # Sigma-clip the residuals
+                mask_clipped = (np.abs(residuals) > sigma*np.std(residuals))
+
+                print(self.mask_isfinite[mask_wave].shape, self.mask_isfinite[mask_wave].sum(), len(filtered_flux_i))
+                sigma_clip_bounds[1,i,self.mask_isfinite[mask_wave]] = filtered_flux_i
+                sigma_clip_bounds[0,i] = sigma_clip_bounds[1,i] - sigma*np.std(residuals)
+                sigma_clip_bounds[2,i] = sigma_clip_bounds[1,i] + sigma*np.std(residuals)
+
+                # Set clipped values to NaNs
+                flux_i[mask_clipped]  = np.nan
+                flux_copy[mask_order] = flux_i
+
+        # Plot the sigma-clipping procedure
+        figs.fig_sigma_clip(wave=self.wave, 
+                            flux=flux_copy, 
+                            flux_wo_clip=self.flux, 
+                            sigma_clip_bounds=sigma_clip_bounds,
+                            order_wlen_ranges=self.order_wlen_ranges, 
+                            sigma=sigma, 
+                            prefix=prefix, 
+                            )
+
+        if replace_flux:
+            self.flux = flux_copy
+
+            # Update the isfinite mask
+            self.update_isfinite_mask()
+
+        return flux_copy
+
     @classmethod
     def instr_broadening(cls, wave, flux, out_res=1e6, in_res=1e6):
 
@@ -184,6 +243,121 @@ class Spectrum:
         integral2 = np.trapz(wave*flux, wave)
 
         return integral1/integral2
+
+    @classmethod
+    def cross_correlation(cls, 
+                          d_wave, 
+                          d_flux, 
+                          d_err, 
+                          d_mask_isfinite, 
+                          m_wave, 
+                          m_flux, 
+                          rv_CCF=np.arange(-500,500+1e-6,1), 
+                          high_pass_filter_method='divide', 
+                          sigma=300, 
+                          ):
+
+        n_orders, n_dets, n_pixels = d_flux.shape
+
+        CCF = np.zeros((n_orders, n_dets, len(rv_CCF)))
+        d_ACF = np.zeros((n_orders, n_dets, len(rv_CCF)))
+        m_ACF = np.zeros((n_orders, n_dets, len(rv_CCF)))
+
+        # Loop over all orders and detectors
+        for i in range(n_orders):
+
+            m_wave_i = m_wave[i].flatten()
+            m_flux_i = m_flux[i].flatten()
+            
+            for j in range(n_dets):
+
+                # Select only the pixels within this order
+                mask_ij = d_mask_isfinite[i,j,:]
+
+                d_wave_ij = d_wave[i,j,mask_ij]
+                d_flux_ij = d_flux[i,j,mask_ij]
+                d_err_ij  = d_err[i,j,mask_ij]
+
+                '''
+                import matplotlib.pyplot as plt
+                plt.plot(d_wave_i, d_flux_i, c='k', lw=1)
+                plt.plot(m_wave_i, m_flux_i, c='C1', lw=2)
+                plt.show()
+                '''
+
+                # Function to interpolate the spectra
+                m_interp_func = interp1d(
+                    m_wave_i, m_flux_i, bounds_error=False, fill_value=np.nan
+                    )
+                d_interp_func = interp1d(
+                    d_wave_ij, d_flux_ij, bounds_error=False, fill_value=np.nan
+                    )
+
+                # Static template flux
+                m_flux_static = m_interp_func(d_wave_ij)
+
+                low_pass_d_flux = gaussian_filter1d(d_flux_ij, sigma=sigma, mode='reflect')
+                low_pass_m_flux = gaussian_filter1d(m_flux_static, sigma=sigma, mode='reflect')
+
+                # High-pass filter the observed and template spectra
+                if high_pass_filter_method == 'divide':
+                    d_flux_ij /= low_pass_d_flux
+                    d_err_ij  /= low_pass_d_flux
+
+                    m_flux_static = low_pass_m_flux
+
+                elif high_pass_filter_method == 'subtract':
+                    d_flux_ij -= low_pass_d_flux
+
+                    m_flux_static -= low_pass_m_flux
+
+                # Assess if the model spectrum is wide enough to cover the observed spectrum
+                max_d_wave_shifted = cls.rv_shift(
+                    None, rv_CCF.max(), wave=d_wave_ij.max(), replace_wave=False
+                    )
+                min_d_wave_shifted = cls.rv_shift(
+                    None, rv_CCF.min(), wave=d_wave_ij.min(), replace_wave=False
+                    )
+                if (m_wave_i.min() > min_d_wave_shifted) or \
+                    (m_wave_i.max() < max_d_wave_shifted):
+                    print('\nWarning: Template is too narrow to cover the observed spectrum at the extreme RV shifts.' + \
+                        '\nmin(wave_t), max(wave_t) = {:.2f}, {:.2f} | '.format(m_wave_i.min(), m_wave_i.max()) + \
+                        'min(wave_d_shifted), max(wave_d_shifted) = {:.2f}, {:.2f}'.format(min_d_wave_shifted, max_d_wave_shifted)
+                        )
+
+                for k, rv_k in enumerate(rv_CCF):
+
+                    # Apply Doppler shift
+                    d_wave_shifted = cls.rv_shift(
+                        None, rv_k, wave=d_wave_ij, replace_wave=False
+                        )
+
+                    # Interpolate the spectra onto the new wavelength grid
+                    m_flux_shifted = m_interp_func(d_wave_shifted)
+                    d_flux_shifted = d_interp_func(d_wave_shifted)
+
+                    if high_pass_filter_method == 'divide':
+                        m_flux_shifted /= gaussian_filter1d(
+                            m_flux_shifted, sigma=sigma, mode='reflect'
+                            )
+                        d_flux_shifted /= gaussian_filter1d(
+                            d_flux_shifted, sigma=sigma, mode='reflect'
+                            )
+
+                    elif high_pass_filter_method == 'subtract':
+                        m_flux_shifted -= gaussian_filter1d(
+                            m_flux_shifted, sigma=sigma, mode='reflect'
+                            )
+                        d_flux_shifted -= gaussian_filter1d(
+                            d_flux_shifted, sigma=sigma, mode='reflect'
+                            )
+
+                    # Compute cross- and auto-correlation coefficients
+                    CCF[i,j,k] = np.nansum(m_flux_shifted * d_flux_ij / d_err_ij**2)
+                    m_ACF[i,j,k] = np.nansum(m_flux_shifted * m_flux_static / d_err_ij**2)
+                    d_ACF[i,j,k] = np.nansum(d_flux_shifted * d_flux_ij / d_err_ij**2)
+
+        return rv_CCF, CCF, d_ACF, m_ACF
 
 class DataSpectrum(Spectrum):
 
@@ -583,14 +757,14 @@ class ModelSpectrum(Spectrum):
         
         return flux_rot_broad
 
-    def rebin(self, new_wave, replace_wave_flux=False):
+    def rebin(self, d_wave, replace_wave_flux=False):
 
         # Interpolate onto the observed spectrum's wavelength grid
-        flux_rebinned = np.interp(new_wave, xp=self.wave, fp=self.flux)
+        flux_rebinned = np.interp(d_wave, xp=self.wave, fp=self.flux)
 
         if replace_wave_flux:
             self.flux = flux_rebinned
-            self.wave = new_wave
+            self.wave = d_wave
 
             # Update the isfinite mask
             self.update_isfinite_mask()
@@ -598,13 +772,13 @@ class ModelSpectrum(Spectrum):
         return flux_rebinned
 
     def shift_broaden_rebin(self, 
-                            new_wave, 
                             rv, 
                             vsini, 
                             epsilon_limb=0, 
                             out_res=1e6, 
                             in_res=1e6, 
-                            rebin=True
+                            d_wave=None, 
+                            rebin=True, 
                             ):
 
         # Apply Doppler shift, rotational/instrumental broadening, 
@@ -613,7 +787,8 @@ class ModelSpectrum(Spectrum):
         self.rot_broadening(vsini, epsilon_limb, replace_wave_flux=True)
         self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:
-            self.rebin(new_wave, replace_wave_flux=True)
+            self.rebin(d_wave, replace_wave_flux=True)
+
 
 class Photometry:
 

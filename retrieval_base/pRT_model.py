@@ -51,19 +51,13 @@ class pRT_model:
         '''
 
         # Read in attributes of the observed spectrum
-        self.d_wave = d_spec.wave
-        self.d_resolution = d_spec.resolution
+        self.d_wave          = d_spec.wave
+        self.d_mask_isfinite = d_spec.mask_isfinite
+        self.d_resolution    = d_spec.resolution
         self.apply_high_pass_filter = d_spec.high_pass_filtered
-        self.mask_isfinite = d_spec.mask_isfinite
-
-        # pRT model is somewhat wider than observed spectrum
-        self.wave_range_micron = np.concatenate(
-            (self.d_wave.min(axis=(1,2))[None,:]-1, 
-             self.d_wave.max(axis=(1,2))[None,:]+1
-            )).T
-        self.wave_range_micron *= 1e-3
 
         self.line_species = line_species
+        self.mode = mode
         self.lbl_opacity_sampling = lbl_opacity_sampling
 
         self.cloud_species     = cloud_species
@@ -72,15 +66,32 @@ class pRT_model:
 
         # Clouds
         if self.cloud_species is None:
-            do_scat_emis = False
+            self.do_scat_emis = False
         else:
-            do_scat_emis = True
+            self.do_scat_emis = True
 
         self.cloud_mode = cloud_mode
         self.chem_mode  = chem_mode
 
         # Define the atmospheric layers
         self.pressure = np.logspace(log_P_range[0], log_P_range[1], n_atm_layers)
+
+        # Make the pRT.Radtrans objects
+        self.get_atmospheres(CB_active=False)
+
+    def get_atmospheres(self, CB_active=False):
+
+        # pRT model is somewhat wider than observed spectrum
+        if CB_active:
+            wave_pad = 20
+        else:
+            wave_pad = 1
+
+        self.wave_range_micron = np.concatenate(
+            (self.d_wave.min(axis=(1,2))[None,:]-wave_pad, 
+             self.d_wave.max(axis=(1,2))[None,:]+wave_pad
+            )).T
+        self.wave_range_micron *= 1e-3
 
         self.atm = []
         for wave_range_i in self.wave_range_micron:
@@ -92,9 +103,9 @@ class pRT_model:
                 continuum_opacities=self.continuum_species, 
                 cloud_species=self.cloud_species, 
                 wlen_bords_micron=wave_range_i, 
-                mode=mode, 
+                mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
-                do_scat_emis=do_scat_emis
+                do_scat_emis=self.do_scat_emis
                 )
 
             # Set up the atmospheric layers
@@ -105,7 +116,8 @@ class pRT_model:
                  mass_fractions, 
                  temperature, 
                  params, 
-                 get_contr=False
+                 get_contr=False, 
+                 get_full_spectrum=False, 
                  ):
         '''
         Create a new model spectrum with the given arguments.
@@ -136,7 +148,9 @@ class pRT_model:
         self.add_clouds()
 
         # Generate a model spectrum
-        m_spec = self.get_model_spectrum(get_contr=get_contr)
+        m_spec = self.get_model_spectrum(
+            get_contr=get_contr, get_full_spectrum=get_full_spectrum
+            )
         return m_spec
 
     def add_clouds(self):
@@ -196,7 +210,7 @@ class pRT_model:
 
         return opa_gray_cloud
 
-    def get_model_spectrum(self, get_contr=False):
+    def get_model_spectrum(self, get_contr=False, get_full_spectrum=False):
         '''
         Generate a model spectrum with the given parameters.
 
@@ -219,6 +233,10 @@ class pRT_model:
         
         self.int_contr_em  = np.zeros_like(self.pressure)
         self.int_opa_cloud = np.zeros_like(self.pressure)
+
+        self.CCF, self.m_ACF = [], []
+        self.wave_pRT_grid, self.flux_pRT_grid = [], []
+
         for i, atm_i in enumerate(self.atm):
             
             # Compute the emission spectrum
@@ -245,28 +263,47 @@ class pRT_model:
             # Convert [cm] -> [nm]
             wave_i *= 1e7
 
+            # Convert to observation by scaling with planetary radius
+            flux_i *= (
+                (self.params['R_p']*nc.r_jup_mean) / \
+                (1e3/self.params['parallax']*nc.pc)
+                )**2
+
             # Create a ModelSpectrum instance
             m_spec_i = ModelSpectrum(
                 wave=wave_i, flux=flux_i, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling
                 )
             
-            # Apply radial-velocity shift, rotational/instrumental 
-            # broadening and rebin onto the data's wavelength grid
+            # Apply radial-velocity shift, rotational/instrumental broadening
             m_spec_i.shift_broaden_rebin(
-                new_wave=self.d_wave[i,:], 
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params['epsilon_limb'], 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 
-                rebin=True, 
+                rebin=False, 
                 )
-            # Convert to observation by scaling with planetary radius
-            m_spec_i.flux *= (
-                (self.params['R_p']*nc.r_jup_mean) / \
-                (1e3/self.params['parallax']*nc.pc)
-                )**2
+            if get_full_spectrum:
+                # Store the spectrum before the rebinning
+                self.wave_pRT_grid.append(m_spec_i.wave)
+                self.flux_pRT_grid.append(m_spec_i.flux)
+
+                '''
+                # Get the cross-correlation function
+                self.rv_CCF, CCF, m_ACF = m_spec_i.cross_correlation(
+                    d_wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
+                    d_flux=self.d_flux[i,self.d_mask_isfinite[i,:,:]].flatten(), 
+                    d_err=self.d_err[i,self.d_mask_isfinite[i,:,:]].flatten(), 
+                    m_wave=m_spec_i.wave, 
+                    m_flux=m_spec_i.flux, 
+                    )
+                self.CCF.append(CCF)
+                self.m_ACF.append(m_ACF)
+                '''
+
+            # Rebin onto the data's wavelength grid
+            m_spec_i.rebin(d_wave=self.d_wave[i,:], replace_wave_flux=True)
 
             if self.apply_high_pass_filter:
                 # High-pass filter the model spectrum
@@ -303,7 +340,7 @@ class pRT_model:
                         )
                     # Shift, broaden, rebin the contribution
                     contr_em_ij.shift_broaden_rebin(
-                        new_wave=self.d_wave[i,:], 
+                        d_wave=self.d_wave[i,:], 
                         rv=self.params['rv'], 
                         vsini=self.params['vsini'], 
                         epsilon_limb=self.params['epsilon_limb'], 
@@ -315,13 +352,13 @@ class pRT_model:
                     # Integrate and weigh the emission contribution function                    
                     self.int_contr_em[j] += \
                         contr_em_ij.spectrally_weighted_integration(
-                            wave=self.d_wave[i,self.mask_isfinite[i,:,:]].flatten(), 
-                            flux=m_spec_i.flux[self.mask_isfinite[i,:,:]].flatten(), 
-                            array=contr_em_ij.flux[self.mask_isfinite[i,:,:]].flatten(), 
+                            wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
+                            flux=m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
+                            array=contr_em_ij.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
                             )
-                    new_contr_em_i.append(self.d_wave[i,self.mask_isfinite[i,:,:]].flatten() * \
-                                          contr_em_ij.flux[self.mask_isfinite[i,:,:]].flatten() * \
-                                          m_spec_i.flux[self.mask_isfinite[i,:,:]].flatten()
+                    new_contr_em_i.append(self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten() * \
+                                          contr_em_ij.flux[self.d_mask_isfinite[i,:,:]].flatten() * \
+                                          m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten()
                                           )
 
                     # Similar to the model flux
@@ -331,7 +368,7 @@ class pRT_model:
                         )
                     # Shift, broaden, rebin the cloud opacity
                     opa_cloud_ij.shift_broaden_rebin(
-                        new_wave=self.d_wave[i,:], 
+                        d_wave=self.d_wave[i,:], 
                         rv=self.params['rv'], 
                         vsini=self.params['vsini'], 
                         epsilon_limb=self.params['epsilon_limb'], 
@@ -342,9 +379,9 @@ class pRT_model:
                     # Integrate and weigh the cloud opacity
                     self.int_opa_cloud[j] += \
                         opa_cloud_ij.spectrally_weighted_integration(
-                            wave=self.d_wave[i,self.mask_isfinite[i,:,:]].flatten(), 
-                            flux=m_spec_i.flux[self.mask_isfinite[i,:,:]].flatten(), 
-                            array=opa_cloud_ij.flux[self.mask_isfinite[i,:,:]].flatten(), 
+                            wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
+                            flux=m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
+                            array=opa_cloud_ij.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
                             )
 
         # Create a new ModelSpectrum instance with all orders
@@ -355,6 +392,11 @@ class pRT_model:
             multiple_orders=True, 
             high_pass_filtered=self.apply_high_pass_filter, 
             )
+
+        # Convert to arrays
+        self.CCF, self.m_ACF = np.array(self.CCF), np.array(self.m_ACF)
+        self.wave_pRT_grid = np.array(self.wave_pRT_grid)
+        self.flux_pRT_grid = np.array(self.flux_pRT_grid)
 
         # Save memory, same attributes in DataSpectrum
         del m_spec.wave, m_spec.mask_isfinite

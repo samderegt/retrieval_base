@@ -42,8 +42,7 @@ class CallBack:
         self.bestfit_color = bestfit_color
 
         self.envelope_cmap = mpl.colors.LinearSegmentedColormap.from_list(
-            name='envelope_cmap', 
-            colors=['w', self.posterior_color], 
+            name='envelope_cmap', colors=['w', self.posterior_color], 
             )
         self.envelope_colors = self.envelope_cmap([0.0,0.2,0.4,0.6,0.8])
         self.envelope_colors[0,-1] = 0.0
@@ -58,8 +57,6 @@ class CallBack:
                  m_spec, 
                  pRT_atm, 
                  posterior, 
-                 temperature_envelopes=None, 
-                 mass_fractions_envelopes=None, 
                  ):
 
         time_A = time.time()
@@ -72,9 +69,6 @@ class CallBack:
         self.Chem    = Chem
         self.m_spec  = m_spec
         self.pRT_atm = pRT_atm
-
-        self.temperature_envelopes    = temperature_envelopes
-        self.mass_fractions_envelopes = mass_fractions_envelopes
 
         if not self.evaluation:
             # Use only the last n samples to plot the posterior
@@ -120,10 +114,45 @@ class CallBack:
         self.median_params  = np.array(list(self.param_quantiles[:,1]))
 
         # Plot the covariance matrices
-        figs.fig_cov(
+        all_cov = figs.fig_cov(
             LogLike=self.LogLike, d_spec=self.d_spec, 
             cmap=self.envelope_cmap, prefix=self.prefix
             )
+
+        rv_CCF, _, res_ACF, _ = \
+            self.d_spec.cross_correlation(
+                #d_wave=self.d_spec.wave[:,:1000:], 
+                #d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None])[:,:1000:], 
+                #d_err=self.d_spec.err[:,:1000:], 
+                #d_mask_isfinite=self.d_spec.mask_isfinite[:,:1000:], 
+                d_wave=self.d_spec.wave, 
+                d_flux=(self.d_spec.flux-self.m_spec.flux*self.LogLike.f[:,:,None]), 
+                d_err=self.d_spec.err, 
+                d_mask_isfinite=self.d_spec.mask_isfinite, 
+                m_wave=self.d_spec.wave, 
+                m_flux=self.m_spec.flux, 
+                rv_CCF=np.arange(-500,500+1e-6,1), 
+                high_pass_filter_method=None, 
+                )
+        figs.fig_res_ACF(
+            rv_CCF=rv_CCF, 
+            ACF=res_ACF, 
+            d_spec=self.d_spec, 
+            all_cov=all_cov, 
+            prefix=self.prefix
+            )
+        #self.fig_CCF()
+
+        # Save a separate figure of the PT profile
+        figs.fig_PT(
+            PT=self.PT, 
+            integrated_contr_em=self.pRT_atm.int_contr_em, 
+            ax_PT=None, 
+            envelope_colors=self.envelope_colors, 
+            posterior_color=self.posterior_color, 
+            bestfit_color=self.bestfit_color, 
+            prefix=self.prefix
+        )
 
         # Make a summary figure
         self.fig_summary()
@@ -176,7 +205,38 @@ class CallBack:
 
         # Save the bestfit spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
-        
+
+    def fig_CCF(self):
+
+        fig, ax = plt.subplots(
+            figsize=(5,3*len(self.Chem.line_species)+1), 
+            nrows=len(self.Chem.line_species)+1
+            )
+
+        CCF_SNR = af.CCF_to_SNR(
+            self.m_spec.rv_CCF, self.m_spec.CCF, 
+            rv_to_exlude=(-100,100)
+            )
+        m_ACF_SNR = af.CCF_to_SNR(
+            self.m_spec.rv_CCF, self.m_spec.m_ACF, 
+            rv_to_exlude=(-100,100)
+            )
+        ax[0].plot(self.m_spec.rv_CCF, CCF_SNR, c='k', lw=1)
+        ax[0].plot(self.m_spec.rv_CCF, m_ACF_SNR, c='k', lw=1, ls='--', alpha=0.3)
+
+        for species_i in self.Chem.species_info.keys():
+
+            line_species_i = self.Chem.read_species_info(species_i, info_key='pRT_name')
+            if line_species_i in self.Chem.line_species:
+                i += 1
+
+                color_i = self.Chem.read_species_info(species_i, info_key='color')
+                label_i = self.Chem.read_species_info(species_i, info_key='label')
+
+        fig.show()
+        plt.close(fig)
+
+
     def fig_corner(self, included_params=None, fig=None, smooth=False, ann_fs=9):
         
         if fig is None:
@@ -279,53 +339,47 @@ class CallBack:
         ax_VMR = fig.add_axes([0.63,0.475,0.1,0.22])
         l, b, w, h = ax_VMR.get_position().bounds
         ax_PT = fig.add_axes([l+w,b,h,h])
-        ax_contr = ax_PT.twiny()
+        #ax_contr = ax_PT.twiny()
 
         # Plot the VMR per species
-        ax_VMR = self.fig_VMR(ax_VMR)
+        ax_VMR = figs.fig_VMR(
+            ax_VMR=ax_VMR, 
+            Chem=self.Chem, 
+            species_to_plot=self.species_to_plot, 
+            pressure=self.PT.pressure, 
+            )
 
         # Plot the best-fitting PT profile
-        ax_PT = self.fig_PT(ax_PT, ylabel=None, yticks=[])
+        ax_PT = figs.fig_PT(
+            PT=self.PT, 
+            integrated_contr_em=self.pRT_atm.int_contr_em, 
+            ax_PT=ax_PT, 
+            envelope_colors=self.envelope_colors, 
+            posterior_color=self.posterior_color, 
+            bestfit_color=self.bestfit_color, 
+            ylabel=None, 
+            yticks=[]
+            )
 
         # Plot the integrated emission contribution function
-        ax_contr = self.fig_contr_em(ax_contr)
+        #ax_contr = self.fig_contr_em(ax_contr)
 
         #plt.show()
         if self.evaluation:
-            
-            # Make the histograms directory
-            if not os.path.exists(self.prefix+'plots/hists'):
-                os.makedirs(self.prefix+'plots/hists')
 
-            # Save the histograms separately
             for i in range(ax.shape[0]):
-
-                self.fig_hist(
+                # Plot the histograms separately
+                figs.fig_hist_posterior(
                     posterior_i=self.posterior[:,i], 
                     param_range_i=self.param_range[i], 
                     param_quantiles_i=self.param_quantiles[i], 
                     param_key_i=self.Param.param_keys[i], 
-                    title=ax[i,i].get_title(), 
-                    bins=20
+                    posterior_color=self.posterior_color, 
+                    title=self.param_labels[i], 
+                    bins=20, 
+                    prefix=self.prefix
                     )
-
-                if self.Param.param_keys[i].startswith('log_'):
-
-                    # Plot the logarithmic parameters as linear as well
-                    title = self.param_labels[i].replace('\\log', '')
-                    title = title.replace('\\ ', '')
-                    title = title + r'$=' + '{:.3f}'.format(10**self.param_quantiles[i][1])
-                    title = title + '^{' + '+{:.3f}'.format(10**self.param_quantiles[i][2]-10**self.param_quantiles[i][1]) + '}'
-                    title = title + '_{' + '{:.3f}'.format(10**self.param_quantiles[i][1]-10**self.param_quantiles[i][0]) + '}$'
-
-                    self.fig_hist(
-                        posterior_i=10**self.posterior[:,i], 
-                        param_range_i=(10**self.param_range[i][0], 10**self.param_range[i][1]), 
-                        param_quantiles_i=10**self.param_quantiles[i], 
-                        param_key_i=self.Param.param_keys[i].replace('log_', ''), 
-                        title=title, bins=20
-                        )
-                                
+            
             fig.savefig(self.prefix+'plots/final_summary.pdf')
             fig.savefig(self.prefix+f'plots/final_summary.png', dpi=100)
 
@@ -344,117 +398,3 @@ class CallBack:
             ax_res=None, 
             prefix=self.prefix, 
             )
-
-    def fig_hist(self, posterior_i, param_range_i, param_quantiles_i, param_key_i, title=None, bins=20):
-
-        fig_hist, ax_hist = plt.subplots(figsize=(3,3))
-        ax_hist.hist(
-            posterior_i, bins=bins, range=param_range_i, 
-            color=self.posterior_color, histtype='step', 
-            )
-        ax_hist.axvline(param_quantiles_i[0], c=self.posterior_color, ls='--')
-        ax_hist.axvline(param_quantiles_i[1], c=self.posterior_color, ls='-')
-        ax_hist.axvline(param_quantiles_i[2], c=self.posterior_color, ls='--')
-
-        ax_hist.set(yticks=[], xlim=param_range_i, title=title)
-        fig_hist.savefig(self.prefix+f'plots/hists/{param_key_i}.pdf')
-        plt.close(fig_hist)
-
-    def fig_PT(self, ax_PT, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
-            
-        if self.evaluation:
-            # Plot the PT envelope as well
-            for i in range(3):
-                ax_PT.fill_betweenx(
-                    y=self.PT.pressure, x1=self.temperature_envelopes[i], 
-                    x2=self.temperature_envelopes[-i-1], 
-                    color=self.envelope_colors[i+1], ec='none', 
-                    )
-            # Plot the median PT
-            ax_PT.plot(
-                self.temperature_envelopes[3], self.PT.pressure, 
-                c=self.posterior_color, lw=1
-            )
-        
-        # Plot the best-fitting PT profile and median
-        ax_PT.plot(self.PT.temperature, self.PT.pressure, c=self.bestfit_color, lw=1)
-        ax_PT.plot(
-            self.PT.T_knots, self.PT.P_knots, 
-            c=self.bestfit_color, ls='', marker='o', markersize=3
-            )
-
-        if yticks is None:
-            yticks = np.logspace(-6, 2, 9)
-            
-        ax_PT.set(
-            xlabel=r'$T\ \mathrm{(K)}$', xlim=(1,3500), 
-            ylabel=ylabel, ylim=(self.PT.pressure.min(), self.PT.pressure.max()), 
-            yscale='log', yticks=yticks
-            )
-        ax_PT.invert_yaxis()
-
-        return ax_PT
-
-    def fig_VMR(self, ax_VMR, ylabel=r'$P\ \mathrm{(bar)}$', yticks=None):
-
-        MMW = self.Chem.mass_fractions['MMW']
-
-        for species_i in self.Chem.species_info.keys():
-            
-            if species_i not in self.species_to_plot:
-                continue
-
-            # Check if the line species was included in the model
-            line_species_i = self.Chem.read_species_info(species_i, info_key='pRT_name')
-            if line_species_i in self.Chem.line_species:
-
-                # Read the mass, color and label
-                mass_i  = self.Chem.read_species_info(species_i, info_key='mass')
-                color_i = self.Chem.read_species_info(species_i, info_key='color')
-                label_i = self.Chem.read_species_info(species_i, info_key='label')
-
-                # Convert the mass fraction to a VMR
-                mass_fraction_i = self.Chem.mass_fractions[line_species_i]
-                VMR_i = mass_fraction_i * MMW/mass_i
-
-                # Plot volume-mixing ratio as function of pressure
-                ax_VMR.plot(VMR_i, self.PT.pressure, c=color_i, lw=1, label=label_i)
-
-                if self.evaluation:
-                    # Plot the VMR envelope as well
-                    cmap_i = mpl.colors.LinearSegmentedColormap.from_list(
-                        'cmap_i', colors=['w', color_i]
-                        )
-                    VMR_envelope_colors_i = cmap_i([0.0,0.2,0.4,0.6,0.8])
-
-                    for j in range(3):
-                        ax_VMR.fill_betweenx(
-                            y=self.PT.pressure, x1=MMW/mass_i * self.mass_fractions_envelopes[line_species_i][j], 
-                            x2=MMW/mass_i * self.mass_fractions_envelopes[line_species_i][-j-1], 
-                            color=VMR_envelope_colors_i[j+1], ec='none', 
-                            )
-
-
-        if yticks is None:
-            yticks = np.logspace(-6, 2, 9)
-
-        ax_VMR.legend(handlelength=0.5, handletextpad=0.3, framealpha=0.7)
-        ax_VMR.set(
-            xlabel='VMR', xscale='log', xlim=(1e-8, 1e-2), 
-            ylabel=ylabel, yscale='log', yticks=yticks, 
-            ylim=(self.PT.pressure.min(), self.PT.pressure.max()), 
-            )
-        ax_VMR.invert_yaxis()
-
-        return ax_VMR
-
-    def fig_contr_em(self, ax_contr):
-
-        ax_contr.plot(
-            self.pRT_atm.int_contr_em, self.PT.pressure, 
-            c=self.bestfit_color, ls='--', alpha=0.7
-            )
-        ax_contr.tick_params(axis='x', which='both', top=False, labeltop=False)
-        ax_contr.set(xlim=(0, 1.1*np.nanmax(self.pRT_atm.int_contr_em)))
-
-        return ax_contr

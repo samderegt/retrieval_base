@@ -153,6 +153,13 @@ class FreeChemistry(Chemistry):
         self.FeH = np.log10(C/H) - log_CH_solar
         self.CH  = self.FeH
 
+        for species_i in self.neglect_species:
+            if self.neglect_species[species_i]:
+                line_species_i = self.read_species_info(species_i, 'pRT_name')
+
+                # Set abundance to 0 to evaluate species' contribution
+                self.mass_fractions[line_species_i] *= 0
+
         return self.mass_fractions
 
 class EqChemistry(Chemistry):
@@ -179,7 +186,6 @@ class EqChemistry(Chemistry):
         # Layers to be replaced by a constant abundance
         mask_quenched = (self.pressure < self.P_quench)
 
-        #for species_i in ['CO', 'H2O', 'CH4', 'CO2', 'HCN']:
         for species_i in ['CO', 'CH4', 'CO2', 'HCN']:
             mass_fraction_i = pm_mass_fractions[species_i]
             mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
@@ -231,5 +237,12 @@ class EqChemistry(Chemistry):
         # Add the H2 and He abundances
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
+
+        for species_i in self.neglect_species:
+            if self.neglect_species[species_i]:
+                line_species_i = self.read_species_info(species_i, 'pRT_name')
+
+                # Set abundance to 0 to evaluate species' contribution
+                self.mass_fractions[line_species_i] *= 0
 
         return self.mass_fractions

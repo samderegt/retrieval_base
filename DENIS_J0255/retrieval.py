@@ -14,6 +14,7 @@ time.sleep(1.5*rank)
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import copy
 
 from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
 from retrieval_base.parameters import Parameters
@@ -27,8 +28,9 @@ import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
 #import config_DENIS as conf
-#import config_DENIS_144 as conf
-import config_DENIS_146 as conf
+import config_DENIS_144 as conf
+#import config_DENIS_145 as conf
+#import config_DENIS_146 as conf
 
 def pre_processing():
 
@@ -88,7 +90,8 @@ def pre_processing():
     del photom_2MASS
 
     # Apply sigma-clipping
-    d_spec.sigma_clip_poly(sigma=3, prefix=conf.prefix)
+    d_spec.sigma_clip_median_filter(sigma=3, filter_width=8, prefix=conf.prefix)
+    #d_spec.sigma_clip_poly(sigma=3, prefix=conf.prefix)
 
     # Crop the spectrum
     d_spec.crop_spectrum()
@@ -195,10 +198,20 @@ def retrieval():
         n_samples_to_use=2000, 
         prefix=conf.prefix, 
         posterior_color='C0', 
+        #posterior_color='k', 
         #bestfit_color='C3', 
         #bestfit_color='orangered', 
         bestfit_color='C1', 
         )
+
+    if rank == 0:
+        # Create wider pRT models
+        pRT_atm_broad = copy.deepcopy(pRT_atm)
+        pRT_atm_broad.get_atmospheres(CB_active=True)
+
+        # Add as attributes, necessary for cross-correlation
+        #pRT_atm_broad.d_flux = d_spec.flux
+        #pRT_atm_broad.d_err = d_spec.err
             
     def PMN_lnL_func(cube=None, ndim=None, nparams=None):
 
@@ -234,12 +247,19 @@ def retrieval():
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
+        if CB.active:
+            # Retrieve the model spectrum, with the wider pRT model
+            pRT_atm_to_use = pRT_atm_broad
+        else:
+            pRT_atm_to_use = pRT_atm
+        
         # Retrieve the model spectrum
-        m_spec = pRT_atm(
+        m_spec = pRT_atm_to_use(
             mass_fractions, 
             temperature, 
             Param.params, 
             get_contr=args.evaluation, 
+            get_full_spectrum=CB.active, 
             )
 
         # Retrieve the log-likelihood
@@ -253,9 +273,8 @@ def retrieval():
         CB.elapsed_times.append(time_B-time_A)
 
         if CB.active:
-
             # Return the class instances during callback
-            return (LogLike, PT, Chem, m_spec, pRT_atm)
+            return (LogLike, PT, Chem, m_spec, pRT_atm_to_use)
 
         return ln_L
 
@@ -363,14 +382,55 @@ def retrieval():
         Param.read_chemistry_params()
         Param.read_cloud_params()
 
+        '''
+        # Assess the species' contribution
+        for species_i in Chem.species_info:
+            line_species_i = Chem.read_species_info(species_i, 'pRT_atm')
+
+            if line_species_i in conf.line_species:
+                # Ignore this species' for now
+                Chem.neglect_species[species_i] = True
+                
+                # Get the spectrum with other chemical species'
+                LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
+
+                # Include again
+                Chem.neglect_species[species_i] = False
+        '''
+
         # Update class instances with best-fitting parameters
         LogLike, PT, Chem, m_spec, pRT_atm = PMN_lnL_func()
+        
+        # Make attributes of the PT and Chemistry classes
+        PT.temperature_envelopes = temperature_envelopes
+        Chem.mass_fractions_envelopes = mass_fractions_envelopes
+
+        # Get the cross-correlation functions
+        m_spec.rv_CCF, m_spec.CCF, m_spec.d_ACF, m_spec.m_ACF = \
+            m_spec.cross_correlation(
+                d_wave=d_spec.wave, 
+                d_flux=d_spec.flux, 
+                d_err=d_spec.err, 
+                d_mask_isfinite=d_spec.mask_isfinite, 
+                m_wave=pRT_atm.wave_pRT_grid, 
+                m_flux=pRT_atm.flux_pRT_grid, 
+                rv_CCF=np.arange(-500,500,1), 
+                high_pass_filter_method='subtract', 
+                sigma=300, 
+                )
+
+        '''
+        import matplotlib.pyplot as plt
+        plt.plot(rv_CCF, CCF.sum(axis=(0,1)), c='k', lw=1)
+        plt.plot(rv_CCF, m_ACF.sum(axis=(0,1)), c='C1', lw=1)
+        plt.plot(rv_CCF, d_ACF.sum(axis=(0,1)), c='k', lw=1, ls='--', alpha=0.5)
+        plt.show()
+        '''
+            
         CB.active = False
 
         # Call the CallBack class and make summarizing figures
-        CB(Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior, 
-           temperature_envelopes, mass_fractions_envelopes
-           )
+        CB(Param, LogLike, PT, Chem, m_spec, pRT_atm, posterior)
 
     # Set-up the MultiNest retrieval
     import pymultinest

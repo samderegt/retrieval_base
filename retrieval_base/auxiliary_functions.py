@@ -73,3 +73,18 @@ def quantiles(x, q, weights=None, axis=-1):
         cdf = np.append(0, cdf)  # ensure proper span
         quantiles = np.interp(q, cdf, x[idx]).tolist()
         return quantiles
+
+def CCF_to_SNR(rv, CCF, rv_to_exlude=(-100,100)):
+
+    # Select samples from outside the expected peak
+    rv_mask = (rv < rv_to_exlude[0]) | (rv > rv_to_exlude[1])
+
+    # Correct the offset
+    CCF -= np.nanmean(CCF[rv_mask])
+
+    # Standard-deviation of the cross-correlation function
+    std_CCF = np.nanstd(CCF[rv_mask])
+
+    # Convert to signal-to-noise
+    return CCF/std_CCF
+    
