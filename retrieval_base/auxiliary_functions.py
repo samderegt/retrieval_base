@@ -3,6 +3,8 @@ import os
 import shutil
 
 import numpy as np
+from scipy.interpolate import interp1d
+import petitRADTRANS.nat_cst as nc
 
 def pickle_save(file, object_to_pickle):
 
@@ -88,3 +90,89 @@ def CCF_to_SNR(rv, CCF, rv_to_exclude=(-100,100)):
     # Convert to signal-to-noise
     return CCF/std_CCF
     
+def CCF(d_spec, 
+        m_spec, 
+        m_wave_pRT_grid, 
+        m_flux_pRT_grid, 
+        m_spec_wo_species=None, 
+        m_flux_wo_species_pRT_grid=None, 
+        LogLike=None, 
+        rv=np.arange(-500,500+1e-6,1), 
+        ):
+
+    CCF = np.zeros((d_spec.n_orders, d_spec.n_dets, len(rv)))
+    d_ACF = np.zeros_like(CCF)
+    m_ACF = np.zeros_like(CCF)
+
+    # Loop over all orders and detectors
+    for i in range(d_spec.n_orders):
+
+        m_wave_i = m_wave_pRT_grid[i]
+        m_flux_i = m_flux_pRT_grid[i]
+        
+        if m_flux_wo_species_pRT_grid is not None:
+            # Perform the cross-correlation on the residuals
+            m_flux_i -= m_flux_wo_species_pRT_grid[i]
+
+        # Function to interpolate the model spectrum
+        m_interp_func = interp1d(
+            m_wave_i, m_flux_i, bounds_error=False, fill_value=np.nan
+            )
+        
+        for j in range(d_spec.n_dets):
+
+            # Select only the pixels within this order
+            mask_ij = d_spec.mask_isfinite[i,j,:]
+
+            d_wave_ij = d_spec.wave[i,j,mask_ij]
+            d_flux_ij = d_spec.flux[i,j,mask_ij]
+
+            if LogLike is not None:
+                # Use the covariance matrix to weigh 
+                # the cross-correlation coefficients
+                cov_ij = LogLike.cov[i,j]
+
+                # Scale the data instead of the models
+                d_flux_ij /= LogLike.f[i,j]
+
+            if m_spec_wo_species is not None:
+                # Perform the cross-correlation on the residuals
+                d_flux_ij -= m_spec_wo_species.flux[i,j,mask_ij]
+
+            # Function to interpolate the observed spectrum
+            d_interp_func = interp1d(
+                d_wave_ij, d_flux_ij, bounds_error=False, fill_value=np.nan
+                )
+            
+            # Create a static model template
+            m_flux_ij_static = m_interp_func(d_wave_ij)
+            
+            for k, rv_k in enumerate(rv):
+
+                # Apply Doppler shift
+                d_wave_ij_shifted = d_wave_ij * (1 + rv_k/(nc.c*1e-5))
+
+                # Interpolate the spectra onto the new wavelength grid
+                d_flux_ij_shifted = d_interp_func(d_wave_ij_shifted)
+                m_flux_ij_shifted = m_interp_func(d_wave_ij_shifted)
+
+                # Compute the cross-correlation coefficient, weighted 
+                # by the covariance matrix
+                #CCF_k = np.dot(m_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
+                CCF[i,j,k] = np.dot(m_flux_ij_shifted, cov_ij.solve(d_flux_ij))
+                
+                # Compute the auto-correlation coefficients, weighted 
+                # by the covariance matrix
+                #m_ACF_k = np.dot(m_flux_ij_shifted, m_flux_ij_static/d_spec.err[i,j,mask_ij]**2)
+                m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, cov_ij.solve(m_flux_ij_static))
+
+                #d_ACF_k = np.dot(d_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
+                d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, cov_ij.solve(d_flux_ij))
+
+                # Scale the correlation coefficients
+                if LogLike is not None:
+                    CCF[i,j,k]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+                    m_ACF[i,j,k] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+                    d_ACF[i,j,k] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+
+    return rv, CCF, d_ACF, m_ACF

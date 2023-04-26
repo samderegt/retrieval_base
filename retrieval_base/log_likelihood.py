@@ -179,7 +179,7 @@ class LogLikelihood:
                 # Store in the arrays
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
-                self.cov[i,j] = cov_ij
+                self.cov[i,j]  = cov_ij
 
                 # This is not perfect for off-diagonal elements in covariance matrix
                 if cov_ij.is_matrix:

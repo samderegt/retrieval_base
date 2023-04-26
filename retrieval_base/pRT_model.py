@@ -289,19 +289,6 @@ class pRT_model:
                 self.wave_pRT_grid.append(m_spec_i.wave)
                 self.flux_pRT_grid.append(m_spec_i.flux)
 
-                '''
-                # Get the cross-correlation function
-                self.rv_CCF, CCF, m_ACF = m_spec_i.cross_correlation(
-                    d_wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
-                    d_flux=self.d_flux[i,self.d_mask_isfinite[i,:,:]].flatten(), 
-                    d_err=self.d_err[i,self.d_mask_isfinite[i,:,:]].flatten(), 
-                    m_wave=m_spec_i.wave, 
-                    m_flux=m_spec_i.flux, 
-                    )
-                self.CCF.append(CCF)
-                self.m_ACF.append(m_ACF)
-                '''
-
             # Rebin onto the data's wavelength grid
             m_spec_i.rebin(d_wave=self.d_wave[i,:], replace_wave_flux=True)
 
@@ -319,70 +306,11 @@ class pRT_model:
             
             if get_contr:
 
-                # Get the emission contribution function
-                contr_em_i = atm_i.contr_em
-                new_contr_em_i = []
-
-                # Get the cloud opacity
-                if self.cloud_mode == 'gray':
-                    opa_cloud_i = self.gray_cloud_opacity(wave_i*1e-3, self.pressure).T
-                elif self.cloud_mode == 'MgSiO3':
-                    opa_cloud_i = atm_i.tau_cloud.T
-                else:
-                    opa_cloud_i = np.zeros_like(contr_em_i)
-
-                for j, (contr_em_ij, opa_cloud_ij) in enumerate(zip(contr_em_i, opa_cloud_i)):
-                    
-                    # Similar to the model flux
-                    contr_em_ij = ModelSpectrum(
-                        wave=wave_i, flux=contr_em_ij, 
-                        lbl_opacity_sampling=self.lbl_opacity_sampling
-                        )
-                    # Shift, broaden, rebin the contribution
-                    contr_em_ij.shift_broaden_rebin(
-                        d_wave=self.d_wave[i,:], 
-                        rv=self.params['rv'], 
-                        vsini=self.params['vsini'], 
-                        epsilon_limb=self.params['epsilon_limb'], 
-                        out_res=self.d_resolution, 
-                        in_res=m_spec_i.resolution, 
-                        rebin=True, 
-                        )
-                    # Compute the spectrally-weighted emission contribution function
-                    # Integrate and weigh the emission contribution function                    
-                    self.int_contr_em[j] += \
-                        contr_em_ij.spectrally_weighted_integration(
-                            wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
-                            flux=m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
-                            array=contr_em_ij.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
-                            )
-                    new_contr_em_i.append(self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten() * \
-                                          contr_em_ij.flux[self.d_mask_isfinite[i,:,:]].flatten() * \
-                                          m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten()
-                                          )
-
-                    # Similar to the model flux
-                    opa_cloud_ij = ModelSpectrum(
-                        wave=wave_i, flux=opa_cloud_ij, 
-                        lbl_opacity_sampling=self.lbl_opacity_sampling
-                        )
-                    # Shift, broaden, rebin the cloud opacity
-                    opa_cloud_ij.shift_broaden_rebin(
-                        d_wave=self.d_wave[i,:], 
-                        rv=self.params['rv'], 
-                        vsini=self.params['vsini'], 
-                        epsilon_limb=self.params['epsilon_limb'], 
-                        out_res=self.d_resolution, 
-                        in_res=m_spec_i.resolution, 
-                        rebin=True, 
-                        )
-                    # Integrate and weigh the cloud opacity
-                    self.int_opa_cloud[j] += \
-                        opa_cloud_ij.spectrally_weighted_integration(
-                            wave=self.d_wave[i,self.d_mask_isfinite[i,:,:]].flatten(), 
-                            flux=m_spec_i.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
-                            array=opa_cloud_ij.flux[self.d_mask_isfinite[i,:,:]].flatten(), 
-                            )
+                # Integrate the emission contribution function and cloud opacity
+                self.get_integrated_contr_em_and_opa_cloud(
+                    atm_i, m_wave_i=wave_i, d_wave_i=self.d_wave[i], 
+                    d_mask_i=self.d_mask_isfinite[i], m_spec_i=m_spec_i
+                    )
 
         # Create a new ModelSpectrum instance with all orders
         m_spec = ModelSpectrum(
@@ -402,3 +330,72 @@ class pRT_model:
         del m_spec.wave, m_spec.mask_isfinite
 
         return m_spec
+
+    def get_integrated_contr_em_and_opa_cloud(self, 
+                                              atm_i, 
+                                              m_wave_i, 
+                                              d_wave_i, 
+                                              d_mask_i, 
+                                              m_spec_i
+                                              ):
+        
+        # Get the emission contribution function
+        contr_em_i = atm_i.contr_em
+        new_contr_em_i = []
+
+        # Get the cloud opacity
+        if self.cloud_mode == 'gray':
+            opa_cloud_i = self.gray_cloud_opacity(m_wave_i*1e-3, self.pressure).T
+        elif self.cloud_mode == 'MgSiO3':
+            opa_cloud_i = atm_i.tau_cloud.T
+        else:
+            opa_cloud_i = np.zeros_like(contr_em_i)
+
+        for j, (contr_em_ij, opa_cloud_ij) in enumerate(zip(contr_em_i, opa_cloud_i)):
+            
+            # Similar to the model flux
+            contr_em_ij = ModelSpectrum(
+                wave=m_wave_i, flux=contr_em_ij, 
+                lbl_opacity_sampling=self.lbl_opacity_sampling
+                )
+            # Shift, broaden, rebin the contribution
+            contr_em_ij.shift_broaden_rebin(
+                d_wave=d_wave_i, 
+                rv=self.params['rv'], 
+                vsini=self.params['vsini'], 
+                epsilon_limb=self.params['epsilon_limb'], 
+                out_res=self.d_resolution, 
+                in_res=m_spec_i.resolution, 
+                rebin=True, 
+                )
+            # Compute the spectrally-weighted emission contribution function
+            # Integrate and weigh the emission contribution function                    
+            self.int_contr_em[j] += \
+                contr_em_ij.spectrally_weighted_integration(
+                    wave=d_wave_i[d_mask_i].flatten(), 
+                    flux=m_spec_i.flux[d_mask_i].flatten(), 
+                    array=contr_em_ij.flux[d_mask_i].flatten(), 
+                    )
+
+            # Similar to the model flux
+            opa_cloud_ij = ModelSpectrum(
+                wave=m_wave_i, flux=opa_cloud_ij, 
+                lbl_opacity_sampling=self.lbl_opacity_sampling
+                )
+            # Shift, broaden, rebin the cloud opacity
+            opa_cloud_ij.shift_broaden_rebin(
+                d_wave=d_wave_i, 
+                rv=self.params['rv'], 
+                vsini=self.params['vsini'], 
+                epsilon_limb=self.params['epsilon_limb'], 
+                out_res=self.d_resolution, 
+                in_res=m_spec_i.resolution, 
+                rebin=True, 
+                )
+            # Integrate and weigh the cloud opacity
+            self.int_opa_cloud[j] += \
+                opa_cloud_ij.spectrally_weighted_integration(
+                    wave=d_wave_i[d_mask_i].flatten(), 
+                    flux=m_spec_i.flux[d_mask_i].flatten(), 
+                    array=opa_cloud_ij.flux[d_mask_i].flatten(), 
+                    )

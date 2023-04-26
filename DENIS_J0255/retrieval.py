@@ -29,8 +29,8 @@ from retrieval_base.callback import CallBack
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-#import config_DENIS as conf
-import config_DENIS_144 as conf
+import config_DENIS as conf
+#import config_DENIS_144 as conf
 #import config_DENIS_145 as conf
 #import config_DENIS_146 as conf
 
@@ -121,6 +121,12 @@ def pre_processing():
     # Plot the pre-processed spectrum
     figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
 
+    # Save the data
+    np.save(conf.prefix+'data/d_spec_wave.npy', d_spec.wave)
+    np.save(conf.prefix+'data/d_spec_flux.npy', d_spec.flux)
+    np.save(conf.prefix+'data/d_spec_err.npy', d_spec.err)
+    np.save(conf.prefix+'data/d_spec_transm.npy', d_spec.transm)
+
     # Save as pickle
     af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
 
@@ -201,9 +207,6 @@ class Retrieval:
             n_samples_to_use=2000, 
             prefix=conf.prefix, 
             posterior_color='C0', 
-            #posterior_color='k', 
-            #bestfit_color='C3', 
-            #bestfit_color='orangered', 
             bestfit_color='C1', 
             )
 
@@ -416,24 +419,6 @@ class Retrieval:
 
         # Update class instances with best-fitting parameters
         self.PMN_lnL_func()
-
-        '''
-        # Get the cross-correlation functions
-        self.m_spec.rv_CCF, self.m_spec.CCF, \
-        self.m_spec.d_ACF, self.m_spec.m_ACF = \
-            self.m_spec.cross_correlation(
-                d_wave=self.d_spec.wave, 
-                d_flux=self.d_spec.flux, 
-                d_err=self.d_spec.err, 
-                d_mask_isfinite=self.d_spec.mask_isfinite, 
-                m_wave=self.pRT_atm_broad.wave_pRT_grid, 
-                m_flux=self.pRT_atm_broad.flux_pRT_grid, 
-                rv_CCF=np.arange(-500,500,1), 
-                high_pass_filter_method='subtract', 
-                sigma=300, 
-                )
-        '''
-
         self.CB.active = False
 
         # Call the CallBack class and make summarizing figures

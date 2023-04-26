@@ -134,17 +134,19 @@ class CallBack:
             prefix=self.prefix
             )
 
-        # Plot the CCFs + spectra of species' contributions
-        figs.fig_species_contribution(
-            d_spec=self.d_spec, 
-            m_spec=self.m_spec, 
-            m_spec_species=self.m_spec_species, 
-            pRT_atm=self.pRT_atm, 
-            pRT_atm_species=self.pRT_atm_species, 
-            Chem=self.Chem, 
-            species_to_plot=self.species_to_plot, 
-            prefix=self.prefix
-            )
+        if self.evaluation:
+            # Plot the CCFs + spectra of species' contributions
+            figs.fig_species_contribution(
+                d_spec=self.d_spec, 
+                m_spec=self.m_spec, 
+                m_spec_species=self.m_spec_species, 
+                pRT_atm=self.pRT_atm, 
+                pRT_atm_species=self.pRT_atm_species, 
+                Chem=self.Chem, 
+                LogLike=self.LogLike, 
+                species_to_plot=self.species_to_plot, 
+                prefix=self.prefix
+                )
 
         # Save a separate figure of the PT profile
         figs.fig_PT(

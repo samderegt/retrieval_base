@@ -220,7 +220,6 @@ class EqChemistry(Chemistry):
 
         for line_species_i in line_species:
             if species_i == 'CO_main_iso':
-
                 # 12CO mass fraction
                 self.mass_fractions[species_i] = (1 - self.C_ratio * self.mass_ratio_13CO_12CO - \
                                                   self.O_ratio * self.mass_ratio_C18O_12CO

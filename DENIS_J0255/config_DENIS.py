@@ -47,8 +47,7 @@ T_std = 14700
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-#wave_range = (2120, 2400)
-wave_range = (2300, 2400)
+wave_range = (2300, 2500)
 
 ####################################################################################
 # Model parameters
@@ -121,7 +120,7 @@ cloud_species = None
 scale_flux = True
 scale_err  = True
 scale_GP_amp = True
-cholesky_mode = 'sparse'
+cholesky_mode = 'banded'
 
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
@@ -137,5 +136,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
+n_live_points = 200
 n_iter_before_update = 1
