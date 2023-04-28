@@ -3,9 +3,9 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 01:00:00
+#SBATCH -t 03:00:00
 #SBATCH -p thin
-#SBATCH -n 100
+#SBATCH -n 85
 #SBATCH --mem=224G
 
 #SBATCH --job-name=DENIS_retrieval_147

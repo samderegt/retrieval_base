@@ -323,8 +323,8 @@ class pRT_model:
 
         # Convert to arrays
         self.CCF, self.m_ACF = np.array(self.CCF), np.array(self.m_ACF)
-        self.wave_pRT_grid = np.array(self.wave_pRT_grid)
-        self.flux_pRT_grid = np.array(self.flux_pRT_grid)
+        #self.wave_pRT_grid = np.array(self.wave_pRT_grid)
+        #self.flux_pRT_grid = np.array(self.flux_pRT_grid)
 
         # Save memory, same attributes in DataSpectrum
         del m_spec.wave, m_spec.mask_isfinite

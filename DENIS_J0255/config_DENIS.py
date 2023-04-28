@@ -57,8 +57,8 @@ wave_range = (2300, 2500)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    'log_a': [(-4,-0.4), r'$\log\ a$'], 
-    'log_l': [(-3,0), r'$\log\ l$'], 
+    'log_a': [(-2,-0.35), r'$\log\ a$'], 
+    'log_l': [(-2,0), r'$\log\ l$'], 
 
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
@@ -137,4 +137,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 1
+n_iter_before_update = 200

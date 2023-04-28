@@ -210,7 +210,7 @@ class Retrieval:
             bestfit_color='C1', 
             )
 
-        if rank == 0:
+        if (rank == 0) and args.evaluation:
             # Create wider pRT models
             self.pRT_atm_broad = copy.deepcopy(self.pRT_atm)
             self.pRT_atm_broad.get_atmospheres(CB_active=True)
@@ -257,7 +257,7 @@ class Retrieval:
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
-        if self.CB.active:
+        if args.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
         else:
@@ -268,8 +268,8 @@ class Retrieval:
             mass_fractions, 
             temperature, 
             self.Param.params, 
-            get_contr=args.evaluation, 
-            get_full_spectrum=self.CB.active, 
+            get_contr=self.CB.active, 
+            get_full_spectrum=args.evaluation, 
             )
 
         # Retrieve the log-likelihood
@@ -413,18 +413,24 @@ class Retrieval:
         self.Param.read_chemistry_params()
         self.Param.read_cloud_params()
 
-
         if args.evaluation:
+            # Get each species' contribution to the spectrum
             self.get_species_contribution()
 
         # Update class instances with best-fitting parameters
         self.PMN_lnL_func()
         self.CB.active = False
 
+        if args.evaluation:
+            # Retrieve the model spectrum, with the wider pRT model
+            pRT_atm_to_use = self.pRT_atm_broad
+        else:
+            pRT_atm_to_use = self.pRT_atm
+
         # Call the CallBack class and make summarizing figures
         self.CB(
             self.Param, self.LogLike, self.PT, self.Chem, 
-            self.m_spec, self.pRT_atm_broad, posterior, 
+            self.m_spec, pRT_atm_to_use, posterior, 
             m_spec_species=self.m_spec_species, 
             pRT_atm_species=self.pRT_atm_species
             )
@@ -432,7 +438,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Run the MultiNest retrieval
-        pymultinest.solve(
+        pymultinest.run(
             LogLikelihood=self.PMN_lnL_func, 
             Prior=self.Param, 
             n_dims=self.Param.n_params, 
