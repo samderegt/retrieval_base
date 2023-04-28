@@ -103,7 +103,7 @@ class LogLikelihood:
                         avg_squared_err=d_avg_squared_err_ij, 
                         cholesky_mode=self.cholesky_mode
                         )
-
+                    
                     # Add a radial-basis function kernel
                     cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
                                           l=self.params['l'][i,j], 
@@ -220,8 +220,8 @@ class LogLikelihood:
             Scaled model flux.
         f_ij : 
             Optimal linear scaling factor.
-        '''        
-
+        '''
+        
         # Left-hand side
         lhs = np.dot(m_flux_ij, cov_ij.solve(m_flux_ij))
         # Right-hand side

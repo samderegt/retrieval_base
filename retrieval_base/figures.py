@@ -656,7 +656,7 @@ def fig_residual_ACF(d_spec,
         nrows=n_orders, ncols=n_dets,
         sharey='row', 
         gridspec_kw={
-            'wspace':0.1, 'hspace':0.22, 
+            'wspace':0.1, 'hspace':0.25, 
             'left':0.1, 'right':0.95, 
             'top':1-0.03*7/n_orders, 
             'bottom':0.03*7/n_orders, 

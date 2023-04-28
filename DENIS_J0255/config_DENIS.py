@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_148'
+prefix = 'DENIS_J0255_retrieval_outputs_149'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -58,11 +58,11 @@ free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
     'log_a': [(-2,-0.4), r'$\log\ a$'], 
-    'log_l': [(-2,0), r'$\log\ l$'], 
-    'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 
+    'log_l': [(-1.5,0), r'$\log\ l$'], 
+    #'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 
 
     # General properties
-    'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
@@ -75,6 +75,8 @@ free_params = {
     'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
@@ -112,9 +114,9 @@ line_species = ['H2O_main_iso',
                 #'CO_28', 
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
-                #'NH3_main_iso', 
+                'NH3_main_iso', 
                 #'CO2_main_iso', 
-                #'HCN_main_iso', 
+                'HCN_main_iso', 
                 ]
 cloud_species = None
 
@@ -138,4 +140,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 1
+n_iter_before_update = 200

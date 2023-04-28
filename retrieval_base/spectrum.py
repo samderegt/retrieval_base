@@ -640,6 +640,9 @@ class DataSpectrum(Spectrum):
             prefix=prefix, 
             )
 
+        self.transm /= poly_model
+        self.transm /= self.transm.max()
+
         if replace_flux_err:
             self.flux = calib_flux
             self.err  = calib_err
