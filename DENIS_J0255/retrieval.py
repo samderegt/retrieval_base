@@ -295,7 +295,7 @@ class Retrieval:
             self.Chem.mass_fractions_envelopes[line_species_i] = []
         self.PT.temperature_envelopes = []
 
-        # Sample envelopes from the posterior 
+        # Sample envelopes from the posterior
         for params_i in posterior:
 
             for j, key_j in enumerate(self.Param.param_keys):
@@ -360,6 +360,73 @@ class Retrieval:
                 # Include this species again
                 self.Chem.neglect_species[species_i] = False
 
+    def get_spectrum_envelope(self, posterior):
+
+        if os.path.exists(conf.prefix+'data/m_flux_envelope.npy'):
+            
+            # Load the model spectrum envelope if it was computed before
+            flux_envelope = np.load(conf.prefix+'data/m_flux_envelope.npy')
+        
+        else:
+
+            from tqdm import tqdm
+            args.evaluation = False
+
+            flux_envelope = np.nan * np.ones(
+                (len(posterior), self.d_spec.n_orders, 
+                self.d_spec.n_dets, self.d_spec.n_pixels)
+                )
+
+            # Sample envelopes from the posterior
+            for i, params_i in enumerate(tqdm(posterior)):
+
+                for j, key_j in enumerate(self.Param.param_keys):
+                    # Update the Parameters instance
+                    self.Param.params[key_j] = params_i[j]
+
+                # Update the parameters
+                self.Param.read_PT_params(cube=None)
+                self.Param.read_uncertainty_params()
+                self.Param.read_chemistry_params()
+                self.Param.read_cloud_params()
+
+                # Create the spectrum
+                self.PMN_lnL_func()
+
+                # Scale the model flux with the linear parameter
+                flux_envelope[i,:,:,:] = self.m_spec.flux * self.LogLike.f[:,:,None]
+            
+            args.evaluation = True
+
+            # Save the model spectrum envelope
+            np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
+        
+        # Convert envelopes to 1, 2, 3-sigma equivalent and median
+        q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+             0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+             ]            
+
+        # Retain the order-, detector-, and wavelength-axes
+        flux_envelope = af.quantiles(
+            np.array(flux_envelope), q=q, axis=0
+            )
+        
+        '''
+        import matplotlib.pyplot as plt
+        for i in range(self.d_spec.n_orders):
+            for j in range(self.d_spec.n_dets):
+
+                plt.plot(self.d_spec.wave[i,j], self.d_spec.flux[i,j], c='k', lw=0.5)
+                plt.plot(self.d_spec.wave[i,j], flux_envelope[3,i,j], c='C0', lw=0.5)
+                plt.fill_between(
+                    self.d_spec.wave[i,j], flux_envelope[0,i,j], flux_envelope[-1,i,j], 
+                    color='C0', ec='none', alpha=0.5
+                    )
+        plt.show()
+        '''
+        
+        return flux_envelope
+
     def PMN_callback_func(self, 
                           n_samples, 
                           n_live, 
@@ -394,6 +461,9 @@ class Retrieval:
             # Get the PT and mass-fraction envelopes
             self.get_PT_mf_envelopes(posterior)
 
+            # Get the model flux envelope
+            flux_envelope = self.get_spectrum_envelope(posterior)
+
         else:
 
             # Read the parameters of the best-fitting model
@@ -424,8 +494,13 @@ class Retrieval:
         if args.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
+
+            #self.m_spec.flux_envelope = flux_envelope
+            self.m_spec.flux_envelope = None
         else:
             pRT_atm_to_use = self.pRT_atm
+
+            self.m_spec.flux_envelope = None
 
         # Call the CallBack class and make summarizing figures
         self.CB(
@@ -438,7 +513,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Run the MultiNest retrieval
-        pymultinest.run(
+        pymultinest.solve(
             LogLikelihood=self.PMN_lnL_func, 
             Prior=self.Param, 
             n_dims=self.Param.n_params, 

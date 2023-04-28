@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_147'
+prefix = 'DENIS_J0255_retrieval_outputs_148'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -57,8 +57,9 @@ wave_range = (2300, 2500)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    'log_a': [(-2,-0.35), r'$\log\ a$'], 
+    'log_a': [(-2,-0.4), r'$\log\ a$'], 
     'log_l': [(-2,0), r'$\log\ l$'], 
+    'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 
 
     # General properties
     'R_p': [(0.6,1.5), r'$R_\mathrm{p}$'], 
@@ -137,4 +138,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 1

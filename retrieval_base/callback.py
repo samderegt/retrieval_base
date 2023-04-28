@@ -217,7 +217,7 @@ class CallBack:
             fig = plt.figure(figsize=(15,15))
         
         # Only select the included parameters
-        mask_params = np.ones(len(self.Param.param_keys), dtype=np.bool)
+        mask_params = np.ones(len(self.Param.param_keys), dtype=bool)
         if included_params is not None:
             mask_params = np.isin(
                 self.Param.param_keys, test_elements=included_params

@@ -223,6 +223,10 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                 d_spec.wave[i,j], LogLike.f[i,j]*m_spec.flux[i,j], 
                 c=bestfit_color, lw=1, label=label
                 )
+            if m_spec.flux_envelope is not None:
+                ax_spec.plot(
+                    d_spec.wave[i,j], m_spec.flux_envelope[3,i,j], c='C0', lw=1
+                    )
 
             if mask_ij.any():
 
@@ -233,6 +237,12 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     [d_spec.wave[i,j].min(), d_spec.wave[i,j].max()], 
                     [0,0], c=bestfit_color, lw=1
                 )
+
+                if m_spec.flux_envelope is not None:
+                    ax_res.plot(
+                        d_spec.wave[i,j], m_spec.flux_envelope[3,i,j] - LogLike.f[i,j]*m_spec.flux[i,j], 
+                        c='C0', lw=1
+                        )
 
                 # Show the mean error
                 mean_err_ij = np.mean(d_spec.err[i,j][d_spec.mask_isfinite[i,j]])
@@ -646,7 +656,7 @@ def fig_residual_ACF(d_spec,
         nrows=n_orders, ncols=n_dets,
         sharey='row', 
         gridspec_kw={
-            'wspace':0.1, 'hspace':0.1, 
+            'wspace':0.1, 'hspace':0.22, 
             'left':0.1, 'right':0.95, 
             'top':1-0.03*7/n_orders, 
             'bottom':0.03*7/n_orders, 

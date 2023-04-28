@@ -120,9 +120,8 @@ class LogLikelihood:
                     cov_ij.add_data_err_scaling(beta=self.params['beta'][i,j])
 
                 if self.params['beta_tell'] is not None:
-                    # Add a scaling separate from the tellurics
-                    # TODO: confusing wording...
-                    d_transm_ij = self.d_spec.transm[i,j,:][mask_ij]
+                    # Add an error-term that scales with depth of the tellurics
+                    d_transm_ij = self.d_spec.transm[i,j,mask_ij]
                     cov_ij.add_model_err(model_err=params['beta_tell']*d_err_ij/d_transm_ij)
 
                 if self.params['x_tol'] is not None:
