@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 03:00:00
+#SBATCH -t 06:00:00
 #SBATCH -p thin
-#SBATCH -n 85
+#SBATCH -n 75
 #SBATCH --mem=224G
 
-#SBATCH --job-name=DENIS_retrieval_148
+#SBATCH --job-name=DENIS_retrieval_150
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -24,7 +24,7 @@ source $HOME/retrieval_venv/bin/activate
 
 # Export environment variables
 export LD_LIBRARY_PATH=$HOME/retrieval_venv/MultiNest/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$HOME/retrieval_venv/SuiteSparse/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=$HOME/retrieval_venv/SuiteSparse/lib:$LD_LIBRARY_PATH
 export pRT_input_data_path=$HOME/retrieval_venv/pRT_input_data
 
 echo "Number of tasks $SLURM_NTASKS"

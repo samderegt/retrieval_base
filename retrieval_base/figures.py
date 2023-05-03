@@ -265,14 +265,15 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                 cov *= LogLike.beta[i,j]
 
                 # Get the mean error from the trace
-                mean_err_ij = np.sqrt(np.trace(cov)/len(cov))
-                mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
+                #mean_err_ij = np.sqrt(np.trace(cov)/len(cov))
+                #mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
+                mean_scaled_err_ij = np.mean(np.diag(np.sqrt(LogLike.beta[i,j]**2 * cov)))
 
                 ax_res.errorbar(
                     d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
                     fmt='none', lw=1, ecolor=bestfit_color, capsize=2, color=bestfit_color, 
                     #label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
-                    label=r'Modelled $\langle\sigma_{ij}\rangle$'
+                    label=r'$\beta_{ij}\cdot\langle\mathrm{diag}(\sqrt{\Sigma_{ij}})\rangle$'
                     )
 
             if i==0 and j==0:
@@ -386,6 +387,7 @@ def fig_cov(LogLike, d_spec, cmap, prefix=None):
 
 def fig_PT(PT, 
            integrated_contr_em=None, 
+           integrated_opa_cloud=None, 
            ax_PT=None, 
            envelope_colors=None, 
            posterior_color='C0', 
@@ -401,7 +403,7 @@ def fig_PT(PT,
         fig, ax_PT = plt.subplots(
             figsize=(4.5,4.5), 
             gridspec_kw={'left':0.16, 'right':0.94, 
-                         'top':0.93, 'bottom':0.15
+                         'top':0.87, 'bottom':0.15
                          }
             )
 
@@ -460,6 +462,14 @@ def fig_PT(PT,
             bestfit_color=bestfit_color
             )
     
+    if (integrated_opa_cloud != 0).any():
+        # Add the integrated emission contribution function
+        ax_opa_cloud = ax_PT.twiny()
+        fig_opa_cloud(
+            ax_opa_cloud, integrated_opa_cloud, PT.pressure, 
+            xlim=(1e0, 1e-10), color='grey'
+            )
+    
     # Save or return the axis
     if is_new_fig and (prefix is not None):
         fig.savefig(prefix+'plots/PT_profile.pdf')
@@ -480,6 +490,25 @@ def fig_contr_em(ax_contr, integrated_contr_em, pressure, bestfit_color='C1'):
         )
 
     return ax_contr
+
+def fig_opa_cloud(ax_opa_cloud, integrated_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey'):
+
+    ax_opa_cloud.plot(
+        integrated_opa_cloud, pressure, c=color, ls='--', alpha=0.7
+        )
+    
+    # Set the color of the upper axis-spine
+    ax_opa_cloud.tick_params(
+        axis='x', which='both', top=True, labeltop=True, colors=color
+        )
+    ax_opa_cloud.spines['top'].set_color(color)
+    ax_opa_cloud.xaxis.label.set_color(color)
+
+    ax_opa_cloud.set(
+        xlabel=r'$\kappa_\mathrm{cloud}\ (\mathrm{cm^2\ g^{-1}})$', 
+        xlim=xlim, xscale='log', 
+        )
+
 
 def fig_VMR(ax_VMR, 
             Chem, 

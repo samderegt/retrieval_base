@@ -164,7 +164,7 @@ class pRT_model:
         if self.cloud_mode == 'MgSiO3':
 
             # Mask the pressure above the cloud deck
-            mask_above_deck = (self.pressure < self.params['P_base_MgSiO3'])
+            mask_above_deck = (self.pressure <= self.params['P_base_MgSiO3'])
 
             # Add the MgSiO3 particles
             self.mass_fractions['MgSiO3(c)'] = np.zeros_like(self.pressure)
@@ -204,7 +204,7 @@ class pRT_model:
         opa_gray_cloud[:,pressure > self.params['P_base_gray']] = 0
 
         # Opacity decreases with power-law above the base
-        mask_above_deck = (pressure < self.params['P_base_gray'])
+        mask_above_deck = (pressure <= self.params['P_base_gray'])
         opa_gray_cloud[:,mask_above_deck] = self.params['opa_base_gray'] * \
             (pressure[mask_above_deck]/self.params['P_base_gray'])**self.params['f_sed_gray']
 

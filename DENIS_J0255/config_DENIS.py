@@ -17,12 +17,13 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_149'
+prefix = 'DENIS_J0255_retrieval_outputs_150'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
 file_std    = './data/DENIS_J0255_std.dat'
-file_wave   = './data/DENIS_J0255.dat'
+#file_wave   = './data/DENIS_J0255.dat'
+file_wave   = './data/DENIS_J0255_std.dat'
 file_skycalc_transm = './data/skycalc_transm.dat'
 
 magnitudes = {
@@ -42,10 +43,15 @@ mjd = 59886.14506179
 
 ra_std, dec_std = 36.746755, -47.70470
 mjd_std = 59886.13828925
-T_std = 14700
+#T_std = 14700
+T_std = 12000
+log_g_std = 3.5
+rv_std, vsini_std = 25.5, 5
 
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
+
+tell_threshold = 0.4
 
 wave_range = (2300, 2500)
 
@@ -128,7 +134,8 @@ cholesky_mode = 'banded'
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = False
+#prepare_for_covariance = False
+prepare_for_covariance = True
 
 apply_high_pass_filter = False
 

@@ -2,6 +2,8 @@ import numpy as np
 
 from .covariance import Covariance, GaussianProcesses
 
+import time
+
 class LogLikelihood:
 
     def __init__(self, 
@@ -77,21 +79,21 @@ class LogLikelihood:
                 d_err_ij  = self.d_spec.err[i,j,mask_ij]
 
                 res_ij = (d_flux_ij - m_flux_ij)
-
+                
                 # Set up the covariance matrix
                 if self.params['a'][i,j] != 0:
 
                     if self.d_spec.delta_wave is not None:
-                        # Read wavelength separation between pixels from memory
-                        d_delta_wave_ij = self.d_spec.delta_wave[i,j,mask_ij,mask_ij]
+                        # Read wavelength separation between pixels from memory (already masked)
+                        d_delta_wave_ij = self.d_spec.delta_wave[i,j]
                     else:
                         # Compute wavelength separation between pixels
                         d_wave_ij = self.d_spec.wave[i,j,mask_ij]
                         d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
 
                     if self.d_spec.avg_squared_err is not None:
-                        # Read average squared errors from memory
-                        d_avg_squared_err_ij = self.d_spec.avg_squared_err[i,j,mask_ij,mask_ij]
+                        # Read average squared errors from memory (already masked)
+                        d_avg_squared_err_ij = self.d_spec.avg_squared_err[i,j]
                     else:
                         # Compute average squared errors between pixels
                         d_avg_squared_err_ij = 1/2*(d_err_ij[None,:]**2 + d_err_ij[:,None]**2)

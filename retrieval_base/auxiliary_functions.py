@@ -1,9 +1,13 @@
 import pickle
 import os
 import shutil
+import wget
 
 import numpy as np
 from scipy.interpolate import interp1d
+
+from astropy.io import fits
+
 import petitRADTRANS.nat_cst as nc
 
 def pickle_save(file, object_to_pickle):
@@ -176,3 +180,47 @@ def CCF(d_spec,
                     d_ACF[i,j,k] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
 
     return rv, CCF, d_ACF, m_ACF
+
+def get_PHOENIX_model(T, log_g, FeH=0, wave_range=(500,3000), PHOENIX_path='./data/PHOENIX/'):
+
+    # Only certain combinations of parameters are allowed
+    T_round     = int(200*np.round(T/200))
+    log_g_round = 0.5*np.round(log_g/0.5)
+    FeH_round   = 0.5*np.round(FeH/0.5)
+    FeH_sign    = '+' if FeH>0 else '-'
+
+    file_name = 'lte{0:05d}-{1:.2f}{2}{3:.1f}.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits'
+    file_name = file_name.format(
+        T_round, log_g_round, FeH_sign, np.abs(FeH_round)
+        )
+    
+    # Join the file name to the url
+    url = 'ftp://phoenix.astro.physik.uni-goettingen.de/HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z-0.0/' + file_name
+    wave_url = 'ftp://phoenix.astro.physik.uni-goettingen.de/HiResFITS//WAVE_PHOENIX-ACES-AGSS-COND-2011.fits'
+
+    # Make the directory
+    if not os.path.exists(PHOENIX_path):
+        os.mkdir(PHOENIX_path)
+
+    file_path = os.path.join(PHOENIX_path, file_name)
+    wave_path = os.path.join(PHOENIX_path, 'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits')
+
+    if not os.path.exists(wave_path):
+        print(f'Downloading wavelength grid from {wave_url}')
+        wget.download(wave_url, wave_path)
+
+    if not os.path.exists(file_path):
+        print(f'Downloading PHOENIX spectrum from {url}')
+        wget.download(url, file_path)
+
+    # Load the spectrum
+    hdu = fits.open(file_path)
+    PHOENIX_flux = hdu[0].data.astype(float)
+
+    hdu = fits.open(wave_path)
+    PHOENIX_wave = hdu[0].data.astype(float) / 10 # Convert from A to nm
+
+    mask_wave = (PHOENIX_wave > wave_range[0]) & \
+        (PHOENIX_wave < wave_range[1])
+    
+    return PHOENIX_wave[mask_wave], PHOENIX_flux[mask_wave]

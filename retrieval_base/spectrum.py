@@ -10,6 +10,7 @@ from PyAstronomy import pyasl
 import petitRADTRANS.nat_cst as nc
 from petitRADTRANS.retrieval import rebin_give_width as rgw
 
+import retrieval_base.auxiliary_functions as af
 import retrieval_base.figures as figs
 
 class Spectrum:
@@ -215,6 +216,33 @@ class Spectrum:
             self.update_isfinite_mask()
 
         return flux_copy
+    
+    def rot_broadening(self, vsini, epsilon_limb=0, wave=None, flux=None, replace_wave_flux=False):
+
+        if wave is None:
+            wave = self.wave
+        if flux is None:
+            flux = self.flux
+
+        # Evenly space the wavelength grid
+        wave_even = np.linspace(wave.min(), wave.max(), 
+                                self.n_data_points
+                                )
+        flux_even = np.interp(wave_even, xp=wave, fp=flux)
+
+        # Rotational broadening of the model spectrum
+        flux_rot_broad = pyasl.fastRotBroad(wave_even, flux_even, 
+                                            epsilon=epsilon_limb, 
+                                            vsini=vsini
+                                            )
+        if replace_wave_flux:
+            self.wave = wave_even
+            self.flux = flux_rot_broad
+        
+            return flux_rot_broad
+        
+        else:
+            return wave_even, flux_rot_broad
 
     @classmethod
     def instr_broadening(cls, wave, flux, out_res=1e6, in_res=1e6):
@@ -423,6 +451,18 @@ class DataSpectrum(Spectrum):
         if file_wave is not None:
             wave, _, _ = np.loadtxt(file_wave).T
 
+        
+        wave_bins = np.zeros_like(wave.flatten())
+        wave_bins[:-1] = np.diff(wave.flatten())
+        wave_bins[-1]  = wave_bins[-2]
+
+        # Convert from [photons] to [erg nm^-1]
+        flux /= wave
+        #flux /= wave_bins
+
+        err /= wave
+        #err /= wave_bins
+
         return wave, flux, err
 
     def crop_spectrum(self):
@@ -438,7 +478,7 @@ class DataSpectrum(Spectrum):
         if self.transm is not None:
             self.transm = self.transm[mask_wave]
 
-    def bary_corr(self):
+    def bary_corr(self, replace_wave=True, return_v_bary=False):
 
         # Barycentric velocity (using Paranal coordinates)
         self.v_bary, _ = pyasl.helcorr(obs_long=-70.40, obs_lat=-24.62, obs_alt=2635, 
@@ -446,9 +486,12 @@ class DataSpectrum(Spectrum):
                                        jd=self.mjd+2400000.5
                                        )
         print('Barycentric velocity: {:.2f} km/s'.format(self.v_bary))
+        if return_v_bary:
+            return self.v_bary
 
         # Apply barycentric correction
-        self.rv_shift(self.v_bary, replace_wave=True)
+        wave_shifted = self.rv_shift(self.v_bary, replace_wave=replace_wave)
+        return wave_shifted
 
     def reshape_orders_dets(self):
 
@@ -505,11 +548,24 @@ class DataSpectrum(Spectrum):
 
     def prepare_for_covariance(self):
 
-        # Wavelength separation between all pixels within order/detector
-        self.delta_wave = np.abs(self.wave[:,:,None,:] - self.wave[:,:,:,None])
+        # Make a nested array of ndarray objects with different shapes
+        self.delta_wave = np.empty((self.n_orders, self.n_dets), dtype=object)
+        self.avg_squared_err = np.empty((self.n_orders, self.n_dets), dtype=object)
+        
+        # Loop over the orders and detectors
+        for i in range(self.n_orders):
+            for j in range(self.n_dets):
+                
+                # Mask the arrays, on-the-spot is slower
+                mask_ij = self.mask_isfinite[i,j]
+                wave_ij = self.wave[i,j,mask_ij]
+                err_ij  = self.err[i,j,mask_ij]
 
-        # Arithmetic mean of the squared flux-errors
-        self.avg_squared_err = 1/2*(self.err[:,:,None,:]**2 + self.err[:,:,:,None]**2)
+                # Wavelength separation between all pixels within order/detector
+                self.delta_wave[i,j] = np.abs(wave_ij[None,:] - wave_ij[:,None])
+
+                # Arithmetic mean of the squared flux-errors
+                self.avg_squared_err[i,j] = 1/2*(err_ij[None,:]**2 + err_ij[:,None]**2)
 
     def clip_det_edges(self, n_edge_pixels=30):
         
@@ -536,28 +592,73 @@ class DataSpectrum(Spectrum):
         # Update the isfinite mask
         self.update_isfinite_mask()
 
-    def get_transmission(self, T=10000, ref_rv=0, mode='bb'):
+    def get_transmission(self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb'):
+
+        # Get the barycentric velocity during the standard observation
+        v_bary = self.bary_corr(return_v_bary=True)
 
         if mode == 'bb':
-
+            
             # Retrieve a Planck spectrum for the given temperature
-            ref_flux = nc.b(T, nu=(nc.c*1e7)/self.wave.flatten())
-
-            # Convert [erg s^-1 cm^-2 Hz^-1 sr^-1] -> [erg s^-1 cm^-2 Hz^-1]
-            ref_flux *= 4*np.pi
-
-            # Convert [erg s^-1 cm^-2 Hz^-1] -> [erg s^-1 cm^-2 nm^-1]
-            ref_flux *= (nc.c*1e7)/self.wave.flatten()**2
+            ref_flux = 2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
+                       1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)
 
             # Mask the standard star's hydrogen lines
-            ref_flux[(self.wave.flatten()>2166-7) & (self.wave.flatten()<2166+7)] = np.nan
-            ref_flux[(self.wave.flatten()>1944-5) & (self.wave.flatten()<1944+5)] = np.nan
+            ref_flux[(self.wave.flatten()>2166.12-7) & (self.wave.flatten()<2166.12+7)] = np.nan
+            ref_flux[(self.wave.flatten()>1945.09-5) & (self.wave.flatten()<1945.09+5)] = np.nan
 
-        else:
+        elif mode == 'PHOENIX':
 
-            # TODO: PHOENIX spectrum?
-            pass
+            # Download or read a PHOENIX model spectrum
+            ref_wave, ref_flux = af.get_PHOENIX_model(
+                T, log_g, FeH=0, wave_range=(self.wave.min()-100,self.wave.max()+100)
+                )
 
+            # Apply RV + barycentric shifts
+            ref_wave = self.rv_shift(rv=ref_rv-v_bary, wave=ref_wave)
+
+            # Apply rotational and instrumental broadening
+            ref_wave, ref_flux = self.rot_broadening(
+                ref_vsini, epsilon_limb=0.3, 
+                wave=ref_wave, flux=ref_flux, 
+                replace_wave_flux=False
+                )
+            ref_flux = self.instr_broadening(
+                ref_wave, ref_flux, out_res=self.resolution, in_res=500000
+                )
+
+            # Interpolate onto the data's wavelength grid
+            ref_flux = np.interp(self.wave.flatten(), ref_wave, ref_flux)
+
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(nrows=3, sharex=True)
+        ax[0].plot(self.wave, ref_flux)
+        ax[1].plot(self.wave, self.flux)
+        ax[2].plot(self.wave, self.flux/ref_flux)
+        for ax_i in ax:
+            #ax_i.axvline(1945.09, color='C1', linestyle='--', alpha=0.5)
+            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5)), color='C1', linestyle='--')
+            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5))-1, color='C1', linewidth=1, alpha=0.5)
+            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5))+1, color='C1', linewidth=1, alpha=0.5)
+            
+            #ax_i.axvline(2166.12, color='C1', linestyle='--', alpha=0.5)
+            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5)), color='C1', linestyle='--')
+            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))-1, color='C1', linewidth=1, alpha=0.5)
+            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))+1, color='C1', linewidth=1, alpha=0.5)
+
+        plt.show()
+
+        #plt.plot(self.wave, ref_flux/(2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
+        #                              1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1))
+        #         )
+        #plt.show()
+
+        # Mask the standard star's hydrogen lines
+        lines_to_mask = [1945.09, 2166.12]
+        for line_i in lines_to_mask:
+            ref_flux[(self.wave.flatten() > line_i-1) & (self.wave.flatten() < line_i+1)] = np.nan
+        
         # Retrieve and normalize the transmissivity
         self.transm = self.flux / ref_flux
         self.transm /= np.nanmax(self.transm)
@@ -641,7 +742,7 @@ class DataSpectrum(Spectrum):
             )
 
         self.transm /= poly_model
-        self.transm /= self.transm.max()
+        self.transm /= np.nanmax(self.transm)
 
         if replace_flux_err:
             self.flux = calib_flux
@@ -735,25 +836,6 @@ class ModelSpectrum(Spectrum):
 
         # Model resolution depends on the opacity sampling
         self.resolution = int(1e6/lbl_opacity_sampling)
-
-    def rot_broadening(self, vsini, epsilon_limb=0, replace_wave_flux=False):
-
-        # Evenly space the wavelength grid
-        wave_even = np.linspace(self.wave.min(), self.wave.max(), 
-                                self.n_data_points
-                                )
-        flux_even = np.interp(wave_even, xp=self.wave, fp=self.flux)
-
-        # Rotational broadening of the model spectrum
-        flux_rot_broad = pyasl.fastRotBroad(wave_even, flux_even, 
-                                            epsilon=epsilon_limb, 
-                                            vsini=vsini
-                                            )
-        if replace_wave_flux:
-            self.wave = wave_even
-            self.flux = flux_rot_broad
-        
-        return flux_rot_broad
 
     def rebin(self, d_wave, replace_wave_flux=False):
 

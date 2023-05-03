@@ -1,6 +1,6 @@
 import os
 # To not have numpy start parallelizing on its own
-os.environ['OMP_NUM_THREADS'] = '1'
+#os.environ['OMP_NUM_THREADS'] = '1'
 
 from mpi4py import MPI
 import time
@@ -77,7 +77,13 @@ def pre_processing():
     photom_2MASS = Photometry(magnitudes=conf.magnitudes)
 
     # Get transmission from telluric std and add to target's class
-    d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
+    #d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
+    d_std_spec.get_transmission(
+        T=conf.T_std, log_g=conf.log_g_std, 
+        ref_rv=conf.rv_std, ref_vsini=conf.vsini_std, 
+        mode='bb'
+        #mode='PHOENIX'
+        )
     d_spec.add_transmission(d_std_spec.transm, d_std_spec.transm_err)
     del d_std_spec
 
@@ -85,7 +91,7 @@ def pre_processing():
     d_spec.flux_calib_2MASS(
         photom_2MASS, 
         conf.filter_2MASS, 
-        tell_threshold=0.3, 
+        tell_threshold=conf.tell_threshold, 
         prefix=conf.prefix, 
         file_skycalc_transm=conf.file_skycalc_transm, 
         )
@@ -211,9 +217,17 @@ class Retrieval:
             )
 
         if (rank == 0) and args.evaluation:
-            # Create wider pRT models
-            self.pRT_atm_broad = copy.deepcopy(self.pRT_atm)
-            self.pRT_atm_broad.get_atmospheres(CB_active=True)
+            if os.path.exists(conf.prefix+'data/pRT_atm_broad.pkl'):
+                # Load the pRT model
+                self.pRT_atm_broad = af.pickle_load(conf.prefix+'data/pRT_atm_broad.pkl')
+
+            else:
+                # Create a wider pRT model during evaluation
+                self.pRT_atm_broad = copy.deepcopy(self.pRT_atm)
+                self.pRT_atm_broad.get_atmospheres(CB_active=True)
+
+                # Save for convenience
+                af.pickle_save(conf.prefix+'data/pRT_atm_broad.pkl', self.pRT_atm_broad)
 
         # Set to None initially, changed during evaluation
         self.Chem.mass_fractions_envelopes = None
@@ -462,7 +476,7 @@ class Retrieval:
             self.get_PT_mf_envelopes(posterior)
 
             # Get the model flux envelope
-            flux_envelope = self.get_spectrum_envelope(posterior)
+            #flux_envelope = self.get_spectrum_envelope(posterior)
 
         else:
 

@@ -152,6 +152,7 @@ class CallBack:
         figs.fig_PT(
             PT=self.PT, 
             integrated_contr_em=self.pRT_atm.int_contr_em, 
+            integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
             ax_PT=None, 
             envelope_colors=self.envelope_colors, 
             posterior_color=self.posterior_color, 
@@ -327,6 +328,7 @@ class CallBack:
         ax_PT = figs.fig_PT(
             PT=self.PT, 
             integrated_contr_em=self.pRT_atm.int_contr_em, 
+            integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
             ax_PT=ax_PT, 
             envelope_colors=self.envelope_colors, 
             posterior_color=self.posterior_color, 
