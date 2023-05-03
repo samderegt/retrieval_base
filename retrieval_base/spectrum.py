@@ -647,7 +647,8 @@ class DataSpectrum(Spectrum):
             ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))-1, color='C1', linewidth=1, alpha=0.5)
             ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))+1, color='C1', linewidth=1, alpha=0.5)
 
-        plt.show()
+        #plt.show()
+        plt.close()
 
         #plt.plot(self.wave, ref_flux/(2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
         #                              1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1))
