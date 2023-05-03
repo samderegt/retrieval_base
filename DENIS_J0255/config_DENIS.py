@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_150'
+prefix = 'DENIS_J0255_retrieval_outputs_152'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -51,7 +51,7 @@ rv_std, vsini_std = 25.5, 5
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.4
+tell_threshold = 0.7
 
 wave_range = (2300, 2500)
 

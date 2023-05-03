@@ -81,8 +81,8 @@ def pre_processing():
     d_std_spec.get_transmission(
         T=conf.T_std, log_g=conf.log_g_std, 
         ref_rv=conf.rv_std, ref_vsini=conf.vsini_std, 
-        mode='bb'
-        #mode='PHOENIX'
+        #mode='bb'
+        mode='PHOENIX'
         )
     d_spec.add_transmission(d_std_spec.transm, d_std_spec.transm_err)
     del d_std_spec
@@ -307,6 +307,10 @@ class Retrieval:
         self.Chem.mass_fractions_envelopes = {}
         for line_species_i in self.Chem.line_species:
             self.Chem.mass_fractions_envelopes[line_species_i] = []
+        
+        self.Chem.CO_posterior  = []
+        self.Chem.FeH_posterior = []
+
         self.PT.temperature_envelopes = []
 
         # Sample envelopes from the posterior
@@ -337,6 +341,10 @@ class Retrieval:
                     mass_fractions_i[line_species_i]
                     )
 
+            # Store the C/O ratio and Fe/H
+            self.Chem.CO_posterior.append(self.Chem.CO)
+            self.Chem.FeH_posterior.append(self.Chem.FeH)
+
         # Convert profiles to 1, 2, 3-sigma equivalent and median
         q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
              0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
@@ -350,6 +358,9 @@ class Retrieval:
             self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
                 np.array(self.Chem.mass_fractions_envelopes[line_species_i]), q=q, axis=0
                 )
+        
+        self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
+        self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
 
         self.CB.return_PT_mf = False
 
@@ -409,6 +420,19 @@ class Retrieval:
 
                 # Scale the model flux with the linear parameter
                 flux_envelope[i,:,:,:] = self.m_spec.flux * self.LogLike.f[:,:,None]
+
+                # Add a random sample from the covariance matrix
+                for k in range(self.d_spec.n_orders):
+                    for l in range(self.d_spec.n_dets):
+                        # Optimally-scale the covariance matrix
+                        cov_kl = self.LogLike.cov[k,l].cov
+                        cov_kl *= self.LogLike.beta[k,l]
+
+                        # Draw a random sample and add to the flux
+                        random_sample = np.random.multivariate_normal(
+                            np.zeros(len(cov_kl)), cov_kl, size=1
+                            )
+                        flux_envelope[i,k,l,:] += random_sample[0]
             
             args.evaluation = True
 
@@ -424,20 +448,6 @@ class Retrieval:
         flux_envelope = af.quantiles(
             np.array(flux_envelope), q=q, axis=0
             )
-        
-        '''
-        import matplotlib.pyplot as plt
-        for i in range(self.d_spec.n_orders):
-            for j in range(self.d_spec.n_dets):
-
-                plt.plot(self.d_spec.wave[i,j], self.d_spec.flux[i,j], c='k', lw=0.5)
-                plt.plot(self.d_spec.wave[i,j], flux_envelope[3,i,j], c='C0', lw=0.5)
-                plt.fill_between(
-                    self.d_spec.wave[i,j], flux_envelope[0,i,j], flux_envelope[-1,i,j], 
-                    color='C0', ec='none', alpha=0.5
-                    )
-        plt.show()
-        '''
         
         return flux_envelope
 

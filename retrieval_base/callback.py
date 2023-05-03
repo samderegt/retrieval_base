@@ -86,14 +86,6 @@ class CallBack:
         print('\n\nElapsed time per evaluation: {:.2f} seconds'.format(np.mean(self.elapsed_times)))
         self.elapsed_times.clear()
 
-        # Compute the 0.16, 0.5, and 0.84 quantiles
-        self.param_quantiles = np.array([af.quantiles(self.posterior[:,i], q=[0.16,0.5,0.84]) \
-                                         for i in range(self.posterior.shape[1])])
-        # Base the axes-limits off of the quantiles
-        self.param_range = np.array(
-            [(4*(q_i[0]-q_i[1])+q_i[1], 4*(q_i[2]-q_i[1])+q_i[1]) for q_i in self.param_quantiles]
-            )
-
         # Create the labels
         self.param_labels = np.array(list(self.Param.param_mathtext.values()))
 
@@ -116,7 +108,6 @@ class CallBack:
             print(self.LogLike.beta.round(2))
         
         self.bestfit_params = np.array(self.bestfit_params)
-        self.median_params  = np.array(list(self.param_quantiles[:,1]))
 
         # Plot the covariance matrices
         all_cov = figs.fig_cov(
@@ -160,28 +151,15 @@ class CallBack:
             prefix=self.prefix
         )
 
+        # Plot the abundances in a corner-plot
+        self.fig_abundances_corner()
+
         # Make a summary figure
         self.fig_summary()
 
         # Save the bestfit parameters in a .json file
         # and the ModelSpectrum instance as .pkl
         self.save_bestfit()
-
-        # Plot the abundances
-        if self.Param.chem_mode == 'free':
-            included_params = ['log_12CO', 'log_H2O', 'log_CH4', 'log_C_ratio']
-            figsize = (8,8)
-        elif self.Param.chem_mode == 'eqchem':
-            included_params = ['C/O', 'Fe/H', 'log_C_ratio']
-            figsize = (7,7)
-        fig, ax = self.fig_corner(
-            included_params=included_params, 
-            fig=plt.figure(figsize=figsize), 
-            smooth=False, ann_fs=10
-            )
-        plt.subplots_adjust(left=0.11, right=0.95, top=0.95, bottom=0.11, wspace=0, hspace=0)
-        fig.savefig(self.prefix+'plots/abundances.pdf')
-        plt.close(fig)
 
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
@@ -212,8 +190,95 @@ class CallBack:
         # Save the bestfit spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
 
+    def fig_abundances_corner(self):
+
+        included_params = []
+
+        # Plot the abundances
+        if self.Param.chem_mode == 'free':
+
+            for species_i, (line_species_i, mass_i, COH_i) in self.Chem.species_info.items():
+                
+                # Add to the parameters to be plotted
+                if (line_species_i in self.Chem.line_species) and \
+                    (f'log_{species_i}' in self.Param.param_keys):
+                    included_params.append(f'log_{species_i}')
+
+            if 'log_C_ratio' in self.Param.param_keys:
+                included_params.append('log_C_ratio')
+
+            # Add C/O and Fe/H to the parameters to be plotted
+            if self.evaluation:
+                
+                # Add to the posterior
+                self.posterior = np.concatenate(
+                    (self.posterior, self.Chem.CO_posterior[:,None], 
+                     self.Chem.FeH_posterior[:,None]), axis=1
+                    )
+                # Add to the parameter keys
+                self.Param.param_keys = np.concatenate(
+                    (self.Param.param_keys, ['C/O', 'C/H'])
+                )
+                self.param_labels = np.concatenate(
+                    (self.param_labels, ['C/O', '[C/H]'])
+                    )
+                
+                self.bestfit_params = np.concatenate(
+                    (self.bestfit_params, [self.Chem.CO, self.Chem.CH])
+                )
+                included_params.extend(['C/O', 'C/H'])
+
+        elif self.Param.chem_mode == 'eqchem':
+            
+            if 'log_C_ratio' in self.Param.param_keys:
+                included_params.append('log_C_ratio')
+
+            included_params.extend(['C/O', 'Fe/H'])
+
+        figsize = (
+            4/3*len(included_params), 4/3*len(included_params)
+            )
+        fig, ax = self.fig_corner(
+            included_params=included_params, 
+            fig=plt.figure(figsize=figsize), 
+            smooth=False, ann_fs=10
+            )
+
+        # Plot the VMR per species
+        ax_VMR = fig.add_axes([0.6,0.6,0.32,0.32])
+        ax_VMR = figs.fig_VMR(
+            ax_VMR=ax_VMR, 
+            Chem=self.Chem, 
+            species_to_plot=self.species_to_plot, 
+            pressure=self.PT.pressure, 
+            )
+
+        plt.subplots_adjust(left=0.08, right=0.92, top=0.92, bottom=0.08, wspace=0, hspace=0)
+        fig.savefig(self.prefix+'plots/abundances.pdf')
+        plt.close(fig)
+
+        if self.evaluation and self.Param.chem_mode == 'free':
+            # Remove the changes
+            self.posterior        = self.posterior[:,:-2]
+            self.Param.param_keys = self.Param.param_keys[:-2]
+            self.param_labels     = self.param_labels[:-2]
+            self.bestfit_params   = self.bestfit_params[:-2]
+        
     def fig_corner(self, included_params=None, fig=None, smooth=False, ann_fs=9):
         
+        # Compute the 0.16, 0.5, and 0.84 quantiles
+        self.param_quantiles = np.array(
+            [af.quantiles(self.posterior[:,i], q=[0.16,0.5,0.84]) \
+             for i in range(self.posterior.shape[1])]
+             )
+        # Base the axes-limits off of the quantiles
+        self.param_range = np.array(
+            [(4*(q_i[0]-q_i[1])+q_i[1], 4*(q_i[2]-q_i[1])+q_i[1]) \
+             for q_i in self.param_quantiles]
+            )
+
+        self.median_params = np.array(list(self.param_quantiles[:,1]))
+
         if fig is None:
             fig = plt.figure(figsize=(15,15))
         
@@ -223,7 +288,7 @@ class CallBack:
             mask_params = np.isin(
                 self.Param.param_keys, test_elements=included_params
                 )
-        
+
         # Number of parameters
         n_params = mask_params.sum()
 
@@ -249,7 +314,7 @@ class CallBack:
 
             #levels=(1-np.exp(-0.5),),
             fill_contours=True, 
-            #plot_datapoints=False, 
+            plot_datapoints=self.evaluation, 
 
             contourf_kwargs={'colors':self.envelope_colors}, 
             smooth=smooth, 
@@ -287,7 +352,7 @@ class CallBack:
                 ax[i,j].set(ylim=self.param_range[mask_params][i])
             for h in range(ax.shape[0]):
                 ax[h,i].set(xlim=self.param_range[mask_params][i])
-            
+        
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0, hspace=0)
 
         return fig, ax
