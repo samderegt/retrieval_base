@@ -59,7 +59,7 @@ class Covariance:
 
 class GaussianProcesses(Covariance):
 
-    def __init__(self, err, delta_wave, avg_squared_err=None, cholesky_mode='banded'):
+    def __init__(self, err, separation, err_eff=None, cholesky_mode='banded'):
         '''
         Create a covariance matrix suited for Gaussian processes. 
 
@@ -67,9 +67,10 @@ class GaussianProcesses(Covariance):
         -----
         err : np.ndarray
             Uncertainty in the flux.
-        delta_wave : np.ndarray
-            Wavelength separation between pixels.
-        avg_squared_err : np.ndarray
+        separation : np.ndarray
+            Separation between pixels, can be in units of wavelength, 
+            pixels, or velocity.
+        err_eff : np.ndarray
             Average squared error between pixels.
         cholesky_mode : str
             Method of Cholesky decomposition, can be either 
@@ -80,8 +81,8 @@ class GaussianProcesses(Covariance):
         super().__init__(err)
         
         # Pre-computed average error and wavelength separation
-        self.avg_squared_err = avg_squared_err
-        self.delta_wave = np.abs(delta_wave)
+        self.err_eff = err_eff
+        self.separation = np.abs(separation)
 
         if not self.is_matrix:
             # Make covariance 2-dimensional
@@ -114,19 +115,19 @@ class GaussianProcesses(Covariance):
         '''
 
         # Hann window function to ensure sparsity
-        w_ij = (self.delta_wave < trunc_dist*l)
+        w_ij = (self.separation < trunc_dist*l)
 
         # GP amplitude
         GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            if isinstance(self.avg_squared_err, float):
-                GP_amp *= self.avg_squared_err
+            if isinstance(self.err_eff, float):
+                GP_amp *= self.err_eff**2
             else:
-                GP_amp *= self.avg_squared_err[w_ij]
+                GP_amp *= self.err_eff[w_ij]**2
 
         # Gaussian radial-basis function kernel
-        self.cov[w_ij] += GP_amp * np.exp(-(self.delta_wave[w_ij])**2/(2*l**2))
+        self.cov[w_ij] += GP_amp * np.exp(-(self.separation[w_ij])**2/(2*l**2))
 
     def add_RQ_kernel(self, a, l, w, trunc_dist=5, scale_GP_amp=False):
         '''
@@ -154,19 +155,19 @@ class GaussianProcesses(Covariance):
         '''
 
         # Hann window function to ensure sparsity
-        w_ij = (self.delta_wave < trunc_dist*l)
+        w_ij = (self.separation < trunc_dist*l)
 
         # GP amplitude
         GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
-            if isinstance(self.avg_squared_err, float):
-                GP_amp *= self.avg_squared_err
+            if isinstance(self.err_eff, float):
+                GP_amp *= self.err_eff**2
             else:
-                GP_amp *= self.avg_squared_err[w_ij]
+                GP_amp *= self.err_eff[w_ij]**2
 
         # Rational quadratic kernel (approaches RBF if w -> infty)
-        self.cov[w_ij] += GP_amp * (1 + self.delta_wave[w_ij]**2/(2*w*l**2))**(-w)
+        self.cov[w_ij] += GP_amp * (1 + self.separation[w_ij]**2/(2*w*l**2))**(-w)
         
     def get_cholesky(self):
         '''

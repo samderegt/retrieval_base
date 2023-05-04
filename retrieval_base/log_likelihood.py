@@ -83,26 +83,26 @@ class LogLikelihood:
                 # Set up the covariance matrix
                 if self.params['a'][i,j] != 0:
 
-                    if self.d_spec.delta_wave is not None:
-                        # Read wavelength separation between pixels from memory (already masked)
-                        d_delta_wave_ij = self.d_spec.delta_wave[i,j]
+                    if self.d_spec.separation is not None:
+                        # Read separation between pixels from memory (already masked)
+                        d_separation_ij = self.d_spec.separation[i,j]
                     else:
                         # Compute wavelength separation between pixels
                         d_wave_ij = self.d_spec.wave[i,j,mask_ij]
-                        d_delta_wave_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
+                        d_separation_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
 
-                    if self.d_spec.avg_squared_err is not None:
+                    if self.d_spec.err_eff is not None:
                         # Read average squared errors from memory (already masked)
-                        d_avg_squared_err_ij = self.d_spec.avg_squared_err[i,j]
+                        d_err_eff_ij = self.d_spec.err_eff[i,j]
                     else:
                         # Compute average squared errors between pixels
-                        d_avg_squared_err_ij = 1/2*(d_err_ij[None,:]**2 + d_err_ij[:,None]**2)
+                        d_err_eff_ij = 1/2*(d_err_ij[None,:]**2 + d_err_ij[:,None]**2)
 
                     # Use Gaussian Processes
                     cov_ij = GaussianProcesses(
                         err=d_err_ij, 
-                        delta_wave=d_delta_wave_ij, 
-                        avg_squared_err=d_avg_squared_err_ij, 
+                        separation=d_separation_ij, 
+                        err_eff=d_err_eff_ij, 
                         cholesky_mode=self.cholesky_mode
                         )
                     

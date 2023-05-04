@@ -17,7 +17,7 @@ run_optimize  = False
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_153'
+prefix = 'DENIS_J0255_retrieval_outputs_155'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -51,9 +51,9 @@ rv_std, vsini_std = 25.5, 5
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.7
+tell_threshold = 0.6
 
-wave_range = (2140, 2500)
+wave_range = (2300, 2400)
 
 ####################################################################################
 # Model parameters
@@ -63,8 +63,12 @@ wave_range = (2140, 2500)
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a$'], 
-    'log_a': [(-2,-0.4), r'$\log\ a$'], 
-    'log_l': [(-1.5,0), r'$\log\ l$'], 
+    #'log_a': [(-2,-0.4), r'$\log\ a$'], 
+    #'log_l': [(-1.5,0), r'$\log\ l$'], 
+    'a': [(0.05,0.4), r'$a$'], 
+    #'a_1': [(0.05,0.3), r'$a_6$'], 
+    #'a_2': [(0.05,0.6), r'$a_7$'], 
+    'l': [(5,100), r'$l$'], 
     #'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 
 
     # General properties
@@ -81,8 +85,8 @@ free_params = {
     'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
+    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
@@ -120,9 +124,9 @@ line_species = ['H2O_main_iso',
                 #'CO_28', 
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
-                'NH3_main_iso', 
+                #'NH3_main_iso', 
                 #'CO2_main_iso', 
-                'HCN_main_iso', 
+                #'HCN_main_iso', 
                 ]
 cloud_species = None
 
@@ -147,4 +151,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 100

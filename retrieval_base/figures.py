@@ -683,7 +683,7 @@ def fig_residual_ACF(d_spec,
     fig, ax = plt.subplots(
         figsize=(10,3*n_orders), 
         nrows=n_orders, ncols=n_dets,
-        sharey='row', 
+        sharey=True, 
         gridspec_kw={
             'wspace':0.1, 'hspace':0.25, 
             'left':0.1, 'right':0.95, 
@@ -703,6 +703,25 @@ def fig_residual_ACF(d_spec,
             # Plot the auto-correlation of residuals
             ax[i,j].plot(rv_CCF, res_ACF[i,j]/res_ACF.max(), lw=0.5, c='k')
             ax[i,j].plot(rv_CCF, res_ACF[i,j]*0, lw=0.1, c='k')
+            '''
+            ax[i,j].plot(rv_CCF, res_ACF[i,j], lw=0.5, c='k')
+            ax[i,j].plot(
+                0, np.mean((d_spec.flux[i,j,mask_ij]-LogLike.f[i,j]*m_spec.flux[i,j,mask_ij])**2), 
+                'ko-'
+                )
+            ax[i,j].plot(
+                0, np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij] - \
+                            np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij]))
+                            )**2
+                           ), 'bo-'
+                )
+            ax[i,j].plot(
+                0, np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij] - \
+                            np.median((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij]))
+                            )**2
+                           ), 'ro-'
+                )
+            '''
 
             # Plot the average of the covariance diagonals
             ax_delta_wave = ax[i,j].twiny()
@@ -715,7 +734,6 @@ def fig_residual_ACF(d_spec,
                 -delta_wave_m_corr[i,j,:], m_corr[i,j,:]/np.nanmax(m_corr), 
                 c=bestfit_color, lw=0.5
                 )
-
             ax[i,j].set(xlim=(rv_CCF.min(), rv_CCF.max()))
             ax_delta_wave.set(
                 xlim=(wave_ij.mean() * rv_CCF.min()/(nc.c*1e-5),
@@ -723,23 +741,18 @@ def fig_residual_ACF(d_spec,
                       )
                 )
 
-            if j == 1:
-                ax[i,j].set(
-                    xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$'
-                    )
+            if (i == 0) and (j == 1):
                 ax_delta_wave.set(
                     xlabel=r'$\Delta\lambda\ \mathrm{(nm)}$', 
                     )
-                
-    
+
     ax_delta_wave.legend(
         loc='upper right', fontsize=8, handlelength=0.5, 
         handletextpad=0.5, framealpha=0.7
         )
 
-    ax[n_orders//2,0].set(
-        ylabel='Auto-correlation'
-        )
+    ax[n_orders//2,0].set(ylabel='Auto-correlation')
+    ax[-1,1].set(xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$')
 
     if prefix is not None:
         fig.savefig(prefix+'plots/auto_correlation_residuals.pdf')

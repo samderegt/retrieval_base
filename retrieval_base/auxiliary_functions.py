@@ -215,7 +215,7 @@ def get_PHOENIX_model(T, log_g, FeH=0, wave_range=(500,3000), PHOENIX_path='./da
 
     # Load the spectrum
     hdu = fits.open(file_path)
-    PHOENIX_flux = hdu[0].data.astype(float)
+    PHOENIX_flux = hdu[0].data.astype(float) # erg s^-1 cm^-2 cm^-1
 
     hdu = fits.open(wave_path)
     PHOENIX_wave = hdu[0].data.astype(float) / 10 # Convert from A to nm

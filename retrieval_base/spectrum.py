@@ -421,8 +421,8 @@ class DataSpectrum(Spectrum):
         self.wave_range = wave_range
 
         # Set to None by default
-        self.delta_wave = None
-        self.avg_squared_err = None
+        self.separation = None
+        self.err_eff = None
 
     def load_spectrum_excalibuhr(self, file_target, file_wave=None):
 
@@ -549,8 +549,8 @@ class DataSpectrum(Spectrum):
     def prepare_for_covariance(self):
 
         # Make a nested array of ndarray objects with different shapes
-        self.delta_wave = np.empty((self.n_orders, self.n_dets), dtype=object)
-        self.avg_squared_err = np.empty((self.n_orders, self.n_dets), dtype=object)
+        self.separation = np.empty((self.n_orders, self.n_dets), dtype=object)
+        self.err_eff = np.empty((self.n_orders, self.n_dets), dtype=object)
         
         # Loop over the orders and detectors
         for i in range(self.n_orders):
@@ -562,10 +562,15 @@ class DataSpectrum(Spectrum):
                 err_ij  = self.err[i,j,mask_ij]
 
                 # Wavelength separation between all pixels within order/detector
-                self.delta_wave[i,j] = np.abs(wave_ij[None,:] - wave_ij[:,None])
+                #separation_ij = np.abs(wave_ij[None,:] - wave_ij[:,None])
+                # Velocity separation in km/s
+                separation_ij = nc.c*1e-5/2 * np.abs(
+                    (wave_ij[None,:]-wave_ij[:,None]) / (wave_ij[None,:]+wave_ij[:,None])
+                    )
+                self.separation[i,j] = separation_ij
 
                 # Arithmetic mean of the squared flux-errors
-                self.avg_squared_err[i,j] = 1/2*(err_ij[None,:]**2 + err_ij[:,None]**2)
+                self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
 
     def clip_det_edges(self, n_edge_pixels=30):
         
@@ -658,7 +663,7 @@ class DataSpectrum(Spectrum):
         # Mask the standard star's hydrogen lines
         lines_to_mask = [1945.09, 2166.12]
         for line_i in lines_to_mask:
-            ref_flux[(self.wave.flatten() > line_i-1) & (self.wave.flatten() < line_i+1)] = np.nan
+            ref_flux[(self.wave.flatten() > line_i-2) & (self.wave.flatten() < line_i+2)] = np.nan
         
         # Retrieve and normalize the transmissivity
         self.transm = self.flux / ref_flux
