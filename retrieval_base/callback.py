@@ -97,8 +97,12 @@ class CallBack:
         self.bestfit_params = []
         print('\nBest-fitting free parameters:')
         for key_i in self.Param.param_keys:
-            print('{} = {:.2f}'.format(key_i, self.Param.params[key_i]))
-            self.bestfit_params.append(self.Param.params[key_i])
+            if isinstance(self.Param.params[key_i], np.ndarray):
+                print('{} = {:.2f}'.format(key_i, self.Param.params[key_i].flatten()[0]))
+                self.bestfit_params.append(self.Param.params[key_i].flatten()[0])
+            else:
+                print('{} = {:.2f}'.format(key_i, self.Param.params[key_i]))
+                self.bestfit_params.append(self.Param.params[key_i])
 
         if self.LogLike.scale_flux:
             print('\nOptimal flux-scaling parameters:')

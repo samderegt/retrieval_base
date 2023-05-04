@@ -564,7 +564,7 @@ class DataSpectrum(Spectrum):
                 # Wavelength separation between all pixels within order/detector
                 #separation_ij = np.abs(wave_ij[None,:] - wave_ij[:,None])
                 # Velocity separation in km/s
-                separation_ij = nc.c*1e-5/2 * np.abs(
+                separation_ij = 2 * nc.c*1e-5 * np.abs(
                     (wave_ij[None,:]-wave_ij[:,None]) / (wave_ij[None,:]+wave_ij[:,None])
                     )
                 self.separation[i,j] = separation_ij
