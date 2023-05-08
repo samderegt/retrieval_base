@@ -5,6 +5,7 @@ import wget
 
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter1d, generic_filter
 
 from astropy.io import fits
 
@@ -102,6 +103,7 @@ def CCF(d_spec,
         m_flux_wo_species_pRT_grid=None, 
         LogLike=None, 
         rv=np.arange(-500,500+1e-6,1), 
+        apply_high_pass_filter=True, 
         ):
 
     CCF = np.zeros((d_spec.n_orders, d_spec.n_dets, len(rv)))
@@ -112,11 +114,12 @@ def CCF(d_spec,
     for i in range(d_spec.n_orders):
 
         m_wave_i = m_wave_pRT_grid[i]
-        m_flux_i = m_flux_pRT_grid[i]
-        
+        m_flux_i = m_flux_pRT_grid[i].copy()
+
         if m_flux_wo_species_pRT_grid is not None:
             # Perform the cross-correlation on the residuals
-            m_flux_i -= m_flux_wo_species_pRT_grid[i]
+            #m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
+            m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
 
         # Function to interpolate the model spectrum
         m_interp_func = interp1d(
@@ -145,11 +148,20 @@ def CCF(d_spec,
 
             # Function to interpolate the observed spectrum
             d_interp_func = interp1d(
-                d_wave_ij, d_flux_ij, bounds_error=False, fill_value=np.nan
+                d_wave_ij, d_flux_ij, bounds_error=False, 
+                fill_value=np.nan
                 )
             
             # Create a static model template
             m_flux_ij_static = m_interp_func(d_wave_ij)
+
+            if apply_high_pass_filter:
+                # Apply high-pass filter
+                d_flux_ij -= gaussian_filter1d(d_flux_ij, sigma=300, mode='reflect')
+                m_flux_ij_static -= gaussian_filter1d(
+                    m_flux_ij_static, sigma=300, mode='reflect'
+                    )
+            
             
             for k, rv_k in enumerate(rv):
 
@@ -160,25 +172,43 @@ def CCF(d_spec,
                 d_flux_ij_shifted = d_interp_func(d_wave_ij_shifted)
                 m_flux_ij_shifted = m_interp_func(d_wave_ij_shifted)
 
+                if apply_high_pass_filter:
+                    # Apply high-pass filter
+                    d_flux_ij_shifted -= gaussian_filter1d(
+                        d_flux_ij_shifted, sigma=300, mode='reflect'
+                        )
+                    m_flux_ij_shifted -= gaussian_filter1d(
+                        m_flux_ij_shifted, sigma=300, mode='reflect'
+                        )
+
                 # Compute the cross-correlation coefficient, weighted 
                 # by the covariance matrix
-                #CCF_k = np.dot(m_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
-                CCF[i,j,k] = np.dot(m_flux_ij_shifted, cov_ij.solve(d_flux_ij))
+                #CCF[i,j,k] = np.dot(m_flux_ij_shifted, d_flux_ij)
+                #CCF[i,j,k] = np.dot(m_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
+                CCF[i,j,k] = np.dot(
+                    m_flux_ij_shifted, cov_ij.solve(d_flux_ij)
+                    )
                 
                 # Compute the auto-correlation coefficients, weighted 
                 # by the covariance matrix
-                #m_ACF_k = np.dot(m_flux_ij_shifted, m_flux_ij_static/d_spec.err[i,j,mask_ij]**2)
-                m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, cov_ij.solve(m_flux_ij_static))
+                #m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, m_flux_ij_static)
+                #m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, m_flux_ij_static/d_spec.err[i,j,mask_ij]**2)
+                m_ACF[i,j,k] = np.dot(
+                    m_flux_ij_shifted, cov_ij.solve(m_flux_ij_static)
+                    )
 
-                #d_ACF_k = np.dot(d_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
-                d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, cov_ij.solve(d_flux_ij))
+                #d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, d_flux_ij)
+                #d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
+                d_ACF[i,j,k] = np.dot(
+                    d_flux_ij_shifted, cov_ij.solve(d_flux_ij)
+                    )
 
-                # Scale the correlation coefficients
-                if LogLike is not None:
-                    CCF[i,j,k]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-                    m_ACF[i,j,k] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-                    d_ACF[i,j,k] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-
+            # Scale the correlation coefficients
+            if LogLike is not None:            
+                CCF[i,j,:]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+                m_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+                d_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+    
     return rv, CCF, d_ACF, m_ACF
 
 def get_PHOENIX_model(T, log_g, FeH=0, wave_range=(500,3000), PHOENIX_path='./data/PHOENIX/'):

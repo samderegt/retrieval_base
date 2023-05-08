@@ -113,6 +113,20 @@ class CallBack:
         
         self.bestfit_params = np.array(self.bestfit_params)
 
+        if self.evaluation:
+            # Plot the CCFs + spectra of species' contributions
+            figs.fig_species_contribution(
+                d_spec=self.d_spec, 
+                m_spec=self.m_spec, 
+                m_spec_species=self.m_spec_species, 
+                pRT_atm=self.pRT_atm, 
+                pRT_atm_species=self.pRT_atm_species, 
+                Chem=self.Chem, 
+                LogLike=self.LogLike, 
+                species_to_plot=self.species_to_plot, 
+                prefix=self.prefix
+                )
+                
         # Plot the covariance matrices
         all_cov = figs.fig_cov(
             LogLike=self.LogLike, d_spec=self.d_spec, 
@@ -128,20 +142,6 @@ class CallBack:
             bestfit_color=self.bestfit_color, 
             prefix=self.prefix
             )
-
-        if self.evaluation:
-            # Plot the CCFs + spectra of species' contributions
-            figs.fig_species_contribution(
-                d_spec=self.d_spec, 
-                m_spec=self.m_spec, 
-                m_spec_species=self.m_spec_species, 
-                pRT_atm=self.pRT_atm, 
-                pRT_atm_species=self.pRT_atm_species, 
-                Chem=self.Chem, 
-                LogLike=self.LogLike, 
-                species_to_plot=self.species_to_plot, 
-                prefix=self.prefix
-                )
 
         # Save a separate figure of the PT profile
         figs.fig_PT(

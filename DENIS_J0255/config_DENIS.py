@@ -2,22 +2,11 @@ import numpy as np
 
 file_params = 'config_DENIS.py'
 
-plot_counter             = 0
-return_PT                = False
-return_spec              = False
-return_contr             = False
-return_mass_fractions    = False
-fit_photometry           = False
-show_PT_params_in_corner = True
-
-run_multinest = True
-run_optimize  = False
-
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_157'
+prefix = 'DENIS_J0255_retrieval_outputs_158'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -53,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.6
 
-wave_range = (1920, 2400)
+wave_range = (2050, 2400)
 
 ####################################################################################
 # Model parameters
@@ -69,8 +58,8 @@ free_params = {
     'a_2': [(0.05,0.7), r'$a_2$'], 
     'a_3': [(0.05,0.7), r'$a_3$'], 
     'a_4': [(0.05,0.7), r'$a_4$'], 
-    'a_5': [(0.05,0.7), r'$a_5$'], 
-    'a_6': [(0.05,0.7), r'$a_6$'], 
+    #'a_5': [(0.05,0.7), r'$a_5$'], 
+    #'a_6': [(0.05,0.7), r'$a_6$'], 
     #'a': [(0.05,0.6), r'$a$'], 
     'l': [(5,60), r'$l$'], 
     #'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 

@@ -1,6 +1,8 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+
 import numpy as np
+from scipy.ndimage import generic_filter, gaussian_filter1d
 
 import os
 
@@ -43,9 +45,11 @@ def fig_flux_calib_2MASS(wave,
                      }
         )
 
+    #'''
     ax[0].plot(wave, calib_flux_wo_tell_corr, c='k', lw=0.5, alpha=0.4, 
                label=r'$F_\mathrm{CRIRES}$'
                )
+    #'''
     ax[0].plot(wave, calib_flux, c='k', lw=0.5, 
                label=r'$F_\mathrm{CRIRES}/T_\mathrm{CRIRES}$'
                )
@@ -233,6 +237,13 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                 # Plot the residuals
                 res_ij = d_spec.flux[i,j] - LogLike.f[i,j]*m_spec.flux[i,j]
                 ax_res.plot(d_spec.wave[i,j], res_ij, c='k', lw=0.5)
+                '''
+                ax_res.plot(
+                    d_spec.wave[i,j], 
+                    np.random.normal(0, d_spec.err[i,j], size=len(d_spec.err[i,j]))*res_ij/res_ij, 
+                    c='k', lw=0.5
+                    )
+                '''
                 ax_res.plot(
                     [d_spec.wave[i,j].min(), d_spec.wave[i,j].max()], 
                     [0,0], c=bestfit_color, lw=1
@@ -281,10 +292,12 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     loc='upper right', ncol=2, fontsize=8, handlelength=1, 
                     framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                     )
+                '''
                 ax_res.legend(
                     loc='upper right', ncol=2, fontsize=8, handlelength=1, 
                     framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                     )
+                '''
 
     # Set the labels for the final axis
     ax_spec.set(ylabel=ylabel_spec)
@@ -774,15 +787,15 @@ def plot_ax_CCF(ax,
                 ):
 
     if pRT_atm_wo_species is not None:
-        pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid.copy()
+        pRT_atm_wo_species_flux_pRT_grid = np.copy(pRT_atm_wo_species.flux_pRT_grid_only)
     else:
         pRT_atm_wo_species_flux_pRT_grid = None
 
     rv, CCF, d_ACF, m_ACF = af.CCF(
         d_spec=d_spec, 
         m_spec=m_spec, 
-        m_wave_pRT_grid=pRT_atm.wave_pRT_grid, 
-        m_flux_pRT_grid=pRT_atm.flux_pRT_grid.copy(), 
+        m_wave_pRT_grid=np.copy(pRT_atm.wave_pRT_grid), 
+        m_flux_pRT_grid=np.copy(pRT_atm.flux_pRT_grid), 
         m_spec_wo_species=m_spec_wo_species, 
         m_flux_wo_species_pRT_grid=pRT_atm_wo_species_flux_pRT_grid, 
         LogLike=LogLike, 
@@ -801,15 +814,29 @@ def plot_ax_CCF(ax,
     ax.plot(rv, m_ACF_SNR, c=color, lw=1, ls='--', alpha=0.5)
     ax.plot(rv, CCF_SNR, c=color, lw=1, label=label)
 
+    ax.axhline(0, lw=0.1, c='k')
     ax.axvspan(
         rv_to_exclude[0], rv_to_exclude[1], 
         color='k', alpha=0.1, ec='none'
+        )
+
+    SNR_rv0 = CCF_SNR[rv==0][0]
+    ax.annotate(
+        r'S/N$=$'+'{:.1f}'.format(SNR_rv0), xy=(0, SNR_rv0), 
+        xytext=(0.55, 0.7), textcoords=ax.transAxes, color=color, 
+        arrowprops={'arrowstyle':'-', 'lw':0.5, 
+                    'color':color, 'alpha':0.5
+                    }
         )
 
     ax.legend(
         loc='upper right', handlelength=1, framealpha=0.7, 
         handletextpad=0.5, columnspacing=0.8
         )
+    ax.set(ylim=(min([1.2*CCF_SNR.min(), 1.2*m_ACF_SNR.min(), -5]), 
+                 max([1.2*CCF_SNR.max(), 1.2*m_ACF_SNR.max(), 7])
+                 )
+           )
     return ax
 
 def fig_species_contribution(d_spec, 
@@ -822,18 +849,17 @@ def fig_species_contribution(d_spec,
                              species_to_plot, 
                              rv_CCF=np.arange(-1000,1000+1e-6,5), 
                              rv_to_exclude=(-100,100), 
-                             bin_size=10, 
+                             bin_size=25, 
                              prefix=None
                              ):
 
-    from scipy.ndimage import generic_filter
     if not os.path.exists(prefix+'plots/species'):
         os.makedirs(prefix+'plots/species')
 
     fig_CCF, ax_CCF = plt.subplots(
         figsize=(5,2*(len(species_to_plot)+1)), 
         nrows=len(species_to_plot)+1, 
-        sharex=True, sharey=True, 
+        sharex=True, sharey=False, 
         gridspec_kw={
             'hspace':0.05, 'left':0.13, 'right':0.95, 
             'top':0.97, 'bottom':0.05
@@ -870,10 +896,19 @@ def fig_species_contribution(d_spec,
             pRT_atm_h = pRT_atm_species[species_h]
             
             # Residual between data and model w/o species_i
-            d_res = d_spec.flux - m_spec_h.flux
+            d_res = d_spec.flux/LogLike.f[:,:,None] - m_spec_h.flux
+
+            low_pass_d_res = np.nan * np.ones_like(d_res)
+            low_pass_d_res[d_spec.mask_isfinite] = gaussian_filter1d(d_res[d_spec.mask_isfinite], sigma=300)
+            d_res -= low_pass_d_res
 
             # Residual between complete model and model w/o species_i
-            m_res = m_spec.flux - m_spec_h.flux
+            #m_res = m_spec.flux - m_spec_h.flux
+            m_res = m_spec_h.flux_only
+
+            low_pass_m_res = np.nan * np.ones_like(m_res)
+            low_pass_m_res[d_spec.mask_isfinite] = gaussian_filter1d(m_res[d_spec.mask_isfinite], sigma=300)
+            m_res -= low_pass_m_res
 
             # Read the color and label
             color_h = Chem.read_species_info(species_h, info_key='color')
@@ -911,7 +946,7 @@ def fig_species_contribution(d_spec,
                 for j in range(d_spec.n_dets):
 
                     label = r'$d-m_\mathrm{w/o\ ' + label_h.replace('$', '') + r'}$'
-                    if species_h == '13CO':
+                    if species_h in ['13CO', 'NH3']:
                         alpha = 0.3
                         label_1 = None
                         label_2 = label + f' (binned to {bin_size} pixels)'
@@ -924,22 +959,34 @@ def fig_species_contribution(d_spec,
                         c='k', lw=0.5, alpha=alpha, label=label_1
                         )
                     
-                    if species_h == '13CO':
+                    if species_h in ['13CO', 'NH3']:
+                        mask_ij = d_spec.mask_isfinite[i,j]
+                        binned_d_res_ij = np.nan * np.ones_like(d_res[i,j])
+                        #binned_d_res_ij[mask_ij] = gaussian_filter1d(d_res[i,j,mask_ij], sigma=bin_size)
+                        binned_d_res_ij = generic_filter(d_res[i,j], np.nanmedian, size=bin_size)
+
                         ax[i].plot(
-                            d_spec.wave[i,j], 
-                            generic_filter(d_res[i,j], np.nanmedian, size=bin_size), 
-                            c='k', lw=0.5, label=label_2
+                            d_spec.wave[i,j], binned_d_res_ij, c='k', lw=0.5, label=label_2
                             )
+                    else:
+                        pass
+                        '''
+                        mask_ij = d_spec.mask_isfinite[i,j]
+                        low_pass_d_res_ij = np.nan * np.ones_like(d_res[i,j])
+                        low_pass_d_res_ij[mask_ij] = gaussian_filter1d(d_res[i,j,mask_ij], sigma=300)
+                        ax[i].plot(
+                            d_spec.wave[i,j], low_pass_d_res_ij, c='0.5', lw=1
+                            )
+                        '''
 
                     ax[i].plot(
                         d_spec.wave[i,j], m_res[i,j], c=color_h, lw=1, 
-                        label=r'$m_\mathrm{complete}-m_\mathrm{w/o\ ' + \
-                              label_h.replace('$', '') + r'}$'
+                        label=r'$m_\mathrm{only\ '+label_h.replace('$', '')+r'}$'
                         )
 
                     if (i == 0) and (j == 0):
                         ax[i].legend(
-                            loc='upper right', ncol=2, fontsize=8, handlelength=1, 
+                            loc='upper right', ncol=2, fontsize=10, handlelength=1, 
                             framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                             )
                 ax[i].set(ylim=ylim)
@@ -951,8 +998,8 @@ def fig_species_contribution(d_spec,
     ax_CCF[-1].set(
         xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$', 
         xlim=(rv_CCF.min(), rv_CCF.max()), 
-        yticks=np.arange(-6,30,3), 
-        ylim=ax_CCF[-1].get_ylim()
+        #yticks=np.arange(-6,30,3), 
+        #ylim=ax_CCF[-1].get_ylim()
         )
     ax_CCF[len(species_to_plot)//2].set(ylabel='S/N')
 

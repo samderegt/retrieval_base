@@ -368,18 +368,44 @@ class Retrieval:
 
         self.m_spec_species, self.pRT_atm_species = {}, {}
 
+        # Ignore all species
+        for species_j, (line_species_j, _, _) in self.Chem.species_info.items():
+            if line_species_j in self.Chem.line_species:
+                self.Chem.neglect_species[species_j] = True
+        # Create the spectrum and evaluate lnL
+        self.PMN_lnL_func()
+        m_spec_continuum = np.copy(self.m_spec.flux)
+        pRT_atm_continuum = np.copy(self.pRT_atm_broad.flux_pRT_grid)
+
         # Assess the species' contribution
         for species_i in self.Chem.species_info:
             line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
 
             if line_species_i in self.Chem.line_species:
+
+                # Ignore all other species
+                for species_j, (line_species_j, _, _) in self.Chem.species_info.items():
+                    if line_species_j in self.Chem.line_species:
+                        self.Chem.neglect_species[species_j] = True
+                self.Chem.neglect_species[species_i] = False
+                
+                # Create the spectrum and evaluate lnL
+                self.PMN_lnL_func()
+
+                flux_only = np.copy(self.m_spec.flux) - m_spec_continuum
+                self.pRT_atm_broad.flux_pRT_grid_only = \
+                    np.copy(self.pRT_atm_broad.flux_pRT_grid) - pRT_atm_continuum
+
+                for species_j in self.Chem.species_info:
+                    self.Chem.neglect_species[species_j] = False
                 # Ignore this species for now
                 self.Chem.neglect_species[species_i] = True
 
                 # Create the spectrum and evaluate lnL
                 self.PMN_lnL_func()
 
-                self.m_spec_species[species_i]  = self.m_spec
+                self.m_spec.flux_only = flux_only
+                self.m_spec_species[species_i]  = copy.deepcopy(self.m_spec)
                 self.pRT_atm_species[species_i] = copy.deepcopy(self.pRT_atm_broad)
 
                 # Include this species again

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import gaussian_filter1d, gaussian_filter
+from scipy.ndimage import gaussian_filter1d, gaussian_filter, generic_filter
 from scipy.interpolate import interp1d
 from scipy.sparse import triu
 
@@ -164,8 +164,6 @@ class Spectrum:
         return flux_copy
 
     def sigma_clip_median_filter(self, sigma=3, filter_width=3, replace_flux=True, prefix=None):
-        
-        from scipy.ndimage import generic_filter
 
         flux_copy = self.flux.copy()
         sigma_clip_bounds = np.ones((3, self.n_orders, 3*self.n_pixels)) * np.nan
