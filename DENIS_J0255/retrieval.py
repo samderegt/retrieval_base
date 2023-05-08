@@ -375,10 +375,7 @@ class Retrieval:
         # Create the spectrum and evaluate lnL
         self.PMN_lnL_func()
         m_spec_continuum = np.copy(self.m_spec.flux)
-        pRT_atm_continuum = np.array([
-            np.copy(self.pRT_atm_broad[i].flux_pRT_grid) \
-            for i in range(len(self.pRT_atm_broad))
-            ])
+        pRT_atm_continuum = np.copy(self.pRT_atm_broad.flux_pRT_grid)
 
         # Assess the species' contribution
         for species_i in self.Chem.species_info:
@@ -396,10 +393,10 @@ class Retrieval:
                 self.PMN_lnL_func()
 
                 flux_only = np.copy(self.m_spec.flux) - m_spec_continuum
-                self.pRT_atm_broad.flux_pRT_grid_only = np.array([
-                    np.copy(self.pRT_atm_broad[i].flux_pRT_grid) \
-                    for i in range(len(self.pRT_atm_broad))
-                    ]) - pRT_atm_continuum
+                self.pRT_atm_broad.flux_pRT_grid_only = [
+                    np.copy(self.pRT_atm_broad.flux_pRT_grid[i]) - pRT_atm_continuum[i] \
+                    for i in range(len(self.pRT_atm_broad.atm))
+                    ]
 
                 for species_j in self.Chem.species_info:
                     self.Chem.neglect_species[species_j] = False
