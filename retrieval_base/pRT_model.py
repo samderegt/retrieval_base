@@ -83,7 +83,7 @@ class pRT_model:
 
         # pRT model is somewhat wider than observed spectrum
         if CB_active:
-            wave_pad = 20
+            wave_pad = 10
         else:
             wave_pad = 1
 

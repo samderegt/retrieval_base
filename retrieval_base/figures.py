@@ -787,15 +787,15 @@ def plot_ax_CCF(ax,
                 ):
 
     if pRT_atm_wo_species is not None:
-        pRT_atm_wo_species_flux_pRT_grid = np.copy(pRT_atm_wo_species.flux_pRT_grid_only)
+        pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid_only.copy()
     else:
         pRT_atm_wo_species_flux_pRT_grid = None
 
     rv, CCF, d_ACF, m_ACF = af.CCF(
         d_spec=d_spec, 
         m_spec=m_spec, 
-        m_wave_pRT_grid=np.copy(pRT_atm.wave_pRT_grid), 
-        m_flux_pRT_grid=np.copy(pRT_atm.flux_pRT_grid), 
+        m_wave_pRT_grid=pRT_atm.wave_pRT_grid.copy(), 
+        m_flux_pRT_grid=pRT_atm.flux_pRT_grid.copy(), 
         m_spec_wo_species=m_spec_wo_species, 
         m_flux_wo_species_pRT_grid=pRT_atm_wo_species_flux_pRT_grid, 
         LogLike=LogLike, 

@@ -634,7 +634,7 @@ class DataSpectrum(Spectrum):
             ref_flux = np.interp(self.wave.flatten(), ref_wave, ref_flux)
 
             # Change the slope with a blackbody spectrum of a different temperature
-            #ref_flux *= (np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)/(np.exp(nc.h*nc.c/(self.wave*nc.kB*14700)) - 1)
+            ref_flux *= (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T)) - 1)/(np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*14700)) - 1)
 
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(nrows=3, sharex=True)
