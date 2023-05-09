@@ -8,11 +8,18 @@ class Covariance:
      
     def __init__(self, err):
 
-        self.cov = err**2
-        self.is_matrix = (self.cov.ndim == 2)
+        # Set-up the covariance matrix
+        self.err = err
+        self.cov_reset()
 
         # Set to None initially
         self.cov_cholesky = None
+
+    def cov_reset(self):
+
+        # Create the covariance matrix from the uncertainties
+        self.cov = self.err**2
+        self.is_matrix = (self.cov.ndim == 2)
 
     def add_data_err_scaling(self, beta):
 
@@ -91,6 +98,12 @@ class GaussianProcesses(Covariance):
 
         self.cholesky_mode = cholesky_mode
 
+    def cov_reset(self):
+
+        # Create the covariance matrix from the uncertainties
+        self.cov = np.diag(self.err**2)
+        self.is_matrix = (self.cov.ndim == 2)
+
     def add_RBF_kernel(self, a, l, trunc_dist=5, scale_GP_amp=False):
         '''
         Add a radial-basis function kernel to the covariance matrix. 
@@ -111,7 +124,6 @@ class GaussianProcesses(Covariance):
             If True, scale the amplitude at each covariance element, 
             using the flux-uncertainties of the corresponding pixels
             (A = a**2 * (err_i**2 + err_j**2)/2).
-
         '''
 
         # Hann window function to ensure sparsity
@@ -168,6 +180,44 @@ class GaussianProcesses(Covariance):
 
         # Rational quadratic kernel (approaches RBF if w -> infty)
         self.cov[w_ij] += GP_amp * (1 + self.separation[w_ij]**2/(2*w*l**2))**(-w)
+
+    def add_tanh_Gibbs_kernel(self, wave, a1, a2, w, loc1, l, trunc_dist=5, scale_GP_amp=False):
+        
+        def tanh_func(wave, a1, a2, w, loc1):
+            '''
+            Input
+            -----
+            wave : ndarray
+                Wavelength array.
+            a1 : float
+                Amplitude before transition.
+            a2 : float
+                Amplitude after transition.
+            w : float
+                Transition width.
+            loc1 : float
+                Transition location.
+            '''
+            
+            return (a1+a2)/2 - (a1-a2)/2 * np.tanh((wave-loc1)/w)
+
+        # Hann window function to ensure sparsity
+        w_ij = (self.separation < trunc_dist*l)
+
+        # GP amplitude
+        GP_amp = tanh_func(wave, a1, a2, w, loc1)#**2
+        GP_amp = (GP_amp[None,:] + GP_amp[:,None])/2
+        GP_amp = GP_amp[w_ij]**2
+
+        # Use amplitude as fraction of flux uncertainty
+        if isinstance(self.err_eff, float):
+            GP_amp *= self.err_eff**2
+        else:
+            GP_amp *= self.err_eff[w_ij]**2
+
+        # Gibbs kernel with increasing changing amplitude
+        self.cov[w_ij] += GP_amp * np.exp(-(self.separation[w_ij])**2/(2*l**2))
+
         
     def get_cholesky(self):
         '''

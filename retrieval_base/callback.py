@@ -52,6 +52,7 @@ class CallBack:
     def __call__(self, 
                  Param, 
                  LogLike, 
+                 Cov, 
                  PT, 
                  Chem, 
                  m_spec, 
@@ -67,6 +68,7 @@ class CallBack:
         # Make attributes for convenience
         self.Param   = Param
         self.LogLike = LogLike
+        self.Cov     = Cov
         self.PT      = PT
         self.Chem    = Chem
         self.m_spec  = m_spec
@@ -129,16 +131,19 @@ class CallBack:
                 
         # Plot the covariance matrices
         all_cov = figs.fig_cov(
-            LogLike=self.LogLike, d_spec=self.d_spec, 
-            cmap=self.envelope_cmap, prefix=self.prefix
+            LogLike=self.LogLike, 
+            Cov=self.Cov, 
+            d_spec=self.d_spec, 
+            cmap=self.envelope_cmap, 
+            prefix=self.prefix
             )
 
         # Plot the auto-correlation of the residuals
         figs.fig_residual_ACF(
             d_spec=self.d_spec, 
             m_spec=self.m_spec, 
-            all_cov=all_cov, 
             LogLike=self.LogLike, 
+            Cov=self.Cov, 
             bestfit_color=self.bestfit_color, 
             prefix=self.prefix
             )
@@ -374,6 +379,7 @@ class CallBack:
             d_spec=self.d_spec, 
             m_spec=self.m_spec, 
             LogLike=self.LogLike, 
+            Cov=self.Cov, 
             bestfit_color=self.bestfit_color, 
             ax_spec=ax_spec, 
             ax_res=ax_res, 
@@ -438,6 +444,7 @@ class CallBack:
             d_spec=self.d_spec, 
             m_spec=self.m_spec, 
             LogLike=self.LogLike, 
+            Cov=self.Cov, 
             bestfit_color=self.bestfit_color, 
             ax_spec=None, 
             ax_res=None, 

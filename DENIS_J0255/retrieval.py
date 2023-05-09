@@ -25,6 +25,7 @@ from retrieval_base.log_likelihood import LogLikelihood
 from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere
 from retrieval_base.chemistry import FreeChemistry, EqChemistry
 from retrieval_base.callback import CallBack
+from retrieval_base.covariance import Covariance, GaussianProcesses
 
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
@@ -183,8 +184,6 @@ class Retrieval:
             n_params=self.Param.n_params, 
             scale_flux=conf.scale_flux, 
             scale_err=conf.scale_err, 
-            scale_GP_amp=conf.scale_GP_amp, 
-            cholesky_mode=conf.cholesky_mode, 
             )
 
         if self.Param.PT_mode == 'Molliere':
@@ -206,6 +205,27 @@ class Retrieval:
             self.Chem = EqChemistry(
                 self.pRT_atm.line_species, self.pRT_atm.pressure
                 )
+
+        self.Cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
+        for i in range(self.d_spec.n_orders):
+            for j in range(self.d_spec.n_dets):
+                
+                # Select only the finite pixels
+                mask_ij = self.d_spec.mask_isfinite[i,j]
+
+                if np.isin(['a', 'log_a', f'a_{i+1}', f'log_a_{i+1}', 'ls1'], self.Param.param_keys).any():
+                    # Use a GaussianProcesses instance
+                    self.Cov[i,j] = GaussianProcesses(
+                        err=self.d_spec.err[i,j,mask_ij], 
+                        separation=self.d_spec.separation[i,j], 
+                        err_eff=self.d_spec.err_eff[i,j], 
+                        cholesky_mode=conf.cholesky_mode
+                        )
+                else:
+                    # Use a Covariance instance instead
+                    self.Cov[i,j] = Covariance(
+                        err=self.d_spec.err[i,j,mask_ij]
+                        )
         
         self.CB = CallBack(
             d_spec=self.d_spec, 
@@ -286,10 +306,60 @@ class Retrieval:
             get_full_spectrum=args.evaluation, 
             )
 
+        for i in range(self.d_spec.n_orders):
+            for j in range(self.d_spec.n_dets):
+
+                mask_ij = self.d_spec.mask_isfinite[i,j]
+                wave_ij = self.d_spec.wave[i,j][mask_ij]
+
+                # Reset the covariance matrix
+                self.Cov[i,j].cov_reset()
+
+                if self.Param.params['a'][i,j] != 0:
+                    # Add a radial-basis function kernel
+                    self.Cov[i,j].add_RBF_kernel(
+                        a=self.Param.params['a'][i,j], 
+                        l=self.Param.params['l'][i,j], 
+                        trunc_dist=5, 
+                        scale_GP_amp=conf.scale_GP_amp
+                        )
+                
+                if self.Param.params['beta'][i,j] != 1:
+                    # Scale the flux uncertainty
+                    self.Cov[i,j].add_data_err_scaling(
+                        beta=self.Param.params['beta'][i,j]
+                        )
+
+                if self.Param.params['x_tol'] is not None:
+                    # Add a model uncertainty (Piette et al. 2020)
+                    self.Cov[i,j].add_model_err(
+                        model_err=self.Param.params['x_tol'] * \
+                            self.m_spec[i,j,mask_ij]
+                        )
+
+                if self.Param.params['b'] is not None:
+                    # Add a model uncertainty (Line et al. 2015)
+                    self.Cov[i,j].add_model_err(
+                        model_err=np.sqrt(10**self.Param.params['b'])
+                        )
+
+                if self.Param.params['ls1'] is not None:
+                    self.Cov[i,j].add_tanh_Gibbs_kernel(
+                        wave=wave_ij, 
+                        a1=self.Param.params['ls1'], 
+                        a2=self.Param.params['ls2'], 
+                        w=self.Param.params['w'], 
+                        loc1=self.Param.params['loc1'], 
+                        l=self.Param.params['l'][i,j], 
+                        trunc_dist=5, 
+                        scale_GP_amp=conf.scale_GP_amp
+                        )
+
         # Retrieve the log-likelihood
         ln_L = self.LogLike(
             self.m_spec, 
-            self.Param.params, 
+            #self.Param.params, 
+            self.Cov, 
             ln_L_penalty=ln_L_penalty, 
             )
         
@@ -557,7 +627,7 @@ class Retrieval:
 
         # Call the CallBack class and make summarizing figures
         self.CB(
-            self.Param, self.LogLike, self.PT, self.Chem, 
+            self.Param, self.LogLike, self.Cov, self.PT, self.Chem, 
             self.m_spec, pRT_atm_to_use, posterior, 
             m_spec_species=self.m_spec_species, 
             pRT_atm_species=self.pRT_atm_species
@@ -566,7 +636,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Run the MultiNest retrieval
-        pymultinest.solve(
+        pymultinest.run(
             LogLikelihood=self.PMN_lnL_func, 
             Prior=self.Param, 
             n_dims=self.Param.n_params, 

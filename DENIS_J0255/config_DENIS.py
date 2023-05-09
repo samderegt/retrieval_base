@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_159'
+prefix = 'DENIS_J0255_retrieval_outputs_160'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.6
 
-wave_range = (2050, 2400)
+wave_range = (2300, 2500)
 
 ####################################################################################
 # Model parameters
@@ -51,18 +51,12 @@ wave_range = (2050, 2400)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'log_a': [(-18,-14), r'$\log\ a$'], 
-    #'log_a': [(-2,-0.4), r'$\log\ a$'], 
-    #'log_l': [(-1.5,0), r'$\log\ l$'], 
-    'a_1': [(0.05,0.7), r'$a_1$'], 
-    'a_2': [(0.05,0.7), r'$a_2$'], 
-    'a_3': [(0.05,0.7), r'$a_3$'], 
-    'a_4': [(0.05,0.7), r'$a_4$'], 
-    #'a_5': [(0.05,0.7), r'$a_5$'], 
-    #'a_6': [(0.05,0.7), r'$a_6$'], 
     #'a': [(0.05,0.6), r'$a$'], 
+    'ls1': [(0.05,0.8), r'$ls_1$'], 
+    'ls2': [(0.05,0.8), r'$ls_2$'], 
+    'w': [(1,50), r'$ls_1$'], 
+    'loc1': [(2300,2500), r'$\lambda_0$'], 
     'l': [(5,60), r'$l$'], 
-    #'beta_tell': [(0.1,30), r'$\beta_\mathrm{tell}$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -79,7 +73,7 @@ free_params = {
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
+    #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
     'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
@@ -90,14 +84,14 @@ free_params = {
     # PT profile
     'log_gamma': [(-3,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,10000), r'$T_0$'], 
-    'T_1': [(1000,5000), r'$T_1$'], 
-    'T_2': [(500,2500), r'$T_2$'], 
-    'T_3': [(500,2000), r'$T_3$'], 
-    'T_4': [(0,3000), r'$T_4$'], 
+    'T_0': [(0,7000), r'$T_0$'], 
+    'T_1': [(0,4000), r'$T_1$'], 
+    'T_2': [(0,4000), r'$T_2$'], 
+    'T_3': [(0,4000), r'$T_3$'], 
+    'T_4': [(0,4000), r'$T_4$'], 
     'T_5': [(0,4000), r'$T_5$'], 
-    'T_6': [(0,7000), r'$T_6$'], 
-    'T_7': [(0,10000), r'$T_7$'], 
+    'T_6': [(0,4000), r'$T_6$'], 
+    'T_7': [(0,4000), r'$T_7$'], 
 }
 
 # Constants to use if prior is not given
@@ -119,7 +113,7 @@ line_species = ['H2O_main_iso',
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
                 'NH3_main_iso', 
-                'CO2_main_iso', 
+                #'CO2_main_iso', 
                 'HCN_main_iso', 
                 ]
 cloud_species = None

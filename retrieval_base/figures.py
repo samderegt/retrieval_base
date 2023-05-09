@@ -159,7 +159,7 @@ def fig_spec_to_fit(d_spec, prefix=None):
     #plt.show()
     plt.close(fig)
 
-def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None, ax_res=None, prefix=None):
+def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=None, ax_res=None, prefix=None):
 
     if (ax_spec is None) and (ax_res is None):
         # Create a new figure
@@ -264,10 +264,9 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
                     )
 
                 # Get the covariance matrix
-                cov_ij = LogLike.cov[i,j]
-                cov = cov_ij.cov
-                if cov_ij.is_matrix:
-                    if cov_ij.cholesky_mode == 'sparse':
+                cov = Cov[i,j].cov
+                if Cov[i,j].is_matrix:
+                    if Cov[i,j].cholesky_mode == 'sparse':
                         cov = cov.todense()
                 else:
                     cov = np.diag(cov)
@@ -309,7 +308,7 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, bestfit_color='C1', ax_spec=None,
     else:
         return ax_spec, ax_res
 
-def fig_cov(LogLike, d_spec, cmap, prefix=None):
+def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
 
     all_cov = np.zeros(
         (d_spec.n_orders, d_spec.n_dets, 
@@ -322,16 +321,13 @@ def fig_cov(LogLike, d_spec, cmap, prefix=None):
             # Only store the valid pixels
             mask_ij = d_spec.mask_isfinite[i,j]
 
-            # Get the covariance matrix for this order/detector
-            cov_ij = LogLike.cov[i,j]
-
-            if cov_ij.is_matrix:
-                if cov_ij.cholesky_mode == 'sparse':
-                    cov = cov_ij.cov.todense()
-                elif cov_ij.cholesky_mode == 'banded':
-                    cov = cov_ij.cov
+            # Get the covariance matrix
+            cov = Cov[i,j].cov
+            if Cov[i,j].is_matrix:
+                if Cov[i,j].cholesky_mode == 'sparse':
+                    cov = cov.todense()
             else:
-                cov = np.diag(cov_ij.cov)
+                cov = np.diag(cov)
 
             # Scale with the optimal uncertainty scaling
             cov *= LogLike.beta[i,j]**2
@@ -645,8 +641,8 @@ def fig_hist_posterior(posterior_i,
 
 def fig_residual_ACF(d_spec, 
                      m_spec, 
-                     all_cov, 
                      LogLike, 
+                     Cov, 
                      rv_CCF=np.arange(-500,500+1e-6,1), 
                      bestfit_color='C1', 
                      prefix=None
@@ -676,13 +672,17 @@ def fig_residual_ACF(d_spec,
 
             delta_wave_ij = np.abs(wave_ij[None,:] - wave_ij[:,None])
 
-            cov_ij = all_cov[i,j,:,:]
-            cov_ij = cov_ij[mask_ij,:]
-            cov_ij = cov_ij[:,mask_ij]
+            cov = LogLike.beta[i,j]**2 * Cov[i,j].cov
+            # Get the covariance matrix
+            if Cov[i,j].is_matrix:
+                if Cov[i,j].cholesky_mode == 'sparse':
+                    cov = cov.todense()
+            else:
+                cov = np.diag(cov)
 
             for k in range(0, mask_ij.sum()):
 
-                diag_k = np.diag(cov_ij, k=k)
+                diag_k = np.diag(cov, k=k)
 
                 if (diag_k != 0).any():
                     m_corr[i,j,k] = np.nanmean(diag_k)
@@ -803,22 +803,22 @@ def plot_ax_CCF(ax,
         )
 
     # Convert to signal-to-noise functions
-    CCF_SNR = af.CCF_to_SNR(
-        rv, CCF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
-        )
-    m_ACF_SNR = af.CCF_to_SNR(
-        rv, m_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+    CCF_SNR, m_ACF_SNR, excluded_CCF_SNR = af.CCF_to_SNR(
+        rv, CCF.sum(axis=(0,1)), ACF=m_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
         )
 
-    # Plot the cross- and auto-correlation signal-to-noises
-    ax.plot(rv, m_ACF_SNR, c=color, lw=1, ls='--', alpha=0.5)
-    ax.plot(rv, CCF_SNR, c=color, lw=1, label=label)
-
+    ax.axvline(0, lw=1, c='k', alpha=0.2)
     ax.axhline(0, lw=0.1, c='k')
     ax.axvspan(
         rv_to_exclude[0], rv_to_exclude[1], 
         color='k', alpha=0.1, ec='none'
         )
+
+    # Plot the cross- and auto-correlation signal-to-noises
+    ax.plot(rv, m_ACF_SNR, c=color, lw=1, ls='--', alpha=0.5)
+    ax.plot(rv, CCF_SNR, c=color, lw=1, label=label)
+    #ax.plot(rv, excluded_CCF_SNR, c=color, lw=0.5, ls='-', alpha=0.5)
+    #ax.fill_between(rv, y1=CCF_SNR, y2=excluded_CCF_SNR, color=color, alpha=0.5)
 
     SNR_rv0 = CCF_SNR[rv==0][0]
     ax.annotate(
@@ -1006,3 +1006,5 @@ def fig_species_contribution(d_spec,
     if prefix is not None:
         fig_CCF.savefig(prefix+f'plots/species/CCF.pdf')
     plt.close(fig_CCF)
+
+    exit()

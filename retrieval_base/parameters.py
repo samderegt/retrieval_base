@@ -17,6 +17,8 @@ class Parameters:
         'beta_tell': None, 
         'x_tol': None, 
         'b': None, 
+        'ls1': None,
+        'ls2': None,
 
 
         # General properties

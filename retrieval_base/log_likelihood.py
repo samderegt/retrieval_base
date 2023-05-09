@@ -1,7 +1,5 @@
 import numpy as np
 
-from .covariance import Covariance, GaussianProcesses
-
 import time
 
 class LogLikelihood:
@@ -11,8 +9,6 @@ class LogLikelihood:
                  n_params, 
                  scale_flux=False, 
                  scale_err=False, 
-                 scale_GP_amp=False, 
-                 cholesky_mode='banded', 
                  ):
 
         # Observed spectrum is constant
@@ -24,11 +20,8 @@ class LogLikelihood:
 
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
-        self.scale_GP_amp = scale_GP_amp
         
-        self.cholesky_mode = cholesky_mode
-
-    def __call__(self, m_spec, params, ln_L_penalty=0):
+    def __call__(self, m_spec, Cov, ln_L_penalty=0):
         '''
         Evaluate the total log-likelihood given the model spectrum and parameters.
 
@@ -36,13 +29,12 @@ class LogLikelihood:
         -----
         m_spec : ModelSpectrum class
             Instance of the ModelSpectrum class.
-        params : dict
-            Dictionary containing free/constant parameters. 
+        Cov : Covariance class
+            Instance of the GaussianProcesses or Covariance class. 
         ln_L_penalty : float
             Penalty term to be added to the total log-likelihood. Default is 0.       
         '''
         
-        self.params = params
         #self.m_spec = m_spec
 
         # Set up the total log-likelihood for this model 
@@ -59,9 +51,6 @@ class LogLikelihood:
         # Array to store the uncertainty-scaling terms
         self.beta = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
         
-        # Store all Covariance instances
-        self.cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
-
         # Loop over all orders and detectors
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
@@ -80,84 +69,30 @@ class LogLikelihood:
 
                 res_ij = (d_flux_ij - m_flux_ij)
                 
-                # Set up the covariance matrix
-                if self.params['a'][i,j] != 0:
-
-                    if self.d_spec.separation is not None:
-                        # Read separation between pixels from memory (already masked)
-                        d_separation_ij = self.d_spec.separation[i,j]
-                    else:
-                        # Compute wavelength separation between pixels
-                        d_wave_ij = self.d_spec.wave[i,j,mask_ij]
-                        d_separation_ij = np.abs(d_wave_ij[None,:] - d_wave_ij[:,None])
-
-                    if self.d_spec.err_eff is not None:
-                        # Read average squared errors from memory (already masked)
-                        d_err_eff_ij = self.d_spec.err_eff[i,j]
-                    else:
-                        # Compute average squared errors between pixels
-                        d_err_eff_ij = 1/2*(d_err_ij[None,:]**2 + d_err_ij[:,None]**2)
-
-                    # Use Gaussian Processes
-                    cov_ij = GaussianProcesses(
-                        err=d_err_ij, 
-                        separation=d_separation_ij, 
-                        err_eff=d_err_eff_ij, 
-                        cholesky_mode=self.cholesky_mode
-                        )
-                    
-                    # Add a radial-basis function kernel
-                    cov_ij.add_RBF_kernel(a=self.params['a'][i,j], 
-                                          l=self.params['l'][i,j], 
-                                          trunc_dist=5, 
-                                          scale_GP_amp=self.scale_GP_amp
-                                          )
-
-                else:
-                    # Use only diagonal terms in covariance matrix
-                    cov_ij = Covariance(d_err_ij)
-
-                if self.params['beta'][i,j] != 1:
-                    # Scale the flux uncertainty
-                    cov_ij.add_data_err_scaling(beta=self.params['beta'][i,j])
-
-                if self.params['beta_tell'] is not None:
-                    # Add an error-term that scales with depth of the tellurics
-                    d_transm_ij = self.d_spec.transm[i,j,mask_ij]
-                    cov_ij.add_model_err(model_err=params['beta_tell']*d_err_ij/d_transm_ij)
-
-                if self.params['x_tol'] is not None:
-                    # Add a model uncertainty (Piette et al. 2020)
-                    cov_ij.add_model_err(self.params['x_tol']*m_flux_ij)
-
-                if self.params['b'] is not None:
-                    # Add a model uncertainty (Line et al. 2015)
-                    cov_ij.add_model_err(np.sqrt(10**self.params['b']))
-
-                if cov_ij.is_matrix:
-                    # Retrieve a (sparse) Cholesky decomposition
-                    cov_ij.get_cholesky()
+                if Cov[i,j].is_matrix:
+                    # Retrieve a Cholesky decomposition
+                    Cov[i,j].get_cholesky()
 
                 # Get the log of the determinant (log prevents over/under-flow)
-                cov_ij.get_logdet()
+                Cov[i,j].get_logdet()
 
                 # Set up the log-likelihood for this order/detector
                 # Chi-squared and optimal uncertainty scaling terms still need to be added
-                ln_L_ij = -(N_ij/2*np.log(2*np.pi) + 1/2*cov_ij.logdet)
+                ln_L_ij = -(N_ij/2*np.log(2*np.pi) + 1/2*Cov[i,j].logdet)
 
                 if self.scale_flux and not (i==0 and j==0):
                     # Only scale the flux relative to the first order/detector
 
                     # Scale the model flux to minimize the chi-squared error
-                    m_flux_ij_scaled, f_ij = self.get_flux_scaling(d_flux_ij, m_flux_ij, cov_ij)
+                    m_flux_ij_scaled, f_ij = self.get_flux_scaling(d_flux_ij, m_flux_ij, Cov[i,j])
                     res_ij_scaled = (d_flux_ij - m_flux_ij_scaled)
 
                     # Chi-squared for the optimal linear scaling
-                    chi_squared_ij_scaled = np.dot(res_ij_scaled, cov_ij.solve(res_ij_scaled))
+                    chi_squared_ij_scaled = np.dot(res_ij_scaled, Cov[i,j].solve(res_ij_scaled))
                 else:
                     # Chi-squared without linear scaling of detectors
                     f_ij = 1
-                    chi_squared_ij_scaled = np.dot(res_ij, cov_ij.solve(res_ij))
+                    chi_squared_ij_scaled = np.dot(res_ij, Cov[i,j].solve(res_ij))
                 
                 if self.scale_err:
                     # Scale the flux uncertainty that maximizes the log-likelihood
@@ -180,13 +115,12 @@ class LogLikelihood:
                 # Store in the arrays
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
-                self.cov[i,j]  = cov_ij
 
                 # This is not perfect for off-diagonal elements in covariance matrix
-                if cov_ij.is_matrix:
-                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/cov_ij.cov.diagonal()
+                if Cov[i,j].is_matrix:
+                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov.diagonal()
                 else:
-                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/cov_ij.cov
+                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov
                 self.ln_L_per_pixel[i,j,mask_ij] = -(
                     N_ij/2*np.log(2*np.pi) + \
                     N_ij/2*np.log(beta_ij**2) + \

@@ -81,7 +81,7 @@ def quantiles(x, q, weights=None, axis=-1):
         quantiles = np.interp(q, cdf, x[idx]).tolist()
         return quantiles
 
-def CCF_to_SNR(rv, CCF, rv_to_exclude=(-100,100)):
+def CCF_to_SNR(rv, CCF, ACF=None, rv_to_exclude=(-100,100)):
 
     # Select samples from outside the expected peak
     rv_mask = (rv < rv_to_exclude[0]) | (rv > rv_to_exclude[1])
@@ -89,11 +89,26 @@ def CCF_to_SNR(rv, CCF, rv_to_exclude=(-100,100)):
     # Correct the offset
     CCF -= np.nanmean(CCF[rv_mask])
 
-    # Standard-deviation of the cross-correlation function
-    std_CCF = np.nanstd(CCF[rv_mask])
+    if ACF is not None:
+        # Correct the offset
+        ACF -= np.nanmean(ACF[rv_mask])
 
+        # Subtract the (scaled) ACF before computing the standard-deviation
+        excluded_CCF = (CCF - ACF*(CCF/ACF)[rv==0])[rv_mask]
+    else:
+        excluded_CCF = CCF[rv_mask]
+
+    # Standard-deviation of the cross-correlation function
+    std_CCF = np.nanstd(excluded_CCF)
+    
     # Convert to signal-to-noise
-    return CCF/std_CCF
+    CCF_SNR = CCF / std_CCF
+    if ACF is not None:
+        ACF_SNR = ACF*(CCF/ACF)[rv==0]/std_CCF
+    else:
+        ACF_SNR = None
+    
+    return CCF_SNR, ACF_SNR, (CCF - ACF*(CCF/ACF)[rv==0])/std_CCF
     
 def CCF(d_spec, 
         m_spec, 
@@ -208,7 +223,7 @@ def CCF(d_spec,
                 CCF[i,j,:]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
                 m_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
                 d_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-    
+
     return rv, CCF, d_ACF, m_ACF
 
 def get_PHOENIX_model(T, log_g, FeH=0, wave_range=(500,3000), PHOENIX_path='./data/PHOENIX/'):
