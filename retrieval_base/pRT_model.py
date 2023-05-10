@@ -234,6 +234,8 @@ class pRT_model:
         self.int_contr_em  = np.zeros_like(self.pressure)
         self.int_opa_cloud = np.zeros_like(self.pressure)
 
+        self.int_contr_em_per_order = np.zeros((self.d_wave.shape[0], len(self.pressure)))
+
         self.CCF, self.m_ACF = [], []
         self.wave_pRT_grid, self.flux_pRT_grid = [], []
 
@@ -308,8 +310,11 @@ class pRT_model:
 
                 # Integrate the emission contribution function and cloud opacity
                 self.get_integrated_contr_em_and_opa_cloud(
-                    atm_i, m_wave_i=wave_i, d_wave_i=self.d_wave[i], 
-                    d_mask_i=self.d_mask_isfinite[i], m_spec_i=m_spec_i
+                    atm_i, m_wave_i=wave_i, 
+                    d_wave_i=self.d_wave[i,:], 
+                    d_mask_i=self.d_mask_isfinite[i], 
+                    m_spec_i=m_spec_i, 
+                    order=i
                     )
 
         # Create a new ModelSpectrum instance with all orders
@@ -336,7 +341,8 @@ class pRT_model:
                                               m_wave_i, 
                                               d_wave_i, 
                                               d_mask_i, 
-                                              m_spec_i
+                                              m_spec_i, 
+                                              order
                                               ):
         
         # Get the emission contribution function
@@ -369,13 +375,14 @@ class pRT_model:
                 rebin=True, 
                 )
             # Compute the spectrally-weighted emission contribution function
-            # Integrate and weigh the emission contribution function                    
-            self.int_contr_em[j] += \
+            # Integrate and weigh the emission contribution function
+            self.int_contr_em_per_order[order,j] = \
                 contr_em_ij.spectrally_weighted_integration(
                     wave=d_wave_i[d_mask_i].flatten(), 
                     flux=m_spec_i.flux[d_mask_i].flatten(), 
                     array=contr_em_ij.flux[d_mask_i].flatten(), 
                     )
+            self.int_contr_em[j] += self.int_contr_em_per_order[order,j]
 
             # Similar to the model flux
             opa_cloud_ij = ModelSpectrum(

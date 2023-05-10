@@ -396,6 +396,7 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
 
 def fig_PT(PT, 
            integrated_contr_em=None, 
+           integrated_contr_em_per_order=None, 
            integrated_opa_cloud=None, 
            ax_PT=None, 
            envelope_colors=None, 
@@ -467,8 +468,9 @@ def fig_PT(PT,
         # Add the integrated emission contribution function
         ax_contr = ax_PT.twiny()
         fig_contr_em(
-            ax_contr, integrated_contr_em, PT.pressure, 
-            bestfit_color=bestfit_color
+            ax_contr, integrated_contr_em, 
+            integrated_contr_em_per_order, 
+            PT.pressure, bestfit_color=bestfit_color
             )
     
     if (integrated_opa_cloud != 0).any():
@@ -486,8 +488,21 @@ def fig_PT(PT,
     else:
         return ax_PT
 
-def fig_contr_em(ax_contr, integrated_contr_em, pressure, bestfit_color='C1'):
+def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, pressure, bestfit_color='C1'):
     
+    if integrated_contr_em_per_order is not None:
+        
+        if len(integrated_contr_em_per_order) != 1:        
+            # Plot the emission contribution functions per order
+            cmap_per_order = mpl.cm.get_cmap('coolwarm')
+            
+            for i in range(len(integrated_contr_em_per_order)):
+                color_i = cmap_per_order(i/(len(integrated_contr_em_per_order)-1))
+                ax_contr.plot(
+                    integrated_contr_em_per_order[i], pressure, 
+                    c=color_i, ls=(0,(5,5)), alpha=0.5, lw=1, 
+                    )
+
     ax_contr.plot(
         integrated_contr_em, pressure, 
         c=bestfit_color, ls='--', alpha=0.7

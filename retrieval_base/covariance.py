@@ -217,7 +217,6 @@ class GaussianProcesses(Covariance):
 
         # Gibbs kernel with increasing changing amplitude
         self.cov[w_ij] += GP_amp * np.exp(-(self.separation[w_ij])**2/(2*l**2))
-
         
     def get_cholesky(self):
         '''
