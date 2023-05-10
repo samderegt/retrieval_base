@@ -125,6 +125,7 @@ class CallBack:
                 pRT_atm_species=self.pRT_atm_species, 
                 Chem=self.Chem, 
                 LogLike=self.LogLike, 
+                Cov=self.Cov, 
                 species_to_plot=self.species_to_plot, 
                 prefix=self.prefix
                 )

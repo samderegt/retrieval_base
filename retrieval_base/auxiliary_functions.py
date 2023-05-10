@@ -117,6 +117,7 @@ def CCF(d_spec,
         m_spec_wo_species=None, 
         m_flux_wo_species_pRT_grid=None, 
         LogLike=None, 
+        Cov=None, 
         rv=np.arange(-500,500+1e-6,1), 
         apply_high_pass_filter=True, 
         ):
@@ -150,12 +151,13 @@ def CCF(d_spec,
             d_flux_ij = d_spec.flux[i,j,mask_ij]
 
             if LogLike is not None:
-                # Use the covariance matrix to weigh 
-                # the cross-correlation coefficients
-                cov_ij = LogLike.cov[i,j]
-
                 # Scale the data instead of the models
                 d_flux_ij /= LogLike.f[i,j]
+            
+            if Cov is not None:
+                # Use the covariance matrix to weigh 
+                # the cross-correlation coefficients
+                cov_ij = Cov[i,j]
 
             if m_spec_wo_species is not None:
                 # Perform the cross-correlation on the residuals
