@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_160'
+prefix = 'DENIS_J0255_retrieval_outputs_162'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -40,7 +40,7 @@ rv_std, vsini_std = 25.5, 5
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.6
+tell_threshold = 0.8
 
 wave_range = (2300, 2500)
 
@@ -53,7 +53,7 @@ free_params = {
     # Uncertainty scaling
     #'a': [(0.05,0.6), r'$a$'], 
     'ls1': [(0.05,0.8), r'$ls_1$'], 
-    'ls2': [(0.05,0.8), r'$ls_2$'], 
+    'ls2': [(0.05,1.5), r'$ls_2$'], 
     'w': [(1,50), r'$w$'], 
     'loc1': [(2300,2500), r'$\lambda_0$'], 
     'l': [(5,60), r'$l$'], 
@@ -72,9 +72,9 @@ free_params = {
     'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
     #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
-    'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
+    #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
@@ -106,15 +106,18 @@ constant_params = {
 # Number of knots to define PT profile
 ln_L_penalty_order = 3
 
-line_species = ['H2O_main_iso', 
-                'CO_main_iso', 
-                'CO_36', 
+line_species = [#'H2O_main_iso', 
+                'H2O_high', 
+                #'CO_main_iso', 
+                'CO_high', 
+                #'CO_36', 
+                'CO_36_high', 
                 #'CO_28', 
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
-                'NH3_main_iso', 
+                #'NH3_main_iso', 
                 #'CO2_main_iso', 
-                'HCN_main_iso', 
+                #'HCN_main_iso', 
                 ]
 cloud_species = None
 

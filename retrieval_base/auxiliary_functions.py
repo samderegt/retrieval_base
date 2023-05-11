@@ -129,21 +129,33 @@ def CCF(d_spec,
     # Loop over all orders and detectors
     for i in range(d_spec.n_orders):
 
-        m_wave_i = m_wave_pRT_grid[i]
-        m_flux_i = m_flux_pRT_grid[i].copy()
+        if m_wave_pRT_grid is not None:
+            m_wave_i = m_wave_pRT_grid[i]
+            m_flux_i = m_flux_pRT_grid[i].copy()
 
-        if m_flux_wo_species_pRT_grid is not None:
-            # Perform the cross-correlation on the residuals
-            #m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
-            m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
+            if m_flux_wo_species_pRT_grid is not None:
+                # Perform the cross-correlation on the residuals
+                #m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
+                m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
 
-        # Function to interpolate the model spectrum
-        m_interp_func = interp1d(
-            m_wave_i, m_flux_i, bounds_error=False, fill_value=np.nan
-            )
+            # Function to interpolate the model spectrum
+            m_interp_func = interp1d(
+                m_wave_i, m_flux_i, bounds_error=False, fill_value=np.nan
+                )
         
         for j in range(d_spec.n_dets):
 
+            if m_wave_pRT_grid is None:
+                m_wave_i = m_spec.wave[i,j]
+                m_flux_i = m_spec.flux[i,j]
+
+                # Function to interpolate the model spectrum
+                m_interp_func = interp1d(
+                    m_wave_i[np.isfinite(m_flux_i)], 
+                    m_flux_i[np.isfinite(m_flux_i)], 
+                    bounds_error=False, fill_value=np.nan
+                    )
+                    
             # Select only the pixels within this order
             mask_ij = d_spec.mask_isfinite[i,j,:]
 
@@ -198,30 +210,26 @@ def CCF(d_spec,
                         m_flux_ij_shifted, sigma=300, mode='reflect'
                         )
 
-                # Compute the cross-correlation coefficient, weighted 
+                # Compute the cross-correlation coefficients, weighted 
                 # by the covariance matrix
-                #CCF[i,j,k] = np.dot(m_flux_ij_shifted, d_flux_ij)
-                #CCF[i,j,k] = np.dot(m_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
-                CCF[i,j,k] = np.dot(
-                    m_flux_ij_shifted, cov_ij.solve(d_flux_ij)
-                    )
-                
-                # Compute the auto-correlation coefficients, weighted 
-                # by the covariance matrix
-                #m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, m_flux_ij_static)
-                #m_ACF[i,j,k] = np.dot(m_flux_ij_shifted, m_flux_ij_static/d_spec.err[i,j,mask_ij]**2)
-                m_ACF[i,j,k] = np.dot(
-                    m_flux_ij_shifted, cov_ij.solve(m_flux_ij_static)
-                    )
-
-                #d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, d_flux_ij)
-                #d_ACF[i,j,k] = np.dot(d_flux_ij_shifted, d_flux_ij/d_spec.err[i,j,mask_ij]**2)
-                d_ACF[i,j,k] = np.dot(
-                    d_flux_ij_shifted, cov_ij.solve(d_flux_ij)
-                    )
+                if Cov is None:
+                    CCF[i,j,k]   = np.nansum(m_flux_ij_shifted*d_flux_ij)# / np.isfinite((m_flux_ij_shifted*d_flux_ij)).sum()
+                    m_ACF[i,j,k] = np.nansum(m_flux_ij_shifted*m_flux_ij_static)# / np.isfinite((m_flux_ij_shifted*m_flux_ij_static)).sum()
+                    d_ACF[i,j,k] = np.nansum(d_flux_ij_shifted*d_flux_ij)# / np.isfinite((d_flux_ij_shifted*d_flux_ij)).sum()
+                else:
+                    CCF[i,j,k] = np.dot(
+                        m_flux_ij_shifted, cov_ij.solve(d_flux_ij)
+                        )
+                    # Auto-correlation coefficients
+                    m_ACF[i,j,k] = np.dot(
+                        m_flux_ij_shifted, cov_ij.solve(m_flux_ij_static)
+                        )
+                    d_ACF[i,j,k] = np.dot(
+                        d_flux_ij_shifted, cov_ij.solve(d_flux_ij)
+                        )
 
             # Scale the correlation coefficients
-            if LogLike is not None:            
+            if LogLike is not None:
                 CCF[i,j,:]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
                 m_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
                 d_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2

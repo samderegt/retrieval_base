@@ -658,56 +658,26 @@ def fig_residual_ACF(d_spec,
                      m_spec, 
                      LogLike, 
                      Cov, 
-                     rv_CCF=np.arange(-500,500+1e-6,1), 
+                     rv=np.arange(-500,500+1e-6,1), 
                      bestfit_color='C1', 
                      prefix=None
                      ):
 
-    rv_CCF, _, res_ACF, _ = \
-        d_spec.cross_correlation(
-            d_wave=d_spec.wave, 
-            d_flux=(d_spec.flux-m_spec.flux*LogLike.f[:,:,None]), 
-            d_err=d_spec.err, 
-            d_mask_isfinite=d_spec.mask_isfinite, 
-            rv_CCF=rv_CCF, 
-            high_pass_filter_method=None, 
-            )
-            
+    import copy
+    # Create a spectrum residual object
+    d_spec_res = copy.deepcopy(d_spec)
+    d_spec_res.flux = (d_spec.flux - m_spec.flux*LogLike.f[:,:,None])
+
+    # Cross-correlate the residuals with itself
+    rv, ACF, _, _ = af.CCF(
+        d_spec=d_spec_res, m_spec=d_spec_res, 
+        m_wave_pRT_grid=None, m_flux_pRT_grid=None, 
+        rv=rv, apply_high_pass_filter=False, 
+        )
+    del d_spec_res
+
     n_orders, n_dets = d_spec.n_orders, d_spec.n_dets
 
-    # Get the wavelength separations of each pixel-pair
-    delta_wave_m_corr = np.ones((n_orders, n_dets, d_spec.n_pixels)) * 10
-    m_corr = np.zeros((n_orders, n_dets, d_spec.n_pixels))
-
-    for i in range(n_orders):
-        for j in range(n_dets):
-
-            mask_ij = d_spec.mask_isfinite[i,j]
-            wave_ij = d_spec.wave[i,j,mask_ij]
-
-            delta_wave_ij = np.abs(wave_ij[None,:] - wave_ij[:,None])
-
-            cov = LogLike.beta[i,j]**2 * Cov[i,j].cov
-            # Get the covariance matrix
-            if Cov[i,j].is_matrix:
-                if Cov[i,j].cholesky_mode == 'sparse':
-                    cov = cov.todense()
-            else:
-                cov = np.diag(cov)
-
-            for k in range(0, mask_ij.sum()):
-
-                diag_k = np.diag(cov, k=k)
-
-                if (diag_k != 0).any():
-                    m_corr[i,j,k] = np.nanmean(diag_k)
-                    
-                    diag_k = np.diag(delta_wave_ij, k=k)
-                    delta_wave_m_corr[i,j,k] = np.nanmean(diag_k)
-
-                else:
-                    break
-    
     fig, ax = plt.subplots(
         figsize=(10,3*n_orders), 
         nrows=n_orders, ncols=n_dets,
@@ -727,57 +697,54 @@ def fig_residual_ACF(d_spec,
             
             mask_ij = d_spec.mask_isfinite[i,j]
             wave_ij = d_spec.wave[i,j,mask_ij]
+            delta_wave_ij = wave_ij[None,:] - wave_ij[:,None]
 
             # Plot the auto-correlation of residuals
-            ax[i,j].plot(rv_CCF, res_ACF[i,j]/res_ACF.max(), lw=0.5, c='k')
-            ax[i,j].plot(rv_CCF, res_ACF[i,j]*0, lw=0.1, c='k')
-            '''
-            ax[i,j].plot(rv_CCF, res_ACF[i,j], lw=0.5, c='k')
-            ax[i,j].plot(
-                0, np.mean((d_spec.flux[i,j,mask_ij]-LogLike.f[i,j]*m_spec.flux[i,j,mask_ij])**2), 
-                'ko-'
-                )
-            ax[i,j].plot(
-                0, np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij] - \
-                            np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij]))
-                            )**2
-                           ), 'bo-'
-                )
-            ax[i,j].plot(
-                0, np.mean((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij] - \
-                            np.median((d_spec.flux[i,j,mask_ij]-m_spec.flux[i,j,mask_ij]))
-                            )**2
-                           ), 'ro-'
-                )
-            '''
+            ax[i,j].plot(rv, ACF[i,j], lw=0.5, c='k')
+            ax[i,j].plot(rv, ACF[i,j]*0, lw=0.1, c='k')
+            ax[i,j].set(xlim=(rv.min(), rv.max()))
 
-            # Plot the average of the covariance diagonals
-            ax_delta_wave = ax[i,j].twiny()
-            ax_delta_wave.plot(
-                delta_wave_m_corr[i,j,:], m_corr[i,j,:]/np.nanmax(m_corr), 
-                c=bestfit_color, lw=0.5, 
-                label='Mean along\n'+r'diagonals of $\Sigma_\mathrm{ij}$ '
+
+            # Get the covariance matrix
+            cov = LogLike.beta[i,j]**2 * Cov[i,j].cov
+            if Cov[i,j].is_matrix:
+                if Cov[i,j].cholesky_mode == 'sparse':
+                    cov = cov.todense()
+            else:
+                cov = np.diag(cov)
+
+            # Take the mean along each diagonal
+            ks = np.arange(0, len(cov), 1)
+            collapsed_cov = np.zeros_like(ks, dtype=float)
+            collapsed_delta_wave = np.zeros_like(ks, dtype=float)
+
+            for l, k in enumerate(ks):
+                collapsed_cov[l] = np.mean(np.diag(cov, k))
+                collapsed_delta_wave[l] = np.mean(np.diag(delta_wave_ij, k))
+
+            collapsed_cov = np.concatenate(
+                (collapsed_cov[::-1][:-1], collapsed_cov)
                 )
-            ax_delta_wave.plot(
-                -delta_wave_m_corr[i,j,:], m_corr[i,j,:]/np.nanmax(m_corr), 
-                c=bestfit_color, lw=0.5
+            collapsed_delta_wave = np.concatenate(
+                (-collapsed_delta_wave[::-1][:-1], collapsed_delta_wave)
                 )
-            ax[i,j].set(xlim=(rv_CCF.min(), rv_CCF.max()))
-            ax_delta_wave.set(
-                xlim=(wave_ij.mean() * rv_CCF.min()/(nc.c*1e-5),
-                      wave_ij.mean() * rv_CCF.max()/(nc.c*1e-5)
-                      )
+
+            collapsed_cov *= mask_ij.sum()
+
+            ax_delta_wave_ij = ax[i,j].twiny()
+            ax_delta_wave_ij.plot(
+                collapsed_delta_wave, collapsed_cov, 
+                c=bestfit_color, lw=1
+                )
+            ax_delta_wave_ij.set(
+                xlim=(wave_ij.mean() * rv.min()/(nc.c*1e-5),
+                      wave_ij.mean() * rv.max()/(nc.c*1e-5))
                 )
 
             if (i == 0) and (j == 1):
-                ax_delta_wave.set(
+                ax_delta_wave_ij.set(
                     xlabel=r'$\Delta\lambda\ \mathrm{(nm)}$', 
                     )
-
-    ax_delta_wave.legend(
-        loc='upper right', fontsize=8, handlelength=0.5, 
-        handletextpad=0.5, framealpha=0.7
-        )
 
     ax[n_orders//2,0].set(ylabel='Auto-correlation')
     ax[-1,1].set(xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$')
