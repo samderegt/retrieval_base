@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_162'
+prefix = 'DENIS_J0255_retrieval_outputs_163'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.8
 
-wave_range = (2300, 2500)
+wave_range = (2300, 2400)
 
 ####################################################################################
 # Model parameters
@@ -51,12 +51,12 @@ wave_range = (2300, 2500)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'a': [(0.05,0.6), r'$a$'], 
-    'ls1': [(0.05,0.8), r'$ls_1$'], 
-    'ls2': [(0.05,1.5), r'$ls_2$'], 
-    'w': [(1,50), r'$w$'], 
-    'loc1': [(2300,2500), r'$\lambda_0$'], 
-    'l': [(5,60), r'$l$'], 
+    'a': [(0.05,0.8), r'$a$'], 
+    #'ls1': [(0.05,0.8), r'$ls_1$'], 
+    #'ls2': [(0.05,1.5), r'$ls_2$'], 
+    #'w': [(1,50), r'$w$'], 
+    #'loc1': [(2300,2500), r'$\lambda_0$'], 
+    #'l': [(5,60), r'$l$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
