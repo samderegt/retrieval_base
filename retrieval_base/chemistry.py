@@ -7,13 +7,13 @@ class Chemistry:
     # Dictionary with info per molecular/atomic species
     # (line_species name, mass, number of (C,O,H) atoms
     species_info = {
-        #'12CO': ('CO_main_iso', 12.011 + 15.999, (1,1,0)), 
-        '12CO': ('CO_high', 12.011 + 15.999, (1,1,0)), 
-        #'H2O': ('H2O_main_iso', 2*1.00784 + 15.999, (0,1,2)), 
-        'H2O': ('H2O_high', 2*1.00784 + 15.999, (0,1,2)), 
+        '12CO': ('CO_main_iso', 12.011 + 15.999, (1,1,0)), 
+        #'12CO': ('CO_high', 12.011 + 15.999, (1,1,0)), 
+        'H2O': ('H2O_main_iso', 2*1.00784 + 15.999, (0,1,2)), 
+        #'H2O': ('H2O_high', 2*1.00784 + 15.999, (0,1,2)), 
         'CH4': ('CH4_hargreaves_main_iso', 12.011 + 4*1.00784, (1,0,4)), 
-        #'13CO': ('CO_36', 13.003355 + 15.999, (1,1,0)), 
-        '13CO': ('CO_36_high', 13.003355 + 15.999, (1,1,0)), 
+        '13CO': ('CO_36', 13.003355 + 15.999, (1,1,0)), 
+        #'13CO': ('CO_36_high', 13.003355 + 15.999, (1,1,0)), 
         'C18O': ('CO_28', 12.011 + 17.9991610, (1,1,0)), 
         'H2O_181': ('H2O_181', 2*1.00784 + 17.9991610, (0,1,2)), 
         'NH3': ('NH3_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
@@ -230,10 +230,10 @@ class EqChemistry(Chemistry):
                                                   ) * pm_mass_fractions['CO']
             elif (species_i == 'CO_36') or (species_i == 'CO_36_high'):
                 # 13CO mass fraction
-                self.mass_fractions['CO_36'] = self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
+                self.mass_fractions[species_i] = self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
             elif species_i == 'CO_28':
                 # C18O mass fraction
-                self.mass_fractions['CO_28'] = self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
+                self.mass_fractions[species_i] = self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
             else:
                 self.mass_fractions[species_i] = pm_mass_fractions[species_i.split('_')[0]]
 

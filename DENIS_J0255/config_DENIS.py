@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_163'
+prefix = 'DENIS_J0255_retrieval_outputs_166'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -56,7 +56,7 @@ free_params = {
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 
     #'loc1': [(2300,2500), r'$\lambda_0$'], 
-    #'l': [(5,60), r'$l$'], 
+    'l': [(5,60), r'$l$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -106,12 +106,12 @@ constant_params = {
 # Number of knots to define PT profile
 ln_L_penalty_order = 3
 
-line_species = [#'H2O_main_iso', 
-                'H2O_high', 
-                #'CO_main_iso', 
-                'CO_high', 
-                #'CO_36', 
-                'CO_36_high', 
+line_species = ['H2O_main_iso', 
+                #'H2O_high', 
+                'CO_main_iso', 
+                #'CO_high', 
+                'CO_36', 
+                #'CO_36_high', 
                 #'CO_28', 
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
