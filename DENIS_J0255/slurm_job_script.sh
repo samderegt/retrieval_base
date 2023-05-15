@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 00:30:00
+#SBATCH -t 04:30:00
 #SBATCH -p thin
-#SBATCH -n 90
+#SBATCH -n 55
 #SBATCH --mem=224G
 
-#SBATCH --job-name=DENIS_retrieval_166
+#SBATCH --job-name=DENIS_retrieval_172
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 

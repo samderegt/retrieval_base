@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_166'
+prefix = 'DENIS_J0255_retrieval_outputs_172'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.8
 
-wave_range = (2300, 2400)
+wave_range = (2050, 2500)
 
 ####################################################################################
 # Model parameters
@@ -51,7 +51,11 @@ wave_range = (2300, 2400)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a': [(0.05,0.8), r'$a$'], 
+    'a_1': [(0.1,0.8), r'$a_1$'], 
+    'a_2': [(0.1,0.8), r'$a_2$'], 
+    'a_3': [(0.1,0.8), r'$a_3$'], 
+    'a_4': [(0.1,0.8), r'$a_4$'], 
+    'a_5': [(0.1,0.8), r'$a_5$'], 
     #'ls1': [(0.05,0.8), r'$ls_1$'], 
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 
@@ -72,9 +76,9 @@ free_params = {
     'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
-    #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
+    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
+    'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
@@ -90,8 +94,8 @@ free_params = {
     'T_3': [(0,4000), r'$T_3$'], 
     'T_4': [(0,4000), r'$T_4$'], 
     'T_5': [(0,4000), r'$T_5$'], 
-    'T_6': [(0,4000), r'$T_6$'], 
-    'T_7': [(0,4000), r'$T_7$'], 
+    'T_6': [(0,2500), r'$T_6$'], 
+    'T_7': [(0,2500), r'$T_7$'], 
 }
 
 # Constants to use if prior is not given
@@ -106,8 +110,8 @@ constant_params = {
 # Number of knots to define PT profile
 ln_L_penalty_order = 3
 
-line_species = ['H2O_main_iso', 
-                #'H2O_high', 
+line_species = [#'H2O_main_iso', 
+                'H2O_high', 
                 'CO_main_iso', 
                 #'CO_high', 
                 'CO_36', 
@@ -115,9 +119,9 @@ line_species = ['H2O_main_iso',
                 #'CO_28', 
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
-                #'NH3_main_iso', 
-                #'CO2_main_iso', 
-                #'HCN_main_iso', 
+                'NH3_main_iso', 
+                'CO2_main_iso', 
+                'HCN_main_iso', 
                 ]
 cloud_species = None
 
