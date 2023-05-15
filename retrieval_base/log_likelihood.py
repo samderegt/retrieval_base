@@ -85,14 +85,14 @@ class LogLikelihood:
 
                     # Scale the model flux to minimize the chi-squared error
                     m_flux_ij_scaled, f_ij = self.get_flux_scaling(d_flux_ij, m_flux_ij, Cov[i,j])
-                    res_ij_scaled = (d_flux_ij - m_flux_ij_scaled)
+                    res_ij = (d_flux_ij - m_flux_ij_scaled)
 
-                    # Chi-squared for the optimal linear scaling
-                    chi_squared_ij_scaled = np.dot(res_ij_scaled, Cov[i,j].solve(res_ij_scaled))
                 else:
-                    # Chi-squared without linear scaling of detectors
+                    # Without linear scaling of detectors
                     f_ij = 1
-                    chi_squared_ij_scaled = np.dot(res_ij, Cov[i,j].solve(res_ij))
+
+                # Chi-squared for the optimal linear scaling
+                chi_squared_ij_scaled = np.dot(res_ij, Cov[i,j].solve(res_ij))
                 
                 if self.scale_err:
                     # Scale the flux uncertainty that maximizes the log-likelihood

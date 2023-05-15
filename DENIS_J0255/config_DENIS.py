@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_172'
+prefix = 'DENIS_J0255_retrieval_outputs_173'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -94,8 +94,8 @@ free_params = {
     'T_3': [(0,4000), r'$T_3$'], 
     'T_4': [(0,4000), r'$T_4$'], 
     'T_5': [(0,4000), r'$T_5$'], 
-    'T_6': [(0,2500), r'$T_6$'], 
-    'T_7': [(0,2500), r'$T_7$'], 
+    'T_6': [(0,4000), r'$T_6$'], 
+    'T_7': [(0,4000), r'$T_7$'], 
 }
 
 # Constants to use if prior is not given

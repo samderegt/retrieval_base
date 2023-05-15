@@ -9,3 +9,4 @@ transm_curves.pk
 species_config.ini
 species_database.hdf5
 DENIS_J0255/*.ipynb
+DENIS_J0255/retrieval_comparison.py

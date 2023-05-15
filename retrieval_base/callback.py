@@ -7,6 +7,7 @@ import numpy as np
 import os
 import time
 import json
+import copy
 import corner
 
 import retrieval_base.auxiliary_functions as af
@@ -114,8 +115,12 @@ class CallBack:
             print(self.LogLike.beta.round(2))
         
         self.bestfit_params = np.array(self.bestfit_params)
-
+        
         if self.evaluation:
+            # Save the bestfit parameters in a .json file
+            # and the ModelSpectrum instance as .pkl
+            self.save_bestfit()
+            
             # Plot the CCFs + spectra of species' contributions
             figs.fig_species_contribution(
                 d_spec=self.d_spec, 
@@ -168,10 +173,6 @@ class CallBack:
         # Make a summary figure
         self.fig_summary()
 
-        # Save the bestfit parameters in a .json file
-        # and the ModelSpectrum instance as .pkl
-        self.save_bestfit()
-
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
 
@@ -180,7 +181,7 @@ class CallBack:
 
     def save_bestfit(self):
         
-        # Save the bestfit parameters
+        # Save the best-fitting parameters
         params_to_save = {}
         for key_i, val_i in self.Param.params.items():
             if isinstance(val_i, np.ndarray):
@@ -198,8 +199,13 @@ class CallBack:
         with open(self.prefix+'data/bestfit.json', 'w') as fp:
             json.dump(dict_to_save, fp, indent=4)
 
-        # Save the bestfit spectrum
+        # Save the best-fitting spectrum
         af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
+
+        # Save the best-fitting log-likelihood
+        LogLike_to_save = copy.deepcopy(self.LogLike)
+        del LogLike_to_save.d_spec
+        af.pickle_save(self.prefix+'data/bestfit_LogLike.pkl', LogLike_to_save)
 
     def fig_abundances_corner(self):
 
