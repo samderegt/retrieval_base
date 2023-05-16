@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_173'
+prefix = 'DENIS_J0255_retrieval_outputs_174'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.8
 
-wave_range = (2050, 2500)
+wave_range = (1900, 2500)
 
 ####################################################################################
 # Model parameters
@@ -56,6 +56,8 @@ free_params = {
     'a_3': [(0.1,0.8), r'$a_3$'], 
     'a_4': [(0.1,0.8), r'$a_4$'], 
     'a_5': [(0.1,0.8), r'$a_5$'], 
+    'a_6': [(0.1,0.8), r'$a_6$'], 
+    'a_7': [(0.1,0.8), r'$a_7$'], 
     #'ls1': [(0.05,0.8), r'$ls_1$'], 
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 

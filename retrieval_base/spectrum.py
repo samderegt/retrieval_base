@@ -553,7 +553,7 @@ class DataSpectrum(Spectrum):
         # Mask the standard star's hydrogen lines
         lines_to_mask = [1945.09, 2166.12]
         for line_i in lines_to_mask:
-            ref_flux[(self.wave.flatten() > line_i-2) & (self.wave.flatten() < line_i+2)] = np.nan
+            ref_flux[(self.wave.flatten() > line_i-3) & (self.wave.flatten() < line_i+3)] = np.nan
         
         # Retrieve and normalize the transmissivity
         self.transm = self.flux / ref_flux
