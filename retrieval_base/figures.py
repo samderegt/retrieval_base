@@ -494,7 +494,10 @@ def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, p
         
         if len(integrated_contr_em_per_order) != 1:        
             # Plot the emission contribution functions per order
-            cmap_per_order = mpl.cm.get_cmap('coolwarm')
+            #cmap_per_order = mpl.cm.get_cmap('coolwarm')
+            cmap_per_order = mpl.colors.LinearSegmentedColormap.from_list(
+                'cmap_per_order', colors=['b', 'r']
+                )
             
             for i in range(len(integrated_contr_em_per_order)):
                 color_i = cmap_per_order(i/(len(integrated_contr_em_per_order)-1))

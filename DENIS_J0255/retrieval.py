@@ -274,8 +274,6 @@ class Retrieval:
             # Negative temperatures are rejected
             return -np.inf
 
-        #temperature[self.PT.pressure<1e-2] = temperature[self.PT.pressure>=1e-2][0]
-
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = self.PT.ln_L_penalty
 
