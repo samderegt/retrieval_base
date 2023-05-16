@@ -120,6 +120,7 @@ class CallBack:
             # Save the bestfit parameters in a .json file
             # and the ModelSpectrum instance as .pkl
             self.save_bestfit()
+            exit()
             
             # Plot the CCFs + spectra of species' contributions
             figs.fig_species_contribution(
@@ -134,7 +135,7 @@ class CallBack:
                 species_to_plot=self.species_to_plot, 
                 prefix=self.prefix
                 )
-                
+
         # Plot the covariance matrices
         all_cov = figs.fig_cov(
             LogLike=self.LogLike, 

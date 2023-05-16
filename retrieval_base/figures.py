@@ -503,7 +503,7 @@ def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, p
                 color_i = cmap_per_order(i/(len(integrated_contr_em_per_order)-1))
                 ax_contr.plot(
                     integrated_contr_em_per_order[i], pressure, 
-                    c=color_i, ls=(0,(5,5)), alpha=0.5, lw=1, 
+                    c=color_i, alpha=0.5, lw=1, 
                     )
 
     ax_contr.plot(
@@ -736,7 +736,8 @@ def fig_residual_ACF(d_spec,
 
             ax_delta_wave_ij = ax[i,j].twiny()
             ax_delta_wave_ij.plot(
-                collapsed_delta_wave, collapsed_cov, 
+                collapsed_delta_wave, 
+                collapsed_cov*np.nanmax(ACF[i,j])/np.nanmax(collapsed_cov), 
                 c=bestfit_color, lw=1
                 )
             ax_delta_wave_ij.set(

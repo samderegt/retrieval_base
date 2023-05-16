@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_174'
+prefix = 'DENIS_J0255_retrieval_outputs_175'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -62,7 +62,7 @@ free_params = {
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 
     #'loc1': [(2300,2500), r'$\lambda_0$'], 
-    'l': [(5,60), r'$l$'], 
+    'l': [(10,40), r'$l$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -79,8 +79,8 @@ free_params = {
     'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
-    'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
+    #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
+    #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
@@ -91,13 +91,11 @@ free_params = {
     'log_gamma': [(-3,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,7000), r'$T_0$'], 
-    'T_1': [(0,4000), r'$T_1$'], 
-    'T_2': [(0,4000), r'$T_2$'], 
-    'T_3': [(0,4000), r'$T_3$'], 
-    'T_4': [(0,4000), r'$T_4$'], 
-    'T_5': [(0,4000), r'$T_5$'], 
-    'T_6': [(0,4000), r'$T_6$'], 
-    'T_7': [(0,4000), r'$T_7$'], 
+    'T_1': [(0,3000), r'$T_1$'], 
+    'T_2': [(0,3000), r'$T_2$'], 
+    'T_3': [(0,3000), r'$T_3$'], 
+    'T_4': [(0,3000), r'$T_4$'], 
+    'T_5': [(0,3000), r'$T_5$'], 
 }
 
 # Constants to use if prior is not given
@@ -106,7 +104,7 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -4, -2, -1, 0, 0.5, 1, 2], 
+    'log_P_knots': [-6, -1.5, 0, 0.5, 1, 2], 
 }
 
 # Number of knots to define PT profile
@@ -122,8 +120,8 @@ line_species = [#'H2O_main_iso',
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
                 'NH3_main_iso', 
-                'CO2_main_iso', 
-                'HCN_main_iso', 
+                #'CO2_main_iso', 
+                #'HCN_main_iso', 
                 ]
 cloud_species = None
 
