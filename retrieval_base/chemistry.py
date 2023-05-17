@@ -190,7 +190,8 @@ class EqChemistry(Chemistry):
         # Layers to be replaced by a constant abundance
         mask_quenched = (self.pressure < self.P_quench)
 
-        for species_i in ['CO', 'CH4', 'CO2', 'HCN']:
+        #for species_i in ['CO', 'CH4', 'CO2', 'HCN']:
+        for species_i in ['CO', 'CH4', 'H2O']:
             mass_fraction_i = pm_mass_fractions[species_i]
             mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
                                                        xp=self.pressure, 
