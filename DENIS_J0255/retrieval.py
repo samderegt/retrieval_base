@@ -281,7 +281,7 @@ class Retrieval:
         if self.Param.chem_mode == 'free':
             mass_fractions = self.Chem(self.Param.VMR_species)
         elif self.Param.chem_mode == 'eqchem':
-            mass_fractions = self.Chem(self.Param.params)
+            mass_fractions = self.Chem(self.Param.params, temperature)
 
         if not isinstance(mass_fractions, dict):
             # Non-H2 abundances added up to > 1

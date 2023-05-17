@@ -68,7 +68,7 @@ class Chemistry:
 
             # Set mass fraction to negligible values
             # TODO: does 0 work?
-            if line_species_i in line_species:
+            if line_species_i in self.line_species:
                 self.mass_fractions[line_species_i] = 0
 
     @classmethod
@@ -200,7 +200,7 @@ class EqChemistry(Chemistry):
 
         return pm_mass_fractions
 
-    def __call__(self, params):
+    def __call__(self, params, temperature):
 
         # Update the parameters
         self.CO = params['C/O']
@@ -213,7 +213,7 @@ class EqChemistry(Chemistry):
         # Retrieve the mass fractions from the chem-eq table
         pm_mass_fractions = pm.interpol_abundances(self.CO*np.ones(self.n_atm_layers), 
                                                    self.FeH*np.ones(self.n_atm_layers), 
-                                                   self.temperature, 
+                                                   temperature, 
                                                    self.pressure
                                                    )
         
@@ -222,20 +222,20 @@ class EqChemistry(Chemistry):
         if self.P_quench is not None:
             pm_mass_fractions = self.quench_carbon_chemistry(pm_mass_fractions)
 
-        for line_species_i in line_species:
-            if (species_i == 'CO_main_iso') or (species_i == 'CO_high'):
+        for line_species_i in self.line_species:
+            if (line_species_i == 'CO_main_iso') or (line_species_i == 'CO_high'):
                 # 12CO mass fraction
-                self.mass_fractions[species_i] = (1 - self.C_ratio * self.mass_ratio_13CO_12CO - \
-                                                  self.O_ratio * self.mass_ratio_C18O_12CO
-                                                  ) * pm_mass_fractions['CO']
-            elif (species_i == 'CO_36') or (species_i == 'CO_36_high'):
+                self.mass_fractions[line_species_i] = \
+                    (1 - self.C_ratio * self.mass_ratio_13CO_12CO - \
+                     self.O_ratio * self.mass_ratio_C18O_12CO) * pm_mass_fractions['CO']
+            elif (line_species_i == 'CO_36') or (line_species_i == 'CO_36_high'):
                 # 13CO mass fraction
-                self.mass_fractions[species_i] = self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
-            elif species_i == 'CO_28':
+                self.mass_fractions[line_species_i] = self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
+            elif line_species_i == 'CO_28':
                 # C18O mass fraction
-                self.mass_fractions[species_i] = self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
+                self.mass_fractions[line_species_i] = self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
             else:
-                self.mass_fractions[species_i] = pm_mass_fractions[species_i.split('_')[0]]
+                self.mass_fractions[line_species_i] = pm_mass_fractions[line_species_i.split('_')[0]]
 
         # Add the H2 and He abundances
         self.mass_fractions['H2'] = pm_mass_fractions['H2']

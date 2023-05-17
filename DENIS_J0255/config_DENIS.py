@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_175'
+prefix = 'DENIS_J0255_retrieval_outputs_177'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -40,9 +40,9 @@ rv_std, vsini_std = 25.5, 5
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.8
+tell_threshold = 0.6
 
-wave_range = (1900, 2500)
+wave_range = (2300, 2400)
 
 ####################################################################################
 # Model parameters
@@ -51,13 +51,14 @@ wave_range = (1900, 2500)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a_1': [(0.1,0.8), r'$a_1$'], 
-    'a_2': [(0.1,0.8), r'$a_2$'], 
-    'a_3': [(0.1,0.8), r'$a_3$'], 
-    'a_4': [(0.1,0.8), r'$a_4$'], 
-    'a_5': [(0.1,0.8), r'$a_5$'], 
-    'a_6': [(0.1,0.8), r'$a_6$'], 
-    'a_7': [(0.1,0.8), r'$a_7$'], 
+    'a': [(0.1,0.8), r'$a$'], 
+    #'a_1': [(0.1,0.8), r'$a_1$'], 
+    #'a_2': [(0.1,0.8), r'$a_2$'], 
+    #'a_3': [(0.1,0.8), r'$a_3$'], 
+    #'a_4': [(0.1,0.8), r'$a_4$'], 
+    #'a_5': [(0.1,0.8), r'$a_5$'], 
+    #'a_6': [(0.1,0.8), r'$a_6$'], 
+    #'a_7': [(0.1,0.8), r'$a_7$'], 
     #'ls1': [(0.05,0.8), r'$ls_1$'], 
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 
@@ -75,10 +76,13 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}^\mathrm{gray}$'], 
     
     # Chemistry
-    'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
-    'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
-    'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    'C/O': [(0.1,1.0), r'C/O'], 
+    'Fe/H': [(-1.5,1.5), r'Fe/H'], 
+    'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
+    #'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
+    #'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
+    #'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
+    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
     #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
     #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
@@ -146,4 +150,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 100
+n_iter_before_update = 50

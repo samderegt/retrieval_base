@@ -120,7 +120,7 @@ class CallBack:
             # Save the bestfit parameters in a .json file
             # and the ModelSpectrum instance as .pkl
             self.save_bestfit()
-            exit()
+            #exit()
             
             # Plot the CCFs + spectra of species' contributions
             figs.fig_species_contribution(

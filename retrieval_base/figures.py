@@ -568,6 +568,13 @@ def fig_VMR(ax_VMR,
 
             # Plot volume-mixing ratio as function of pressure
             ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i)
+            
+            if hasattr(Chem, 'P_quench') and Chem.read_species_info(species_i, info_key='C') > 0:
+
+                P_quench_i   = pressure[pressure < Chem.P_quench][-1]
+                VMR_quench_i = VMR_i[pressure < Chem.P_quench][-1]
+                # Interpolate to find the quenched VMR
+                ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
 
             if Chem.mass_fractions_envelopes is not None:
                 # Plot the VMR envelope as well
