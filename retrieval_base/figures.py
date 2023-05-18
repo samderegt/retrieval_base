@@ -569,7 +569,8 @@ def fig_VMR(ax_VMR,
             # Plot volume-mixing ratio as function of pressure
             ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i)
             
-            if hasattr(Chem, 'P_quench') and Chem.read_species_info(species_i, info_key='C') > 0:
+            #if hasattr(Chem, 'P_quench') and Chem.read_species_info(species_i, info_key='C') > 0:
+            if hasattr(Chem, 'P_quench') and (species_i in ['12CO', 'CH4', 'H2O', '13CO']):
 
                 P_quench_i   = pressure[pressure < Chem.P_quench][-1]
                 VMR_quench_i = VMR_i[pressure < Chem.P_quench][-1]
@@ -581,14 +582,14 @@ def fig_VMR(ax_VMR,
                 cmap_i = mpl.colors.LinearSegmentedColormap.from_list(
                     'cmap_i', colors=['w', color_i]
                     )
-                VMR_envelope_colors_i = cmap_i([0.0,0.2,0.4,0.6,0.8])
+                VMR_envelope_colors_i = cmap_i([0.4,0.6,0.8])
 
                 for j in range(3):
                     ax_VMR.fill_betweenx(
                         y=pressure, 
                         x1=MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][j], 
                         x2=MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][-j-1], 
-                        color=VMR_envelope_colors_i[j+1], ec='none', 
+                        color=VMR_envelope_colors_i[j], ec='none', alpha=0.5
                         )
 
     ax_VMR.legend(
@@ -640,7 +641,7 @@ def fig_hist_posterior(posterior_i,
             if not os.path.exists(prefix+'plots/hists'):
                 os.makedirs(prefix+'plots/hists')
                 
-            fig.savefig(prefix+f'plots/hists/{param_key_i}.pdf')
+            fig.savefig(prefix+f'plots/hists/{param_key_i.replace("/", "_")}.pdf')
             plt.close(fig)
 
         if not param_key_i.startswith('log_'):

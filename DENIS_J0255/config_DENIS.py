@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_177'
+prefix = 'DENIS_J0255_retrieval_outputs_178'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.6
 
-wave_range = (2300, 2400)
+wave_range = (1900, 2500)
 
 ####################################################################################
 # Model parameters
@@ -51,14 +51,13 @@ wave_range = (2300, 2400)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a': [(0.1,0.8), r'$a$'], 
-    #'a_1': [(0.1,0.8), r'$a_1$'], 
-    #'a_2': [(0.1,0.8), r'$a_2$'], 
-    #'a_3': [(0.1,0.8), r'$a_3$'], 
-    #'a_4': [(0.1,0.8), r'$a_4$'], 
-    #'a_5': [(0.1,0.8), r'$a_5$'], 
-    #'a_6': [(0.1,0.8), r'$a_6$'], 
-    #'a_7': [(0.1,0.8), r'$a_7$'], 
+    'a_1': [(0.1,0.8), r'$a_1$'], 
+    'a_2': [(0.1,0.8), r'$a_2$'], 
+    'a_3': [(0.1,0.8), r'$a_3$'], 
+    'a_4': [(0.1,0.8), r'$a_4$'], 
+    'a_5': [(0.1,0.8), r'$a_5$'], 
+    'a_6': [(0.1,0.8), r'$a_6$'], 
+    'a_7': [(0.1,0.8), r'$a_7$'], 
     #'ls1': [(0.05,0.8), r'$ls_1$'], 
     #'ls2': [(0.05,1.5), r'$ls_2$'], 
     #'w': [(1,50), r'$w$'], 
@@ -115,7 +114,7 @@ constant_params = {
 ln_L_penalty_order = 3
 
 line_species = [#'H2O_main_iso', 
-                'H2O_high', 
+                'H2O_pokazatel_main_iso', 
                 'CO_main_iso', 
                 #'CO_high', 
                 'CO_36', 
@@ -150,4 +149,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 50
+n_iter_before_update = 100
