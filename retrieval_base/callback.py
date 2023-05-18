@@ -250,6 +250,9 @@ class CallBack:
             
             if 'log_C_ratio' in self.Param.param_keys:
                 included_params.append('log_C_ratio')
+            
+            if 'log_P_quench' in self.Param.param_keys:
+                included_params.append('log_P_quench')
 
             included_params.extend(['C/O', 'Fe/H'])
 

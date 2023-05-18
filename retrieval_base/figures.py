@@ -5,6 +5,7 @@ import numpy as np
 from scipy.ndimage import generic_filter, gaussian_filter1d
 
 import os
+import copy
 
 import petitRADTRANS.nat_cst as nc
 
@@ -548,6 +549,15 @@ def fig_VMR(ax_VMR,
 
     MMW = Chem.mass_fractions['MMW']
 
+    if hasattr(Chem, 'P_quench'):
+        # Get the un-quenched mass fractions
+        unquenched_Chem = copy.deepcopy(Chem)
+        unquenched_Chem(
+            params={'C/O': Chem.CO, 'Fe/H': Chem.FeH, 'P_quench': None, 
+                    'C_ratio': Chem.C_ratio, 'O_ratio': Chem.O_ratio}, 
+            temperature=Chem.temperature
+            )
+
     for species_i in Chem.species_info.keys():
         
         if species_i not in species_to_plot:
@@ -568,14 +578,25 @@ def fig_VMR(ax_VMR,
 
             # Plot volume-mixing ratio as function of pressure
             ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i)
-            
-            #if hasattr(Chem, 'P_quench') and Chem.read_species_info(species_i, info_key='C') > 0:
-            if hasattr(Chem, 'P_quench') and (species_i in ['12CO', 'CH4', 'H2O', '13CO']):
 
+            if hasattr(Chem, 'P_quench') and (species_i in ['12CO', 'CH4', 'H2O', '13CO']):
+                # Place a marker at the quench pressure
                 P_quench_i   = pressure[pressure < Chem.P_quench][-1]
                 VMR_quench_i = VMR_i[pressure < Chem.P_quench][-1]
+
                 # Interpolate to find the quenched VMR
                 ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
+
+                # Find the un-quenched VMR
+                unquenched_mass_fraction_i = \
+                    unquenched_Chem.mass_fractions[line_species_i]
+                unquenched_VMR_i = unquenched_mass_fraction_i * MMW/mass_i
+
+                # Plot volume-mixing ratio as function of pressure
+                ax_VMR.plot(
+                    unquenched_VMR_i, pressure, c=color_i, 
+                    lw=1, ls='--', alpha=0.8, label=label_i
+                    )
 
             if Chem.mass_fractions_envelopes is not None:
                 # Plot the VMR envelope as well
@@ -674,7 +695,6 @@ def fig_residual_ACF(d_spec,
                      prefix=None
                      ):
 
-    import copy
     # Create a spectrum residual object
     d_spec_res = copy.deepcopy(d_spec)
     d_spec_res.flux = (d_spec.flux - m_spec.flux*LogLike.f[:,:,None])

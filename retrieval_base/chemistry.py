@@ -182,16 +182,13 @@ class EqChemistry(Chemistry):
         self.mass_ratio_H2_18O_H2O = self.read_species_info('H2O_181', 'mass') / \
                                      self.read_species_info('H2O', 'mass')
 
-
     def quench_carbon_chemistry(self, pm_mass_fractions):
-
-        # Own implementation of quenching, using interpolation
 
         # Layers to be replaced by a constant abundance
         mask_quenched = (self.pressure < self.P_quench)
 
-        #for species_i in ['CO', 'CH4', 'CO2', 'HCN']:
         for species_i in ['CO', 'CH4', 'H2O']:
+            # Own implementation of quenching, using interpolation
             mass_fraction_i = pm_mass_fractions[species_i]
             mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
                                                        xp=self.pressure, 
@@ -211,10 +208,12 @@ class EqChemistry(Chemistry):
         self.C_ratio = params['C_ratio']
         self.O_ratio = params['O_ratio']
 
+        self.temperature = temperature
+
         # Retrieve the mass fractions from the chem-eq table
         pm_mass_fractions = pm.interpol_abundances(self.CO*np.ones(self.n_atm_layers), 
                                                    self.FeH*np.ones(self.n_atm_layers), 
-                                                   temperature, 
+                                                   self.temperature, 
                                                    self.pressure
                                                    )
         
