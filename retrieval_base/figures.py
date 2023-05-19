@@ -594,8 +594,7 @@ def fig_VMR(ax_VMR,
 
                 # Plot volume-mixing ratio as function of pressure
                 ax_VMR.plot(
-                    unquenched_VMR_i, pressure, c=color_i, 
-                    lw=1, ls='--', alpha=0.8, label=label_i
+                    unquenched_VMR_i, pressure, c=color_i, lw=1, ls='--', alpha=0.8
                     )
 
             if Chem.mass_fractions_envelopes is not None:

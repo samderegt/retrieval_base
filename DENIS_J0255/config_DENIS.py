@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_178'
+prefix = 'DENIS_J0255_retrieval_outputs_179'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -77,7 +77,7 @@ free_params = {
     # Chemistry
     'C/O': [(0.1,1.0), r'C/O'], 
     'Fe/H': [(-1.5,1.5), r'Fe/H'], 
-    'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
+    #'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
     #'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
     #'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
     #'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
@@ -123,7 +123,7 @@ line_species = [#'H2O_main_iso',
                 #'H2O_181', 
                 'CH4_hargreaves_main_iso', 
                 'NH3_main_iso', 
-                #'CO2_main_iso', 
+                'CO2_main_iso', 
                 #'HCN_main_iso', 
                 ]
 cloud_species = None
