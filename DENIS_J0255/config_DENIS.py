@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_179'
+prefix = 'DENIS_J0255_retrieval_outputs_180'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -75,14 +75,14 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}^\mathrm{gray}$'], 
     
     # Chemistry
-    'C/O': [(0.1,1.0), r'C/O'], 
-    'Fe/H': [(-1.5,1.5), r'Fe/H'], 
+    #'C/O': [(0.1,1.0), r'C/O'], 
+    #'Fe/H': [(-1.5,1.5), r'Fe/H'], 
     #'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
-    #'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
-    #'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
-    #'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
+    'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
+    'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
+    'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
     #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
     'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
@@ -113,19 +113,20 @@ constant_params = {
 # Number of knots to define PT profile
 ln_L_penalty_order = 3
 
-line_species = [#'H2O_main_iso', 
-                'H2O_pokazatel_main_iso', 
-                'CO_main_iso', 
-                #'CO_high', 
-                'CO_36', 
-                #'CO_36_high', 
-                #'CO_28', 
-                #'H2O_181', 
-                'CH4_hargreaves_main_iso', 
-                'NH3_main_iso', 
-                'CO2_main_iso', 
-                #'HCN_main_iso', 
-                ]
+line_species = [
+    'H2O_main_iso', 
+    #'H2O_pokazatel_main_iso', 
+    'CO_main_iso', 
+    #'CO_high', 
+    'CO_36', 
+    #'CO_36_high', 
+    #'CO_28', 
+    #'H2O_181', 
+    'CH4_hargreaves_main_iso', 
+    'NH3_main_iso', 
+    'CO2_main_iso', 
+    #'HCN_main_iso', 
+    ]
 cloud_species = None
 
 scale_flux = True
@@ -149,4 +150,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 100
+n_iter_before_update = 150
