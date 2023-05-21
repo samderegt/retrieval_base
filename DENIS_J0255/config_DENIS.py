@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_183'
+prefix = 'DENIS_J0255_retrieval_outputs_184'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -42,7 +42,7 @@ lbl_opacity_sampling = 3
 
 tell_threshold = 0.6
 
-wave_range = (2300, 2400)
+wave_range = (1900, 2500)
 
 ####################################################################################
 # Model parameters
@@ -51,14 +51,14 @@ wave_range = (2300, 2400)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a': [(0.1,0.8), r'$a$'], 
-    #'a_1': [(0.1,0.8), r'$a_1$'], 
-    #'a_2': [(0.1,0.8), r'$a_2$'], 
-    #'a_3': [(0.1,0.8), r'$a_3$'], 
-    #'a_4': [(0.1,0.8), r'$a_4$'], 
-    #'a_5': [(0.1,0.8), r'$a_5$'], 
-    #'a_6': [(0.1,0.8), r'$a_6$'], 
-    #'a_7': [(0.1,0.8), r'$a_7$'],  
+    #'a': [(0.1,0.8), r'$a$'], 
+    'a_1': [(0.1,0.8), r'$a_1$'], 
+    'a_2': [(0.1,0.8), r'$a_2$'], 
+    'a_3': [(0.1,0.8), r'$a_3$'], 
+    'a_4': [(0.1,0.8), r'$a_4$'], 
+    'a_5': [(0.1,0.8), r'$a_5$'], 
+    'a_6': [(0.1,0.8), r'$a_6$'], 
+    'a_7': [(0.1,0.8), r'$a_7$'],  
     'l': [(10,40), r'$l$'], 
 
     # General properties
@@ -88,7 +88,7 @@ free_params = {
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
-    'log_gamma': [(-3,4), r'$\log\ \gamma$'], 
+    'log_gamma': [(-5,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,7000), r'$T_0$'], 
     'T_1': [(0,3000), r'$T_1$'], 
@@ -98,8 +98,8 @@ free_params = {
     'T_5': [(0,3000), r'$T_5$'], 
 
     'd_log_P_01': [(0.5,2.0), r'$\Delta\log\ P_{01}$'], 
-    'd_log_P_12': [(0.5,1.5), r'$\Delta\log\ P_{12}$'], 
-    'd_log_P_23': [(0.5,1.5), r'$\Delta\log\ P_{23}$'], 
+    'd_log_P_12': [(0.5,2.0), r'$\Delta\log\ P_{12}$'], 
+    'd_log_P_23': [(0.5,2.0), r'$\Delta\log\ P_{23}$'], 
     'd_log_P_34': [(0.5,2.0), r'$\Delta\log\ P_{34}$'], 
 }
 
@@ -126,7 +126,7 @@ line_species = [
     #'H2O_181', 
     'CH4_hargreaves_main_iso', 
     'NH3_main_iso', 
-    #'CO2_main_iso', 
+    'CO2_main_iso', 
     #'HCN_main_iso', 
     ]
 cloud_species = None
