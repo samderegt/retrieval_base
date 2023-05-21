@@ -203,11 +203,25 @@ class Parameters:
              for i in range(self.n_T_knots)]
             )[::-1]
 
+        # Fill the pressure knots
+        self.params['P_knots'] = 10**np.array(self.params['log_P_knots'])[[0,-1]]
+        for i in range(self.n_T_knots-1):
+            
+            if f'd_log_P_{i}{i+1}' in self.param_keys:
+                # Add the difference in log P to the previous knot
+                log_P_i = np.log10(self.params['P_knots'][1]) - \
+                    self.params[f'd_log_P_{i}{i+1}']
+            else:
+                # Use the stationary knot
+                log_P_i = self.params['log_P_knots'][-i-2]
+
+            # Insert each pressure knot into the array
+            self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
+
+        self.params['log_P_knots'] = np.log10(self.params['P_knots'])
+
         # Convert from logarithmic to linear scale
-        self.params = self.log_to_linear(self.params, 
-            ['log_gamma', 'log_P_knots'], 
-            ['gamma', 'P_knots']
-            )
+        self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
 
         return cube
 
@@ -279,7 +293,7 @@ class Parameters:
                 elif species_i == 'H2O_181' and ('log_O_ratio' in self.param_keys):
                     self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_H2O']
         
-    def read_cloud_params(self):
+    def read_cloud_params(self, pressure=None, temperature=None):
 
         if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
             # Return the eq.-chem. mass fraction of MgSiO3

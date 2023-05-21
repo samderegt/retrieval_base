@@ -223,11 +223,9 @@ class Spectrum:
             flux = self.flux
 
         # Evenly space the wavelength grid
-        wave_even = np.linspace(wave.min(), wave.max(), 
-                                self.n_data_points
-                                )
+        wave_even = np.linspace(wave.min(), wave.max(), wave.size)
         flux_even = np.interp(wave_even, xp=wave, fp=flux)
-
+        
         # Rotational broadening of the model spectrum
         flux_rot_broad = pyasl.fastRotBroad(wave_even, flux_even, 
                                             epsilon=epsilon_limb, 
