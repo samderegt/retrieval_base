@@ -457,6 +457,12 @@ def fig_PT(PT,
             loc='upper right', handlelength=0.5, 
             handletextpad=0.5, framealpha=0.7
             )
+
+    try:
+        SONORA_temperature = np.loadtxt(prefix+'data/SONORA_temperature.dat')
+        ax_PT.plot(SONORA_temperature, PT.pressure, c='k', lw=1)
+    except:
+        pass
         
     ax_PT.set(
         xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 

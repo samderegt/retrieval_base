@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.interpolate import interp1d, splrep, splev
+from scipy.interpolate import interp1d, splrep, splev, RegularGridInterpolator#, LinearNDInterpolator
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
@@ -10,6 +10,114 @@ class PT_profile:
         self.pressure = pressure
         self.ln_L_penalty = 0
 
+class PT_profile_SONORA(PT_profile):
+
+    def __init__(self, pressure, path_to_SONORA_PT='./data/SONORA_PT_structures'):
+
+        # Give arguments to the parent class
+        super().__init__(pressure)
+
+        import glob, os
+        all_paths = glob.glob(os.path.join(path_to_SONORA_PT, '*/t*.dat'))
+        all_paths = np.sort(all_paths)
+
+        # T_eff, log_g, C/O, Fe/H
+        self.T_eff_grid = np.nan * np.ones(all_paths.shape)
+        self.log_g_grid = np.nan * np.ones(all_paths.shape)
+        self.CO_grid = np.nan * np.ones(all_paths.shape)
+        self.FeH_grid = np.nan * np.ones(all_paths.shape)
+
+        for i, path_i in enumerate(all_paths):
+            # Read from the file headers
+            T_eff_i, g_i, FeH_i, CO_i = \
+                np.loadtxt(path_i, max_rows=1, usecols=(0,1,5,6))
+            T_eff_i = np.around(T_eff_i, -1)
+
+            # Convert to cgs and take log10
+            log_g_i = np.log10(g_i*1e2)
+            log_g_i = np.around(log_g_i, 2)
+            
+            # Convert from Solar to actual C/O
+            CO_i = CO_i*0.6
+
+            self.T_eff_grid[i] = T_eff_i
+            self.log_g_grid[i] = log_g_i
+            self.CO_grid[i]    = CO_i
+            self.FeH_grid[i]   = FeH_i
+
+        # Get only one of each entry
+        self.T_eff_grid = np.sort(np.unique(self.T_eff_grid))
+        self.log_g_grid = np.sort(np.unique(self.log_g_grid))
+        self.CO_grid    = np.sort(np.unique(self.CO_grid))
+        self.FeH_grid   = np.sort(np.unique(self.FeH_grid))
+
+        self.temperature_grid = np.nan * np.ones(
+            (len(self.T_eff_grid), len(self.log_g_grid), 
+             len(self.CO_grid), len(self.FeH_grid), 50)
+            )
+        
+        for i, path_i in enumerate(all_paths):
+            # Read from the file headers
+            T_eff_i, g_i, FeH_i, CO_i = \
+                np.loadtxt(path_i, max_rows=1, usecols=(0,1,5,6))
+            T_eff_i = np.around(T_eff_i, -1)
+
+            # Convert to cgs and take log10
+            log_g_i = np.log10(g_i*1e2)
+            log_g_i = np.around(log_g_i, 2)
+            
+            # Convert from Solar to actual C/O
+            CO_i = CO_i*0.6
+
+            mask_T_eff = (self.T_eff_grid == T_eff_i)
+            mask_log_g = (self.log_g_grid == log_g_i)
+            mask_CO    = (self.CO_grid == CO_i)
+            mask_FeH   = (self.FeH_grid == FeH_i)
+
+            # Load the PT profile
+            pressure_i, temperature_i = np.genfromtxt(
+                path_i, skip_header=1, usecols=(1,2), delimiter=(3,12,10)
+                ).T
+
+            self.temperature_grid[mask_T_eff,mask_log_g,mask_CO,mask_FeH,:] = interp1d(
+                pressure_i, temperature_i, kind='cubic', fill_value='extrapolate'
+                )(self.pressure)
+
+        # Set-up an function to conduct 4D-interpolation
+        points = ()
+        if len(self.T_eff_grid) > 1:
+            points += (self.T_eff_grid, )
+        if len(self.log_g_grid) > 1:
+            points += (self.log_g_grid, )
+        if len(self.CO_grid) > 1:
+            points += (self.CO_grid, )
+        if len(self.FeH_grid) > 1:
+            points += (self.FeH_grid, )
+
+        self.temperature_grid = np.squeeze(self.temperature_grid)
+
+        self.interp_func = RegularGridInterpolator(
+        #self.interp_func = LinearNDInterpolator(
+            points=points, values=self.temperature_grid
+            )
+        
+    def __call__(self, params):
+
+        # Interpolate the 4D grid onto the requested point
+        point = ()
+        if len(self.T_eff_grid) > 1:
+            point += (params['T_eff'], )
+        if len(self.log_g_grid) > 1:
+            point += (params['log_g'], )
+        if len(self.CO_grid) > 1:
+            point += (params['C/O'], )
+        if len(self.FeH_grid) > 1:
+            point += (params['Fe/H'], )
+
+        self.temperature = self.interp_func(point)
+
+        return self.temperature
+    
 class PT_profile_free(PT_profile):
 
     def __init__(self, pressure, ln_L_penalty_order=3):

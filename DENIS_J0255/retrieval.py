@@ -22,7 +22,7 @@ from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
 from retrieval_base.parameters import Parameters
 from retrieval_base.pRT_model import pRT_model
 from retrieval_base.log_likelihood import LogLikelihood
-from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere
+from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA
 from retrieval_base.chemistry import FreeChemistry, EqChemistry
 from retrieval_base.callback import CallBack
 from retrieval_base.covariance import Covariance, GaussianProcesses
@@ -186,6 +186,7 @@ class Retrieval:
             scale_err=conf.scale_err, 
             )
 
+
         if self.Param.PT_mode == 'Molliere':
             self.PT = PT_profile_Molliere(
                 self.pRT_atm.pressure, 
@@ -195,6 +196,10 @@ class Retrieval:
             self.PT = PT_profile_free(
                 self.pRT_atm.pressure, 
                 ln_L_penalty_order=conf.ln_L_penalty_order
+                )
+        elif self.Param.PT_mode == 'grid':
+            self.PT = PT_profile_SONORA(
+                self.pRT_atm.pressure, 
                 )
 
         if self.Param.chem_mode == 'free':
@@ -276,6 +281,8 @@ class Retrieval:
 
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = self.PT.ln_L_penalty
+
+        #temperature[self.PT.pressure<=1e-2] = temperature[self.PT.pressure<=1e-2][-1]
 
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
@@ -651,6 +658,64 @@ class Retrieval:
             n_iter_before_update=conf.n_iter_before_update, 
             )
 
+    def synthetic_spectrum(self):
+        
+        # Update the parameters        
+        synthetic_params = np.array([
+                0.8, # R_p
+                5.5, # log g
+                0.6, # epsilon_limb
+
+                0.6, # C/O
+                0.0, # [Fe/H]
+                1.5, # log_P_quench
+                -2.0, # log_C_ratio
+
+                40.0, # vsini
+                22.5, # rv
+
+                1300, # T_eff
+        ])
+
+        # Evaluate the model with best-fitting parameters
+        for i, key_i in enumerate(self.Param.param_keys):
+            # Update the Parameters instance
+            self.Param.params[key_i] = synthetic_params[i]
+
+        # Update the parameters
+        self.Param.read_PT_params(cube=None)
+        self.Param.read_uncertainty_params()
+        self.Param.read_chemistry_params()
+        self.Param.read_cloud_params()
+
+        # Create the synthetic spectrum
+        self.PMN_lnL_func(cube=None, ndim=None, nparams=None)
+
+        # Save the PT profile
+        np.savetxt(conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
+        
+        # Insert the NaNs from the observed spectrum
+        self.m_spec.flux[~self.d_spec.mask_isfinite] = np.nan
+
+        # Add noise to the synthetic spectrum
+        self.m_spec.flux = np.random.normal(self.m_spec.flux, self.d_spec.err)
+
+        # Replace the observed spectrum with the synthetic spectrum
+        self.d_spec.flux = self.m_spec.flux.copy()
+
+        # Plot the pre-processed spectrum
+        figs.fig_spec_to_fit(self.d_spec, prefix=conf.prefix)
+
+        # Save the synthetic spectrum
+        np.save(conf.prefix+'data/d_spec_wave.npy', self.d_spec.wave)
+        np.save(conf.prefix+'data/d_spec_flux.npy', self.d_spec.flux)
+        np.save(conf.prefix+'data/d_spec_err.npy', self.d_spec.err)
+        np.save(conf.prefix+'data/d_spec_transm.npy', self.d_spec.transm)
+
+        # Save as pickle
+        af.pickle_save(conf.prefix+'data/d_spec.pkl', self.d_spec)
+        
+
 if __name__ == '__main__':
 
     # Instantiate the parser
@@ -658,6 +723,7 @@ if __name__ == '__main__':
     parser.add_argument('--pre_processing', action='store_true')
     parser.add_argument('--retrieval', action='store_true')
     parser.add_argument('--evaluation', action='store_true')
+    parser.add_argument('--synthetic', action='store_true')
     #parser.add_argument('--spec_posterior', action='store_true')
     args = parser.parse_args()
 
@@ -672,3 +738,7 @@ if __name__ == '__main__':
     if args.evaluation:
         ret = Retrieval()
         ret.PMN_run()
+
+    if args.synthetic:
+        ret = Retrieval()
+        ret.synthetic_spectrum()

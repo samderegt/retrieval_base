@@ -25,6 +25,7 @@ source $HOME/retrieval_venv/bin/activate
 # Export environment variables
 export LD_LIBRARY_PATH=$HOME/retrieval_venv/MultiNest/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$HOME/retrieval_venv/SuiteSparse/lib:$LD_LIBRARY_PATH
+
 export pRT_input_data_path=$HOME/retrieval_venv/pRT_input_data
 
 echo "Number of tasks $SLURM_NTASKS"

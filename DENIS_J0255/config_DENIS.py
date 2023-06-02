@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_184'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -50,57 +50,34 @@ wave_range = (1900, 2500)
 
 # Define the priors of the parameters
 free_params = {
-    # Uncertainty scaling
-    #'a': [(0.1,0.8), r'$a$'], 
-    'a_1': [(0.1,0.8), r'$a_1$'], 
-    'a_2': [(0.1,0.8), r'$a_2$'], 
-    'a_3': [(0.1,0.8), r'$a_3$'], 
-    'a_4': [(0.1,0.8), r'$a_4$'], 
-    'a_5': [(0.1,0.8), r'$a_5$'], 
-    'a_6': [(0.1,0.8), r'$a_6$'], 
-    'a_7': [(0.1,0.8), r'$a_7$'],  
-    'l': [(10,40), r'$l$'], 
-
     # General properties
-    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.4,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
-    # Cloud properties
-    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_\mathrm{base}^\mathrm{gray}$'], 
-    'log_P_base_gray': [(-2,2), r'$\log\ P_\mathrm{base}^\mathrm{gray}$'], 
-    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}^\mathrm{gray}$'], 
-    
     # Chemistry
     'C/O': [(0.1,1.0), r'C/O'], 
     'Fe/H': [(-1.5,1.5), r'Fe/H'], 
     'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
-    #'log_12CO': [(-12,0), r'$\log\ \mathrm{^{12}CO}$'], 
-    #'log_H2O': [(-12,0), r'$\log\ \mathrm{H_{2}O}$'], 
-    #'log_CH4': [(-12,0), r'$\log\ \mathrm{CH_{4}}$'], 
-    #'log_NH3': [(-12,0), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_CO2': [(-12,0), r'$\log\ \mathrm{CO_{2}}$'], 
-    #'log_HCN': [(-12,0), r'$\log\ \mathrm{HCN}$'], 
-    'log_C_ratio': [(-12,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
+    'log_C_ratio': [(-8,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
-    'log_gamma': [(-5,4), r'$\log\ \gamma$'], 
+    'T_eff': [(1000,2000), r'$T_\mathrm{eff}$'], 
+    'log_gamma': [(-4,3), r'$\log\ \gamma$'], 
 
     'T_0': [(0,7000), r'$T_0$'], 
     'T_1': [(0,3000), r'$T_1$'], 
     'T_2': [(0,3000), r'$T_2$'], 
     'T_3': [(0,3000), r'$T_3$'], 
     'T_4': [(0,3000), r'$T_4$'], 
-    'T_5': [(0,3000), r'$T_5$'], 
 
-    'd_log_P_01': [(0.5,2.0), r'$\Delta\log\ P_{01}$'], 
-    'd_log_P_12': [(0.5,2.0), r'$\Delta\log\ P_{12}$'], 
-    'd_log_P_23': [(0.5,2.0), r'$\Delta\log\ P_{23}$'], 
-    'd_log_P_34': [(0.5,2.0), r'$\Delta\log\ P_{34}$'], 
+    'd_log_P_01': [(0.5,1.5), r'$\Delta\log\ P_{01}$'], 
+    'd_log_P_12': [(0.5,1.5), r'$\Delta\log\ P_{12}$'], 
+    'd_log_P_23': [(0.5,1.5), r'$\Delta\log\ P_{23}$'], 
 }
 
 # Constants to use if prior is not given
@@ -126,7 +103,7 @@ line_species = [
     #'H2O_181', 
     'CH4_hargreaves_main_iso', 
     'NH3_main_iso', 
-    'CO2_main_iso', 
+    #'CO2_main_iso', 
     #'HCN_main_iso', 
     ]
 cloud_species = None
@@ -151,5 +128,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
-n_iter_before_update = 200
+n_live_points = 50
+n_iter_before_update = 5

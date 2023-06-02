@@ -81,6 +81,9 @@ class Parameters:
         'alpha': 1.0, 
         'T_int': 1800, 
 
+        # PT profile (SONORA grid)
+        'T_eff': 1300, 
+
     }
 
     def __init__(self, free_params, constant_params, n_orders=7, n_dets=3):
@@ -100,21 +103,26 @@ class Parameters:
                 self.n_T_knots = i-1
                 break
 
-        #self.constant_params = constant_params
         # Create dictionary with constant parameter-values
         self.params = self.all_params.copy()
         self.params.update(constant_params)
 
+
         # Check if Molliere et al. (2020) PT-profile is used
         Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
-        if all([(param_i in self.param_keys) for param_i in Molliere_param_keys]):
+        PT_grid_param_keys = ['C/O', 'Fe/H', 'log_g', 'T_eff']
+
+        if np.isin(Molliere_param_keys, self.param_keys).all():
             self.PT_mode = 'Molliere'
+        elif np.isin(PT_grid_param_keys, self.param_keys).all():
+            self.PT_mode = 'grid'
         else:
             self.PT_mode = 'free'
 
         # Check if equilibrium- or free-chemistry is used
         eqchem_param_keys = ['C/O', 'Fe/H']
-        if all([(param_i in self.param_keys) for param_i in eqchem_param_keys]):
+       
+        if np.isin(eqchem_param_keys, self.param_keys).all():
             self.chem_mode = 'eqchem'
         else:
             self.chem_mode = 'free'
@@ -123,9 +131,10 @@ class Parameters:
         self.cloud_mode = None
         MgSiO3_param_keys = ['log_X_MgSiO3', 'f_sed', 'log_K_zz', 'sigma_g']
         gray_cloud_param_keys = ['log_opa_base_gray', 'log_P_base_gray', 'f_sed_gray']
-        if all([(param_i in self.param_keys) for param_i in MgSiO3_param_keys]):
+        
+        if np.isin(MgSiO3_param_keys, self.param_keys).all():
             self.cloud_mode = 'MgSiO3'
-        elif all([(param_i in self.param_keys) for param_i in gray_cloud_param_keys]):
+        elif np.isin(gray_cloud_param_keys, self.param_keys).all():
             self.cloud_mode = 'gray'
 
         self.n_orders = n_orders
@@ -172,6 +181,9 @@ class Parameters:
             return
     
     def read_PT_params(self, cube=None):
+
+        if self.PT_mode == 'grid':
+            return cube
 
         if (self.PT_mode == 'Molliere') and (cube is not None):
 
