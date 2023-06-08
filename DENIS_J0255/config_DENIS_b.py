@@ -98,7 +98,7 @@ line_species = [
     #'CO_28', 
     #'H2O_181', 
     'CH4_hargreaves_main_iso', 
-    'NH3_main_iso', 
+    'NH3_coles_main_iso', 
     #'CO2_main_iso', 
     #'HCN_main_iso', 
     ]
