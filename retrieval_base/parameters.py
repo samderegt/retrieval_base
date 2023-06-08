@@ -74,7 +74,7 @@ class Parameters:
         'T_3': 1500, 
         'T_3': 1400, 
         # etc.
-        'log_P_knots': np.array([-6,-2,0,1,2]), 
+        'log_P_knots': np.array([-6,-2,0,1,2], dtype=np.float64), 
 
         # PT profile (Molliere et al. 2020)
         'log_P_phot': 0.0, 
@@ -216,7 +216,9 @@ class Parameters:
             )[::-1]
 
         # Fill the pressure knots
-        self.params['P_knots'] = 10**np.array(self.params['log_P_knots'])[[0,-1]]
+        self.params['P_knots'] = 10**np.array(
+            self.params['log_P_knots'], dtype=np.float64
+            )[[0,-1]]
         for i in range(self.n_T_knots-1):
             
             if f'd_log_P_{i}{i+1}' in self.param_keys:

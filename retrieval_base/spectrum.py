@@ -345,9 +345,11 @@ class DataSpectrum(Spectrum):
         # Convert from [photons] to [erg nm^-1]
         flux /= wave
         #flux /= wave_bins
+        #flux /= wave
 
         err /= wave
         #err /= wave_bins
+        #err /= wave
 
         return wave, flux, err
 
@@ -500,9 +502,14 @@ class DataSpectrum(Spectrum):
 
         elif mode == 'PHOENIX':
 
+            T_to_use = T
+            if T > 12000:
+                T_to_use = 12000
+
             # Download or read a PHOENIX model spectrum
             ref_wave, ref_flux = af.get_PHOENIX_model(
-                T, log_g, FeH=0, wave_range=(self.wave.min()-100,self.wave.max()+100)
+                T_to_use, log_g, FeH=0, 
+                wave_range=(self.wave.min()-100,self.wave.max()+100)
                 )
 
             # Apply RV + barycentric shifts
@@ -522,31 +529,8 @@ class DataSpectrum(Spectrum):
             ref_flux = np.interp(self.wave.flatten(), ref_wave, ref_flux)
 
             # Change the slope with a blackbody spectrum of a different temperature
-            ref_flux *= (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T)) - 1)/(np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*14700)) - 1)
-
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(nrows=3, sharex=True)
-        ax[0].plot(self.wave, ref_flux)
-        ax[1].plot(self.wave, self.flux)
-        ax[2].plot(self.wave, self.flux/ref_flux)
-        for ax_i in ax:
-            #ax_i.axvline(1945.09, color='C1', linestyle='--', alpha=0.5)
-            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5)), color='C1', linestyle='--')
-            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5))-1, color='C1', linewidth=1, alpha=0.5)
-            ax_i.axvline(1945.09*(1+(ref_rv-v_bary)/(nc.c*1e-5))+1, color='C1', linewidth=1, alpha=0.5)
-            
-            #ax_i.axvline(2166.12, color='C1', linestyle='--', alpha=0.5)
-            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5)), color='C1', linestyle='--')
-            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))-1, color='C1', linewidth=1, alpha=0.5)
-            ax_i.axvline(2166.12*(1+(ref_rv-v_bary)/(nc.c*1e-5))+1, color='C1', linewidth=1, alpha=0.5)
-
-        #plt.show()
-        plt.close()
-
-        #plt.plot(self.wave, ref_flux/(2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
-        #                              1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1))
-        #         )
-        #plt.show()
+            ref_flux *= (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T_to_use)) - 1) / \
+                (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T)) - 1)
 
         # Mask the standard star's hydrogen lines
         lines_to_mask = [1945.09, 2166.12]
@@ -572,17 +556,32 @@ class DataSpectrum(Spectrum):
     def flux_calib_2MASS(self, photom_2MASS, filter_2MASS, tell_threshold=0.2, replace_flux_err=True, prefix=None, file_skycalc_transm=None):
 
         # Retrieve an approximate telluric transmission spectrum
-        wave_skycalc, transm_skycalc = self.get_skycalc_transm(file_skycalc_transm=file_skycalc_transm)
+        wave_skycalc, transm_skycalc = self.get_skycalc_transm(
+            file_skycalc_transm=file_skycalc_transm
+            )
+
         # Interpolate onto the data wavelength grid
         transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
-        # Linear fit to the continuum, where telluric absorption is minimal
-        mask_high_transm = (transm_skycalc > 0.98)
-        p = np.polyfit(self.wave[mask_high_transm & self.mask_isfinite].flatten(), 
-                       self.transm[mask_high_transm & self.mask_isfinite].flatten(), 
-                       deg=1
-                       )
-        poly_model = np.poly1d(p)(self.wave)
+        mask_high_transm = (transm_skycalc > 0.99)
+
+        poly_model = np.nan * np.ones_like(self.wave)
+        for j in range(self.n_dets):
+
+            # Select the spectrum within this order
+            mask_det = np.zeros_like(self.wave, dtype=bool)
+
+            for i in range(self.n_orders):
+                wave_min, wave_max = self.order_wlen_ranges[i,j]
+                mask_det[(self.wave.flatten() >= wave_min-0.5) & \
+                    (self.wave.flatten() <= wave_max+0.5)] = True
+
+            # Linear fit to the continuum, where telluric absorption is minimal
+            p = np.polyfit(
+                self.wave[mask_det & mask_high_transm & self.mask_isfinite].flatten(), 
+                self.transm[mask_det & mask_high_transm & self.mask_isfinite].flatten(), deg=1
+                )
+            poly_model[mask_det] = np.poly1d(p)(self.wave[mask_det])
 
         # Apply correction for telluric transmission
         tell_corr_flux = self.flux / self.transm
@@ -636,8 +635,10 @@ class DataSpectrum(Spectrum):
             )
 
         self.transm /= poly_model
-        self.transm /= np.nanmax(self.transm)
+        #self.transm /= np.nanmax(self.transm)
 
+        #calib_flux = (self.flux/poly_model)*calib_factor
+        
         if replace_flux_err:
             self.flux = calib_flux
             self.err  = calib_err

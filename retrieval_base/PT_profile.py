@@ -55,6 +55,11 @@ class PT_profile_SONORA(PT_profile):
             (len(self.T_eff_grid), len(self.log_g_grid), 
              len(self.CO_grid), len(self.FeH_grid), 50)
             )
+
+        self.rad_conv_boundary_grid = np.nan() * np.ones(
+            (len(self.T_eff_grid), len(self.log_g_grid), 
+             len(self.CO_grid), len(self.FeH_grid))
+            )
         
         for i, path_i in enumerate(all_paths):
             # Read from the file headers
@@ -75,9 +80,13 @@ class PT_profile_SONORA(PT_profile):
             mask_FeH   = (self.FeH_grid == FeH_i)
 
             # Load the PT profile
-            pressure_i, temperature_i = np.genfromtxt(
-                path_i, skip_header=1, usecols=(1,2), delimiter=(3,12,10)
+            pressure_i, temperature_i, ad_gradient_i, rad_gradient_i = np.genfromtxt(
+                path_i, skip_header=1, usecols=(1,2,4,5), delimiter=(3,12,10,11,8,8)
                 ).T
+
+            # Schwarzschild criterion
+            self.rad_conv_boundary_grid[mask_T_eff,mask_log_g,mask_CO,mask_FeH] = \
+                pressure_i[(ad_gradient_i < rad_gradient_i)].min()
 
             self.temperature_grid[mask_T_eff,mask_log_g,mask_CO,mask_FeH,:] = interp1d(
                 pressure_i, temperature_i, kind='cubic', fill_value='extrapolate'
@@ -95,10 +104,14 @@ class PT_profile_SONORA(PT_profile):
             points += (self.FeH_grid, )
 
         self.temperature_grid = np.squeeze(self.temperature_grid)
+        self.rad_conv_boundary_grid = np.squeeze(self.rad_conv_boundary_grid)
 
-        self.interp_func = RegularGridInterpolator(
-        #self.interp_func = LinearNDInterpolator(
+        self.temperature_interp_func = RegularGridInterpolator(
             points=points, values=self.temperature_grid
+            )
+        
+        self.rad_conv_boundary_interp_func = RegularGridInterpolator(
+            points=points, values=self.rad_conv_boundary_grid
             )
         
     def __call__(self, params):
@@ -114,7 +127,8 @@ class PT_profile_SONORA(PT_profile):
         if len(self.FeH_grid) > 1:
             point += (params['Fe/H'], )
 
-        self.temperature = self.interp_func(point)
+        self.temperature = self.temperature_interp_func(point)
+        self.RCB = self.rad_conv_boundary_interp_func(point)
 
         return self.temperature
     
@@ -161,6 +175,12 @@ class PT_profile_free(PT_profile):
         self.temperature = 10**splev(np.log10(self.pressure), 
                                      (self.knots, self.coeffs, deg), 
                                      der=0)
+        '''
+        self.knots, self.coeffs, deg = splrep(np.log10(self.P_knots), self.T_knots)
+        self.temperature = splev(
+            np.log10(self.pressure), (self.knots, self.coeffs, deg), der=0
+            )
+        '''
 
     def get_ln_L_penalty(self):
 

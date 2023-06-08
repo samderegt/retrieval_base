@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 06:00:00
+#SBATCH -t 04:30:00
 #SBATCH -p thin
-#SBATCH -n 50
+#SBATCH -n 65
 #SBATCH --mem=224G
 
-#SBATCH --job-name=DENIS_retrieval_synthetic_1
+#SBATCH --job-name=DENIS_retrieval_synthetic_13
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -40,8 +40,12 @@ sed -i 's/import config_DENIS_a as conf/import config_DENIS_b as conf/g' retriev
 
 # Run the retrieval
 mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
+
+sed -i 's/import config_DENIS_b as conf/import config_DENIS_a as conf/g' retrieval.py
 python retrieval.py --evaluation
 
+sed -i 's/import config_DENIS_a as conf/import config_DENIS_b as conf/g' retrieval.py
+python retrieval.py --evaluation
 sed -i 's/import config_DENIS_b as conf/import config_DENIS as conf/g' retrieval.py
 
 echo "Done"

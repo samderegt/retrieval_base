@@ -31,9 +31,6 @@ import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
 import config_DENIS as conf
-#import config_DENIS_144 as conf
-#import config_DENIS_145 as conf
-#import config_DENIS_146 as conf
 
 def pre_processing():
 
@@ -273,6 +270,7 @@ class Retrieval:
             temperature = self.PT(self.Param.params)
         except:
             # Something went wrong with interpolating
+            #temperature = self.PT(self.Param.params)
             return -np.inf
 
         if temperature.min() < 0:
@@ -663,18 +661,19 @@ class Retrieval:
         # Update the parameters        
         synthetic_params = np.array([
                 0.8, # R_p
-                5.5, # log g
+                5.5, # log_g
                 0.6, # epsilon_limb
 
-                0.6, # C/O
-                0.0, # [Fe/H]
-                1.5, # log_P_quench
+                -3.3, # log_12CO
+                -3.6, # log_H2O
+                -6.2, # log_CH4
+                -6.3, # log_NH3
                 -2.0, # log_C_ratio
 
                 40.0, # vsini
                 22.5, # rv
 
-                1300, # T_eff
+                2000, # T_eff
         ])
 
         # Evaluate the model with best-fitting parameters
@@ -693,6 +692,7 @@ class Retrieval:
 
         # Save the PT profile
         np.savetxt(conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
+        np.savetxt(conf.prefix+'data/SONORA_RCB.dat', self.PT.RCB)
         
         # Insert the NaNs from the observed spectrum
         self.m_spec.flux[~self.d_spec.mask_isfinite] = np.nan

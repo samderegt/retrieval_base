@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_1'
+prefix = 'DENIS_J0255_retrieval_outputs_187'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -35,7 +35,7 @@ mjd_std = 59886.13828925
 #T_std = 14700
 T_std = 12000
 log_g_std = 3.5
-rv_std, vsini_std = 25.5, 5
+rv_std, vsini_std = 25.5, 10
 
 slit = 'w_0.2'
 lbl_opacity_sampling = 3
@@ -74,10 +74,11 @@ free_params = {
     'T_2': [(0,3000), r'$T_2$'], 
     'T_3': [(0,3000), r'$T_3$'], 
     'T_4': [(0,3000), r'$T_4$'], 
+    'T_5': [(0,3000), r'$T_4$'], 
 
-    'd_log_P_01': [(0.5,1.5), r'$\Delta\log\ P_{01}$'], 
-    'd_log_P_12': [(0.5,1.5), r'$\Delta\log\ P_{12}$'], 
-    'd_log_P_23': [(0.5,1.5), r'$\Delta\log\ P_{23}$'], 
+    #'d_log_P_01': [(0.5,1.5), r'$\Delta\log\ P_{01}$'], 
+    #'d_log_P_12': [(0.5,1.5), r'$\Delta\log\ P_{12}$'], 
+    #'d_log_P_23': [(0.5,1.5), r'$\Delta\log\ P_{23}$'], 
 }
 
 # Constants to use if prior is not given
@@ -86,7 +87,7 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.5, 0, 0.5, 1, 2], 
+    'log_P_knots': [-6, -3, -1, 0, 1, 2], 
 }
 
 # Number of knots to define PT profile
@@ -128,5 +129,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 50
-n_iter_before_update = 5
+n_live_points = 200
+n_iter_before_update = 200

@@ -460,7 +460,13 @@ def fig_PT(PT,
 
     try:
         SONORA_temperature = np.loadtxt(prefix+'data/SONORA_temperature.dat')
+        SONORA_RCB = np.loadtxt(prefix+'data/SONORA_RCB.dat')
+        
         ax_PT.plot(SONORA_temperature, PT.pressure, c='k', lw=1)
+        ax_PT.plot(
+            np.interp(SONORA_RCB, xp=PT.pressure, fp=SONORA_temperature), 
+            SONORA_RCB, 'ko'
+            )
     except:
         pass
         
