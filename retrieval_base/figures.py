@@ -460,7 +460,7 @@ def fig_PT(PT,
 
     try:
         SONORA_temperature = np.loadtxt(prefix+'data/SONORA_temperature.dat')
-        SONORA_RCB = np.loadtxt(prefix+'data/SONORA_RCB.dat')
+        SONORA_RCB = np.loadtxt(prefix+'data/SONORA_RCB.dat').flatten()[0]
         
         ax_PT.plot(SONORA_temperature, PT.pressure, c='k', lw=1)
         ax_PT.plot(

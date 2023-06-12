@@ -192,7 +192,8 @@ class Retrieval:
         elif self.Param.PT_mode == 'free':
             self.PT = PT_profile_free(
                 self.pRT_atm.pressure, 
-                ln_L_penalty_order=conf.ln_L_penalty_order
+                ln_L_penalty_order=conf.ln_L_penalty_order, 
+                PT_interp_mode=conf.PT_interp_mode, 
                 )
         elif self.Param.PT_mode == 'grid':
             self.PT = PT_profile_SONORA(
@@ -673,7 +674,7 @@ class Retrieval:
                 40.0, # vsini
                 22.5, # rv
 
-                2000, # T_eff
+                1300, # T_eff
         ])
 
         # Evaluate the model with best-fitting parameters
@@ -692,7 +693,7 @@ class Retrieval:
 
         # Save the PT profile
         np.savetxt(conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
-        np.savetxt(conf.prefix+'data/SONORA_RCB.dat', self.PT.RCB)
+        np.savetxt(conf.prefix+'data/SONORA_RCB.dat', np.array([self.PT.RCB]))
         
         # Insert the NaNs from the observed spectrum
         self.m_spec.flux[~self.d_spec.mask_isfinite] = np.nan

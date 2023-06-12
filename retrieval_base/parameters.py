@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import invgamma
 
 from petitRADTRANS.retrieval import cloud_cond as fc
 
@@ -110,7 +111,7 @@ class Parameters:
 
         # Check if Molliere et al. (2020) PT-profile is used
         Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
-        PT_grid_param_keys = ['C/O', 'Fe/H', 'log_g', 'T_eff']
+        PT_grid_param_keys = ['log_g', 'T_eff']
 
         if np.isin(Molliere_param_keys, self.param_keys).all():
             self.PT_mode = 'Molliere'
@@ -163,9 +164,17 @@ class Parameters:
         # Loop over all parameters
         for i, key_i in enumerate(self.param_keys):
 
-            # Sample within the boundaries
-            low, high = self.param_priors[key_i]
-            cube[i] = low + (high-low)*cube[i]
+            if key_i.startswith('invgamma_'):
+                # Get the two parameters defining the inverse gamma pdf
+                invgamma_a, invgamma_b = self.param_priors[key_i]
+                
+                # Sample from the inverse gamma prior
+                cube[i] = invgamma.ppf(cube[i], a=invgamma_a, loc=0, scale=invgamma_b)
+            
+            else:
+                # Sample within the boundaries
+                low, high = self.param_priors[key_i]
+                cube[i] = low + (high-low)*cube[i]
 
             self.params[key_i] = cube[i]
 
@@ -221,7 +230,7 @@ class Parameters:
             )[[0,-1]]
         for i in range(self.n_T_knots-1):
             
-            if f'd_log_P_{i}{i+1}' in self.param_keys:
+            if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
                 # Add the difference in log P to the previous knot
                 log_P_i = np.log10(self.params['P_knots'][1]) - \
                     self.params[f'd_log_P_{i}{i+1}']
@@ -236,6 +245,9 @@ class Parameters:
 
         # Convert from logarithmic to linear scale
         self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
+        
+        if 'invgamma_gamma' in self.param_keys:
+            self.params['gamma'] = self.params['invgamma_gamma']
 
         return cube
 

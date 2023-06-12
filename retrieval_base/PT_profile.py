@@ -56,7 +56,7 @@ class PT_profile_SONORA(PT_profile):
              len(self.CO_grid), len(self.FeH_grid), 50)
             )
 
-        self.rad_conv_boundary_grid = np.nan() * np.ones(
+        self.rad_conv_boundary_grid = np.nan * np.ones(
             (len(self.T_eff_grid), len(self.log_g_grid), 
              len(self.CO_grid), len(self.FeH_grid))
             )
@@ -134,12 +134,13 @@ class PT_profile_SONORA(PT_profile):
     
 class PT_profile_free(PT_profile):
 
-    def __init__(self, pressure, ln_L_penalty_order=3):
+    def __init__(self, pressure, ln_L_penalty_order=3, PT_interp_mode='log'):
         
         # Give arguments to the parent class
         super().__init__(pressure)
 
         self.ln_L_penalty_order = ln_L_penalty_order
+        self.PT_interp_mode = PT_interp_mode
 
     def __call__(self, params):
 
@@ -170,17 +171,27 @@ class PT_profile_free(PT_profile):
     def spline_interp(self):
 
         # Spline interpolation over a number of knots
-        self.knots, self.coeffs, deg = splrep(np.log10(self.P_knots), 
-                                              np.log10(self.T_knots))
-        self.temperature = 10**splev(np.log10(self.pressure), 
-                                     (self.knots, self.coeffs, deg), 
-                                     der=0)
-        '''
-        self.knots, self.coeffs, deg = splrep(np.log10(self.P_knots), self.T_knots)
-        self.temperature = splev(
-            np.log10(self.pressure), (self.knots, self.coeffs, deg), der=0
-            )
-        '''
+        if PT_interp_mode == 'log':
+            self.knots, self.coeffs, deg = splrep(
+                np.log10(self.P_knots), np.log10(self.T_knots)
+                )
+                
+            self.temperature = 10**splev(
+                np.log10(self.pressure), 
+                (self.knots, self.coeffs, deg), 
+                der=0
+                )
+
+        elif PT_interp_mode == 'lin':
+            self.knots, self.coeffs, deg = splrep(
+                np.log10(self.P_knots), self.T_knots
+                )
+
+            self.temperature = splev(
+                np.log10(self.pressure), 
+                (self.knots, self.coeffs, deg), 
+                der=0
+                )
 
     def get_ln_L_penalty(self):
 

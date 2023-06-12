@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_13'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_18_Line_invgamma_prior'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -66,7 +66,7 @@ free_params = {
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
-    'log_gamma': [(-4,3), r'$\log\ \gamma$'], 
+    'invgamma_gamma': [(1,5e-5), r'$\gamma$'], 
 
     'T_0': [(0,7000), r'$T_0$'], 
     'T_1': [(0,3000), r'$T_1$'], 
@@ -74,6 +74,15 @@ free_params = {
     'T_3': [(0,3000), r'$T_3$'], 
     'T_4': [(0,3000), r'$T_4$'], 
     'T_5': [(0,3000), r'$T_5$'], 
+    'T_6': [(0,3000), r'$T_6$'], 
+    'T_7': [(0,3000), r'$T_7$'], 
+    'T_8': [(0,3000), r'$T_8$'], 
+    'T_9': [(0,3000), r'$T_9$'], 
+    'T_10': [(0,3000), r'$T_{10}$'], 
+    'T_11': [(0,3000), r'$T_{11}$'], 
+    'T_12': [(0,3000), r'$T_{12}$'], 
+    'T_13': [(0,3000), r'$T_{13}$'], 
+    'T_14': [(0,3000), r'$T_{14}$'], 
 }
 
 # Constants to use if prior is not given
@@ -82,11 +91,14 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
+    #'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
+    'log_P_knots': np.linspace(-6,2,15), 
 }
 
-# Number of knots to define PT profile
-ln_L_penalty_order = 3
+# Log-likelihood penalty
+ln_L_penalty_order = 2
+PT_interp_mode = 'lin'
+
 
 line_species = [
     #'H2O_main_iso', 

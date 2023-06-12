@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_13'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_18_Line_invgamma_prior'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -75,11 +75,14 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
+    #'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
+    'log_P_knots': np.linspace(-6,2,15), 
 }
 
-# Number of knots to define PT profile
-ln_L_penalty_order = 3
+# Log-likelihood penalty
+ln_L_penalty_order = 2
+PT_interp_mode = 'lin'
+
 
 line_species = [
     #'H2O_main_iso', 
