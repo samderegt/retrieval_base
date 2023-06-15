@@ -171,7 +171,7 @@ class PT_profile_free(PT_profile):
     def spline_interp(self):
 
         # Spline interpolation over a number of knots
-        if PT_interp_mode == 'log':
+        if self.PT_interp_mode == 'log':
             self.knots, self.coeffs, deg = splrep(
                 np.log10(self.P_knots), np.log10(self.T_knots)
                 )
@@ -182,7 +182,7 @@ class PT_profile_free(PT_profile):
                 der=0
                 )
 
-        elif PT_interp_mode == 'lin':
+        elif self.PT_interp_mode == 'lin':
             self.knots, self.coeffs, deg = splrep(
                 np.log10(self.P_knots), self.T_knots
                 )

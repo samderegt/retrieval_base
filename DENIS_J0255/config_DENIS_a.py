@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_18_Line_invgamma_prior'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_20'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -59,7 +59,7 @@ free_params = {
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_C_ratio': [(-8,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
@@ -75,13 +75,19 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    #'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
-    'log_P_knots': np.linspace(-6,2,15), 
+    #'log_P_knots': np.linspace(-6,2,15), 
+    'log_P_knots': [-6, -3, -1, 0, 0.5, 1, 1.5, 2], 
+
+    'd_log_P_12': 0.5, 
+    'd_log_P_23': 0.5, 
+    'd_log_P_34': 0.5, 
+    'd_log_P_45': 1, 
+    'd_log_P_56': 2, 
 }
 
 # Log-likelihood penalty
-ln_L_penalty_order = 2
-PT_interp_mode = 'lin'
+ln_L_penalty_order = 3
+PT_interp_mode = 'log'
 
 
 line_species = [

@@ -665,11 +665,16 @@ class Retrieval:
                 5.5, # log_g
                 0.6, # epsilon_limb
 
+                #-3.3, # log_12CO
+                #-3.6, # log_H2O
+                #-6.2, # log_CH4
+                #-6.3, # log_NH3
+                #-2.0, # log_C_ratio
                 -3.3, # log_12CO
                 -3.6, # log_H2O
-                -6.2, # log_CH4
-                -6.3, # log_NH3
-                -2.0, # log_C_ratio
+                -4.9, # log_CH4
+                -6.2, # log_NH3
+                -5.3, # log_13CO
 
                 40.0, # vsini
                 22.5, # rv

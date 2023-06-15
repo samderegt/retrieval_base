@@ -11,5 +11,9 @@ DENIS_J0255/retrieval_outputs/
 transm_curves.pk
 species_config.ini
 species_database.hdf5
-DENIS_J0255/*.ipynb
+
+DENIS_J0255/telluric_cov.ipynb
+DENIS_J0255/Gibbs_kernel.ipynb
+DENIS_J0255/nod_pair_comparison.ipynb
+DENIS_J0255/retrieval_comparison.ipynb
 DENIS_J0255/retrieval_comparison.py

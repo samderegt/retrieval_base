@@ -487,7 +487,7 @@ def fig_PT(PT,
             )
     
     if (integrated_opa_cloud != 0).any():
-        # Add the integrated emission contribution function
+        # Add the integrated cloud opacity
         ax_opa_cloud = ax_PT.twiny()
         fig_opa_cloud(
             ax_opa_cloud, integrated_opa_cloud, PT.pressure, 

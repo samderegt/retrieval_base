@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_18_Line_invgamma_prior'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_20'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -59,30 +59,25 @@ free_params = {
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_C_ratio': [(-8,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
-    'invgamma_gamma': [(1,5e-5), r'$\gamma$'], 
+    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,7000), r'$T_0$'], 
+    'T_0': [(0,5000), r'$T_0$'], 
     'T_1': [(0,3000), r'$T_1$'], 
-    'T_2': [(0,3000), r'$T_2$'], 
-    'T_3': [(0,3000), r'$T_3$'], 
-    'T_4': [(0,3000), r'$T_4$'], 
-    'T_5': [(0,3000), r'$T_5$'], 
-    'T_6': [(0,3000), r'$T_6$'], 
-    'T_7': [(0,3000), r'$T_7$'], 
-    'T_8': [(0,3000), r'$T_8$'], 
-    'T_9': [(0,3000), r'$T_9$'], 
-    'T_10': [(0,3000), r'$T_{10}$'], 
-    'T_11': [(0,3000), r'$T_{11}$'], 
-    'T_12': [(0,3000), r'$T_{12}$'], 
-    'T_13': [(0,3000), r'$T_{13}$'], 
-    'T_14': [(0,3000), r'$T_{14}$'], 
+    'T_2': [(0,2000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
+    'T_5': [(0,2000), r'$T_5$'], 
+    'T_6': [(0,2000), r'$T_6$'], 
+    'T_7': [(0,2000), r'$T_7$'], 
+
+    'd_log_P_01': [(0,1.5), r'$\Delta\log\ P_{01}$'], 
 }
 
 # Constants to use if prior is not given
@@ -91,13 +86,19 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    #'log_P_knots': [-6.0, -3.0, -1.0, 0.0, 1.0, 2.0], 
-    'log_P_knots': np.linspace(-6,2,15), 
+    #'log_P_knots': np.linspace(-6,2,15), 
+    'log_P_knots': [-6, -3, -1, 0, 0.5, 1, 1.5, 2], 
+
+    'd_log_P_12': 0.5, 
+    'd_log_P_23': 0.5, 
+    'd_log_P_34': 0.5, 
+    'd_log_P_45': 1, 
+    'd_log_P_56': 2, 
 }
 
 # Log-likelihood penalty
-ln_L_penalty_order = 2
-PT_interp_mode = 'lin'
+ln_L_penalty_order = 3
+PT_interp_mode = 'log'
 
 
 line_species = [
