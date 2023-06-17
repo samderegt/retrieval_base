@@ -208,6 +208,8 @@ class pRT_model:
         opa_gray_cloud[:,mask_above_deck] = self.params['opa_base_gray'] * \
             (pressure[mask_above_deck]/self.params['P_base_gray'])**self.params['f_sed_gray']
 
+        opa_gray_cloud = opa_gray_cloud * (wave_micron[:,None] / 1)**self.params['cloud_slope']
+
         return opa_gray_cloud
 
     def get_model_spectrum(self, get_contr=False, get_full_spectrum=False):

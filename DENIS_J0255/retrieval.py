@@ -737,7 +737,6 @@ if __name__ == '__main__':
         pre_processing()
 
     if args.retrieval:
-        #retrieval()
         ret = Retrieval()
         ret.PMN_run()
 

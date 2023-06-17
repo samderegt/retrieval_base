@@ -48,6 +48,7 @@ class Parameters:
         'log_opa_base_gray': None, 
         'log_P_base_gray': None, 
         'f_sed_gray': None, 
+        'cloud_slope': 0, 
 
 
         # Chemistry (chemical equilibrium)

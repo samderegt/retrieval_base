@@ -116,11 +116,11 @@ class CallBack:
         
         self.bestfit_params = np.array(self.bestfit_params)
         
+        # Save the bestfit parameters in a .json file
+        # and the ModelSpectrum instance as .pkl
+        self.save_bestfit()
+        
         if self.evaluation:
-            # Save the bestfit parameters in a .json file
-            # and the ModelSpectrum instance as .pkl
-            self.save_bestfit()
-            #exit()
             
             # Plot the CCFs + spectra of species' contributions
             figs.fig_species_contribution(
