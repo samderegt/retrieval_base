@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d, splrep, splev, RegularGridInterpolator#, LinearNDInterpolator
+from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
@@ -170,7 +171,20 @@ class PT_profile_free(PT_profile):
 
     def spline_interp(self):
 
+        if self.PT_interp_mode == 'log':
+            y = np.log10(self.T_knots)
+        elif self.PT_interp_mode == 'lin':
+            y = self.T_knots
+
         # Spline interpolation over a number of knots
+        spl = make_interp_spline(np.log10(self.P_knots), y, bc_type=([(3,0)],[(3,0)]))
+
+        if self.PT_interp_mode == 'log':
+            self.temperature = 10**spl(np.log10(self.pressure))
+        elif self.PT_interp_mode == 'lin':
+            self.temperature = spl(np.log10(self.pressure))
+
+        '''
         if self.PT_interp_mode == 'log':
             self.knots, self.coeffs, deg = splrep(
                 np.log10(self.P_knots), np.log10(self.T_knots)
@@ -192,6 +206,10 @@ class PT_profile_free(PT_profile):
                 (self.knots, self.coeffs, deg), 
                 der=0
                 )
+        '''
+
+        # Remove padding zeros
+        self.coeffs = self.coeffs[:len(self.knots)-4]
 
     def get_ln_L_penalty(self):
 
@@ -219,11 +237,11 @@ class PT_profile_free(PT_profile):
         
         # General difference penalty, computed with L2-norm
         if self.ln_L_penalty_order == 1:
-            gen_diff_penalty = np.nansum(np.dot(D_1, self.coeffs[:-4])**2)
+            gen_diff_penalty = np.nansum(np.dot(D_1, self.coeffs)**2)
         elif self.ln_L_penalty_order == 2:
-            gen_diff_penalty = np.nansum(np.dot(D_2, self.coeffs[:-4])**2)
+            gen_diff_penalty = np.nansum(np.dot(D_2, self.coeffs)**2)
         elif self.ln_L_penalty_order == 3:
-            gen_diff_penalty = np.nansum(np.dot(D_3, self.coeffs[:-4])**2)
+            gen_diff_penalty = np.nansum(np.dot(D_3, self.coeffs)**2)
 
         self.ln_L_penalty = -(1/2*gen_diff_penalty/self.gamma + \
                               1/2*np.log(2*np.pi*self.gamma)
