@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_187'
+prefix = 'DENIS_J0255_retrieval_outputs_189'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -32,8 +32,7 @@ mjd = 59886.14506179
 
 ra_std, dec_std = 36.746755, -47.70470
 mjd_std = 59886.13828925
-#T_std = 14700
-T_std = 12000
+T_std = 14700
 log_g_std = 3.5
 rv_std, vsini_std = 25.5, 10
 
@@ -50,35 +49,53 @@ wave_range = (1900, 2500)
 
 # Define the priors of the parameters
 free_params = {
+    # Uncertainty scaling
+    #'a': [(0.1,0.8), r'$a$'], 
+    'a_1': [(0.1,0.8), r'$a_1$'], 
+    'a_2': [(0.1,0.8), r'$a_2$'], 
+    'a_3': [(0.1,0.8), r'$a_3$'], 
+    'a_4': [(0.1,0.8), r'$a_4$'], 
+    'a_5': [(0.1,0.8), r'$a_5$'], 
+    'a_6': [(0.1,0.8), r'$a_6$'], 
+    'a_7': [(0.1,0.8), r'$a_7$'],  
+    'l': [(10,40), r'$l$'], 
+
     # General properties
     'R_p': [(0.4,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
-    # Chemistry
-    'C/O': [(0.1,1.0), r'C/O'], 
-    'Fe/H': [(-1.5,1.5), r'Fe/H'], 
-    'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
-    'log_C_ratio': [(-8,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
-
     # Velocities
     'vsini': [(35,50), r'$v\ \sin\ i$'], 
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
-    
+
+    # Cloud properties
+    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-2,2), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+
+    # Chemistry
+    'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
+    'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+
     # PT profile
-    'T_eff': [(1000,2000), r'$T_\mathrm{eff}$'], 
-    'log_gamma': [(-4,3), r'$\log\ \gamma$'], 
+    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,7000), r'$T_0$'], 
+    'T_0': [(0,5000), r'$T_0$'], 
     'T_1': [(0,3000), r'$T_1$'], 
-    'T_2': [(0,3000), r'$T_2$'], 
-    'T_3': [(0,3000), r'$T_3$'], 
-    'T_4': [(0,3000), r'$T_4$'], 
-    'T_5': [(0,3000), r'$T_4$'], 
+    'T_2': [(0,2000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
+    'T_5': [(0,2000), r'$T_5$'], 
+    'T_6': [(0,2000), r'$T_6$'], 
+    'T_7': [(0,2000), r'$T_7$'], 
 
-    #'d_log_P_01': [(0.5,1.5), r'$\Delta\log\ P_{01}$'], 
-    #'d_log_P_12': [(0.5,1.5), r'$\Delta\log\ P_{12}$'], 
-    #'d_log_P_23': [(0.5,1.5), r'$\Delta\log\ P_{23}$'], 
+    'd_log_P_01': [(0,1.5), r'$\Delta\log\ P_{01}$'], 
 }
 
 # Constants to use if prior is not given
@@ -87,11 +104,20 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -3, -1, 0, 1, 2], 
+    #'log_P_knots': np.linspace(-6,2,15), 
+    'log_P_knots': [-6, -3, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+
+    'd_log_P_12': 0.5, 
+    'd_log_P_23': 0.5, 
+    'd_log_P_34': 0.75, 
+    'd_log_P_45': 1, 
+    'd_log_P_56': 1.75, 
 }
 
-# Number of knots to define PT profile
+# Log-likelihood penalty
 ln_L_penalty_order = 3
+PT_interp_mode = 'log'
+
 
 line_species = [
     #'H2O_main_iso', 
@@ -104,8 +130,8 @@ line_species = [
     #'H2O_181', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    #'HCN_main_iso', 
+    'CO2_main_iso', 
+    'HCN_main_iso', 
     ]
 cloud_species = None
 

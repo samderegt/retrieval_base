@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_22'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_23'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -86,7 +86,7 @@ constant_params = {
 }
 
 # Log-likelihood penalty
-ln_L_penalty_order = 2
+ln_L_penalty_order = 3
 PT_interp_mode = 'log'
 
 
