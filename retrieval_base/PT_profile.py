@@ -177,36 +177,16 @@ class PT_profile_free(PT_profile):
             y = self.T_knots
 
         # Spline interpolation over a number of knots
-        spl = make_interp_spline(np.log10(self.P_knots), y, bc_type=([(3,0)],[(3,0)]))
+        #spl = make_interp_spline(np.log10(self.P_knots), y, bc_type=([(3,0)],[(3,0)]))
+        spl = make_interp_spline(np.log10(self.P_knots), y, bc_type='not-a-knot')
 
         if self.PT_interp_mode == 'log':
             self.temperature = 10**spl(np.log10(self.pressure))
         elif self.PT_interp_mode == 'lin':
             self.temperature = spl(np.log10(self.pressure))
 
-        '''
-        if self.PT_interp_mode == 'log':
-            self.knots, self.coeffs, deg = splrep(
-                np.log10(self.P_knots), np.log10(self.T_knots)
-                )
-                
-            self.temperature = 10**splev(
-                np.log10(self.pressure), 
-                (self.knots, self.coeffs, deg), 
-                der=0
-                )
-
-        elif self.PT_interp_mode == 'lin':
-            self.knots, self.coeffs, deg = splrep(
-                np.log10(self.P_knots), self.T_knots
-                )
-
-            self.temperature = splev(
-                np.log10(self.pressure), 
-                (self.knots, self.coeffs, deg), 
-                der=0
-                )
-        '''
+        self.coeffs = spl.c
+        self.knots  = spl.t
 
         # Remove padding zeros
         self.coeffs = self.coeffs[:len(self.knots)-4]

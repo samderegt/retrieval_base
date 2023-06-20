@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_DENIS.py'
+file_params = 'config_DENIS_nominal.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_189'
+prefix = 'DENIS_J0255_nominal'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -51,13 +51,13 @@ wave_range = (1900, 2500)
 free_params = {
     # Uncertainty scaling
     #'a': [(0.1,0.8), r'$a$'], 
-    'a_1': [(0.1,0.8), r'$a_1$'], 
-    'a_2': [(0.1,0.8), r'$a_2$'], 
-    'a_3': [(0.1,0.8), r'$a_3$'], 
-    'a_4': [(0.1,0.8), r'$a_4$'], 
-    'a_5': [(0.1,0.8), r'$a_5$'], 
-    'a_6': [(0.1,0.8), r'$a_6$'], 
-    'a_7': [(0.1,0.8), r'$a_7$'],  
+    'a_1': [(0.1,1), r'$a_1$'], 
+    'a_2': [(0.1,1), r'$a_2$'], 
+    'a_3': [(0.1,1), r'$a_3$'], 
+    'a_4': [(0.1,1), r'$a_4$'], 
+    'a_5': [(0.1,1), r'$a_5$'], 
+    'a_6': [(0.1,1), r'$a_6$'], 
+    'a_7': [(0.1,1), r'$a_7$'],  
     'l': [(10,40), r'$l$'], 
 
     # General properties
@@ -155,5 +155,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 1000
 n_iter_before_update = 200

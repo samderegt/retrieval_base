@@ -30,7 +30,8 @@ from retrieval_base.covariance import Covariance, GaussianProcesses
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-import config_DENIS as conf
+#import config_DENIS as conf
+import config_DENIS_nominal as conf
 
 def pre_processing():
 
