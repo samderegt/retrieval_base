@@ -30,8 +30,8 @@ from retrieval_base.covariance import Covariance, GaussianProcesses
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-#import config_DENIS as conf
-import config_DENIS_nominal as conf
+import config_DENIS as conf
+#import config_DENIS_nominal as conf
 
 def pre_processing():
 
@@ -663,8 +663,9 @@ class Retrieval:
         # Update the parameters        
         synthetic_params = np.array([
                 0.8, # R_p
-                5.5, # log_g
-                0.6, # epsilon_limb
+                #5.5, # log_g
+                5.0, # log_g
+                0.65, # epsilon_limb
 
                 #-3.3, # log_12CO
                 #-3.6, # log_H2O
@@ -674,13 +675,14 @@ class Retrieval:
                 -3.3, # log_12CO
                 -3.6, # log_H2O
                 -4.9, # log_CH4
-                -6.2, # log_NH3
-                -5.3, # log_13CO
+                -6.0, # log_NH3
+                -5.5, # log_13CO
 
                 40.0, # vsini
                 22.5, # rv
 
-                1300, # T_eff
+                #1300, # T_eff
+                1400, # T_eff
         ])
 
         # Evaluate the model with best-fitting parameters

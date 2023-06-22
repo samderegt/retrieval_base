@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_23'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_25'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -50,7 +50,7 @@ wave_range = (1900, 2500)
 # Define the priors of the parameters
 free_params = {
     # General properties
-    'R_p': [(0.4,1.2), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
@@ -76,13 +76,14 @@ constant_params = {
 
     # PT profile
     #'log_P_knots': np.linspace(-6,2,15), 
-    'log_P_knots': [-6, -3, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    #'log_P_knots': [-6, -3, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
 
-    'd_log_P_12': 0.5, 
+    'd_log_P_12': 0.75, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
-    'd_log_P_56': 1.75, 
+    #'d_log_P_56': 1.75, 
 }
 
 # Log-likelihood penalty
@@ -126,5 +127,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 100
 n_iter_before_update = 200
