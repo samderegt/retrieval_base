@@ -6,7 +6,7 @@ file_params = 'config_DENIS.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_25'
+prefix = 'DENIS_J0255_retrieval_outputs_synthetic_27'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -75,15 +75,12 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    #'log_P_knots': np.linspace(-6,2,15), 
-    #'log_P_knots': [-6, -3, -1.25, -0.25, 0.5, 1, 1.5, 2], 
     'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
 
     'd_log_P_12': 0.75, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
-    #'d_log_P_56': 1.75, 
 }
 
 # Log-likelihood penalty
@@ -92,18 +89,11 @@ PT_interp_mode = 'log'
 
 
 line_species = [
-    #'H2O_main_iso', 
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
-    #'CO_high', 
     'CO_36', 
-    #'CO_36_high', 
-    #'CO_28', 
-    #'H2O_181', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    #'HCN_main_iso', 
     ]
 cloud_species = None
 
@@ -127,5 +117,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
+n_live_points = 400
 n_iter_before_update = 200

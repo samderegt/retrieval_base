@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_DENIS.py'
+file_params = 'config_DENIS_synthetic_b.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_27'
+prefix = 'DENIS_J0255_synthetic'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -66,17 +66,7 @@ free_params = {
     'rv': [(20,25), r'$v_\mathrm{rad}$'], 
     
     # PT profile
-    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
-
-    'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,4500), r'$T_1$'], 
-    'T_2': [(0,3000), r'$T_2$'], 
-    'T_3': [(0,2000), r'$T_3$'], 
-    'T_4': [(0,2000), r'$T_4$'], 
-    'T_5': [(0,2000), r'$T_5$'], 
-    'T_6': [(0,2000), r'$T_6$'], 
-
-    'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
+    'T_eff': [(1000,2400), r'$T_\mathrm{eff}$'], 
 }
 
 # Constants to use if prior is not given
@@ -128,4 +118,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 400
-n_iter_before_update = 200
+n_iter_before_update = 400

@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_DENIS.py'
+file_params = 'config_DENIS_synthetic_b.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_retrieval_outputs_synthetic_27'
+prefix = 'DENIS_J0255_synthetic'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -128,4 +128,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 400
-n_iter_before_update = 200
+n_iter_before_update = 400

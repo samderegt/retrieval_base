@@ -6,7 +6,7 @@ file_params = 'config_DENIS_nominal.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_nominal_2'
+prefix = 'DENIS_J0255_nominal_3'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -50,14 +50,13 @@ wave_range = (1900, 2500)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'a': [(0.1,0.8), r'$a$'], 
-    'a_1': [(0.1,1), r'$a_1$'], 
-    'a_2': [(0.1,1), r'$a_2$'], 
-    'a_3': [(0.1,1), r'$a_3$'], 
-    'a_4': [(0.1,1), r'$a_4$'], 
-    'a_5': [(0.1,1), r'$a_5$'], 
-    'a_6': [(0.1,1), r'$a_6$'], 
-    'a_7': [(0.1,1), r'$a_7$'],  
+    'a_1': [(0.1,0.8), r'$a_1$'], 
+    'a_2': [(0.1,0.8), r'$a_2$'], 
+    'a_3': [(0.1,0.8), r'$a_3$'], 
+    'a_4': [(0.1,0.8), r'$a_4$'], 
+    'a_5': [(0.1,0.8), r'$a_5$'], 
+    'a_6': [(0.1,0.8), r'$a_6$'], 
+    'a_7': [(0.1,0.8), r'$a_7$'],  
     'l': [(10,40), r'$l$'], 
 
     # General properties
@@ -86,14 +85,13 @@ free_params = {
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,5000), r'$T_0$'], 
-    'T_1': [(0,4000), r'$T_1$'], 
+    'T_0': [(0,6000), r'$T_0$'], 
+    'T_1': [(0,4500), r'$T_1$'], 
     'T_2': [(0,3000), r'$T_2$'], 
     'T_3': [(0,2000), r'$T_3$'], 
     'T_4': [(0,2000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
-    #'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -104,15 +102,12 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    #'log_P_knots': np.linspace(-6,2,15), 
-    #'log_P_knots': [-6, -3, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
 
-    'd_log_P_12': 0.5, 
+    'd_log_P_12': 0.75, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
-    #'d_log_P_56': 1.75, 
 }
 
 # Log-likelihood penalty
@@ -121,14 +116,9 @@ PT_interp_mode = 'log'
 
 
 line_species = [
-    #'H2O_main_iso', 
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
-    #'CO_high', 
     'CO_36', 
-    #'CO_36_high', 
-    #'CO_28', 
-    #'H2O_181', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
     'CO2_main_iso', 
@@ -156,5 +146,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
-n_iter_before_update = 200
+n_live_points = 400
+n_iter_before_update = 400
