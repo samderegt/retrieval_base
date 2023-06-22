@@ -31,6 +31,21 @@ export pRT_input_data_path=$HOME/retrieval_venv/pRT_input_data
 echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
+# Fail-safe in case of early termination of other scripts
+sed -i 's/import config_DENIS_synthetic_a as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_synthetic_b as conf/import config_DENIS as conf/g' retrieval.py
+
+sed -i 's/import config_DENIS_chem_eq_Pquench as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_chem_eq_wo_Pquench as conf/import config_DENIS as conf/g' retrieval.py
+
+sed -i 's/import config_DENIS_nominal as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_wo_GPs as conf/import config_DENIS as conf/g' retrieval.py
+
+sed -i 's/import config_DENIS_wo_13CO as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_wo_NH3 as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_wo_CH4 as conf/import config_DENIS as conf/g' retrieval.py
+
+
 # --- chem-eq, Pquench ---------------------------------------------------------------
 # Replace the config file and run pre-processing
 sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_Pquench as conf/g' retrieval.py
