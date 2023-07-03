@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_DENIS_wo_CH4.py'
+file_params = 'config_DENIS_nominal_2.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_wo_CH4'
+prefix = 'DENIS_J0255_nominal_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -76,7 +76,7 @@ free_params = {
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
-    #'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
     'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
@@ -119,7 +119,7 @@ line_species = [
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
     'CO_36', 
-    #'CH4_hargreaves_main_iso', 
+    'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
     'CO2_main_iso', 
     'HCN_main_iso', 

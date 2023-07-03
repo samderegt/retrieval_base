@@ -6,7 +6,7 @@ file_params = 'config_DENIS_chem_eq_Pquench.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_chem_eq_Pquench'
+prefix = 'DENIS_J0255_chem_eq_Pquench_13CO'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -77,6 +77,7 @@ free_params = {
     'C/O': [(0,1), r'C/O'], 
     'Fe/H': [(-1.5,1.5), r'[Fe/H]'], 
     'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
+    'log_C_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     #'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
     #'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
@@ -106,12 +107,13 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
 
-    'd_log_P_12': 0.75, 
+    'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
+
 }
 
 # Log-likelihood penalty

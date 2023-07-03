@@ -3,10 +3,10 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 04:00:00
-#SBATCH -p fat
-#SBATCH -n 64
-#SBATCH --mem=480G
+#SBATCH -t 05:00:00
+#SBATCH -p thin
+#SBATCH -n 50
+#SBATCH --mem=224G
 
 #SBATCH --job-name=synthetic
 #SBATCH --mail-type=ALL

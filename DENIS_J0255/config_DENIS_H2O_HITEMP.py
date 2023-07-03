@@ -10,7 +10,7 @@ file_params = 'config_DENIS_H2O_HITEMP.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_nominal_H2O_HITEMP'
+prefix = 'DENIS_J0255_H2O_HITEMP'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -106,12 +106,13 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
 
-    'd_log_P_12': 0.75, 
+    'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
+
 }
 
 # Log-likelihood penalty

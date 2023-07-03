@@ -85,9 +85,9 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
 
-    'd_log_P_12': 0.75, 
+    'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 

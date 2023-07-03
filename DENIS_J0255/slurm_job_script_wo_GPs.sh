@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 04:30:00
-#SBATCH -p fat
-#SBATCH -n 64
-#SBATCH --mem=480G
+#SBATCH -t 01:30:00
+#SBATCH -p thin
+#SBATCH -n 65
+#SBATCH --mem=224G
 
-#SBATCH --job-name=wo_GPs
+#SBATCH --job-name=wo_GPs_resume
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -48,7 +48,7 @@ sed -i 's/import config_DENIS_wo_CH4 as conf/import config_DENIS as conf/g' retr
 
 # Replace the config file and run pre-processing
 sed -i 's/import config_DENIS as conf/import config_DENIS_wo_GPs as conf/g' retrieval.py
-python retrieval.py --pre_processing --synthetic
+#python retrieval.py --pre_processing
 
 # Run the retrieval and evaluation
 mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval

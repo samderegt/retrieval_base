@@ -749,3 +749,4 @@ if __name__ == '__main__':
     if args.synthetic:
         ret = Retrieval()
         ret.synthetic_spectrum()
+

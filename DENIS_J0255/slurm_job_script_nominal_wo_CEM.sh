@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 00:20:00
+#SBATCH -t 24:00:00
 #SBATCH -p thin
-#SBATCH -n 32
-#SBATCH --mem=56G
+#SBATCH -n 50
+#SBATCH --mem=224G
 
-#SBATCH --job-name=wo_species_resume
+#SBATCH --job-name=wo_CEM
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -31,6 +31,8 @@ export pRT_input_data_path=$HOME/retrieval_venv/pRT_input_data
 echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
+sed -i 's/H2O_main_iso/H2O_pokazatel_main_iso' $HOME/retrieval_base/retrieval_base/chemistry.py
+
 # Fail-safe in case of early termination of other scripts
 sed -i 's/import config_DENIS_synthetic_a as conf/import config_DENIS as conf/g' retrieval.py
 sed -i 's/import config_DENIS_synthetic_b as conf/import config_DENIS as conf/g' retrieval.py
@@ -46,43 +48,15 @@ sed -i 's/import config_DENIS_wo_NH3 as conf/import config_DENIS as conf/g' retr
 sed -i 's/import config_DENIS_wo_CH4 as conf/import config_DENIS as conf/g' retrieval.py
 
 
-# --- 13CO ---------------------------------------------------------------
 # Replace the config file and run pre-processing
-#sed -i 's/import config_DENIS as conf/import config_DENIS_wo_13CO as conf/g' retrieval.py
-#python retrieval.py --pre_processing
+sed -i 's/import config_DENIS as conf/import config_DENIS_wo_CEM as conf/g' retrieval.py
+python retrieval.py --pre_processing
 
 # Run the retrieval and evaluation
-#mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
-#python retrieval.py --evaluation
-
-# Revert to original config file
-#sed -i 's/import config_DENIS_wo_13CO as conf/import config_DENIS as conf/g' retrieval.py
-
-# --- NH3 ----------------------------------------------------------------
-# Replace the config file and run pre-processing
-sed -i 's/import config_DENIS as conf/import config_DENIS_wo_NH3 as conf/g' retrieval.py
-#python retrieval.py --pre_processing
-
-# Run the retrieval and evaluation
-#mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
+mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
 python retrieval.py --evaluation
 
 # Revert to original config file
-sed -i 's/import config_DENIS_wo_NH3 as conf/import config_DENIS as conf/g' retrieval.py
-
-# --- CH4 ----------------------------------------------------------------
-# Replace the config file and run pre-processing
-sed -i 's/import config_DENIS as conf/import config_DENIS_wo_CH4 as conf/g' retrieval.py
-#python retrieval.py --pre_processing
-
-# Run the retrieval and evaluation
-#mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
-#python retrieval.py --evaluation
-
-# Revert to original config file
-sed -i 's/import config_DENIS_wo_CH4 as conf/import config_DENIS as conf/g' retrieval.py
-
-# ------------------------------------------------------------------------
-
+sed -i 's/import config_DENIS_wo_CEM as conf/import config_DENIS as conf/g' retrieval.py
 
 echo "Done"

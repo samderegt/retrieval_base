@@ -3,14 +3,20 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 24:00:00
-#SBATCH -p fat
-#SBATCH -n 64
-#SBATCH --mem=480G
+#SBATCH -t 18:00:00
+#SBATCH -p thin
+#SBATCH -n 50
+#SBATCH --mem=224G
 
 #SBATCH --job-name=chem_eq
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
+
+echo "Current working directory:"
+pwd
+
+echo "HOME directory:"
+echo $HOME
 
 # Loading modules
 module load 2022
@@ -49,7 +55,7 @@ sed -i 's/import config_DENIS_wo_CH4 as conf/import config_DENIS as conf/g' retr
 # --- chem-eq, Pquench ---------------------------------------------------------------
 # Replace the config file and run pre-processing
 sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_Pquench as conf/g' retrieval.py
-python retrieval.py --pre_processing --synthetic
+#python retrieval.py --pre_processing
 
 # Run the retrieval and evaluation
 mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
@@ -61,7 +67,7 @@ sed -i 's/import config_DENIS_chem_eq_Pquench as conf/import config_DENIS as con
 # --- chem-eq, w/o Pquench -----------------------------------------------------------
 # Replace the config file and run pre-processing
 sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_wo_Pquench as conf/g' retrieval.py
-python retrieval.py --pre_processing --synthetic
+python retrieval.py --pre_processing
 
 # Run the retrieval and evaluation
 mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval

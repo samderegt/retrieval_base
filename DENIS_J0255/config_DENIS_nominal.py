@@ -6,7 +6,7 @@ file_params = 'config_DENIS_nominal.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_nominal_3'
+prefix = 'DENIS_J0255_nominal_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -50,14 +50,14 @@ wave_range = (1900, 2500)
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a_1': [(0.1,0.8), r'$a_1$'], 
-    'a_2': [(0.1,0.8), r'$a_2$'], 
-    'a_3': [(0.1,0.8), r'$a_3$'], 
-    'a_4': [(0.1,0.8), r'$a_4$'], 
-    'a_5': [(0.1,0.8), r'$a_5$'], 
-    'a_6': [(0.1,0.8), r'$a_6$'], 
-    'a_7': [(0.1,0.8), r'$a_7$'],  
-    'l': [(10,40), r'$l$'], 
+    #'a_1': [(0.1,0.8), r'$a_1$'], 
+    #'a_2': [(0.1,0.8), r'$a_2$'], 
+    #'a_3': [(0.1,0.8), r'$a_3$'], 
+    #'a_4': [(0.1,0.8), r'$a_4$'], 
+    #'a_5': [(0.1,0.8), r'$a_5$'], 
+    #'a_6': [(0.1,0.8), r'$a_6$'], 
+    #'a_7': [(0.1,0.8), r'$a_7$'],  
+    #'l': [(10,40), r'$l$'], 
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
@@ -79,8 +79,8 @@ free_params = {
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
     'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
@@ -102,9 +102,9 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.5, -0.5, 0.25, 0.75, 1.5, 2], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
 
-    'd_log_P_12': 0.75, 
+    'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
@@ -121,8 +121,8 @@ line_species = [
     'CO_36', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    'CO2_main_iso', 
-    'HCN_main_iso', 
+    #'CO2_main_iso', 
+    #'HCN_main_iso', 
     ]
 cloud_species = None
 
