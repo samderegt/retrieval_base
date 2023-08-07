@@ -255,7 +255,7 @@ class Spectrum:
         # Apply gaussian filter to broaden with the spectral resolution
         flux_LSF = gaussian_filter(flux, sigma=sigma_LSF_gauss_filter, 
                                    mode='nearest'
-                                   )        
+                                   )
         return flux_LSF
     
     @classmethod
@@ -385,9 +385,10 @@ class DataSpectrum(Spectrum):
 
         # Ordered arrays of shape (n_orders, n_dets, n_pixels)
         wave_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
-        flux_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
-        err_ordered  = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
-        transm_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
+        flux_ordered = np.copy(wave_ordered)
+        err_ordered  = np.copy(wave_ordered)
+        transm_ordered = np.copy(wave_ordered)
+        flux_uncorr_ordered = np.copy(wave_ordered)
 
         # Loop over the orders and detectors
         for i in range(self.n_orders):
@@ -404,11 +405,14 @@ class DataSpectrum(Spectrum):
 
                     if self.transm is not None:
                         transm_ordered[i,j] = self.transm[mask_wave]
+                    if self.flux_uncorr is not None:
+                        flux_uncorr_ordered[i,j] = self.flux_uncorr[mask_wave]
 
         self.wave = wave_ordered
         self.flux = flux_ordered
         self.err  = err_ordered
         self.transm = transm_ordered
+        self.flux_uncorr = flux_uncorr_ordered
 
         # Remove empty orders / detectors
         self.clear_empty_orders_dets()
@@ -426,6 +430,7 @@ class DataSpectrum(Spectrum):
         self.flux = self.flux[~mask_empty,:,:]
         self.err  = self.err[~mask_empty,:,:]
         self.transm = self.transm[~mask_empty,:,:]
+        self.flux_uncorr = self.flux_uncorr[~mask_empty,:,:]
 
         # Update the wavelength ranges for this instance
         self.order_wlen_ranges = self.order_wlen_ranges[~mask_empty]
@@ -636,10 +641,11 @@ class DataSpectrum(Spectrum):
 
         self.transm /= poly_model
         #self.transm /= np.nanmax(self.transm)
-
-        #calib_flux = (self.flux/poly_model)*calib_factor
         
+        self.flux_uncorr = None
         if replace_flux_err:
+            self.flux_uncorr = (self.flux/poly_model)*calib_factor
+
             self.flux = calib_flux
             self.err  = calib_err
 

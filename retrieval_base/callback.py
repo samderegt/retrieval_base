@@ -119,6 +119,7 @@ class CallBack:
         # Save the bestfit parameters in a .json file
         # and the ModelSpectrum instance as .pkl
         self.save_bestfit()
+        #exit()
         
         if self.evaluation:
             
@@ -228,6 +229,10 @@ class CallBack:
                 if (line_species_i in self.Chem.line_species) and \
                     (f'log_{species_i}' in self.Param.param_keys):
                     included_params.append(f'log_{species_i}')
+                for j in range(3):
+                    if (line_species_i in self.Chem.line_species) and \
+                        (f'log_{species_i}_{j}' in self.Param.param_keys):
+                        included_params.append(f'log_{species_i}_{j}')
 
             if 'log_C_ratio' in self.Param.param_keys:
                 included_params.append('log_C_ratio')

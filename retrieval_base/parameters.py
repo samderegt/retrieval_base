@@ -310,6 +310,11 @@ class Parameters:
             self.VMR_species = {}
             for species_i in Chemistry.species_info.keys():
 
+                # If multiple VMRs are given
+                for j in range(3):
+                    if f'log_{species_i}_{j}' in self.param_keys:
+                        self.VMR_species[f'{species_i}_{j}'] = 10**self.params[f'log_{species_i}_{j}']
+
                 if f'log_{species_i}' in self.param_keys:
                     self.VMR_species[f'{species_i}'] = 10**self.params[f'log_{species_i}']
                 elif species_i == '13CO' and ('log_C_ratio' in self.param_keys):

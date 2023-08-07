@@ -227,6 +227,84 @@ class PT_profile_free(PT_profile):
                               1/2*np.log(2*np.pi*self.gamma)
                               )
 
+class PT_profile_Kitzmann(PT_profile):
+
+    def __init__(self, pressure, order=2):
+
+        # Give arguments to the parent class
+        super().__init__(pressure)
+
+        # Set the piecewise polynomial orders
+        self.order = order
+        # Number of local grid points
+        self.N_p = order + 1
+
+    def __call__(self, params):
+
+        # Combine all temperature knots
+        self.T_knots = np.concatenate((params['T_knots'], 
+                                       [params['T_0']]
+                                       ))
+
+        self.P_knots = params['P_knots']
+
+        if self.P_knots is None:
+            # Use evenly-spaced (in log) pressure knots
+            self.P_knots = np.logspace(np.log10(self.pressure.min()), 
+                                       np.log10(self.pressure.max()), 
+                                       num=len(self.T_knots))
+
+        self.log_P_knots = np.log10(self.P_knots)
+
+        # De-construct into piecewise elements
+        self.log_P_knots_local = []
+        self.T_knots_local = []
+        
+        for k in range(0, len(self.T_knots)-self.N_p+1, self.N_p-1):
+            # Add knots based on the polynomial order
+            self.T_knots_local.append(self.T_knots[k:k+self.N_p])
+            self.log_P_knots_local.append(self.log_P_knots[k:k+self.N_p])
+            
+        # Perform a piecewise polynomial interpolation
+        self.piecewise_interp()
+
+    def piecewise_interp(self):
+
+        def _basis(i, k):
+            # Lagrange polynomials
+            l_i = np.prod([
+                (np.log10(self.pressure) - self.log_P_knots_local[k][j]) / \
+                    (self.log_P_knots_local[k][i] - self.log_P_knots_local[k][j])
+                for j in range(0, self.N_p) if j != i
+                ], axis=0)
+            
+            return l_i
+
+        def _sum(k):
+            # Sum of Lagrange polynomials
+            T_k = np.sum([
+                _basis(i, k) * self.T_knots_local[k][i]
+                for i in range(0, self.N_p)
+                ], axis=0)
+            
+            return T_k
+
+        self.temperature = np.ones_like(self.pressure) * np.nan
+        for k in range(len(self.T_knots_local)):
+
+            # Only add to specific pressure range
+            if k == 0:
+                # Including both knots
+                element_mask = (np.log10(self.pressure) >= self.log_P_knots_local[k].min()) & \
+                    (np.log10(self.pressure) <= self.log_P_knots_local[k].max())
+            else:
+                element_mask = (np.log10(self.pressure) > self.log_P_knots_local[k].min()) & \
+                    (np.log10(self.pressure) <= self.log_P_knots_local[k].max())
+
+            self.temperature[element_mask] = _sum(k)[element_mask]
+        
+        return self.temperature
+        
 class PT_profile_Molliere(PT_profile):
 
     def __init__(self, pressure, conv_adiabat=True):

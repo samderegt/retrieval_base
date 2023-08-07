@@ -30,7 +30,8 @@ from retrieval_base.covariance import Covariance, GaussianProcesses
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-import config_DENIS as conf
+#import config_DENIS as conf
+import config_DENIS_parameterised_chem as conf
 
 def pre_processing():
 
@@ -131,6 +132,9 @@ def pre_processing():
     np.save(conf.prefix+'data/d_spec_err.npy', d_spec.err)
     np.save(conf.prefix+'data/d_spec_transm.npy', d_spec.transm)
 
+    np.save(conf.prefix+'data/d_spec_flux_uncorr.npy', d_spec.flux_uncorr)
+    del d_spec.flux_uncorr
+
     # Save as pickle
     af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
 
@@ -202,7 +206,8 @@ class Retrieval:
 
         if self.Param.chem_mode == 'free':
             self.Chem = FreeChemistry(
-                self.pRT_atm.line_species, self.pRT_atm.pressure
+                self.pRT_atm.line_species, self.pRT_atm.pressure, 
+                spline_order=conf.chem_spline_order
                 )
         elif self.Param.chem_mode == 'eqchem':
             self.Chem = EqChemistry(
@@ -254,6 +259,7 @@ class Retrieval:
 
         # Set to None initially, changed during evaluation
         self.Chem.mass_fractions_envelopes = None
+        self.Chem.mass_fractions_posterior = None
         self.PT.temperature_envelopes = None
 
         self.m_spec_species  = None
@@ -285,7 +291,7 @@ class Retrieval:
 
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
-            mass_fractions = self.Chem(self.Param.VMR_species)
+            mass_fractions = self.Chem(self.Param.VMR_species, self.Param.params)
         elif self.Param.chem_mode == 'eqchem':
             mass_fractions = self.Chem(self.Param.params, temperature)
 
@@ -380,9 +386,9 @@ class Retrieval:
         self.CB.return_PT_mf = True
 
         # Objects to store the envelopes in
-        self.Chem.mass_fractions_envelopes = {}
+        self.Chem.mass_fractions_posterior = {}
         for line_species_i in self.Chem.line_species:
-            self.Chem.mass_fractions_envelopes[line_species_i] = []
+            self.Chem.mass_fractions_posterior[line_species_i] = []
         
         self.Chem.CO_posterior  = []
         self.Chem.FeH_posterior = []
@@ -413,7 +419,7 @@ class Retrieval:
             self.PT.temperature_envelopes.append(temperature_i)
             # Loop over the line species
             for line_species_i in self.Chem.line_species:
-                self.Chem.mass_fractions_envelopes[line_species_i].append(
+                self.Chem.mass_fractions_posterior[line_species_i].append(
                     mass_fractions_i[line_species_i]
                     )
 
@@ -430,9 +436,15 @@ class Retrieval:
         self.PT.temperature_envelopes = af.quantiles(
             np.array(self.PT.temperature_envelopes), q=q, axis=0
             )
+
+        self.Chem.mass_fractions_envelopes = {}
         for line_species_i in self.Chem.line_species:
+
+            self.Chem.mass_fractions_posterior[line_species_i] = \
+                np.array(self.Chem.mass_fractions_posterior[line_species_i])
+
             self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
-                np.array(self.Chem.mass_fractions_envelopes[line_species_i]), q=q, axis=0
+                self.Chem.mass_fractions_posterior[line_species_i], q=q, axis=0
                 )
         
         self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
@@ -92,12 +93,14 @@ class Chemistry:
 
 class FreeChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure):
+    def __init__(self, line_species, pressure, spline_order=1):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)
 
-    def __call__(self, VMRs):
+        self.spline_order = spline_order
+
+    def __call__(self, VMRs, params):
 
         self.VMRs = VMRs
 
@@ -115,14 +118,42 @@ class FreeChemistry(Chemistry):
                 continue
 
             if line_species_i in self.line_species:
+
+                if self.VMRs.get(species_i) is not None:
+                    # Single value given: constant, vertical profile
+                    VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
+                else:
+                    # Multiple values given, use spline interpolation
+
+                    # Define the spline knots in pressure-space
+                    if params.get(f'log_P_{species_i}') is not None:
+                        log_P_knots = np.array([
+                            np.log10(self.pressure).min(), params[f'log_P_{species_i}'], 
+                            np.log10(self.pressure).max()
+                            ])
+                    else:
+                        log_P_knots = np.linspace(
+                            np.log10(self.pressure).min(), 
+                            np.log10(self.pressure).max(), num=3
+                            )
+                    
+                    # Define the abundances at the knots
+                    VMR_knots = np.array([self.VMRs[f'{species_i}_{j}'] for j in range(3)])[::-1]
+                    
+                    # Use a k-th order spline to vary the abundance profile
+                    spl = make_interp_spline(log_P_knots, np.log10(VMR_knots), k=self.spline_order)
+                    VMR_i = 10**spl(np.log10(self.pressure))
+
+                self.VMRs[species_i] = VMR_i
+
                 # Convert VMR to mass fraction using molecular mass number
-                self.mass_fractions[line_species_i] = mass_i * self.VMRs[species_i]
-                VMR_wo_H2 += self.VMRs[species_i]
+                self.mass_fractions[line_species_i] = mass_i * VMR_i
+                VMR_wo_H2 += VMR_i
 
                 # Record C, O, and H bearing species for C/O and metallicity
-                C += COH_i[0] * self.VMRs[species_i]
-                O += COH_i[1] * self.VMRs[species_i]
-                H += COH_i[2] * self.VMRs[species_i]
+                C += COH_i[0] * VMR_i
+                O += COH_i[1] * VMR_i
+                H += COH_i[2] * VMR_i
 
         # Add the H2 and He abundances
         self.mass_fractions['He'] = self.read_species_info('He', 'mass') * VMR_He
@@ -131,7 +162,7 @@ class FreeChemistry(Chemistry):
         # Add to the H-bearing species
         H += self.read_species_info('H2', 'H') * (1 - VMR_wo_H2)
 
-        if VMR_wo_H2 > 1:
+        if VMR_wo_H2.any() > 1:
             # Other species are too abundant
             self.mass_fractions = -np.inf
             return self.mass_fractions
@@ -155,6 +186,10 @@ class FreeChemistry(Chemistry):
         log_CH_solar = 8.43 - 12 # Asplund et al. (2009)
         self.FeH = np.log10(C/H) - log_CH_solar
         self.CH  = self.FeH
+
+        self.CO = np.mean(self.CO)
+        self.FeH = np.mean(self.FeH)
+        self.CH = np.mean(self.CH)
 
         for species_i in self.neglect_species:
             if self.neglect_species[species_i]:
