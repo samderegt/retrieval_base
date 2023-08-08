@@ -30,8 +30,7 @@ from retrieval_base.covariance import Covariance, GaussianProcesses
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-#import config_DENIS as conf
-import config_DENIS_parameterised_chem as conf
+import config_DENIS_NPE as conf
 
 def pre_processing():
 
@@ -168,7 +167,8 @@ class Retrieval:
             free_params=conf.free_params, 
             constant_params=conf.constant_params, 
             n_orders=self.d_spec.n_orders, 
-            n_dets=self.d_spec.n_dets
+            n_dets=self.d_spec.n_dets, 
+            enforce_PT_corr=conf.enforce_PT_corr
             )    
 
         if 'beta_tell' not in self.Param.param_keys:
@@ -617,7 +617,7 @@ class Retrieval:
         for i, key_i in enumerate(self.Param.param_keys):
             # Update the Parameters instance
             self.Param.params[key_i] = bestfit_params[i]
-
+        
         # Update the parameters
         self.Param.read_PT_params(cube=None)
         self.Param.read_uncertainty_params()

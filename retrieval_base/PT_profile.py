@@ -193,6 +193,11 @@ class PT_profile_free(PT_profile):
 
     def get_ln_L_penalty(self):
 
+        # Do not apply a ln L penalty
+        if self.ln_L_penalty_order == 0:
+            self.ln_L_penalty = 0
+            return
+
         # Compute the log-likelihood penalty based on the wiggliness
         # (Inverted) weight matrices, scaling the penalty of small/large segments
         inv_W_1 = np.diag(1/(1/3 * np.array([self.knots[i+3]-self.knots[i] \
@@ -214,7 +219,7 @@ class PT_profile_free(PT_profile):
         D_1 = np.dot(inv_W_1, delta)
         D_2 = np.dot(inv_W_2, np.dot(delta[1:,1:], D_1))
         D_3 = np.dot(inv_W_3, np.dot(delta[2:,2:], D_2))
-        
+
         # General difference penalty, computed with L2-norm
         if self.ln_L_penalty_order == 1:
             gen_diff_penalty = np.nansum(np.dot(D_1, self.coeffs)**2)
@@ -226,6 +231,7 @@ class PT_profile_free(PT_profile):
         self.ln_L_penalty = -(1/2*gen_diff_penalty/self.gamma + \
                               1/2*np.log(2*np.pi*self.gamma)
                               )
+
 
 class PT_profile_Kitzmann(PT_profile):
 

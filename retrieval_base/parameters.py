@@ -88,7 +88,7 @@ class Parameters:
 
     }
 
-    def __init__(self, free_params, constant_params, n_orders=7, n_dets=3):
+    def __init__(self, free_params, constant_params, n_orders=7, n_dets=3, enforce_PT_corr=False):
 
         # Separate the prior range from the mathtext label
         self.param_priors, self.param_mathtext = {}, {}
@@ -141,6 +141,8 @@ class Parameters:
 
         self.n_orders = n_orders
         self.n_dets   = n_dets
+
+        self.enforce_PT_corr = enforce_PT_corr
 
     def __call__(self, cube, ndim=None, nparams=None):
         '''
@@ -220,10 +222,21 @@ class Parameters:
             cube[idx] = self.params['T_3']
 
         # Combine the upper temperature knots into an array
-        self.params['T_knots'] = np.array(
-            [self.params[f'T_{i+1}'] \
-             for i in range(self.n_T_knots)]
-            )[::-1]
+        self.params['T_knots'] = []
+        for i in range(self.n_T_knots):
+
+            T_i = self.params[f'T_{i+1}']
+
+            if (self.PT_mode == 'free') and (cube is not None) and self.enforce_PT_corr:
+                # Temperature knot is product of previous knots
+                T_i = np.prod([self.params[f'T_{j}'] for j in range(i+2)])
+                
+                idx = np.argwhere(self.param_keys==f'T_{i+1}').flatten()[0]
+                cube[idx] = T_i
+
+            self.params['T_knots'].append(T_i)
+
+        self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
 
         # Fill the pressure knots
         self.params['P_knots'] = 10**np.array(

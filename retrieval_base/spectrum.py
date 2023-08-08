@@ -365,6 +365,8 @@ class DataSpectrum(Spectrum):
 
         if self.transm is not None:
             self.transm = self.transm[mask_wave]
+        if self.flux_uncorr is not None:
+            self.flux_uncorr = self.flux_uncorr[mask_wave]
 
     def bary_corr(self, replace_wave=True, return_v_bary=False):
 
