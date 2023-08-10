@@ -6,7 +6,7 @@ file_params = 'config_DENIS_synthetic_b.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_synthetic'
+prefix = 'DENIS_J0255_synthetic_new'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -68,8 +68,8 @@ free_params = {
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,4500), r'$T_1$'], 
+    'T_0': [(0,5000), r'$T_0$'], 
+    'T_1': [(0,4000), r'$T_1$'], 
     'T_2': [(0,3000), r'$T_2$'], 
     'T_3': [(0,2000), r'$T_3$'], 
     'T_4': [(0,2000), r'$T_4$'], 
@@ -93,9 +93,13 @@ constant_params = {
     'd_log_P_45': 1, 
 }
 
+# Polynomial order of non-vertical abundance profile
+chem_spline_order = 0
+
 # Log-likelihood penalty
 ln_L_penalty_order = 3
 PT_interp_mode = 'log'
+enforce_PT_corr = False
 
 
 line_species = [
@@ -115,8 +119,7 @@ cholesky_mode = 'banded'
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-#prepare_for_covariance = False
-prepare_for_covariance = True
+prepare_for_covariance = False
 
 apply_high_pass_filter = False
 

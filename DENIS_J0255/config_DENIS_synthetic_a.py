@@ -6,7 +6,7 @@ file_params = 'config_DENIS_synthetic_b.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_synthetic'
+prefix = 'DENIS_J0255_synthetic_new'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -84,10 +84,13 @@ constant_params = {
 
 }
 
+# Polynomial order of non-vertical abundance profile
+chem_spline_order = 0
+
 # Log-likelihood penalty
 ln_L_penalty_order = 3
 PT_interp_mode = 'log'
-
+enforce_PT_corr = False
 
 line_species = [
     'H2O_pokazatel_main_iso', 
@@ -106,8 +109,7 @@ cholesky_mode = 'banded'
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-#prepare_for_covariance = False
-prepare_for_covariance = True
+prepare_for_covariance = False
 
 apply_high_pass_filter = False
 
