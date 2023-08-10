@@ -260,6 +260,8 @@ class Retrieval:
         # Set to None initially, changed during evaluation
         self.Chem.mass_fractions_envelopes = None
         self.Chem.mass_fractions_posterior = None
+        self.Chem.unquenched_mass_fractions_posterior = None
+        self.Chem.unquenched_mass_fractions_envelopes = None
         self.PT.temperature_envelopes = None
 
         self.m_spec_species  = None
@@ -387,9 +389,14 @@ class Retrieval:
 
         # Objects to store the envelopes in
         self.Chem.mass_fractions_posterior = {}
-        for line_species_i in self.Chem.line_species:
+        #for line_species_i in self.Chem.line_species:
+        for line_species_i in self.Chem.mass_fractions.keys():
             self.Chem.mass_fractions_posterior[line_species_i] = []
-        
+
+        self.Chem.unquenched_mass_fractions_posterior = {}
+        for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
+
         self.Chem.CO_posterior  = []
         self.Chem.FeH_posterior = []
 
@@ -418,14 +425,27 @@ class Retrieval:
             temperature_i, mass_fractions_i = returned
             self.PT.temperature_envelopes.append(temperature_i)
             # Loop over the line species
+            for line_species_i in self.Chem.mass_fractions.keys():
+                self.Chem.mass_fractions_posterior[line_species_i].append(
+                    mass_fractions_i[line_species_i]
+                    )
+            '''
             for line_species_i in self.Chem.line_species:
                 self.Chem.mass_fractions_posterior[line_species_i].append(
                     mass_fractions_i[line_species_i]
                     )
+            '''
 
             # Store the C/O ratio and Fe/H
             self.Chem.CO_posterior.append(self.Chem.CO)
             self.Chem.FeH_posterior.append(self.Chem.FeH)
+
+            if hasattr(self.Chem, unquenched_mass_fractions):
+                # Store the unquenched mass fractions
+                for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+                    self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
+                        self.Chem.unquenched_mass_fractions[line_species_i]
+                        )
 
         # Convert profiles to 1, 2, 3-sigma equivalent and median
         q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
@@ -438,7 +458,8 @@ class Retrieval:
             )
 
         self.Chem.mass_fractions_envelopes = {}
-        for line_species_i in self.Chem.line_species:
+        #for line_species_i in self.Chem.line_species:
+        for line_species_i in self.Chem.mass_fractions.keys():
 
             self.Chem.mass_fractions_posterior[line_species_i] = \
                 np.array(self.Chem.mass_fractions_posterior[line_species_i])
@@ -449,6 +470,16 @@ class Retrieval:
         
         self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
         self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
+
+        if hasattr(self.Chem, unquenched_mass_fractions):
+            # Store the unquenched mass fractions
+            for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+                self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
+                    np.array(self.Chem.unquenched_mass_fractions_posterior[line_species_i])
+
+                self.Chem.unquenched_mass_fractions_envelopes[line_species_i] = af.quantiles(
+                    self.Chem.unquenched_mass_fractions_posterior[line_species_i], q=q, axis=0
+                    )
 
         self.CB.return_PT_mf = False
 

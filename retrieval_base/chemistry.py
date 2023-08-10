@@ -221,7 +221,12 @@ class EqChemistry(Chemistry):
         # Layers to be replaced by a constant abundance
         mask_quenched = (self.pressure < self.P_quench)
 
-        for species_i in ['CO', 'CH4', 'H2O']:
+        for i, species_i in enumerate(['CO', 'CH4', 'H2O']):
+            
+            # Store the unquenched abundance profiles
+            line_species_i = self.read_species_info(['12CO', 'CH4', 'H2O'][i], 'pRT_name')
+            self.unquenched_mass_fractions[line_species_i] = pm_mass_fractions[species_i]
+
             # Own implementation of quenching, using interpolation
             mass_fraction_i = pm_mass_fractions[species_i]
             mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
@@ -254,6 +259,7 @@ class EqChemistry(Chemistry):
         self.mass_fractions = {'MMW': pm_mass_fractions['MMW']}
 
         if self.P_quench is not None:
+            self.unquenched_mass_fractions = {}
             pm_mass_fractions = self.quench_carbon_chemistry(pm_mass_fractions)
 
         for line_species_i in self.line_species:
@@ -262,12 +268,17 @@ class EqChemistry(Chemistry):
                 self.mass_fractions[line_species_i] = \
                     (1 - self.C_ratio * self.mass_ratio_13CO_12CO - \
                      self.O_ratio * self.mass_ratio_C18O_12CO) * pm_mass_fractions['CO']
+
             elif (line_species_i == 'CO_36') or (line_species_i == 'CO_36_high'):
                 # 13CO mass fraction
-                self.mass_fractions[line_species_i] = self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
+                self.mass_fractions[line_species_i] = \
+                    self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
+
             elif line_species_i == 'CO_28':
                 # C18O mass fraction
-                self.mass_fractions[line_species_i] = self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
+                self.mass_fractions[line_species_i] = \
+                    self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
+
             else:
                 self.mass_fractions[line_species_i] = pm_mass_fractions[line_species_i.split('_')[0]]
 
@@ -275,6 +286,19 @@ class EqChemistry(Chemistry):
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
 
+        '''
+        if self.P_quench is not None:
+            # Store the unquenched abundance profiles of species 
+            # other than CO, CH4 and H2O
+            for species_i in self.species_info.keys():
+
+                if species_i not in ['12CO', 'CH4', 'H2O']:
+
+                    line_species_i = self.read_species_info(species_i, 'pRT_name')
+                    self.unquenched_mass_fractions[line_species_i] = \
+                        self.mass_fractions[line_species_i]
+        '''
+        
         for species_i in self.neglect_species:
             if self.neglect_species[species_i]:
                 line_species_i = self.read_species_info(species_i, 'pRT_name')
