@@ -289,8 +289,6 @@ class Retrieval:
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = self.PT.ln_L_penalty
 
-        #temperature[self.PT.pressure<=1e-2] = temperature[self.PT.pressure<=1e-2][-1]
-
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
             mass_fractions = self.Chem(self.Param.VMR_species, self.Param.params)
@@ -549,7 +547,7 @@ class Retrieval:
                 
             return flux_envelope
         
-        from tqdm import tqdm
+        #from tqdm import tqdm
         args.evaluation = False
 
         flux_envelope = np.nan * np.ones(
@@ -567,7 +565,11 @@ class Retrieval:
             )
 
         # Sample envelopes from the posterior
-        for i, params_i in enumerate(tqdm(posterior)):
+        #for i, params_i in enumerate(tqdm(posterior)):
+        for i, params_i in enumerate(posterior):
+
+            if i%100 == 0:
+                print(f'{i}/{len(posterior)}')
 
             for j, key_j in enumerate(self.Param.param_keys):
                 # Update the Parameters instance

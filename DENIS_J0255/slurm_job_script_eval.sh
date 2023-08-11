@@ -3,7 +3,7 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 00:30:00
+#SBATCH -t 05:00:00
 #SBATCH -p thin
 #SBATCH -n 32
 #SBATCH --mem=56G
@@ -32,18 +32,36 @@ echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
 # Replace the config file and run evaluation
-sed -i 's/import config_DENIS as conf/import config_DENIS_nominal_2 as conf/g' retrieval.py
-python retrieval.py --evaluation
-sed -i 's/import config_DENIS_nominal_2 as conf/import config_DENIS as conf/g' retrieval.py
+cp retrieval.py retrieval_nominal_2.py
+sed -i 's/import config_DENIS as conf/import config_DENIS_nominal_2 as conf/g' retrieval_nominal_2.py
 
-# Replace the config file and run evaluation
-sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_Pquench as conf/g' retrieval.py
-python retrieval.py --evaluation
-sed -i 's/import config_DENIS_chem_eq_Pquench as conf/import config_DENIS as conf/g' retrieval.py
+#cp retrieval.py retrieval_H2O_HITEMP.py
+#sed -i 's/import config_DENIS as conf/import config_DENIS_H2O_HITEMP as conf/g' retrieval_H2O_HITEMP.py
 
-# Replace the config file and run evaluation
-sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_wo_Pquench as conf/g' retrieval.py
-python retrieval.py --evaluation
-sed -i 's/import config_DENIS_chem_eq_wo_Pquench as conf/import config_DENIS as conf/g' retrieval.py
+cp retrieval.py retrieval_wo_13CO.py
+sed -i 's/import config_DENIS as conf/import config_DENIS_wo_13CO as conf/g' retrieval_wo_13CO.py
+
+cp retrieval.py retrieval_wo_NH3.py
+sed -i 's/import config_DENIS as conf/import config_DENIS_wo_NH3 as conf/g' retrieval_wo_NH3.py
+
+cp retrieval.py retrieval_wo_CH4.py
+sed -i 's/import config_DENIS as conf/import config_DENIS_wo_CH4 as conf/g' retrieval_wo_CH4.py
+
+#cp retrieval.py retrieval_chem_eq_P_quench.py
+#sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_P_quench as conf/g' retrieval_chem_eq_P_quench.py
+
+#cp retrieval.py retrieval_chem_eq_wo_P_quench.py
+#sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_wo_P_quench as conf/g' retrieval_chem_eq_wo_P_quench.py
+
+python retrieval_nominal_2.py --evaluation &
+#python retrieval_H2O_HITEMP.py --evaluation &
+python retrieval_wo_13CO.py --evaluation &
+python retrieval_wo_NH3.py --evaluation &
+python retrieval_wo_CH4.py --evaluation &
+#python retrieval_chem_eq_P_quench.py --evaluation &
+#python retrieval_chem_eq_wo_P_quench.py --evaluation &
+
+wait
+rm -rf retrieval_*.py
 
 echo "Done"

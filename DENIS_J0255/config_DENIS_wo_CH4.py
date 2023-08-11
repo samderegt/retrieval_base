@@ -110,9 +110,13 @@ constant_params = {
     'd_log_P_45': 1, 
 }
 
+# Polynomial order of non-vertical abundance profile
+chem_spline_order = 0
+
 # Log-likelihood penalty
 ln_L_penalty_order = 3
 PT_interp_mode = 'log'
+enforce_PT_corr = False
 
 
 line_species = [
