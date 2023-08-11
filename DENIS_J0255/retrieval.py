@@ -611,8 +611,8 @@ class Retrieval:
         np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
         np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
     
-        # Save the model spectrum envelope
-        if not save_spectra:
+        if save_spectra:
+            # Save the model spectrum envelope
             np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
 
             # Convert envelopes to 1, 2, 3-sigma equivalent and median
