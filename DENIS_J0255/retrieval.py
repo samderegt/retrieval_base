@@ -530,71 +530,100 @@ class Retrieval:
                 # Include this species again
                 self.Chem.neglect_species[species_i] = False
 
-    def get_spectrum_envelope(self, posterior):
+    def get_all_spectra(self, posterior, save_spectra=False):
 
         if os.path.exists(conf.prefix+'data/m_flux_envelope.npy'):
             
             # Load the model spectrum envelope if it was computed before
             flux_envelope = np.load(conf.prefix+'data/m_flux_envelope.npy')
+
+            # Convert envelopes to 1, 2, 3-sigma equivalent and median
+            q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+                    0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+                    ]            
         
-        else:
+            # Retain the order-, detector-, and wavelength-axes
+            flux_envelope = af.quantiles(
+                np.array(flux_envelope), q=q, axis=0
+                )
+                
+            return flux_envelope
+        
+        from tqdm import tqdm
+        args.evaluation = False
 
-            from tqdm import tqdm
-            args.evaluation = False
+        flux_envelope = np.nan * np.ones(
+            (len(posterior), self.d_spec.n_orders, 
+            self.d_spec.n_dets, self.d_spec.n_pixels)
+            )
 
-            flux_envelope = np.nan * np.ones(
-                (len(posterior), self.d_spec.n_orders, 
-                self.d_spec.n_dets, self.d_spec.n_pixels)
+        ln_L_per_pixel_posterior = np.nan * np.ones(
+            (len(posterior), self.d_spec.n_orders, 
+            self.d_spec.n_dets, self.d_spec.n_pixels)
+            )
+        chi_squared_per_pixel_posterior = np.nan * np.ones(
+            (len(posterior), self.d_spec.n_orders, 
+            self.d_spec.n_dets, self.d_spec.n_pixels)
+            )
+
+        # Sample envelopes from the posterior
+        for i, params_i in enumerate(tqdm(posterior)):
+
+            for j, key_j in enumerate(self.Param.param_keys):
+                # Update the Parameters instance
+                self.Param.params[key_j] = params_i[j]
+
+            # Update the parameters
+            self.Param.read_PT_params(cube=None)
+            self.Param.read_uncertainty_params()
+            self.Param.read_chemistry_params()
+            self.Param.read_cloud_params()
+
+            # Create the spectrum
+            self.PMN_lnL_func()
+
+            ln_L_per_pixel_posterior[i,:,:,:]        = np.copy(self.LogLike.ln_L_per_pixel)
+            chi_squared_per_pixel_posterior[i,:,:,:] = np.copy(self.LogLike.chi_squared_per_pixel)
+            
+            if not save_spectra:
+                continue
+
+            # Scale the model flux with the linear parameter
+            flux_envelope[i,:,:,:] = self.m_spec.flux * self.LogLike.f[:,:,None]
+
+            # Add a random sample from the covariance matrix
+            for k in range(self.d_spec.n_orders):
+                for l in range(self.d_spec.n_dets):
+                    # Optimally-scale the covariance matrix
+                    cov_kl = self.LogLike.cov[k,l].cov
+                    cov_kl *= self.LogLike.beta[k,l]
+
+                    # Draw a random sample and add to the flux
+                    random_sample = np.random.multivariate_normal(
+                        np.zeros(len(cov_kl)), cov_kl, size=1
+                        )
+                    flux_envelope[i,k,l,:] += random_sample[0]
+        
+        args.evaluation = True
+
+        np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
+        np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
+    
+        # Save the model spectrum envelope
+        if not save_spectra:
+            np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
+
+            # Convert envelopes to 1, 2, 3-sigma equivalent and median
+            q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+                 0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+                 ]            
+
+            # Retain the order-, detector-, and wavelength-axes
+            flux_envelope = af.quantiles(
+                np.array(flux_envelope), q=q, axis=0
                 )
 
-            # Sample envelopes from the posterior
-            for i, params_i in enumerate(tqdm(posterior)):
-
-                for j, key_j in enumerate(self.Param.param_keys):
-                    # Update the Parameters instance
-                    self.Param.params[key_j] = params_i[j]
-
-                # Update the parameters
-                self.Param.read_PT_params(cube=None)
-                self.Param.read_uncertainty_params()
-                self.Param.read_chemistry_params()
-                self.Param.read_cloud_params()
-
-                # Create the spectrum
-                self.PMN_lnL_func()
-
-                # Scale the model flux with the linear parameter
-                flux_envelope[i,:,:,:] = self.m_spec.flux * self.LogLike.f[:,:,None]
-
-                # Add a random sample from the covariance matrix
-                for k in range(self.d_spec.n_orders):
-                    for l in range(self.d_spec.n_dets):
-                        # Optimally-scale the covariance matrix
-                        cov_kl = self.LogLike.cov[k,l].cov
-                        cov_kl *= self.LogLike.beta[k,l]
-
-                        # Draw a random sample and add to the flux
-                        random_sample = np.random.multivariate_normal(
-                            np.zeros(len(cov_kl)), cov_kl, size=1
-                            )
-                        flux_envelope[i,k,l,:] += random_sample[0]
-            
-            args.evaluation = True
-
-            # Save the model spectrum envelope
-            np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
-        
-        # Convert envelopes to 1, 2, 3-sigma equivalent and median
-        q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
-             0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
-             ]            
-
-        # Retain the order-, detector-, and wavelength-axes
-        flux_envelope = af.quantiles(
-            np.array(flux_envelope), q=q, axis=0
-            )
-        
-        return flux_envelope
+            return flux_envelope
 
     def PMN_callback_func(self, 
                           n_samples, 
@@ -631,7 +660,7 @@ class Retrieval:
             self.get_PT_mf_envelopes(posterior)
 
             # Get the model flux envelope
-            #flux_envelope = self.get_spectrum_envelope(posterior)
+            flux_envelope = self.get_all_spectra(posterior, save_spectra=False)
 
         else:
 

@@ -225,7 +225,7 @@ class EqChemistry(Chemistry):
             
             # Store the unquenched abundance profiles
             line_species_i = self.read_species_info(['12CO', 'CH4', 'H2O'][i], 'pRT_name')
-            self.unquenched_mass_fractions[line_species_i] = pm_mass_fractions[species_i]
+            self.unquenched_mass_fractions[line_species_i] = np.copy(pm_mass_fractions[species_i])
 
             # Own implementation of quenching, using interpolation
             mass_fraction_i = pm_mass_fractions[species_i]
