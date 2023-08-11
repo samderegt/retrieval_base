@@ -389,13 +389,7 @@ class Retrieval:
 
         # Objects to store the envelopes in
         self.Chem.mass_fractions_posterior = {}
-        #for line_species_i in self.Chem.line_species:
-        for line_species_i in self.Chem.mass_fractions.keys():
-            self.Chem.mass_fractions_posterior[line_species_i] = []
-
         self.Chem.unquenched_mass_fractions_posterior = {}
-        for line_species_i in self.Chem.unquenched_mass_fractions.keys():
-            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
 
         self.Chem.CO_posterior  = []
         self.Chem.FeH_posterior = []
@@ -403,7 +397,7 @@ class Retrieval:
         self.PT.temperature_envelopes = []
 
         # Sample envelopes from the posterior
-        for params_i in posterior:
+        for i, params_i in enumerate(posterior):
 
             for j, key_j in enumerate(self.Param.param_keys):
                 # Update the Parameters instance
@@ -417,6 +411,15 @@ class Retrieval:
 
             # Class instances with best-fitting parameters
             returned = self.PMN_lnL_func()
+
+            if i == 0:
+                for line_species_i in self.Chem.mass_fractions.keys():
+                    self.Chem.mass_fractions_posterior[line_species_i] = []
+
+                if hasattr(self.Chem, 'unquenched_mass_fractions'):
+                    for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+                        self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
+
             if isinstance(returned, float):
                 # PT profile or mass fractions failed
                 continue
@@ -429,18 +432,12 @@ class Retrieval:
                 self.Chem.mass_fractions_posterior[line_species_i].append(
                     mass_fractions_i[line_species_i]
                     )
-            '''
-            for line_species_i in self.Chem.line_species:
-                self.Chem.mass_fractions_posterior[line_species_i].append(
-                    mass_fractions_i[line_species_i]
-                    )
-            '''
 
             # Store the C/O ratio and Fe/H
             self.Chem.CO_posterior.append(self.Chem.CO)
             self.Chem.FeH_posterior.append(self.Chem.FeH)
 
-            if hasattr(self.Chem, unquenched_mass_fractions):
+            if hasattr(self.Chem, 'unquenched_mass_fractions'):
                 # Store the unquenched mass fractions
                 for line_species_i in self.Chem.unquenched_mass_fractions.keys():
                     self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
@@ -471,7 +468,8 @@ class Retrieval:
         self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
         self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
 
-        if hasattr(self.Chem, unquenched_mass_fractions):
+        self.Chem.unquenched_mass_fractions_envelopes = {}
+        if hasattr(self.Chem, 'unquenched_mass_fractions'):
             # Store the unquenched mass fractions
             for line_species_i in self.Chem.unquenched_mass_fractions.keys():
                 self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
@@ -494,7 +492,6 @@ class Retrieval:
         # Create the spectrum and evaluate lnL
         self.PMN_lnL_func()
         m_spec_continuum = np.copy(self.m_spec.flux)
-        #pRT_atm_continuum = np.copy(self.pRT_atm_broad.flux_pRT_grid)
         pRT_atm_continuum = self.pRT_atm_broad.flux_pRT_grid.copy()
 
         # Assess the species' contribution
