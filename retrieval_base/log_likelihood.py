@@ -121,8 +121,10 @@ class LogLikelihood:
                     self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov.diagonal()
                 else:
                     self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov
+
                 self.ln_L_per_pixel[i,j,mask_ij] = -(
                     N_ij/2*np.log(2*np.pi) + \
+                    1/2*Cov[i,j].logdet + \
                     N_ij/2*np.log(beta_ij**2) + \
                     1/2*self.chi_squared_per_pixel[i,j,mask_ij]
                     )

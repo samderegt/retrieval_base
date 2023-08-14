@@ -3,7 +3,7 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 05:00:00
+#SBATCH -t 01:00:00
 #SBATCH -p thin
 #SBATCH -n 32
 #SBATCH --mem=56G
@@ -53,15 +53,14 @@ sed -i 's/import config_DENIS as conf/import config_DENIS_wo_CH4 as conf/g' retr
 #cp retrieval.py retrieval_chem_eq_wo_P_quench.py
 #sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_wo_P_quench as conf/g' retrieval_chem_eq_wo_P_quench.py
 
-python retrieval_nominal_2.py --evaluation &
-#python retrieval_H2O_HITEMP.py --evaluation &
-python retrieval_wo_13CO.py --evaluation &
-python retrieval_wo_NH3.py --evaluation &
-python retrieval_wo_CH4.py --evaluation &
-#python retrieval_chem_eq_P_quench.py --evaluation &
-#python retrieval_chem_eq_wo_P_quench.py --evaluation &
+python retrieval_nominal_2.py --evaluation
+#python retrieval_H2O_HITEMP.py --evaluation
+python retrieval_wo_13CO.py --evaluation
+python retrieval_wo_NH3.py --evaluation
+python retrieval_wo_CH4.py --evaluation
+#python retrieval_chem_eq_P_quench.py --evaluation
+#python retrieval_chem_eq_wo_P_quench.py --evaluation
 
-wait
 rm -rf retrieval_*.py
 
 echo "Done"
