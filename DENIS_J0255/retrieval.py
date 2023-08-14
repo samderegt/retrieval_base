@@ -5,6 +5,7 @@ import os
 from mpi4py import MPI
 import time
 import sys
+import subprocess
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -279,7 +280,6 @@ class Retrieval:
             temperature = self.PT(self.Param.params)
         except:
             # Something went wrong with interpolating
-            #temperature = self.PT(self.Param.params)
             return -np.inf
 
         if temperature.min() < 0:
@@ -310,7 +310,6 @@ class Retrieval:
             pRT_atm_to_use = self.pRT_atm
         
         # Retrieve the model spectrum
-        '''
         self.m_spec = pRT_atm_to_use(
             mass_fractions, 
             temperature, 
@@ -318,7 +317,6 @@ class Retrieval:
             get_contr=self.CB.active, 
             get_full_spectrum=args.evaluation, 
             )
-        '''
 
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
@@ -344,14 +342,12 @@ class Retrieval:
                         beta=self.Param.params['beta'][i,j]
                         )
 
-                '''
                 if self.Param.params['x_tol'] is not None:
                     # Add a model uncertainty (Piette et al. 2020)
                     self.Cov[i,j].add_model_err(
                         model_err=self.Param.params['x_tol'] * \
                             self.m_spec[i,j,mask_ij]
                         )
-                '''
 
                 if self.Param.params['b'] is not None:
                     # Add a model uncertainty (Line et al. 2015)
@@ -371,28 +367,17 @@ class Retrieval:
                         scale_GP_amp=conf.scale_GP_amp
                         )
 
-                if self.Cov[i,j].is_matrix:
-                    # Retrieve a Cholesky decomposition
-                    self.Cov[i,j].get_cholesky()
-
-                # Get the log of the determinant (log prevents over/under-flow)
-                self.Cov[i,j].get_logdet()
-
         # Retrieve the log-likelihood
-        '''
         ln_L = self.LogLike(
             self.m_spec, 
-            #self.Param.params, 
             self.Cov, 
             ln_L_penalty=ln_L_penalty, 
             )
-        '''
         
         time_B = time.time()
         self.CB.elapsed_times.append(time_B-time_A)
 
-        #return ln_L
-        #return Cov
+        return ln_L
 
     def get_PT_mf_envelopes(self, posterior):
 
@@ -568,7 +553,6 @@ class Retrieval:
             (len(posterior), self.d_spec.n_orders, 
             self.d_spec.n_dets, self.d_spec.n_pixels)
             )
-        '''
         ln_L_per_pixel_posterior = np.nan * np.ones(
             (len(posterior), self.d_spec.n_orders, 
             self.d_spec.n_dets, self.d_spec.n_pixels)
@@ -577,12 +561,12 @@ class Retrieval:
             (len(posterior), self.d_spec.n_orders, 
             self.d_spec.n_dets, self.d_spec.n_pixels)
             )
-        '''
-        ln_L_per_pixel_posterior = np.load(f'{conf.prefix}data/ln_L_per_pixel_posterior.npy')
-        chi_squared_per_pixel_posterior = np.load(f'{conf.prefix}data/chi_squared_per_pixel_posterior.npy')
 
         # Sample envelopes from the posterior
         for i, params_i in enumerate(tqdm(posterior)):
+
+            if (i%100) == 0:
+                subprocess.call(f'echo "Sample {i}/{len(posterior)}"')
 
             for j, key_j in enumerate(self.Param.param_keys):
                 # Update the Parameters instance
@@ -597,12 +581,8 @@ class Retrieval:
             # Create the spectrum
             self.PMN_lnL_func()
 
-            #ln_L_per_pixel_posterior[i,:,:,:]        = np.copy(self.LogLike.ln_L_per_pixel)
-            #chi_squared_per_pixel_posterior[i,:,:,:] = np.copy(self.LogLike.chi_squared_per_pixel)
-            
-            for k in range(self.d_spec.n_orders):
-                for l in range(self.d_spec.n_dets):
-                    ln_L_per_pixel_posterior[i,k,l,:] += self.Cov[k,l].logdet
+            ln_L_per_pixel_posterior[i,:,:,:]        = np.copy(self.LogLike.ln_L_per_pixel)
+            chi_squared_per_pixel_posterior[i,:,:,:] = np.copy(self.LogLike.chi_squared_per_pixel)
             
             if not save_spectra:
                 continue
@@ -628,8 +608,6 @@ class Retrieval:
         np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
         np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
     
-        exit()
-
         if save_spectra:
             # Save the model spectrum envelope
             np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
@@ -665,7 +643,7 @@ class Retrieval:
 
             # Set-up analyzer object
             analyzer = pymultinest.Analyzer(
-                n_params=n_params, 
+                n_params=self.Param.n_params, 
                 outputfiles_basename=conf.prefix
                 )
             stats = analyzer.get_stats()
@@ -835,7 +813,19 @@ if __name__ == '__main__':
 
     if args.evaluation:
         ret = Retrieval()
-        ret.PMN_run()
+        ret.PMN_callback_func( 
+            n_samples=None, 
+            n_live=None, 
+            n_params=None, 
+            live_points=None, 
+            posterior=None, 
+            stats=None,
+            max_ln_L=None, 
+            ln_Z=None, 
+            ln_Z_err=None, 
+            nullcontext=None
+            )
+        #ret.PMN_run()
 
     if args.synthetic:
         ret = Retrieval()
