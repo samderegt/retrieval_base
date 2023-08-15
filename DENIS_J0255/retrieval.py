@@ -565,9 +565,6 @@ class Retrieval:
         # Sample envelopes from the posterior
         for i, params_i in enumerate(tqdm(posterior)):
 
-            if (i%100) == 0:
-                subprocess.call(f'echo "Sample {i}/{len(posterior)}"')
-
             for j, key_j in enumerate(self.Param.param_keys):
                 # Update the Parameters instance
                 self.Param.params[key_j] = params_i[j]
@@ -607,6 +604,7 @@ class Retrieval:
 
         np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
         np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
+        exit()
     
         if save_spectra:
             # Save the model spectrum envelope

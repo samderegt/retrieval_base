@@ -43,7 +43,8 @@ class LogLikelihood:
         self.chi_squared = 0
         
         # Arrays to store log-likelihood and chi-squared per pixel in
-        self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec.flux)
+        #self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec.flux)
+        self.ln_L_per_pixel        = np.nan * np.ones_like(self.d_spec.flux)
         self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
 
         # Array to store the linear flux-scaling terms
@@ -116,6 +117,7 @@ class LogLikelihood:
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
 
+                '''
                 # This is not perfect for off-diagonal elements in covariance matrix
                 if Cov[i,j].is_matrix:
                     self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov.diagonal()
@@ -128,6 +130,24 @@ class LogLikelihood:
                     N_ij/2*np.log(beta_ij**2) + \
                     1/2*self.chi_squared_per_pixel[i,j,mask_ij]
                     )
+                '''
+
+                g_k = 1/beta_ij**2 * Cov[i,j].solve(res_ij)
+                sigma_bar_kk = np.diag(
+                    1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
+                    )
+
+                # Conditional mean and standard deviation
+                mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
+                sigma_tilde_k = 1/sigma_bar_kk
+
+                self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty - (
+                    1/2*np.log(2*np.pi*sigma_tilde_k) + \
+                    1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
+                    )
+
+                self.chi_squared_per_pixel[i,j,mask_ij] = \
+                    (d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
 
         # Reduced chi-squared
         self.chi_squared_red = self.chi_squared / self.n_dof
