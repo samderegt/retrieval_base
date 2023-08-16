@@ -132,10 +132,14 @@ class LogLikelihood:
                     )
                 '''
 
-                g_k = 1/beta_ij**2 * Cov[i,j].solve(res_ij)
-                sigma_bar_kk = np.diag(
-                    1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
-                    )
+                inv_cov_ij = Cov[i,j].solve(np.eye(N_ij))
+                g_k = 1/beta_ij**2 * np.dot(inv_cov_ij, res_ij)
+                sigma_bar_kk = np.diag(1/beta_ij**2 * inv_cov_ij)
+
+                #g_k = 1/beta_ij**2 * Cov[i,j].solve(res_ij)
+                #sigma_bar_kk = np.diag(
+                #    1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
+                #    )
 
                 # Conditional mean and standard deviation
                 mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
