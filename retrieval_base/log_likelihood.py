@@ -52,6 +52,8 @@ class LogLikelihood:
         # Array to store the uncertainty-scaling terms
         self.beta = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
         
+        N_tot = self.d_spec.mask_isfinite.sum()
+
         # Loop over all orders and detectors
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
@@ -93,7 +95,8 @@ class LogLikelihood:
                     f_ij = 1
 
                 # Chi-squared for the optimal linear scaling
-                chi_squared_ij_scaled = np.dot(res_ij, Cov[i,j].solve(res_ij))
+                inv_cov_ij_res_ij = Cov[i,j].solve(res_ij)
+                chi_squared_ij_scaled = np.dot(res_ij, inv_cov_ij_res_ij)
                 
                 if self.scale_err:
                     # Scale the flux uncertainty that maximizes the log-likelihood
@@ -136,7 +139,7 @@ class LogLikelihood:
                 #g_k = 1/beta_ij**2 * np.dot(inv_cov_ij, res_ij)
                 #sigma_bar_kk = np.diag(1/beta_ij**2 * inv_cov_ij)
 
-                g_k = 1/beta_ij**2 * Cov[i,j].solve(res_ij)
+                g_k = 1/beta_ij**2 * inv_cov_ij_res_ij
                 sigma_bar_kk = np.diag(
                     1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
                     )
@@ -145,13 +148,21 @@ class LogLikelihood:
                 mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
                 sigma_tilde_k = 1/sigma_bar_kk
 
+                self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty/N_tot - (
+                    1/2*np.log(2*np.pi*sigma_tilde_k) + \
+                    1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
+                    )
+                '''
                 self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty - (
                     1/2*np.log(2*np.pi*sigma_tilde_k) + \
                     1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
                     )
+                '''
 
                 self.chi_squared_per_pixel[i,j,mask_ij] = \
                     (d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
+
+        print(f'ln L = {self.ln_L} | sum(ln L_i) = {np.nansum(self.ln_L_per_pixel)}')
 
         # Reduced chi-squared
         self.chi_squared_red = self.chi_squared / self.n_dof
