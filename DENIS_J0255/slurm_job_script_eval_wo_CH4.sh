@@ -3,7 +3,7 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 10:30:00
+#SBATCH -t 10:15:00
 #SBATCH -p thin
 #SBATCH -n 16
 #SBATCH --mem=28G

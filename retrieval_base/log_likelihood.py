@@ -1,7 +1,5 @@
 import numpy as np
 
-import time
-
 class LogLikelihood:
 
     def __init__(self, 
@@ -120,25 +118,7 @@ class LogLikelihood:
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
 
-                '''
-                # This is not perfect for off-diagonal elements in covariance matrix
-                if Cov[i,j].is_matrix:
-                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov.diagonal()
-                else:
-                    self.chi_squared_per_pixel[i,j,mask_ij] = 1/beta_ij**2 * res_ij**2/Cov[i,j].cov
-
-                self.ln_L_per_pixel[i,j,mask_ij] = -(
-                    N_ij/2*np.log(2*np.pi) + \
-                    1/2*Cov[i,j].logdet + \
-                    N_ij/2*np.log(beta_ij**2) + \
-                    1/2*self.chi_squared_per_pixel[i,j,mask_ij]
-                    )
-                '''
-
-                #inv_cov_ij = Cov[i,j].solve(np.eye(N_ij))
-                #g_k = 1/beta_ij**2 * np.dot(inv_cov_ij, res_ij)
-                #sigma_bar_kk = np.diag(1/beta_ij**2 * inv_cov_ij)
-
+                # Following Peter McGill's advice
                 g_k = 1/beta_ij**2 * inv_cov_ij_res_ij
                 sigma_bar_kk = np.diag(
                     1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
@@ -148,21 +128,14 @@ class LogLikelihood:
                 mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
                 sigma_tilde_k = 1/sigma_bar_kk
 
+                # Scale the ln L penalty by the number of good pixels
                 self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty/N_tot - (
                     1/2*np.log(2*np.pi*sigma_tilde_k) + \
                     1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
                     )
-                '''
-                self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty - (
-                    1/2*np.log(2*np.pi*sigma_tilde_k) + \
-                    1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
-                    )
-                '''
 
                 self.chi_squared_per_pixel[i,j,mask_ij] = \
                     (d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
-
-        print(f'ln L = {self.ln_L} | sum(ln L_i) = {np.nansum(self.ln_L_per_pixel)}')
 
         # Reduced chi-squared
         self.chi_squared_red = self.chi_squared / self.n_dof

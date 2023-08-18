@@ -3,12 +3,13 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 00:30:00
+#SBATCH -t 10:15:00
 #SBATCH -p thin
 #SBATCH -n 16
 #SBATCH --mem=28G
 
 #SBATCH --job-name=eval_fiducial
+#SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
 # Loading modules
