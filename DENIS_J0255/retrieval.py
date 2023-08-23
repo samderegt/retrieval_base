@@ -603,7 +603,6 @@ class Retrieval:
 
         np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
         np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
-        exit()
     
         if save_spectra:
             # Save the model spectrum envelope
@@ -656,7 +655,7 @@ class Retrieval:
             self.get_PT_mf_envelopes(posterior)
             
             # Get the model flux envelope
-            flux_envelope = self.get_all_spectra(posterior, save_spectra=False)
+            #flux_envelope = self.get_all_spectra(posterior, save_spectra=False)
 
         else:
 

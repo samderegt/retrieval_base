@@ -211,7 +211,10 @@ class CallBack:
         del LogLike_to_save.d_spec
         af.pickle_save(self.prefix+'data/bestfit_LogLike.pkl', LogLike_to_save)
 
-        # Save the contribution functions and cloud opacities 
+        # Save the best-fitting covariance matrix
+        af.pickle_save(self.prefix+'data/bestfit_Cov.pkl', self.Cov)
+
+        # Save the contribution functions and cloud opacities
         np.save(self.prefix+'data/bestfit_int_contr_em.npy', self.pRT_atm.int_contr_em)
         np.save(self.prefix+'data/bestfit_int_contr_em_per_order.npy', self.pRT_atm.int_contr_em_per_order)
         np.save(self.prefix+'data/bestfit_int_opa_cloud.npy', self.pRT_atm.int_opa_cloud)
