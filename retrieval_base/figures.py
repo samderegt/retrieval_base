@@ -54,7 +54,7 @@ def fig_flux_calib_2MASS(wave,
     ax[0].plot(wave, calib_flux, c='k', lw=0.5, 
                label=r'$F_\mathrm{CRIRES}/T_\mathrm{CRIRES}$'
                )
-    ax[0].set(ylim=(0, 1.5*np.nanmedian(calib_flux)), 
+    ax[0].set(ylim=(0, 1.2*np.nanpercentile(calib_flux, q=95)), 
               ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 
               )
     ax[0].legend(loc='upper left')

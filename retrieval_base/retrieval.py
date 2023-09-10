@@ -1,6 +1,4 @@
 import os
-# To not have numpy start parallelizing on its own
-#os.environ['OMP_NUM_THREADS'] = '1'
 
 from mpi4py import MPI
 import time
@@ -8,8 +6,6 @@ import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-# Pause the process to not overload memory
-time.sleep(1.5*rank)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,21 +14,19 @@ import copy
 
 import pymultinest
 
-from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
-from retrieval_base.parameters import Parameters
-from retrieval_base.pRT_model import pRT_model
-from retrieval_base.log_likelihood import LogLikelihood
-from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA
-from retrieval_base.chemistry import FreeChemistry, EqChemistry
-from retrieval_base.callback import CallBack
-from retrieval_base.covariance import Covariance, GaussianProcesses
+from .spectrum import DataSpectrum, ModelSpectrum, Photometry
+from .parameters import Parameters
+from .pRT_model import pRT_model
+from .log_likelihood import LogLikelihood
+from .PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA
+from .chemistry import FreeChemistry, EqChemistry
+from .callback import CallBack
+from .covariance import Covariance, GaussianProcesses
 
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-import config_DENIS as conf
-
-def pre_processing():
+def pre_processing(conf):
 
     # Set up the output directories
     af.create_output_dir(conf.prefix, conf.file_params)
@@ -96,7 +90,11 @@ def pre_processing():
     del photom_2MASS
 
     # Apply sigma-clipping
-    d_spec.sigma_clip_median_filter(sigma=3, filter_width=8, prefix=conf.prefix)
+    d_spec.sigma_clip_median_filter(
+        sigma=3, 
+        filter_width=conf.sigma_clip_width, 
+        prefix=conf.prefix
+        )
     #d_spec.sigma_clip_poly(sigma=3, prefix=conf.prefix)
 
     # Crop the spectrum
@@ -157,18 +155,22 @@ def pre_processing():
 
 class Retrieval:
 
-    def __init__(self):
+    def __init__(self, conf, evaluation):
+
+        self.conf = conf
+        self.evaluation = evaluation
+
         # Load the DataSpectrum and pRT_model classes
-        self.d_spec  = af.pickle_load(conf.prefix+'data/d_spec.pkl')
-        self.pRT_atm = af.pickle_load(conf.prefix+'data/pRT_atm.pkl')
+        self.d_spec  = af.pickle_load(self.conf.prefix+'data/d_spec.pkl')
+        self.pRT_atm = af.pickle_load(self.conf.prefix+'data/pRT_atm.pkl')
 
         # Create a Parameters instance
         self.Param = Parameters(
-            free_params=conf.free_params, 
-            constant_params=conf.constant_params, 
+            free_params=self.conf.free_params, 
+            constant_params=self.conf.constant_params, 
             n_orders=self.d_spec.n_orders, 
             n_dets=self.d_spec.n_dets, 
-            enforce_PT_corr=conf.enforce_PT_corr
+            enforce_PT_corr=self.conf.enforce_PT_corr
             )    
 
         if 'beta_tell' not in self.Param.param_keys:
@@ -183,8 +185,8 @@ class Retrieval:
         self.LogLike = LogLikelihood(
             self.d_spec, 
             n_params=self.Param.n_params, 
-            scale_flux=conf.scale_flux, 
-            scale_err=conf.scale_err, 
+            scale_flux=self.conf.scale_flux, 
+            scale_err=self.conf.scale_err, 
             )
 
 
@@ -196,8 +198,8 @@ class Retrieval:
         elif self.Param.PT_mode == 'free':
             self.PT = PT_profile_free(
                 self.pRT_atm.pressure, 
-                ln_L_penalty_order=conf.ln_L_penalty_order, 
-                PT_interp_mode=conf.PT_interp_mode, 
+                ln_L_penalty_order=self.conf.ln_L_penalty_order, 
+                PT_interp_mode=self.conf.PT_interp_mode, 
                 )
         elif self.Param.PT_mode == 'grid':
             self.PT = PT_profile_SONORA(
@@ -207,7 +209,7 @@ class Retrieval:
         if self.Param.chem_mode == 'free':
             self.Chem = FreeChemistry(
                 self.pRT_atm.line_species, self.pRT_atm.pressure, 
-                spline_order=conf.chem_spline_order
+                spline_order=self.conf.chem_spline_order
                 )
         elif self.Param.chem_mode == 'eqchem':
             self.Chem = EqChemistry(
@@ -227,7 +229,7 @@ class Retrieval:
                         err=self.d_spec.err[i,j,mask_ij], 
                         separation=self.d_spec.separation[i,j], 
                         err_eff=self.d_spec.err_eff[i,j], 
-                        cholesky_mode=conf.cholesky_mode
+                        cholesky_mode=self.conf.cholesky_mode
                         )
                 else:
                     # Use a Covariance instance instead
@@ -237,17 +239,17 @@ class Retrieval:
         
         self.CB = CallBack(
             d_spec=self.d_spec, 
-            evaluation=args.evaluation, 
+            evaluation=self.evaluation, 
             n_samples_to_use=2000, 
-            prefix=conf.prefix, 
+            prefix=self.conf.prefix, 
             posterior_color='C0', 
             bestfit_color='C1', 
             )
 
-        if (rank == 0) and args.evaluation:
-            if os.path.exists(conf.prefix+'data/pRT_atm_broad.pkl'):
+        if (rank == 0) and self.evaluation:
+            if os.path.exists(self.conf.prefix+'data/pRT_atm_broad.pkl'):
                 # Load the pRT model
-                self.pRT_atm_broad = af.pickle_load(conf.prefix+'data/pRT_atm_broad.pkl')
+                self.pRT_atm_broad = af.pickle_load(self.conf.prefix+'data/pRT_atm_broad.pkl')
 
             else:
                 # Create a wider pRT model during evaluation
@@ -255,7 +257,7 @@ class Retrieval:
                 self.pRT_atm_broad.get_atmospheres(CB_active=True)
 
                 # Save for convenience
-                af.pickle_save(conf.prefix+'data/pRT_atm_broad.pkl', self.pRT_atm_broad)
+                af.pickle_save(self.conf.prefix+'data/pRT_atm_broad.pkl', self.pRT_atm_broad)
 
         # Set to None initially, changed during evaluation
         self.Chem.mass_fractions_envelopes = None
@@ -302,7 +304,7 @@ class Retrieval:
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
-        if args.evaluation:
+        if self.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
         else:
@@ -314,7 +316,7 @@ class Retrieval:
             temperature, 
             self.Param.params, 
             get_contr=self.CB.active, 
-            get_full_spectrum=args.evaluation, 
+            get_full_spectrum=self.evaluation, 
             )
 
         for i in range(self.d_spec.n_orders):
@@ -332,7 +334,7 @@ class Retrieval:
                         a=self.Param.params['a'][i,j], 
                         l=self.Param.params['l'][i,j], 
                         trunc_dist=5, 
-                        scale_GP_amp=conf.scale_GP_amp
+                        scale_GP_amp=self.conf.scale_GP_amp
                         )
                 
                 if self.Param.params['beta'][i,j] != 1:
@@ -363,7 +365,7 @@ class Retrieval:
                         loc1=self.Param.params['loc1'], 
                         l=self.Param.params['l'][i,j], 
                         trunc_dist=5, 
-                        scale_GP_amp=conf.scale_GP_amp
+                        scale_GP_amp=self.conf.scale_GP_amp
                         )
 
         # Retrieve the log-likelihood
@@ -528,10 +530,10 @@ class Retrieval:
 
     def get_all_spectra(self, posterior, save_spectra=False):
 
-        if os.path.exists(conf.prefix+'data/m_flux_envelope.npy'):
+        if os.path.exists(self.conf.prefix+'data/m_flux_envelope.npy'):
             
             # Load the model spectrum envelope if it was computed before
-            flux_envelope = np.load(conf.prefix+'data/m_flux_envelope.npy')
+            flux_envelope = np.load(self.conf.prefix+'data/m_flux_envelope.npy')
 
             # Convert envelopes to 1, 2, 3-sigma equivalent and median
             q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
@@ -546,7 +548,7 @@ class Retrieval:
             return flux_envelope
         
         from tqdm import tqdm
-        args.evaluation = False
+        self.evaluation = False
 
         flux_envelope = np.nan * np.ones(
             (len(posterior), self.d_spec.n_orders, 
@@ -599,14 +601,14 @@ class Retrieval:
                         )
                     flux_envelope[i,k,l,:] += random_sample[0]
         
-        args.evaluation = True
+        self.evaluation = True
 
-        np.save(conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
-        np.save(conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
+        np.save(self.conf.prefix+'data/ln_L_per_pixel_posterior.npy', ln_L_per_pixel_posterior)
+        np.save(self.conf.prefix+'data/chi_squared_per_pixel_posterior.npy', chi_squared_per_pixel_posterior)
     
         if save_spectra:
             # Save the model spectrum envelope
-            np.save(conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
+            np.save(self.conf.prefix+'data/m_flux_envelope.npy', flux_envelope)
 
             # Convert envelopes to 1, 2, 3-sigma equivalent and median
             q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
@@ -635,12 +637,12 @@ class Retrieval:
 
         self.CB.active = True
 
-        if args.evaluation:
+        if self.evaluation:
 
             # Set-up analyzer object
             analyzer = pymultinest.Analyzer(
                 n_params=self.Param.n_params, 
-                outputfiles_basename=conf.prefix
+                outputfiles_basename=self.conf.prefix
                 )
             stats = analyzer.get_stats()
 
@@ -676,7 +678,7 @@ class Retrieval:
         self.Param.read_chemistry_params()
         self.Param.read_cloud_params()
 
-        if args.evaluation:
+        if self.evaluation:
             # Get each species' contribution to the spectrum
             self.get_species_contribution()
 
@@ -684,7 +686,7 @@ class Retrieval:
         self.PMN_lnL_func()
         self.CB.active = False
 
-        if args.evaluation:
+        if self.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
 
@@ -705,20 +707,23 @@ class Retrieval:
 
     def PMN_run(self):
         
+        # Pause the process to not overload memory
+        time.sleep(1.5*rank)
+
         # Run the MultiNest retrieval
         pymultinest.run(
             LogLikelihood=self.PMN_lnL_func, 
             Prior=self.Param, 
             n_dims=self.Param.n_params, 
-            outputfiles_basename=conf.prefix, 
+            outputfiles_basename=self.conf.prefix, 
             resume=True, 
             verbose=True, 
-            const_efficiency_mode=conf.const_efficiency_mode, 
-            sampling_efficiency=conf.sampling_efficiency, 
-            n_live_points=conf.n_live_points, 
-            evidence_tolerance=conf.evidence_tolerance, 
+            const_efficiency_mode=self.conf.const_efficiency_mode, 
+            sampling_efficiency=self.conf.sampling_efficiency, 
+            n_live_points=self.conf.n_live_points, 
+            evidence_tolerance=self.conf.evidence_tolerance, 
             dump_callback=self.PMN_callback_func, 
-            n_iter_before_update=conf.n_iter_before_update, 
+            n_iter_before_update=self.conf.n_iter_before_update, 
             )
 
     def synthetic_spectrum(self):
@@ -764,8 +769,8 @@ class Retrieval:
         self.PMN_lnL_func(cube=None, ndim=None, nparams=None)
 
         # Save the PT profile
-        np.savetxt(conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
-        np.savetxt(conf.prefix+'data/SONORA_RCB.dat', np.array([self.PT.RCB]))
+        np.savetxt(self.conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
+        np.savetxt(self.conf.prefix+'data/SONORA_RCB.dat', np.array([self.PT.RCB]))
         
         # Insert the NaNs from the observed spectrum
         self.m_spec.flux[~self.d_spec.mask_isfinite] = np.nan
@@ -777,18 +782,18 @@ class Retrieval:
         self.d_spec.flux = self.m_spec.flux.copy()
 
         # Plot the pre-processed spectrum
-        figs.fig_spec_to_fit(self.d_spec, prefix=conf.prefix)
+        figs.fig_spec_to_fit(self.d_spec, prefix=self.conf.prefix)
 
         # Save the synthetic spectrum
-        np.save(conf.prefix+'data/d_spec_wave.npy', self.d_spec.wave)
-        np.save(conf.prefix+'data/d_spec_flux.npy', self.d_spec.flux)
-        np.save(conf.prefix+'data/d_spec_err.npy', self.d_spec.err)
-        np.save(conf.prefix+'data/d_spec_transm.npy', self.d_spec.transm)
+        np.save(self.conf.prefix+'data/d_spec_wave.npy', self.d_spec.wave)
+        np.save(self.conf.prefix+'data/d_spec_flux.npy', self.d_spec.flux)
+        np.save(self.conf.prefix+'data/d_spec_err.npy', self.d_spec.err)
+        np.save(self.conf.prefix+'data/d_spec_transm.npy', self.d_spec.transm)
 
         # Save as pickle
-        af.pickle_save(conf.prefix+'data/d_spec.pkl', self.d_spec)
-        
+        af.pickle_save(self.conf.prefix+'data/d_spec.pkl', self.d_spec)
 
+'''
 if __name__ == '__main__':
 
     # Instantiate the parser
@@ -797,7 +802,6 @@ if __name__ == '__main__':
     parser.add_argument('--retrieval', action='store_true')
     parser.add_argument('--evaluation', action='store_true')
     parser.add_argument('--synthetic', action='store_true')
-    #parser.add_argument('--spec_posterior', action='store_true')
     args = parser.parse_args()
 
     if args.pre_processing:
@@ -827,3 +831,4 @@ if __name__ == '__main__':
         ret = Retrieval()
         ret.synthetic_spectrum()
 
+'''

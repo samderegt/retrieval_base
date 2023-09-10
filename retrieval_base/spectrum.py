@@ -570,7 +570,8 @@ class DataSpectrum(Spectrum):
         # Interpolate onto the data wavelength grid
         transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
-        mask_high_transm = (transm_skycalc > 0.99)
+        #mask_high_transm = (transm_skycalc > 0.99)
+        mask_high_transm = (transm_skycalc > 0.98)
 
         poly_model = np.nan * np.ones_like(self.wave)
         for j in range(self.n_dets):
