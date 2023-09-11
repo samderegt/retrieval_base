@@ -6,7 +6,7 @@ file_params = 'config_fiducial.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = '2M_0559_fiducial_test'
+prefix = '2M_0559_fiducial_GPs'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/2M_0559_K.dat'
@@ -35,7 +35,7 @@ rv_std, vsini_std = -39.00, 45
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.5
+tell_threshold = 0.8
 
 sigma_clip_width = 8
 
@@ -50,23 +50,22 @@ wlen_setting = 'K2166'
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'a_1': [(0.1,0.8), r'$a_1$'], 
-    #'a_2': [(0.1,0.8), r'$a_2$'], 
-    #'a_3': [(0.1,0.8), r'$a_3$'], 
-    #'a_4': [(0.1,0.8), r'$a_4$'], 
-    #'a_5': [(0.1,0.8), r'$a_5$'], 
-    #'a_6': [(0.1,0.8), r'$a_6$'], 
-    ##'a_7': [(0.1,0.8), r'$a_7$'], 
-    #'l': [(10,40), r'$l$'], 
+    'a_1': [(0.1,0.6), r'$a_1$'], 
+    'a_2': [(0.1,0.6), r'$a_2$'], 
+    'a_3': [(0.1,0.6), r'$a_3$'], 
+    'a_4': [(0.1,0.6), r'$a_4$'], 
+    'a_5': [(0.1,0.6), r'$a_5$'], 
+    'a_6': [(0.1,0.6), r'$a_6$'], 
+    'l': [(5,40), r'$l$'], 
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.5,6), r'$\log\ g$'], 
-    'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
+    #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(-40,40), r'$v_\mathrm{rad}$'], 
+    'rv': [(-30,0), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -109,6 +108,8 @@ constant_params = {
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
+
+    'epsilon_limb': 0.65, 
 }
 
 # Polynomial order of non-vertical abundance profile
@@ -139,8 +140,8 @@ cholesky_mode = 'banded'
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = False
-#prepare_for_covariance = True
+#prepare_for_covariance = False
+prepare_for_covariance = True
 
 apply_high_pass_filter = False
 
