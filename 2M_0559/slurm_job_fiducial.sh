@@ -4,9 +4,9 @@
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH -t 03:30:00
-#SBATCH -p thin
-#SBATCH -n 85
-#SBATCH --mem=256G
+#SBATCH -p genoa
+#SBATCH -n 115
+#SBATCH --mem=336G
 
 #SBATCH --job-name=2M_0559_fiducial
 #SBATCH --mail-type=ALL
@@ -36,7 +36,7 @@ sed -i 's/import config as conf/import config_fiducial as conf/g' retrieval_scri
 python retrieval_script.py --pre_processing
 
 # Run the retrieval and evaluation
-mpiexec -np $SLURM_NTASKS python retrieval_script.py --retrieval
+mpiexec -np $SLURM_NTASKS --bind-to core:overload-allowed python retrieval_script.py --retrieval
 python retrieval_script.py --evaluation
 
 # Revert to original config file

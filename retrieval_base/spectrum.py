@@ -16,24 +16,38 @@ import retrieval_base.figures as figs
 class Spectrum:
 
     # The wavelength ranges of each detector and order
-    order_wlen_ranges = np.array([
-        [[1921.318,1934.583], [1935.543,1948.213], [1949.097,1961.128]],
-        [[1989.978,2003.709], [2004.701,2017.816], [2018.708,2031.165]],
-        [[2063.711,2077.942], [2078.967,2092.559], [2093.479,2106.392]],
-        [[2143.087,2157.855], [2158.914,2173.020], [2173.983,2187.386]],
-        [[2228.786,2244.133], [2245.229,2259.888], [2260.904,2274.835]],
-        [[2321.596,2337.568], [2338.704,2353.961], [2355.035,2369.534]],
-        [[2422.415,2439.061], [2440.243,2456.145], [2457.275,2472.388]],
-        ])
-    n_orders = 7
-    n_dets   = 3
+    settings = {
+        'J1226': np.array([
+            [[1116.376, 1124.028], [1124.586, 1131.879], [1132.404, 1139.333]], 
+            [[1139.175, 1146.984], [1147.551, 1154.994], [1155.521, 1162.592]], 
+            [[1162.922, 1170.895], [1171.466, 1179.065], [1179.598, 1186.818]], 
+            [[1187.667, 1195.821], [1196.391, 1204.153], [1204.700, 1212.078]], 
+            [[1213.484, 1221.805], [1222.389, 1230.320], [1230.864, 1238.399]], 
+            [[1240.463, 1248.942], [1249.534, 1257.642], [1258.205, 1265.874]], 
+            [[1268.607, 1277.307], [1277.901, 1286.194], [1286.754, 1294.634]], 
+            [[1298.103, 1306.964], [1307.579, 1316.065], [1316.608, 1324.672]], 
+            [[1328.957, 1338.011], [1338.632, 1347.322], [1347.898, 1356.153]], 
+            ]), 
+        'K2166': np.array([
+            [[1921.318,1934.583], [1935.543,1948.213], [1949.097,1961.128]],
+            [[1989.978,2003.709], [2004.701,2017.816], [2018.708,2031.165]],
+            [[2063.711,2077.942], [2078.967,2092.559], [2093.479,2106.392]],
+            [[2143.087,2157.855], [2158.914,2173.020], [2173.983,2187.386]],
+            [[2228.786,2244.133], [2245.229,2259.888], [2260.904,2274.835]],
+            [[2321.596,2337.568], [2338.704,2353.961], [2355.035,2369.534]],
+            [[2422.415,2439.061], [2440.243,2456.145], [2457.275,2472.388]],
+            ]), 
+        }
     n_pixels = 2048
 
-    def __init__(self, wave, flux, err=None):
+    def __init__(self, wave, flux, err=None, wlen_setting='K2166'):
 
         self.wave = wave
         self.flux = flux
         self.err  = err
+
+        self.order_wlen_ranges = self.settings[wlen_setting]
+        self.n_orders, self.n_dets, _ = self.order_wlen_ranges.shape
 
         # Make the isfinite mask
         self.update_isfinite_mask()
@@ -114,10 +128,14 @@ class Spectrum:
 
         # Loop over the orders
         for i in range(self.n_orders):
-
+                
             # Select only pixels within the order, should be 3*2048
-            mask_wave  = (self.wave >= self.order_wlen_ranges[i,0].min() - 0.5) & \
-                         (self.wave <= self.order_wlen_ranges[i,2].max() + 0.5)
+            idx_low  = self.n_pixels * (i*self.n_dets)
+            idx_high = self.n_pixels * ((i+1)*self.n_dets)
+            
+            mask_wave = np.zeros_like(self.wave, dtype=bool)
+            mask_wave[idx_low:idx_high] = True
+
             mask_order = (mask_wave & self.mask_isfinite)
 
             if mask_order.any():
@@ -172,8 +190,12 @@ class Spectrum:
         for i in range(self.n_orders):
 
             # Select only pixels within the order, should be 3*2048
-            mask_wave  = (self.wave >= self.order_wlen_ranges[i,0].min() - 0.5) & \
-                         (self.wave <= self.order_wlen_ranges[i,2].max() + 0.5)
+            idx_low  = self.n_pixels * (i*self.n_dets)
+            idx_high = self.n_pixels * ((i+1)*self.n_dets)
+            
+            mask_wave = np.zeros_like(self.wave, dtype=bool)
+            mask_wave[idx_low:idx_high] = True
+            
             mask_order = (mask_wave & self.mask_isfinite)
 
             if mask_order.any():
@@ -282,12 +304,13 @@ class DataSpectrum(Spectrum):
                  file_wave=None, 
                  slit='w_0.2', 
                  wave_range=(1900,2500), 
+                 wlen_setting='K2166', 
                  ):
 
         if file_target is not None:
             wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)
         
-        super().__init__(wave, flux, err)
+        super().__init__(wave, flux, err, wlen_setting)
 
         # Reshape the orders and detectors
         #self.reshape_orders_dets()
@@ -359,14 +382,15 @@ class DataSpectrum(Spectrum):
         mask_wave = (self.wave >= self.wave_range[0]) & \
                     (self.wave <= self.wave_range[1])
 
-        self.wave = self.wave[mask_wave]
-        self.flux = self.flux[mask_wave]
-        self.err  = self.err[mask_wave]
+        self.flux[~mask_wave] = np.nan
+        #self.wave = self.wave[mask_wave]
+        #self.flux = self.flux[mask_wave]
+        #self.err  = self.err[mask_wave]
 
-        if self.transm is not None:
-            self.transm = self.transm[mask_wave]
-        if self.flux_uncorr is not None:
-            self.flux_uncorr = self.flux_uncorr[mask_wave]
+        #if self.transm is not None:
+        #    self.transm = self.transm[mask_wave]
+        #if self.flux_uncorr is not None:
+        #    self.flux_uncorr = self.flux_uncorr[mask_wave]
 
     def bary_corr(self, replace_wave=True, return_v_bary=False):
 
@@ -397,8 +421,11 @@ class DataSpectrum(Spectrum):
             for j in range(self.n_dets):
 
                 # Select only pixels within the detector, should be 2048
-                mask_wave = (self.wave >= self.order_wlen_ranges[i,j].min() - 0.5) & \
-                            (self.wave <= self.order_wlen_ranges[i,j].max() + 0.5)
+                mask_wave = np.arange(
+                    self.n_pixels * (i*self.n_dets + j), 
+                    self.n_pixels * (i*self.n_dets + j + 1), 
+                    dtype=int
+                    )
 
                 if mask_wave.any():
                     wave_ordered[i,j] = self.wave[mask_wave]
@@ -472,6 +499,14 @@ class DataSpectrum(Spectrum):
         # Loop over the orders and detectors
         for i in range(self.n_orders):
             for j in range(self.n_dets):
+
+                idx_low  = self.n_pixels * (i*self.n_dets + j)
+                idx_high = self.n_pixels * (i*self.n_dets + j + 1)
+
+                self.flux[idx_low : idx_low + n_edge_pixels]   = np.nan
+                self.flux[idx_high : idx_high - n_edge_pixels] = np.nan
+
+                '''
                 wave_min, wave_max = self.order_wlen_ranges[i,j]
                 
                 mask_wave = (self.wave >= wave_min - 0.5) & \
@@ -488,6 +523,7 @@ class DataSpectrum(Spectrum):
 
                     # Set clipped values to NaNs
                     self.flux[mask_det] = flux_i
+                '''
 
         # Update the isfinite mask
         self.update_isfinite_mask()
@@ -571,7 +607,8 @@ class DataSpectrum(Spectrum):
         transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
         #mask_high_transm = (transm_skycalc > 0.99)
-        mask_high_transm = (transm_skycalc > 0.98)
+        #mask_high_transm = (transm_skycalc > 0.98)
+        mask_high_transm = (transm_skycalc > 0.95)
 
         poly_model = np.nan * np.ones_like(self.wave)
         for j in range(self.n_dets):
@@ -723,7 +760,7 @@ class ModelSpectrum(Spectrum):
                  flux, 
                  lbl_opacity_sampling=1, 
                  multiple_orders=False, 
-                 high_pass_filtered=False
+                 high_pass_filtered=False, 
                  ):
 
         super().__init__(wave, flux)

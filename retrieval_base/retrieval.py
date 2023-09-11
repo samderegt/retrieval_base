@@ -47,6 +47,7 @@ def pre_processing(conf):
         file_wave=conf.file_wave, 
         slit=conf.slit, 
         wave_range=conf.wave_range, 
+        wlen_setting=conf.wlen_setting, 
         )
     d_spec.clip_det_edges()
     
@@ -62,6 +63,7 @@ def pre_processing(conf):
         file_wave=conf.file_std, 
         slit=conf.slit, 
         wave_range=conf.wave_range, 
+        wlen_setting=conf.wlen_setting, 
         )
     d_std_spec.clip_det_edges()
 

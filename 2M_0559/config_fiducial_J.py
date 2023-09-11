@@ -6,12 +6,12 @@ file_params = 'config_fiducial.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = '2M_0559_fiducial_test'
+prefix = '2M_0559_fiducial_J'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
-file_target = './data/2M_0559_K.dat'
-file_std    = './data/2M_0559_std_K.dat'
-file_wave   = './data/2M_0559_K.dat'
+file_target = './data/2M_0559_J.dat'
+file_std    = './data/2M_0559_std_J.dat'
+file_wave   = './data/2M_0559_J.dat'
 file_skycalc_transm = './data/skycalc_transm.dat'
 
 magnitudes = {
@@ -19,7 +19,7 @@ magnitudes = {
     '2MASS/2MASS.H': (13.679, 0.044), 
     '2MASS/2MASS.Ks': (13.577, 0.052), 
 }
-filter_2MASS = '2MASS/2MASS.Ks'
+filter_2MASS = '2MASS/2MASS.J'
 
 pwv = 10.0
 
@@ -39,9 +39,8 @@ tell_threshold = 0.5
 
 sigma_clip_width = 8
 
-#wave_range = (1900, 2500)
-wave_range = (1980, 2500)
-wlen_setting = 'K2166'
+wave_range = (1115, 1325)
+wlen_setting = 'J1226'
 
 ####################################################################################
 # Model parameters

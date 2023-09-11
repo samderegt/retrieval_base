@@ -54,7 +54,7 @@ def fig_flux_calib_2MASS(wave,
     ax[0].plot(wave, calib_flux, c='k', lw=0.5, 
                label=r'$F_\mathrm{CRIRES}/T_\mathrm{CRIRES}$'
                )
-    ax[0].set(ylim=(0, 1.2*np.nanpercentile(calib_flux, q=95)), 
+    ax[0].set(ylim=(0, 1.5*np.nanpercentile(calib_flux, q=95)), 
               ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 
               )
     ax[0].legend(loc='upper left')
@@ -64,7 +64,7 @@ def fig_flux_calib_2MASS(wave,
     ax[1].plot(wave, poly_model, c='gray', lw=1)
     ax[1].plot(wave, tell_threshold*poly_model, c='gray', lw=1, ls='--')
     ax[1].plot(wave_2MASS, transm_2MASS, c='r', lw=1, label=r'$T_\mathrm{2MASS}$')
-    ax[1].set(xlim=(wave.min()-50, wave.max()+50), xlabel=r'Wavelength (nm)', 
+    ax[1].set(xlim=(wave.min()-20, wave.max()+20), xlabel=r'Wavelength (nm)', 
               ylim=(0,1.1), ylabel=r'Transmissivity'
               )
     ax[1].legend(loc='upper left')
@@ -85,10 +85,10 @@ def fig_flux_calib_2MASS(wave,
 
         for i in range(n_orders):
             # Only plot within a wavelength range
-            wave_min = order_wlen_ranges[i,:].min() - 2
-            wave_max = order_wlen_ranges[i,:].max() + 2
+            wave_min = order_wlen_ranges[i,:].min() - 0.5
+            wave_max = order_wlen_ranges[i,:].max() + 0.5
 
-            mask_wave = (wave > wave_min) & (wave < wave_max)
+            mask_wave = np.arange(i*3*2048, (i+1)*3*2048, dtype=int)
 
             ax[i].plot(
                 wave[mask_wave], 
@@ -116,10 +116,10 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
     
     for i in range(n_orders):
         # Only plot within a wavelength range
-        wave_min = order_wlen_ranges[i,:].min() - 2
-        wave_max = order_wlen_ranges[i,:].max() + 2
-
-        mask_wave = (wave > wave_min) & (wave < wave_max)
+        wave_min = order_wlen_ranges[i,:].min() - 0.5
+        wave_max = order_wlen_ranges[i,:].max() + 0.5
+        
+        mask_wave = np.arange(i*3*2048, (i+1)*3*2048, dtype=int)
 
         ax[i].plot(wave[mask_wave], flux_wo_clip[mask_wave], c='r', lw=0.3)
         ax[i].plot(wave[mask_wave], flux[mask_wave], c='k', lw=0.5)
@@ -151,8 +151,8 @@ def fig_spec_to_fit(d_spec, prefix=None):
         for j in range(d_spec.n_dets):
             ax[i].plot(d_spec.wave[i,j], d_spec.flux[i,j], c='k', lw=0.5)
         
-        ax[i].set(xlim=(d_spec.order_wlen_ranges[i].min()-2, 
-                        d_spec.order_wlen_ranges[i].max()+2)
+        ax[i].set(xlim=(d_spec.order_wlen_ranges[i].min()-0.5, 
+                        d_spec.order_wlen_ranges[i].max()+0.5)
                   )
 
     if prefix is not None:
@@ -201,11 +201,11 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
             ax[i*3+2].remove()
 
             # Use a different xlim for the separate figures
-            xlim = (d_spec.wave[i,:].min()-2, 
-                    d_spec.wave[i,:].max()+2)
+            xlim = (d_spec.wave[i,:].min()-0.5, 
+                    d_spec.wave[i,:].max()+0.5)
         else:
-            xlim = (d_spec.wave.min()-2, 
-                    d_spec.wave.max()+2)
+            xlim = (d_spec.wave.min()-0.5, 
+                    d_spec.wave.max()+0.5)
 
         ax_spec.set(xlim=xlim, xticks=[], ylim=ylim_spec)
         ax_res.set(xlim=xlim, ylim=ylim_res)
@@ -373,7 +373,7 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
                 all_cov[i,j], aspect=1, extent=extent, cmap=cmap, 
                 interpolation='none', vmin=vmin, vmax=vmax
                 )
-            ticks = np.linspace(d_spec.wave[i,j].min()+2, d_spec.wave[i,j].max()-2, num=4)
+            ticks = np.linspace(d_spec.wave[i,j].min()+0.5, d_spec.wave[i,j].max()-0.5, num=4)
             ax[i,j].set_xticks(
                 ticks, labels=['{:.0f}'.format(t_i) for t_i in ticks]
                 )
