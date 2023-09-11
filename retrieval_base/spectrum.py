@@ -591,6 +591,14 @@ class DataSpectrum(Spectrum):
                 )
             poly_model[mask_det] = np.poly1d(p)(self.wave[mask_det])
 
+        '''
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(15,5))
+        ax.plot(self.wave.flatten(), self.flux.flatten(), 'k.-')
+        ax.plot(self.wave.flatten(), 1.2*np.nanpercentile(self.flux,q=95) * self.transm.flatten(), c='C0')
+        ax.plot(self.wave.flatten(), 1.2*np.nanpercentile(self.flux,q=95) * transm_skycalc.flatten(), c='C1')
+        plt.show()
+        '''
         # Apply correction for telluric transmission
         tell_corr_flux = self.flux / self.transm
         # Replace the deepest tellurics with NaNs

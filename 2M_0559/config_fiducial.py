@@ -11,7 +11,7 @@ prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/2M_0559_K.dat'
 file_std    = './data/2M_0559_std_K.dat'
-file_wave   = './data/2M_0559_std_K.dat'
+file_wave   = './data/2M_0559_K.dat'
 file_skycalc_transm = './data/skycalc_transm.dat'
 
 magnitudes = {
@@ -30,14 +30,14 @@ ra_std, dec_std = 90.460453, -10.59824
 mjd_std = 59977.20176338
 T_std = 16258
 log_g_std = 3.5
-rv_std, vsini_std = 39.00, 45
+rv_std, vsini_std = -39.00, 45
 
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.8
+tell_threshold = 0.5
 
-sigma_clip_width = 21
+sigma_clip_width = 8
 
 #wave_range = (1900, 2500)
 wave_range = (1980, 2500)
@@ -55,7 +55,7 @@ free_params = {
     #'a_4': [(0.1,0.8), r'$a_4$'], 
     #'a_5': [(0.1,0.8), r'$a_5$'], 
     #'a_6': [(0.1,0.8), r'$a_6$'], 
-    #'a_7': [(0.1,0.8), r'$a_7$'],  
+    ##'a_7': [(0.1,0.8), r'$a_7$'], 
     #'l': [(10,40), r'$l$'], 
 
     # General properties
@@ -68,15 +68,15 @@ free_params = {
     'rv': [(-40,40), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
-    #'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
     #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
     #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
@@ -89,8 +89,8 @@ free_params = {
     'T_2': [(0,3000), r'$T_2$'], 
     'T_3': [(0,2000), r'$T_3$'], 
     'T_4': [(0,2000), r'$T_4$'], 
-    #'T_5': [(0,2000), r'$T_5$'], 
-    #'T_6': [(0,2000), r'$T_6$'], 
+    'T_5': [(0,2000), r'$T_5$'], 
+    'T_6': [(0,2000), r'$T_6$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -101,13 +101,13 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1], 
 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
-    #'d_log_P_34': 0.75, 
-    #'d_log_P_45': 1, 
+    'd_log_P_34': 0.75, 
+    'd_log_P_45': 1, 
 }
 
 # Polynomial order of non-vertical abundance profile
@@ -124,7 +124,7 @@ line_species = [
     'CO_main_iso', 
     #'CO_36', 
     'CH4_hargreaves_main_iso', 
-    #'NH3_coles_main_iso', 
+    'NH3_coles_main_iso', 
     #'CO2_main_iso', 
     #'HCN_main_iso', 
     ]
@@ -132,8 +132,7 @@ cloud_species = None
 
 scale_flux = True
 scale_err  = True
-#scale_GP_amp = True
-scale_GP_amp = False
+scale_GP_amp = True
 cholesky_mode = 'banded'
 
 # Prepare the wavelength separation and
@@ -151,5 +150,5 @@ apply_high_pass_filter = False
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 50
-n_iter_before_update = 2
+n_live_points = 200
+n_iter_before_update = 100

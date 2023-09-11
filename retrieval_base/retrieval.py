@@ -59,7 +59,7 @@ def pre_processing(conf):
         mjd=conf.mjd_std, 
         pwv=conf.pwv, 
         file_target=conf.file_std, 
-        file_wave=conf.file_wave, 
+        file_wave=conf.file_std, 
         slit=conf.slit, 
         wave_range=conf.wave_range, 
         )
@@ -75,6 +75,14 @@ def pre_processing(conf):
         ref_rv=conf.rv_std, ref_vsini=conf.vsini_std, 
         #mode='bb'
         mode='PHOENIX'
+        )
+    
+    # Interpolate onto the same wavelength grid as the target
+    d_std_spec.transm = np.interp(
+        d_spec.wave, d_std_spec.wave, d_std_spec.transm
+        )
+    d_std_spec.transm_err = np.interp(
+        d_spec.wave, d_std_spec.wave, d_std_spec.transm_err
         )
     d_spec.add_transmission(d_std_spec.transm, d_std_spec.transm_err)
     del d_std_spec
