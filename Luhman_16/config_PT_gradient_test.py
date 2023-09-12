@@ -1,47 +1,46 @@
 import numpy as np
 
-file_params = 'config_fiducial.py'
+file_params = 'config_PT_gradient_test.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = '2M_0559_fiducial_GPs_2'
+prefix = 'PT_gradient_test'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
-file_target = './data/2M_0559_K.dat'
-file_std    = './data/2M_0559_std_K.dat'
-file_wave   = './data/2M_0559_K.dat'
-file_skycalc_transm = './data/skycalc_transm.dat'
+#wave_range = (1900, 2500)
+wave_range = (2300, 2400)
+wlen_setting = 'K2166'
+
+file_target = './data/Luhman_16A_K.dat'
+file_std    = './data/Luhman_16_std_K.dat'
+file_wave   = './data/Luhman_16_std_K.dat'
+file_skycalc_transm = f'./data/skycalc_transm_{wlen_setting}.dat'
 
 magnitudes = {
-    '2MASS/2MASS.J': (13.802, 0.024), # Cutri et al. (2003)
-    '2MASS/2MASS.H': (13.679, 0.044), 
-    '2MASS/2MASS.Ks': (13.577, 0.052), 
+    '2MASS/2MASS.J': (11.53, 0.04), # Burgasser et al. (2013)
+    '2MASS/2MASS.Ks': (9.44, 0.07), 
 }
 filter_2MASS = '2MASS/2MASS.Ks'
 
-pwv = 10.0
+pwv = 1.5
 
-ra, dec = 89.834193, -14.08239
-mjd = 59977.26137825
+ra, dec = 162.297895, -53.31703
+mjd = 59946.32563173
 
-ra_std, dec_std = 90.460453, -10.59824
-mjd_std = 59977.20176338
-T_std = 16258
-log_g_std = 3.5
-rv_std, vsini_std = -39.00, 45
+ra_std, dec_std = 161.739683, -56.75788
+mjd_std = 59946.31615474
+T_std = 15000
+log_g_std = 2.3
+rv_std, vsini_std = 31.00, 250
 
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.8
+tell_threshold = 0.5
 
 sigma_clip_width = 8
-
-#wave_range = (1900, 2500)
-wave_range = (1980, 2500)
-wlen_setting = 'K2166'
 
 ####################################################################################
 # Model parameters
@@ -50,22 +49,22 @@ wlen_setting = 'K2166'
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a_1': [(0.3,0.8), r'$a_1$'], 
-    'a_2': [(0.3,0.8), r'$a_2$'], 
-    'a_3': [(0.1,0.6), r'$a_3$'], 
-    'a_4': [(0.1,0.6), r'$a_4$'], 
-    'a_5': [(0.1,0.6), r'$a_5$'], 
-    'a_6': [(0.1,0.6), r'$a_6$'], 
-    'l': [(0.5,7), r'$l$'], 
+    #'a_1': [(0.1,0.6), r'$a_1$'], 
+    #'a_2': [(0.1,0.6), r'$a_2$'], 
+    #'a_3': [(0.1,0.6), r'$a_3$'], 
+    #'a_4': [(0.1,0.6), r'$a_4$'], 
+    #'a_5': [(0.1,0.6), r'$a_5$'], 
+    #'a_6': [(0.1,0.6), r'$a_6$'], 
+    #'l': [(5,40), r'$l$'], 
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
-    'log_g': [(4.5,6), r'$\log\ g$'], 
+    'log_g': [(4,6), r'$\log\ g$'], 
     #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(-30,0), r'$v_\mathrm{rad}$'], 
+    'rv': [(0,30), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -77,19 +76,26 @@ free_params = {
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
     #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
 
     # PT profile
-    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
+    #'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,4500), r'$T_1$'], 
-    'T_2': [(0,3000), r'$T_2$'], 
-    'T_3': [(0,2000), r'$T_3$'], 
-    'T_4': [(0,2000), r'$T_4$'], 
-    'T_5': [(0,2000), r'$T_5$'], 
+    'dlnT_dlnP_0': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{0}$'], 
+    'dlnT_dlnP_1': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{1}$'], 
+    'dlnT_dlnP_2': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{2}$'], 
+    'dlnT_dlnP_3': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{3}$'], 
+    'dlnT_dlnP_4': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{4}$'], 
+    'dlnT_dlnP_5': [(-0.3,0.6), r'$\mathrm{d}\ln\ T / \mathrm{d}\ln\ P_{5}$'], 
+
+    #'T_1': [(0,4500), r'$T_1$'], 
+    #'T_2': [(0,3000), r'$T_2$'], 
+    #'T_3': [(0,2000), r'$T_3$'], 
+    #'T_4': [(0,2000), r'$T_4$'], 
+    #'T_5': [(0,2000), r'$T_5$'], 
     #'T_6': [(0,2000), r'$T_6$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
@@ -98,20 +104,15 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 95.2714,  # +/- 0.7179 mas
-    
+    'parallax': 496,  # +/- 37 mas
+
     # PT profile
-    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 2], 
-    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    'log_P_knots': [-6, -0.25, 0.5, 1, 1.5, 2], 
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1], 
 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.75, 
     'd_log_P_34': 1, 
-    #'d_log_P_12': 0.5, 
-    #'d_log_P_23': 0.5, 
-    #'d_log_P_34': 0.75, 
-    #'d_log_P_45': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -121,14 +122,14 @@ chem_spline_order = 0
 
 # Log-likelihood penalty
 ln_L_penalty_order = 3
-PT_interp_mode = 'log'
+PT_interp_mode = 'cubic'
 enforce_PT_corr = False
 
 
 line_species = [
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
-    #'CO_36', 
+    'CO_36', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
     #'CO2_main_iso', 
@@ -144,8 +145,8 @@ cholesky_mode = 'banded'
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-#prepare_for_covariance = False
-prepare_for_covariance = True
+prepare_for_covariance = False
+#prepare_for_covariance = True
 
 apply_high_pass_filter = False
 
@@ -157,4 +158,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 400

@@ -232,6 +232,42 @@ class PT_profile_free(PT_profile):
                               1/2*np.log(2*np.pi*self.gamma)
                               )
 
+class PT_profile_Zhang(PT_profile):
+
+    def __init__(self, pressure, PT_interp_mode='cubic'):
+        
+        # Give arguments to the parent class
+        super().__init__(pressure)
+
+        self.ln_pressure = np.log(self.pressure)[::-1]
+        self.PT_interp_mode = PT_interp_mode
+
+    def __call__(self, params):
+
+        self.T_knots = params['T_knots']
+        self.P_knots = params['P_knots']
+
+        # Perform interpolation over dlnT/dlnP gradients
+        interp_func = interp1d(
+            params['ln_P_knots'], params['dlnT_dlnP_knots'], 
+            kind=self.PT_interp_mode
+            )
+        self.dlnT_dlnP = interp_func(self.ln_pressure)
+
+        # Compute the temperatures based on the gradient
+        T_i = params['T_0']
+        self.temperature = [T_i, ]
+        for i in range(1, len(self.pressure)):
+            
+            T_i = np.exp(
+                np.log(T_i) + self.dlnT_dlnP[i-1] * \
+                (self.ln_pressure[i] - self.ln_pressure[i-1])
+                )
+            self.temperature.append(T_i)
+
+        self.temperature = np.array(self.temperature)[::-1]
+
+        return self.temperature
 
 class PT_profile_Kitzmann(PT_profile):
 

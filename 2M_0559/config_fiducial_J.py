@@ -98,7 +98,7 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 205.4251,  # +/- 0.1857 mas
+    'parallax': 95.2714,  # +/- 0.7179 mas
 
     # PT profile
     'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 

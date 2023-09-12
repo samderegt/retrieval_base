@@ -101,7 +101,7 @@ class Parameters:
 
         # Count the number of temperature knots above the base
         for i in range(1,100):
-            if f'T_{i}' not in self.param_keys:
+            if (f'T_{i}' not in self.param_keys) and (f'dlnT_dlnP_{i-1}' not in self.param_keys):
                 self.n_T_knots = i-1
                 break
 
@@ -113,11 +113,14 @@ class Parameters:
         # Check if Molliere et al. (2020) PT-profile is used
         Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
         PT_grid_param_keys = ['log_g', 'T_eff']
+        free_PT_gradient_param_keys = ['dlnT_dlnP_0']
 
         if np.isin(Molliere_param_keys, self.param_keys).all():
             self.PT_mode = 'Molliere'
         elif np.isin(PT_grid_param_keys, self.param_keys).all():
             self.PT_mode = 'grid'
+        elif np.isin(free_PT_gradient_param_keys, self.param_keys).all():
+            self.PT_mode = 'free_gradient'
         else:
             self.PT_mode = 'free'
 
@@ -221,48 +224,91 @@ class Parameters:
             self.params['T_3'] = self.params['T_2'] * (high - (high-low)*self.cube[idx])
             cube[idx] = self.params['T_3']
 
-        # Combine the upper temperature knots into an array
-        self.params['T_knots'] = []
-        for i in range(self.n_T_knots):
+        if self.PT_mode in ['free', 'Molliere']:
 
-            T_i = self.params[f'T_{i+1}']
-
-            if (self.PT_mode == 'free') and (cube is not None) and self.enforce_PT_corr:
-                # Temperature knot is product of previous knots
-                T_i = np.prod([self.params[f'T_{j}'] for j in range(i+2)])
+            # Fill the pressure knots
+            self.params['P_knots'] = 10**np.array(
+                self.params['log_P_knots'], dtype=np.float64
+                )[[0,-1]]
+            for i in range(self.n_T_knots-1):
                 
-                idx = np.argwhere(self.param_keys==f'T_{i+1}').flatten()[0]
-                cube[idx] = T_i
+                if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
+                    # Add the difference in log P to the previous knot
+                    log_P_i = np.log10(self.params['P_knots'][1]) - \
+                        self.params[f'd_log_P_{i}{i+1}']
+                else:
+                    # Use the stationary knot
+                    log_P_i = self.params['log_P_knots'][-i-2]
 
-            self.params['T_knots'].append(T_i)
+                # Insert each pressure knot into the array
+                self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
 
-        self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
-
-        # Fill the pressure knots
-        self.params['P_knots'] = 10**np.array(
-            self.params['log_P_knots'], dtype=np.float64
-            )[[0,-1]]
-        for i in range(self.n_T_knots-1):
+            self.params['log_P_knots'] = np.log10(self.params['P_knots'])
             
-            if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
-                # Add the difference in log P to the previous knot
-                log_P_i = np.log10(self.params['P_knots'][1]) - \
-                    self.params[f'd_log_P_{i}{i+1}']
-            else:
-                # Use the stationary knot
-                log_P_i = self.params['log_P_knots'][-i-2]
+            # Combine the upper temperature knots into an array
+            self.params['T_knots'] = []
+            for i in range(self.n_T_knots):
 
-            # Insert each pressure knot into the array
-            self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
+                T_i = self.params[f'T_{i+1}']
 
-        self.params['log_P_knots'] = np.log10(self.params['P_knots'])
+                if (cube is not None) and self.enforce_PT_corr:
+                    # Temperature knot is product of previous knots
+                    T_i = np.prod([self.params[f'T_{j}'] for j in range(i+2)])
+                    
+                    idx = np.argwhere(self.param_keys==f'T_{i+1}').flatten()[0]
+                    cube[idx] = T_i
 
-        # Convert from logarithmic to linear scale
-        self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
-        
-        if 'invgamma_gamma' in self.param_keys:
-            self.params['gamma'] = self.params['invgamma_gamma']
+                self.params['T_knots'].append(T_i)
 
+            self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
+
+            # Convert from logarithmic to linear scale
+            self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
+            
+            if 'invgamma_gamma' in self.param_keys:
+                self.params['gamma'] = self.params['invgamma_gamma']
+
+        if (self.PT_mode == 'free_gradient'):
+
+            # Fill the pressure knots
+            self.params['P_knots'] = 10**np.array(
+                self.params['log_P_knots'], dtype=np.float64
+                )[[0,-1]]
+            for i in range(self.n_T_knots-2):
+                
+                if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
+                    # Add the difference in log P to the previous knot
+                    log_P_i = np.log10(self.params['P_knots'][1]) - \
+                        self.params[f'd_log_P_{i}{i+1}']
+                else:
+                    # Use the stationary knot
+                    log_P_i = self.params['log_P_knots'][-i-2]
+
+                # Insert each pressure knot into the array
+                self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
+
+            self.params['log_P_knots'] = np.log10(self.params['P_knots'])
+            self.params['ln_P_knots']  = np.log(self.params['P_knots'])
+
+            # Combine the upper temperature knots into an array
+            T_i = self.params['T_0']
+            self.params['ln_P_knots'] = np.log(self.params['P_knots'])
+            
+            self.params['T_knots'] = [T_i, ]
+            self.params['dlnT_dlnP_knots'] = [
+                self.params[f'dlnT_dlnP_{i}'] for i in range(self.n_T_knots)
+                ]
+            for i in range(1,self.n_T_knots):
+
+                T_i = np.exp(
+                    np.log(T_i) + self.params[f'dlnT_dlnP_{i-1}'] * \
+                    (self.params['ln_P_knots'][-i-1] - self.params['ln_P_knots'][-i]) 
+                    )
+                self.params['T_knots'].append(T_i)
+
+            self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
+            self.params['dlnT_dlnP_knots'] = np.array(self.params['dlnT_dlnP_knots'])
+            
         return cube
 
     def read_uncertainty_params(self):

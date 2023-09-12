@@ -58,26 +58,26 @@ free_params = {
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
-    'log_g': [(4.5,6), r'$\log\ g$'], 
+    'log_g': [(4,6), r'$\log\ g$'], 
     #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(-30,30), r'$v_\mathrm{rad}$'], 
+    'rv': [(0,30), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    #'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
@@ -96,7 +96,7 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 205.4251,  # +/- 0.1857 mas
+    'parallax': 496,  # +/- 37 mas
 
     # PT profile
     'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 

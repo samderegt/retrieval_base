@@ -18,7 +18,7 @@ from .spectrum import DataSpectrum, ModelSpectrum, Photometry
 from .parameters import Parameters
 from .pRT_model import pRT_model
 from .log_likelihood import LogLikelihood
-from .PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA
+from .PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA, PT_profile_Zhang
 from .chemistry import FreeChemistry, EqChemistry
 from .callback import CallBack
 from .covariance import Covariance, GaussianProcesses
@@ -211,6 +211,11 @@ class Retrieval:
                 ln_L_penalty_order=self.conf.ln_L_penalty_order, 
                 PT_interp_mode=self.conf.PT_interp_mode, 
                 )
+        elif self.Param.PT_mode == 'free_gradient':
+            self.PT = PT_profile_Zhang(
+                self.pRT_atm.pressure, 
+                PT_interp_mode=self.conf.PT_interp_mode, 
+                )
         elif self.Param.PT_mode == 'grid':
             self.PT = PT_profile_SONORA(
                 self.pRT_atm.pressure, 
@@ -291,6 +296,7 @@ class Retrieval:
             temperature = self.PT(self.Param.params)
         except:
             # Something went wrong with interpolating
+            temperature = self.PT(self.Param.params)
             return -np.inf
 
         if temperature.min() < 0:
@@ -738,7 +744,7 @@ class Retrieval:
 
     def synthetic_spectrum(self):
         
-        # Update the parameters        
+        # Update the parameters
         synthetic_params = np.array([
                 0.8, # R_p
                 #5.5, # log_g
@@ -802,43 +808,3 @@ class Retrieval:
 
         # Save as pickle
         af.pickle_save(self.conf.prefix+'data/d_spec.pkl', self.d_spec)
-
-'''
-if __name__ == '__main__':
-
-    # Instantiate the parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--pre_processing', action='store_true')
-    parser.add_argument('--retrieval', action='store_true')
-    parser.add_argument('--evaluation', action='store_true')
-    parser.add_argument('--synthetic', action='store_true')
-    args = parser.parse_args()
-
-    if args.pre_processing:
-        pre_processing()
-
-    if args.retrieval:
-        ret = Retrieval()
-        ret.PMN_run()
-
-    if args.evaluation:
-        ret = Retrieval()
-        ret.PMN_callback_func( 
-            n_samples=None, 
-            n_live=None, 
-            n_params=None, 
-            live_points=None, 
-            posterior=None, 
-            stats=None,
-            max_ln_L=None, 
-            ln_Z=None, 
-            ln_Z_err=None, 
-            nullcontext=None
-            )
-        #ret.PMN_run()
-
-    if args.synthetic:
-        ret = Retrieval()
-        ret.synthetic_spectrum()
-
-'''
