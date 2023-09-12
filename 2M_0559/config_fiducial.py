@@ -6,7 +6,7 @@ file_params = 'config_fiducial.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = '2M_0559_fiducial_GPs'
+prefix = '2M_0559_fiducial_GPs_2'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/2M_0559_K.dat'
@@ -50,13 +50,13 @@ wlen_setting = 'K2166'
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'a_1': [(0.1,0.6), r'$a_1$'], 
-    'a_2': [(0.1,0.6), r'$a_2$'], 
+    'a_1': [(0.3,0.8), r'$a_1$'], 
+    'a_2': [(0.3,0.8), r'$a_2$'], 
     'a_3': [(0.1,0.6), r'$a_3$'], 
     'a_4': [(0.1,0.6), r'$a_4$'], 
     'a_5': [(0.1,0.6), r'$a_5$'], 
     'a_6': [(0.1,0.6), r'$a_6$'], 
-    'l': [(5,40), r'$l$'], 
+    'l': [(0.5,7), r'$l$'], 
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
@@ -68,9 +68,9 @@ free_params = {
     'rv': [(-30,0), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    #'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
@@ -90,7 +90,7 @@ free_params = {
     'T_3': [(0,2000), r'$T_3$'], 
     'T_4': [(0,2000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
-    'T_6': [(0,2000), r'$T_6$'], 
+    #'T_6': [(0,2000), r'$T_6$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -101,13 +101,17 @@ constant_params = {
     'parallax': 205.4251,  # +/- 0.1857 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 2], 
+    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1], 
 
     'd_log_P_12': 0.5, 
-    'd_log_P_23': 0.5, 
-    'd_log_P_34': 0.75, 
-    'd_log_P_45': 1, 
+    'd_log_P_23': 0.75, 
+    'd_log_P_34': 1, 
+    #'d_log_P_12': 0.5, 
+    #'d_log_P_23': 0.5, 
+    #'d_log_P_34': 0.75, 
+    #'d_log_P_45': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -153,4 +157,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 100
+n_iter_before_update = 200

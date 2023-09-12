@@ -75,9 +75,9 @@ free_params = {
     'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
@@ -122,11 +122,11 @@ enforce_PT_corr = False
 line_species = [
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
-    #'CO_36', 
+    'CO_36', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    #'HCN_main_iso', 
+    'CO2_main_iso', 
+    'HCN_main_iso', 
     ]
 cloud_species = None
 
