@@ -334,6 +334,11 @@ class Retrieval:
             get_contr=self.CB.active, 
             get_full_spectrum=self.evaluation, 
             )
+        
+        if (self.m_spec.flux <= 0).any() or \
+            (~np.isfinite(self.m_spec.flux)).any():
+            # Something wrong in the spectrum
+            return -np.inf
 
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):

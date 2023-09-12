@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_PT_gradient_test.py'
+file_params = 'config_order_2300_nm.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'PT_gradient_test'
+prefix = 'order_2300_nm'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 #wave_range = (1900, 2500)
@@ -38,7 +38,7 @@ rv_std, vsini_std = 31.00, 250
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.5
+tell_threshold = 0.6
 
 sigma_clip_width = 8
 
@@ -49,27 +49,27 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'a_1': [(0.1,0.6), r'$a_1$'], 
+    #'a_1': [(0.1,0.8), r'$a_1$'], 
     #'a_2': [(0.1,0.6), r'$a_2$'], 
     #'a_3': [(0.1,0.6), r'$a_3$'], 
     #'a_4': [(0.1,0.6), r'$a_4$'], 
     #'a_5': [(0.1,0.6), r'$a_5$'], 
     #'a_6': [(0.1,0.6), r'$a_6$'], 
-    #'l': [(5,40), r'$l$'], 
+    #'l': [(0.5,10), r'$l$'], 
 
     # General properties
     'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6), r'$\log\ g$'], 
-    #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
     'rv': [(0,30), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
@@ -77,28 +77,29 @@ free_params = {
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
     'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_C18O': [(-10,-2), r'$\log\ \mathrm{C^{18}O}$'], 
 
     # PT profile
-    #'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
+    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,6000), r'$T_0$'], 
-    'dlnT_dlnP_0': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{0}$'], 
-    'dlnT_dlnP_1': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{1}$'], 
-    'dlnT_dlnP_2': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{2}$'], 
-    'dlnT_dlnP_3': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{3}$'], 
-    'dlnT_dlnP_4': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{4}$'], 
-    'dlnT_dlnP_5': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{5}$'], 
+    #'dlnT_dlnP_0': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{0}$'], 
+    #'dlnT_dlnP_1': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{1}$'], 
+    #'dlnT_dlnP_2': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{2}$'], 
+    #'dlnT_dlnP_3': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{3}$'], 
+    #'dlnT_dlnP_4': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{4}$'], 
+    #'dlnT_dlnP_5': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{5}$'], 
 
-    #'T_1': [(0,4500), r'$T_1$'], 
-    #'T_2': [(0,3000), r'$T_2$'], 
-    #'T_3': [(0,2000), r'$T_3$'], 
-    #'T_4': [(0,2000), r'$T_4$'], 
-    #'T_5': [(0,2000), r'$T_5$'], 
+    'T_1': [(0,4500), r'$T_1$'], 
+    'T_2': [(0,3000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
+    'T_5': [(0,2000), r'$T_5$'], 
     #'T_6': [(0,2000), r'$T_6$'], 
 
-    'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
+    'd_log_P_01': [(0,3), r'$\Delta\log\ P_{01}$'], 
 }
 
 # Constants to use if prior is not given
@@ -112,9 +113,9 @@ constant_params = {
 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.75, 
-    'd_log_P_34': 1, 
+    'd_log_P_34': 1.25, 
 
-    'epsilon_limb': 0.65, 
+    #'epsilon_limb': 0.65, 
 }
 
 # Polynomial order of non-vertical abundance profile
@@ -122,7 +123,7 @@ chem_spline_order = 0
 
 # Log-likelihood penalty
 ln_L_penalty_order = 3
-PT_interp_mode = 'cubic'
+PT_interp_mode = 'log'
 enforce_PT_corr = False
 
 
@@ -130,10 +131,11 @@ line_species = [
     'H2O_pokazatel_main_iso', 
     'CO_main_iso', 
     'CO_36', 
+    'CO_28', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    #'HCN_main_iso', 
+    'CO2_main_iso', 
+    'HCN_main_iso', 
     ]
 cloud_species = None
 

@@ -172,7 +172,7 @@ class LogLikelihood:
         lhs = np.dot(m_flux_ij, cov_ij.solve(m_flux_ij))
         # Right-hand side
         rhs = np.dot(m_flux_ij, cov_ij.solve(d_flux_ij))
-
+        
         # Return the scaled model flux
         f_ij = rhs / lhs
         return m_flux_ij * f_ij, f_ij
