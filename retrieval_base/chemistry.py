@@ -17,14 +17,16 @@ class Chemistry:
         'C18O': ('CO_28', 12.011 + 17.9991610, (1,1,0)), 
         'C17O': ('CO_27', 12.011 + 16.999131, (1,1,0)), 
         'H2O_181': ('H2O_181', 2*1.00784 + 17.9991610, (0,1,2)), 
+        'HDO': ('HDO_voronin', 1.00784 + 2.014 + 15.999, (0,1,2)), 
         'NH3': ('NH3_coles_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
         'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
         'HCN': ('HCN_main_iso', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
-        'He': ('He', 4.002602, (0,0,0)), 
-        'H2': ('H2', 2*1.00784, (0,0,2)), 
         'K': ('K', 39.0983, (0,0,0)), 
         'Na': ('Na_allard', 22.989769, (0,0,0)), 
         'Ti': ('Ti', 47.867, (0,0,0)), 
+        'HD': ('H2_12', 1.00784 + 2.014, (0,0,2)), 
+        'He': ('He', 4.002602, (0,0,0)), 
+        'H2': ('H2', 2*1.00784, (0,0,2)), 
         }
 
     species_plot_info = {
@@ -36,12 +38,14 @@ class Chemistry:
         'C18O': ('C6', r'C$^{18}$O'), 
         'C17O': ('cyan', r'C$^{17}$O'), 
         'H2O_181': ('C7', r'H$_2^{18}$O'), 
+        'HDO': ('b', r'HDO'), 
         'NH3': ('C8', r'NH$_3$'), 
         'CO2': ('C9', r'CO$_2$'),
         'HCN': ('C10', r'HCN'), 
         'K': ('k', r'K'), 
         'Na': ('k', r'Na'), 
         'Ti': ('k', r'Ti'), 
+        'HD': ('b', r'HD'), 
         }
 
     # Neglect certain species to find respective contribution
@@ -53,14 +57,16 @@ class Chemistry:
         'C18O': False, 
         'C17O': False, 
         'H2O_181': False, 
+        'HDO': False, 
         'NH3': False, 
         'CO2': False, 
         'HCN': False, 
-        #'He': False, 
-        #'H2': False, 
         'K': False, 
         'Na': False, 
         'Ti': False, 
+        'HD': False, 
+        #'He': False, 
+        #'H2': False, 
         }
 
     def __init__(self, line_species, pressure):
