@@ -15,12 +15,16 @@ class Chemistry:
         '13CO': ('CO_36', 13.003355 + 15.999, (1,1,0)), 
         #'13CO': ('CO_36_high', 13.003355 + 15.999, (1,1,0)), 
         'C18O': ('CO_28', 12.011 + 17.9991610, (1,1,0)), 
+        'C17O': ('CO_27', 12.011 + 16.999131, (1,1,0)), 
         'H2O_181': ('H2O_181', 2*1.00784 + 17.9991610, (0,1,2)), 
         'NH3': ('NH3_coles_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
         'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
         'HCN': ('HCN_main_iso', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
         'He': ('He', 4.002602, (0,0,0)), 
         'H2': ('H2', 2*1.00784, (0,0,2)), 
+        'K': ('K', 39.0983, (0,0,0)), 
+        'Na': ('Na_allard', 22.989769, (0,0,0)), 
+        'Ti': ('Ti', 47.867, (0,0,0)), 
         }
 
     species_plot_info = {
@@ -30,10 +34,14 @@ class Chemistry:
         #'13CO': ('C5', r'$^{13}$CO'), 
         '13CO': ('chocolate', r'$^{13}$CO'), 
         'C18O': ('C6', r'C$^{18}$O'), 
+        'C17O': ('cyan', r'C$^{17}$O'), 
         'H2O_181': ('C7', r'H$_2^{18}$O'), 
         'NH3': ('C8', r'NH$_3$'), 
         'CO2': ('C9', r'CO$_2$'),
         'HCN': ('C10', r'HCN'), 
+        'K': ('k', r'K'), 
+        'Na': ('k', r'Na'), 
+        'Ti': ('k', r'Ti'), 
         }
 
     # Neglect certain species to find respective contribution
@@ -43,12 +51,16 @@ class Chemistry:
         'CH4': False, 
         '13CO': False, 
         'C18O': False, 
+        'C17O': False, 
         'H2O_181': False, 
         'NH3': False, 
-        'CO2': False,
+        'CO2': False, 
         'HCN': False, 
         #'He': False, 
         #'H2': False, 
+        'K': False, 
+        'Na': False, 
+        'Ti': False, 
         }
 
     def __init__(self, line_species, pressure):
@@ -286,19 +298,6 @@ class EqChemistry(Chemistry):
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
 
-        '''
-        if self.P_quench is not None:
-            # Store the unquenched abundance profiles of species 
-            # other than CO, CH4 and H2O
-            for species_i in self.species_info.keys():
-
-                if species_i not in ['12CO', 'CH4', 'H2O']:
-
-                    line_species_i = self.read_species_info(species_i, 'pRT_name')
-                    self.unquenched_mass_fractions[line_species_i] = \
-                        self.mass_fractions[line_species_i]
-        '''
-        
         for species_i in self.neglect_species:
             if self.neglect_species[species_i]:
                 line_species_i = self.read_species_info(species_i, 'pRT_name')

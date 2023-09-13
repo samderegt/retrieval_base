@@ -933,8 +933,8 @@ def fig_species_contribution(d_spec,
             d_res -= low_pass_d_res
 
             # Residual between complete model and model w/o species_i
-            #m_res = m_spec.flux - m_spec_h.flux
-            m_res = m_spec_h.flux_only
+            m_res = m_spec.flux - m_spec_h.flux
+            #m_res = m_spec_h.flux_only
 
             low_pass_m_res = np.nan * np.ones_like(m_res)
             low_pass_m_res[d_spec.mask_isfinite] = gaussian_filter1d(m_res[d_spec.mask_isfinite], sigma=300)
@@ -990,7 +990,7 @@ def fig_species_contribution(d_spec,
                         c='k', lw=0.5, alpha=alpha, label=label_1
                         )
                     
-                    if species_h in ['13CO', 'NH3']:
+                    if species_h in ['13CO', 'NH3', 'C18O', 'C17O']:
                         mask_ij = d_spec.mask_isfinite[i,j]
                         binned_d_res_ij = np.nan * np.ones_like(d_res[i,j])
                         #binned_d_res_ij[mask_ij] = gaussian_filter1d(d_res[i,j,mask_ij], sigma=bin_size)

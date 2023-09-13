@@ -22,7 +22,7 @@ class CallBack:
                  prefix=None, 
                  posterior_color='C0', 
                  bestfit_color='C1', 
-                 species_to_plot=['12CO', 'H2O', '13CO', 'CH4', 'NH3'], 
+                 species_to_plot=['12CO', 'H2O', '13CO', 'CH4', 'NH3', 'C18O'], 
                  ):
         
         self.elapsed_times = []

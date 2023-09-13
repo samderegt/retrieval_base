@@ -354,7 +354,7 @@ class Retrieval:
                     self.Cov[i,j].add_RBF_kernel(
                         a=self.Param.params['a'][i,j], 
                         l=self.Param.params['l'][i,j], 
-                        trunc_dist=5, 
+                        trunc_dist=self.conf.GP_trunc_dist, 
                         scale_GP_amp=self.conf.scale_GP_amp
                         )
                 
@@ -385,7 +385,7 @@ class Retrieval:
                         w=self.Param.params['w'], 
                         loc1=self.Param.params['loc1'], 
                         l=self.Param.params['l'][i,j], 
-                        trunc_dist=5, 
+                        trunc_dist=self.conf.GP_trunc_dist, 
                         scale_GP_amp=self.conf.scale_GP_amp
                         )
 
