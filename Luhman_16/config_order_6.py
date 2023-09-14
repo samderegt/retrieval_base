@@ -6,7 +6,7 @@ file_params = 'config_order_6.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'order_6'
+prefix = 'order_6_ret_2'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 #wave_range = (1900, 2500)
@@ -38,7 +38,7 @@ rv_std, vsini_std = 31.00, 250
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
 
-tell_threshold = 0.6
+tell_threshold = 0.8
 
 sigma_clip_width = 8
 
@@ -49,7 +49,7 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'log_a_1': [(-18,-14), r'$\log\ a_1$'], 
+    'log_a_1': [(-18,-15), r'$\log\ a_1$'], 
     #'a_1': [(0.1,0.8), r'$a_1$'], 
     #'a_2': [(0.1,0.6), r'$a_2$'], 
     #'a_3': [(0.1,0.6), r'$a_3$'], 
@@ -57,16 +57,16 @@ free_params = {
     #'a_5': [(0.1,0.6), r'$a_5$'], 
     #'a_6': [(0.1,0.6), r'$a_6$'], 
     #'l': [(0.5,10), r'$l$'], 
-    'log_l': [(-3,0.3), r'$\log\ l$'], 
+    'log_l': [(-3,-0.8), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6), r'$\log\ g$'], 
+    'R_p': [(0.7,1.3), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,5.5), r'$\log\ g$'], 
     #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(0,30), r'$v_\mathrm{rad}$'], 
+    'rv': [(15,20), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -79,14 +79,14 @@ free_params = {
     'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
     'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
     'log_C18O': [(-10,-2), r'$\log\ \mathrm{C^{18}O}$'], 
     'log_C17O': [(-10,-2), r'$\log\ \mathrm{C^{17}O}$'], 
     'log_HDO': [(-10,-2), r'$\log\ \mathrm{HDO}$'], 
-    #'log_K': [(-10,-2), r'$\log\ \mathrm{K}$'], 
-    #'log_Na': [(-10,-2), r'$\log\ \mathrm{Na}$'], 
-    #'log_Ti': [(-10,-2), r'$\log\ \mathrm{Ti}$'], 
+    'log_K': [(-10,-2), r'$\log\ \mathrm{K}$'], 
+    'log_Na': [(-10,-2), r'$\log\ \mathrm{Na}$'], 
+    'log_Ti': [(-10,-2), r'$\log\ \mathrm{Ti}$'], 
     'log_HD': [(-10,-2), r'$\log\ \mathrm{HD}$'], 
 
     # PT profile
@@ -107,7 +107,7 @@ free_params = {
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
 
-    #'d_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
+    'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
 
 # Constants to use if prior is not given
@@ -120,10 +120,10 @@ constant_params = {
     'log_P_knots': [-6, -1.75, -0.75, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
-    #'d_log_P_12': 0.5, 
-    #'d_log_P_23': 0.5, 
-    #'d_log_P_34': 0.75, 
-    #'d_log_P_45': 1, 
+    'd_log_P_12': 0.5, 
+    'd_log_P_23': 0.5, 
+    'd_log_P_34': 0.75, 
+    'd_log_P_45': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -146,11 +146,11 @@ line_species = [
     'CO_27', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    #'HCN_main_iso', 
-    #'K', 
-    #'Na_allard', 
-    #'Ti', 
+    'CO2_main_iso', 
+    'HCN_main_iso', 
+    'K', 
+    'Na_allard', 
+    'Ti', 
     'H2_12', 
     ]
 cloud_species = None
@@ -177,4 +177,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 100
+n_iter_before_update = 200
