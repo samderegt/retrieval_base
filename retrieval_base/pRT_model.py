@@ -144,6 +144,9 @@ class pRT_model:
         self.temperature    = temperature
         self.params = params
 
+        if self.params.get('res') is not None:
+            self.d_resolution = self.params['res']
+
         # Add clouds if requested
         self.add_clouds()
 

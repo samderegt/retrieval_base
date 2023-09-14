@@ -6,7 +6,7 @@ file_params = 'config_order_6.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'order_6_ret_2'
+prefix = 'order_6_ret_3'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 #wave_range = (1900, 2500)
@@ -36,7 +36,7 @@ log_g_std = 2.3
 rv_std, vsini_std = 31.00, 250
 
 slit = 'w_0.4'
-lbl_opacity_sampling = 3
+lbl_opacity_sampling = 2
 
 tell_threshold = 0.8
 
@@ -48,6 +48,9 @@ sigma_clip_width = 8
 
 # Define the priors of the parameters
 free_params = {
+    # Data resolution
+    'res': [(50000,300000), r'res'], 
+
     # Uncertainty scaling
     'log_a_1': [(-18,-15), r'$\log\ a_1$'], 
     #'a_1': [(0.1,0.8), r'$a_1$'], 
@@ -62,7 +65,7 @@ free_params = {
     # General properties
     'R_p': [(0.7,1.3), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
-    #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
@@ -103,9 +106,10 @@ free_params = {
     'T_1': [(0,5000), r'$T_1$'], 
     'T_2': [(0,4000), r'$T_2$'], 
     'T_3': [(0,3000), r'$T_3$'], 
-    'T_4': [(0,2000), r'$T_4$'], 
+    'T_4': [(0,3000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
+    'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -117,13 +121,14 @@ constant_params = {
 
     # PT profile
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    'log_P_knots': [-6, -1.75, -0.75, 0.0, 0.5, 1, 2], 
+    'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
-    'd_log_P_34': 0.75, 
-    'd_log_P_45': 1, 
+    'd_log_P_34': 0.5, 
+    'd_log_P_45': 0.75, 
+    'd_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
 }
