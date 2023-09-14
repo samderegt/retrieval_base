@@ -6,11 +6,11 @@ file_params = 'config_order_6.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'order_6_ret_3'
+prefix = 'order_6_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 #wave_range = (1900, 2500)
-wave_range = (2300, 2400)
+wave_range = (2300, 2500)
 wlen_setting = 'K2166'
 
 file_target = './data/Luhman_16A_K.dat'
@@ -49,10 +49,11 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Data resolution
-    'res': [(50000,300000), r'res'], 
+    'res': [(30000,150000), r'res'], 
 
     # Uncertainty scaling
     'log_a_1': [(-18,-15), r'$\log\ a_1$'], 
+    'log_a_2': [(-18,-15), r'$\log\ a_2$'], 
     #'a_1': [(0.1,0.8), r'$a_1$'], 
     #'a_2': [(0.1,0.6), r'$a_2$'], 
     #'a_3': [(0.1,0.6), r'$a_3$'], 
