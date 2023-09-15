@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 02:30:00
+#SBATCH -t 01:30:00
 #SBATCH -p genoa
 #SBATCH --ntasks=140
 #SBATCH --mem=336G
 
-#SBATCH --job-name=order_6_B_ret_1
+#SBATCH --job-name=order_6_A_ret_1
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -32,7 +32,7 @@ echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
 # Replace the config file and run pre-processing
-sed -i 's/import config as conf/import config_order_6_B as conf/g' retrieval_script.py
+sed -i 's/import config as conf/import config_order_6_A as conf/g' retrieval_script.py
 python retrieval_script.py --pre_processing
 
 # Run the retrieval and evaluation
@@ -40,6 +40,6 @@ mpiexec -np $SLURM_NTASKS --bind-to core:overload-allowed python retrieval_scrip
 python retrieval_script.py --evaluation
 
 # Revert to original config file
-sed -i 's/import config_order_6_B as conf/import config as conf/g' retrieval_script.py
+sed -i 's/import config_order_6_A as conf/import config as conf/g' retrieval_script.py
 
 echo "Done"
