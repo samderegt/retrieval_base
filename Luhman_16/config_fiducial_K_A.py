@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'Luhman_16A_fiducial_K_2'
+prefix = 'fiducial_K_A_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -35,9 +35,9 @@ log_g_std = 2.3
 rv_std, vsini_std = 31.00, 250
 
 slit = 'w_0.4'
-lbl_opacity_sampling = 3
+lbl_opacity_sampling = 2
 
-tell_threshold = 0.5
+tell_threshold = 0.8
 
 sigma_clip_width = 8
 
@@ -48,27 +48,22 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    #'a_1': [(0.1,0.6), r'$a_1$'], 
-    #'a_2': [(0.1,0.6), r'$a_2$'], 
-    #'a_3': [(0.1,0.6), r'$a_3$'], 
-    #'a_4': [(0.1,0.6), r'$a_4$'], 
-    #'a_5': [(0.1,0.6), r'$a_5$'], 
-    #'a_6': [(0.1,0.6), r'$a_6$'], 
-    #'l': [(5,40), r'$l$'], 
+    'log_a': [(-18,-15), r'$\log\ a_1$'], 
+    'log_l': [(-3,-0.3), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.4,1.5), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6), r'$\log\ g$'], 
-    #'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
+    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,5.5), r'$\log\ g$'], 
+    'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
-    'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(0,30), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10,50), r'$v\ \sin\ i$'], 
+    'rv': [(10,25), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
@@ -78,17 +73,33 @@ free_params = {
     'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
     'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_C18O': [(-10,-2), r'$\log\ \mathrm{C^{18}O}$'], 
+    'log_C17O': [(-10,-2), r'$\log\ \mathrm{C^{17}O}$'], 
+    'log_H2S': [(-10,-2), r'$\log\ \mathrm{H_{2}S}$'], 
+    'log_HDO': [(-10,-2), r'$\log\ \mathrm{HDO}$'], 
+    'log_K': [(-10,-2), r'$\log\ \mathrm{K}$'], 
+    'log_Na': [(-10,-2), r'$\log\ \mathrm{Na}$'], 
+    #'log_Ti': [(-10,-2), r'$\log\ \mathrm{Ti}$'], 
+    #'log_HD': [(-10,-2), r'$\log\ \mathrm{HD}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,4500), r'$T_1$'], 
-    'T_2': [(0,3000), r'$T_2$'], 
-    'T_3': [(0,2000), r'$T_3$'], 
-    'T_4': [(0,2000), r'$T_4$'], 
+    #'dlnT_dlnP_0': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{0}$'], 
+    #'dlnT_dlnP_1': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{1}$'], 
+    #'dlnT_dlnP_2': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{2}$'], 
+    #'dlnT_dlnP_3': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{3}$'], 
+    #'dlnT_dlnP_4': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{4}$'], 
+    #'dlnT_dlnP_5': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{5}$'], 
+
+    'T_1': [(0,5000), r'$T_1$'], 
+    'T_2': [(0,4000), r'$T_2$'], 
+    'T_3': [(0,3000), r'$T_3$'], 
+    'T_4': [(0,3000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
+    'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -99,13 +110,15 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
 
     # PT profile
-    'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1], 
+    #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
+    'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
+    #'d_log_P_01': 1.0, 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
-    'd_log_P_34': 0.75, 
-    'd_log_P_45': 1, 
+    'd_log_P_34': 0.5, 
+    'd_log_P_45': 0.75, 
+    'd_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -121,25 +134,34 @@ enforce_PT_corr = False
 
 line_species = [
     'H2O_pokazatel_main_iso', 
+    'HDO_voronin', 
     'CO_main_iso', 
     'CO_36', 
+    'CO_28', 
+    'CO_27', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
     'CO2_main_iso', 
     'HCN_main_iso', 
+    'K', 
+    'Na_allard', 
+    #'Ti', 
+    #'H2_12', 
+    'H2S_main_iso', 
     ]
 cloud_species = None
+species_to_plot = ['13CO', 'C18O', 'HCN', 'H2S', 'HDO']
 
 scale_flux = True
 scale_err  = True
-scale_GP_amp = True
+scale_GP_amp = False
 cholesky_mode = 'banded'
+GP_trunc_dist = 3
 
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = False
-#prepare_for_covariance = True
+prepare_for_covariance = True
 
 apply_high_pass_filter = False
 
@@ -151,4 +173,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 100
+n_iter_before_update = 400

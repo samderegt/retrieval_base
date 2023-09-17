@@ -23,6 +23,7 @@ class CallBack:
                  posterior_color='C0', 
                  bestfit_color='C1', 
                  species_to_plot=['12CO', 'H2O', '13CO', 'CH4', 'NH3', 'C18O'], 
+                 #species_to_plot=['13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HDO'], 
                  ):
         
         self.elapsed_times = []

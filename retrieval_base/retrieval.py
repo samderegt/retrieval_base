@@ -259,6 +259,7 @@ class Retrieval:
             prefix=self.conf.prefix, 
             posterior_color='C0', 
             bestfit_color='C1', 
+            species_to_plot=self.conf.species_to_plot, 
             )
 
         if (rank == 0) and self.evaluation:
