@@ -468,11 +468,13 @@ class DataSpectrum(Spectrum):
         # for this instance
         self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
 
-    def prepare_for_covariance(self):
+    def prepare_for_covariance(self, prepare_err_eff=False):
 
         # Make a nested array of ndarray objects with different shapes
         self.separation = np.empty((self.n_orders, self.n_dets), dtype=object)
-        self.err_eff = np.empty((self.n_orders, self.n_dets), dtype=object)
+
+        if prepare_err_eff:
+            self.err_eff = np.empty((self.n_orders, self.n_dets), dtype=object)
         
         # Loop over the orders and detectors
         for i in range(self.n_orders):
@@ -491,8 +493,9 @@ class DataSpectrum(Spectrum):
                 #    )
                 self.separation[i,j] = separation_ij
 
-                # Arithmetic mean of the squared flux-errors
-                self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
+                if prepare_err_eff:
+                    # Arithmetic mean of the squared flux-errors
+                    self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
 
     def clip_det_edges(self, n_edge_pixels=30):
         
@@ -530,6 +533,9 @@ class DataSpectrum(Spectrum):
 
     def get_transmission(self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb'):
 
+        lines_to_mask = [1282.0, 1945.09,2166.12]
+        mask_width = [7, 10,10]
+
         # Get the barycentric velocity during the standard observation
         v_bary = self.bary_corr(return_v_bary=True)
 
@@ -538,10 +544,6 @@ class DataSpectrum(Spectrum):
             # Retrieve a Planck spectrum for the given temperature
             ref_flux = 2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
                        1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)
-
-            # Mask the standard star's hydrogen lines
-            ref_flux[(self.wave.flatten()>2166.12-7) & (self.wave.flatten()<2166.12+7)] = np.nan
-            ref_flux[(self.wave.flatten()>1945.09-5) & (self.wave.flatten()<1945.09+5)] = np.nan
 
         elif mode == 'PHOENIX':
 
@@ -576,10 +578,12 @@ class DataSpectrum(Spectrum):
                 (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T)) - 1)
 
         # Mask the standard star's hydrogen lines
-        lines_to_mask = [1945.09, 2166.12]
-        for line_i in lines_to_mask:
-            #ref_flux[(self.wave.flatten() > line_i-3) & (self.wave.flatten() < line_i+3)] = np.nan
-            ref_flux[(self.wave.flatten() > line_i-5) & (self.wave.flatten() < line_i+5)] = np.nan
+        for line_i, mask_width_i in zip(lines_to_mask, mask_width):
+            mask = (
+                (self.wave.flatten() > line_i - mask_width_i/2) & \
+                (self.wave.flatten() < line_i + mask_width_i/2)
+                )
+            ref_flux[mask] = np.nan
         
         # Retrieve and normalize the transmissivity
         self.transm = self.flux / ref_flux

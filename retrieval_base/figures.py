@@ -265,20 +265,15 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
                     )
 
                 # Get the covariance matrix
-                cov = Cov[i,j].cov
-                if Cov[i,j].is_matrix:
-                    if Cov[i,j].cholesky_mode == 'sparse':
-                        cov = cov.todense()
-                else:
-                    cov = np.diag(cov)
+                cov = Cov[i,j].get_dense_cov()
                 
                 # Scale with the optimal uncertainty-scaling
-                cov *= LogLike.beta[i,j]
+                cov *= LogLike.beta[i,j]**2
 
                 # Get the mean error from the trace
                 #mean_err_ij = np.sqrt(np.trace(cov)/len(cov))
                 #mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
-                mean_scaled_err_ij = np.mean(np.diag(np.sqrt(LogLike.beta[i,j]**2 * cov)))
+                mean_scaled_err_ij = np.mean(np.diag(np.sqrt(cov)))
 
                 ax_res.errorbar(
                     d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
@@ -323,12 +318,7 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
             mask_ij = d_spec.mask_isfinite[i,j]
 
             # Get the covariance matrix
-            cov = Cov[i,j].cov
-            if Cov[i,j].is_matrix:
-                if Cov[i,j].cholesky_mode == 'sparse':
-                    cov = cov.todense()
-            else:
-                cov = np.diag(cov)
+            cov = Cov[i,j].get_dense_cov()
 
             # Scale with the optimal uncertainty scaling
             cov *= LogLike.beta[i,j]**2
@@ -747,14 +737,11 @@ def fig_residual_ACF(d_spec,
             ax[i,j].plot(rv, ACF[i,j]*0, lw=0.1, c='k')
             ax[i,j].set(xlim=(rv.min(), rv.max()))
 
-
             # Get the covariance matrix
-            cov = LogLike.beta[i,j]**2 * Cov[i,j].cov
-            if Cov[i,j].is_matrix:
-                if Cov[i,j].cholesky_mode == 'sparse':
-                    cov = cov.todense()
-            else:
-                cov = np.diag(cov)
+            cov = Cov[i,j].get_dense_cov()
+
+            # Scale with the optimal uncertainty-scaling
+            cov *= LogLike.beta[i,j]**2
 
             # Take the mean along each diagonal
             ks = np.arange(0, len(cov), 1)

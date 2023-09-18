@@ -279,3 +279,60 @@ def get_PHOENIX_model(T, log_g, FeH=0, wave_range=(500,3000), PHOENIX_path='./da
         (PHOENIX_wave < wave_range[1])
     
     return PHOENIX_wave[mask_wave], PHOENIX_flux[mask_wave]
+
+def read_results(prefix, n_params):
+
+    import json
+    import pymultinest
+
+    # Set-up analyzer object
+    analyzer = pymultinest.Analyzer(
+        n_params=n_params, 
+        outputfiles_basename=prefix
+        )
+    stats = analyzer.get_stats()
+
+    # Load the equally-weighted posterior distribution
+    posterior = analyzer.get_equal_weighted_posterior()
+    posterior = posterior[:,:-1]
+
+    # Read the parameters of the best-fitting model
+    bestfit = np.array(stats['modes'][0]['maximum a posterior'])
+
+    PT = pickle_load(f'{prefix}data/bestfit_PT.pkl')
+    Chem = pickle_load(f'{prefix}data/bestfit_Chem.pkl')
+
+    m_spec = pickle_load(f'{prefix}data/bestfit_m_spec.pkl')
+    d_spec = pickle_load(f'{prefix}data/d_spec.pkl')
+
+    LogLike = pickle_load(f'{prefix}data/bestfit_LogLike.pkl')
+
+    try:
+        Cov = pickle_load(f'{prefix}data/bestfit_Cov.pkl')
+    except:
+        Cov = None
+
+    int_contr_em           = np.load(f'{prefix}data/bestfit_int_contr_em.npy')
+    int_contr_em_per_order = np.load(f'{prefix}data/bestfit_int_contr_em_per_order.npy')
+    int_opa_cloud          = np.load(f'{prefix}data/bestfit_int_opa_cloud.npy')
+
+    f = open(prefix+'data/bestfit.json')
+    bestfit_params = json.load(f)
+    f.close()
+
+    res = (
+        posterior, 
+        bestfit, 
+        PT, 
+        Chem, 
+        int_contr_em, 
+        int_contr_em_per_order, 
+        int_opa_cloud, 
+        m_spec, 
+        d_spec, 
+        LogLike, 
+        Cov, 
+        bestfit_params
+        )
+
+    return res

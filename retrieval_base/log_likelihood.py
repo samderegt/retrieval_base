@@ -19,7 +19,7 @@ class LogLikelihood:
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
         
-    def __call__(self, m_spec, Cov, ln_L_penalty=0):
+    def __call__(self, m_spec, Cov, ln_L_penalty=0, evaluation=False):
         '''
         Evaluate the total log-likelihood given the model spectrum and parameters.
 
@@ -40,10 +40,10 @@ class LogLikelihood:
         self.ln_L = ln_L_penalty
         self.chi_squared = 0
         
-        # Arrays to store log-likelihood and chi-squared per pixel in
-        #self.ln_L_per_pixel        = ln_L_penalty * np.ones_like(self.d_spec.flux)
-        self.ln_L_per_pixel        = np.nan * np.ones_like(self.d_spec.flux)
-        self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
+        if evaluation:
+            # Arrays to store log-likelihood and chi-squared per pixel in
+            self.ln_L_per_pixel        = np.nan * np.ones_like(self.d_spec.flux)
+            self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
 
         # Array to store the linear flux-scaling terms
         self.f    = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
@@ -118,24 +118,25 @@ class LogLikelihood:
                 self.f[i,j]    = f_ij
                 self.beta[i,j] = beta_ij
 
-                # Following Peter McGill's advice
-                g_k = 1/beta_ij**2 * inv_cov_ij_res_ij
-                sigma_bar_kk = np.diag(
-                    1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
-                    )
+                if evaluation:
+                    # Following Peter McGill's advice
+                    g_k = 1/beta_ij**2 * inv_cov_ij_res_ij
+                    sigma_bar_kk = np.diag(
+                        1/beta_ij**2 * Cov[i,j].solve(np.eye(N_ij))
+                        )
 
-                # Conditional mean and standard deviation
-                mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
-                sigma_tilde_k = 1/sigma_bar_kk
+                    # Conditional mean and standard deviation
+                    mu_tilde_k = d_flux_ij - g_k/sigma_bar_kk
+                    sigma_tilde_k = 1/sigma_bar_kk
 
-                # Scale the ln L penalty by the number of good pixels
-                self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty/N_tot - (
-                    1/2*np.log(2*np.pi*sigma_tilde_k) + \
-                    1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
-                    )
+                    # Scale the ln L penalty by the number of good pixels
+                    self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty/N_tot - (
+                        1/2*np.log(2*np.pi*sigma_tilde_k) + \
+                        1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
+                        )
 
-                self.chi_squared_per_pixel[i,j,mask_ij] = \
-                    (d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
+                    self.chi_squared_per_pixel[i,j,mask_ij] = \
+                        (d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
 
         # Reduced chi-squared
         self.chi_squared_red = self.chi_squared / self.n_dof

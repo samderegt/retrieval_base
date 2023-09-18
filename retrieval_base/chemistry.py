@@ -10,66 +10,95 @@ class Chemistry:
     species_info = {
         '12CO': ('CO_main_iso', 12.011 + 15.999, (1,1,0)), 
         #'12CO': ('CO_high', 12.011 + 15.999, (1,1,0)), 
-        'H2O': ('H2O_pokazatel_main_iso', 2*1.00784 + 15.999, (0,1,2)), 
-        'CH4': ('CH4_hargreaves_main_iso', 12.011 + 4*1.00784, (1,0,4)), 
         '13CO': ('CO_36', 13.003355 + 15.999, (1,1,0)), 
         #'13CO': ('CO_36_high', 13.003355 + 15.999, (1,1,0)), 
         'C18O': ('CO_28', 12.011 + 17.9991610, (1,1,0)), 
         'C17O': ('CO_27', 12.011 + 16.999131, (1,1,0)), 
+
+        'H2O': ('H2O_pokazatel_main_iso', 2*1.00784 + 15.999, (0,1,2)), 
         'H2O_181': ('H2O_181', 2*1.00784 + 17.9991610, (0,1,2)), 
         'HDO': ('HDO_voronin', 1.00784 + 2.014 + 15.999, (0,1,2)), 
+
+        'CH4': ('CH4_hargreaves_main_iso', 12.011 + 4*1.00784, (1,0,4)), 
+        '13CH4': ('CH4_31111_hargreaves', 13.003355 + 4*1.00784, (1,0,4)), 
+
         'NH3': ('NH3_coles_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
         'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
         'HCN': ('HCN_main_iso', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
         'H2S': ('H2S_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
+        'FeH': ('FeH_main_iso', 55.845 + 1.00784, (0,0,1)), 
+        'TiO': ('TiO_48_Exomol_McKemmish', 47.867 + 15.999, (0,1,0)), 
+        
+        'H2': ('H2', 2*1.00784, (0,0,2)), 
+        'HD': ('H2_12', 1.00784 + 2.014, (0,0,2)), 
+
         'K': ('K', 39.0983, (0,0,0)), 
         'Na': ('Na_allard', 22.989769, (0,0,0)), 
         'Ti': ('Ti', 47.867, (0,0,0)), 
-        'HD': ('H2_12', 1.00784 + 2.014, (0,0,2)), 
+        'Fe': ('Fe', 55.845, (0,0,0)), 
         'He': ('He', 4.002602, (0,0,0)), 
-        'H2': ('H2', 2*1.00784, (0,0,2)), 
         }
 
     species_plot_info = {
         '12CO': ('C2', r'$^{12}$CO'), 
-        'H2O': ('C3', r'H$_2$O'), 
-        'CH4': ('C4', r'CH$_4$'), 
         #'13CO': ('C5', r'$^{13}$CO'), 
         '13CO': ('chocolate', r'$^{13}$CO'), 
         'C18O': ('C6', r'C$^{18}$O'), 
         'C17O': ('cyan', r'C$^{17}$O'), 
+
+        'H2O': ('C3', r'H$_2$O'), 
         'H2O_181': ('C7', r'H$_2^{18}$O'), 
         'HDO': ('b', r'HDO'), 
+
+        'CH4': ('C4', r'CH$_4$'), 
+        '13CH4': ('purple', r'$^{13}$CH$_4$'), 
+        
         'NH3': ('C8', r'NH$_3$'), 
         'CO2': ('C9', r'CO$_2$'),
         'HCN': ('C10', r'HCN'), 
-        'H2S': ('Cr', r'H$_2$S'), 
+        'H2S': ('r', r'H$_2$S'), 
+        'FeH': ('C1', r'FeH'), 
+        'TiO': ('k', r'TiO'), 
+        
+        #'H2': ('C0', r'H$_2$'), 
+        'HD': ('b', r'HD'), 
+
         'K': ('k', r'K'), 
         'Na': ('k', r'Na'), 
         'Ti': ('k', r'Ti'), 
-        'HD': ('b', r'HD'), 
+        'Fe': ('k', r'Na'), 
+        #'He': ('C1', r'He'), 
         }
 
     # Neglect certain species to find respective contribution
     neglect_species = {
         '12CO': False, 
-        'H2O': False, 
-        'CH4': False, 
         '13CO': False, 
         'C18O': False, 
         'C17O': False, 
+        
+        'H2O': False, 
         'H2O_181': False, 
         'HDO': False, 
+
+        'CH4': False, 
+        '13CH4': False, 
+        
         'NH3': False, 
         'CO2': False, 
         'HCN': False, 
         'H2S': False, 
+        'FeH': False, 
+        'TiO': False, 
+
+        #'H2': False, 
+        'HD': False, 
+
         'K': False, 
         'Na': False, 
         'Ti': False, 
-        'HD': False, 
+        'Fe': False, 
         #'He': False, 
-        #'H2': False, 
         }
 
     def __init__(self, line_species, pressure):

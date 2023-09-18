@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_1'
+prefix = 'test_fiducial_K_A_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -35,7 +35,7 @@ log_g_std = 2.3
 rv_std, vsini_std = 31.00, 250
 
 slit = 'w_0.4'
-lbl_opacity_sampling = 2
+lbl_opacity_sampling = 3
 
 tell_threshold = 0.8
 
@@ -150,7 +150,8 @@ line_species = [
     'H2S_main_iso', 
     ]
 cloud_species = None
-species_to_plot = ['13CO', 'C18O', 'HCN', 'H2S', 'HDO']
+species_to_plot_VMR = ['12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'H2S']
+species_to_plot_CCF = ['13CO', 'C18O', 'HCN', 'H2S', 'HDO']
 
 scale_flux = True
 scale_err  = True
@@ -161,7 +162,7 @@ GP_trunc_dist = 3
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = True
+prepare_for_covariance = False
 
 apply_high_pass_filter = False
 
@@ -173,4 +174,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 400
+n_iter_before_update = 200

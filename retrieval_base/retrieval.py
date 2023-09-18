@@ -125,10 +125,10 @@ def pre_processing(conf):
             replace_flux_err=True
             )
 
-    if conf.prepare_for_covariance:
-        # Prepare the wavelength separation and 
-        # average squared error arrays
-        d_spec.prepare_for_covariance()
+    # Prepare the wavelength separation and average squared error arrays
+    d_spec.prepare_for_covariance(
+        prepare_err_eff=conf.prepare_for_covariance
+        )
 
     # Plot the pre-processed spectrum
     figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
@@ -239,18 +239,29 @@ class Retrieval:
                 mask_ij = self.d_spec.mask_isfinite[i,j]
 
                 if np.isin(['a', 'log_a', f'a_{i+1}', f'log_a_{i+1}', 'ls1'], self.Param.param_keys).any():
+
                     # Use a GaussianProcesses instance
-                    self.Cov[i,j] = GaussianProcesses(
-                        err=self.d_spec.err[i,j,mask_ij], 
-                        separation=self.d_spec.separation[i,j], 
-                        err_eff=self.d_spec.err_eff[i,j], 
-                        cholesky_mode=self.conf.cholesky_mode
-                        )
+                    if self.conf.prepare_for_covariance:
+                        self.Cov[i,j] = GaussianProcesses(
+                            err=self.d_spec.err[i,j,mask_ij], 
+                            separation=self.d_spec.separation[i,j], 
+                            err_eff=self.d_spec.err_eff[i,j], 
+                            max_separation=self.conf.GP_max_separation, 
+                            )
+                    else:
+                        self.Cov[i,j] = GaussianProcesses(
+                            err=self.d_spec.err[i,j,mask_ij], 
+                            separation=self.d_spec.separation[i,j], 
+                            err_eff=self.d_spec.err_eff, 
+                            max_separation=self.conf.GP_max_separation, 
+                            )
                 else:
                     # Use a Covariance instance instead
                     self.Cov[i,j] = Covariance(
                         err=self.d_spec.err[i,j,mask_ij]
                         )
+        
+        del self.d_spec.separation, self.d_spec.err_eff
         
         self.CB = CallBack(
             d_spec=self.d_spec, 
@@ -259,7 +270,8 @@ class Retrieval:
             prefix=self.conf.prefix, 
             posterior_color='C0', 
             bestfit_color='C1', 
-            species_to_plot=self.conf.species_to_plot, 
+            species_to_plot_VMR=self.conf.species_to_plot_VMR, 
+            species_to_plot_CCF=self.conf.species_to_plot_CCF, 
             )
 
         if (rank == 0) and self.evaluation:
@@ -395,6 +407,7 @@ class Retrieval:
             self.m_spec, 
             self.Cov, 
             ln_L_penalty=ln_L_penalty, 
+            evaluation=self.evaluation
             )
         
         time_B = time.time()
@@ -613,9 +626,12 @@ class Retrieval:
             # Add a random sample from the covariance matrix
             for k in range(self.d_spec.n_orders):
                 for l in range(self.d_spec.n_dets):
-                    # Optimally-scale the covariance matrix
-                    cov_kl = self.LogLike.cov[k,l].cov
-                    cov_kl *= self.LogLike.beta[k,l]
+
+                    # Get the covariance matrix
+                    cov_kl = self.LogLike.cov[k,l].get_dense_cov()
+
+                    # Scale with the optimal uncertainty scaling
+                    cov_kl *= self.LogLike.beta[k,l].beta**2
 
                     # Draw a random sample and add to the flux
                     random_sample = np.random.multivariate_normal(
@@ -730,7 +746,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory
-        time.sleep(1.2*rank)
+        time.sleep(1.5*rank)
 
         # Run the MultiNest retrieval
         pymultinest.run(

@@ -22,8 +22,8 @@ class CallBack:
                  prefix=None, 
                  posterior_color='C0', 
                  bestfit_color='C1', 
-                 species_to_plot=['12CO', 'H2O', '13CO', 'CH4', 'NH3', 'C18O'], 
-                 #species_to_plot=['13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HDO'], 
+                 species_to_plot_VMR=['12CO', 'H2O', '13CO', 'CH4', 'NH3', 'C18O'], 
+                 species_to_plot_CCF=['12CO', 'H2O', '13CO', 'CH4'], 
                  ):
         
         self.elapsed_times = []
@@ -49,7 +49,8 @@ class CallBack:
         self.envelope_colors = self.envelope_cmap([0.0,0.2,0.4,0.6,0.8])
         self.envelope_colors[0,-1] = 0.0
 
-        self.species_to_plot = species_to_plot
+        self.species_to_plot_VMR = species_to_plot_VMR
+        self.species_to_plot_CCF = species_to_plot_CCF
 
     def __call__(self, 
                  Param, 
@@ -134,29 +135,32 @@ class CallBack:
                 Chem=self.Chem, 
                 LogLike=self.LogLike, 
                 Cov=self.Cov, 
-                species_to_plot=self.species_to_plot, 
+                species_to_plot=self.species_to_plot_CCF, 
+                prefix=self.prefix
+                )
+            
+            # Plot the auto-correlation of the residuals
+            figs.fig_residual_ACF(
+                d_spec=self.d_spec, 
+                m_spec=self.m_spec, 
+                LogLike=self.LogLike, 
+                Cov=self.Cov, 
+                bestfit_color=self.bestfit_color, 
                 prefix=self.prefix
                 )
 
-        # Plot the covariance matrices
-        all_cov = figs.fig_cov(
-            LogLike=self.LogLike, 
-            Cov=self.Cov, 
-            d_spec=self.d_spec, 
-            cmap=self.envelope_cmap, 
-            prefix=self.prefix
-            )
+            # Plot the covariance matrices
+            all_cov = figs.fig_cov(
+                LogLike=self.LogLike, 
+                Cov=self.Cov, 
+                d_spec=self.d_spec, 
+                cmap=self.envelope_cmap, 
+                prefix=self.prefix
+                )
 
-        # Plot the auto-correlation of the residuals
-        figs.fig_residual_ACF(
-            d_spec=self.d_spec, 
-            m_spec=self.m_spec, 
-            LogLike=self.LogLike, 
-            Cov=self.Cov, 
-            bestfit_color=self.bestfit_color, 
-            prefix=self.prefix
-            )
-
+            # Plot the abundances in a corner-plot
+            self.fig_abundances_corner()
+            
         # Save a separate figure of the PT profile
         figs.fig_PT(
             PT=self.PT, 
@@ -169,9 +173,6 @@ class CallBack:
             bestfit_color=self.bestfit_color, 
             prefix=self.prefix
         )
-
-        # Plot the abundances in a corner-plot
-        self.fig_abundances_corner()
 
         # Make a summary figure
         self.fig_summary()
@@ -286,7 +287,7 @@ class CallBack:
         ax_VMR = figs.fig_VMR(
             ax_VMR=ax_VMR, 
             Chem=self.Chem, 
-            species_to_plot=self.species_to_plot, 
+            species_to_plot=self.species_to_plot_VMR, 
             pressure=self.PT.pressure, 
             )
 
@@ -423,7 +424,7 @@ class CallBack:
         ax_VMR = figs.fig_VMR(
             ax_VMR=ax_VMR, 
             Chem=self.Chem, 
-            species_to_plot=self.species_to_plot, 
+            species_to_plot=self.species_to_plot_VMR, 
             pressure=self.PT.pressure, 
             )
 
