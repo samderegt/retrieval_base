@@ -38,6 +38,13 @@ class Spectrum:
             [[2422.415,2439.061], [2440.243,2456.145], [2457.275,2472.388]],
             ]), 
         }
+    ghosts = {
+        'J1226': np.array([
+            [1119.44,1020.33], [1142.78,1143.76], [1167.12,1168.08], 
+            [1192.52,1193.49], [1219.01,1220.04], [1246.71,1247.76], 
+            [1275.70,1276.80], [1306.05,1307.15], [1337.98,1338.94], 
+            ])
+        }
     n_pixels = 2048
 
     def __init__(self, wave, flux, err=None, wlen_setting='K2166'):
@@ -46,7 +53,8 @@ class Spectrum:
         self.flux = flux
         self.err  = err
 
-        self.order_wlen_ranges = self.settings[wlen_setting]
+        self.wlen_setting = wlen_setting
+        self.order_wlen_ranges = self.settings[self.wlen_setting]
         self.n_orders, self.n_dets, _ = self.order_wlen_ranges.shape
 
         # Make the isfinite mask
@@ -66,7 +74,7 @@ class Spectrum:
 
         # Use the supplied wavelengths
         if wave is None:
-            wave = self.wave
+            wave = np.copy(self.wave)
 
         # Apply a Doppler shift to the model spectrum
         wave_shifted = wave * (1 + rv/(nc.c*1e-5))
@@ -383,14 +391,17 @@ class DataSpectrum(Spectrum):
                     (self.wave <= self.wave_range[1])
 
         self.flux[~mask_wave] = np.nan
-        #self.wave = self.wave[mask_wave]
-        #self.flux = self.flux[mask_wave]
-        #self.err  = self.err[mask_wave]
 
-        #if self.transm is not None:
-        #    self.transm = self.transm[mask_wave]
-        #if self.flux_uncorr is not None:
-        #    self.flux_uncorr = self.flux_uncorr[mask_wave]
+    def mask_ghosts(self):
+        
+        if self.ghosts.get(self.wlen_setting) is None:
+            return
+            
+        # Loop over all segments of the ghost signature
+        for (wave_min, wave_max) in self.ghosts.get(self.wlen_setting):
+
+            mask_wave = (self.wave >= wave_min-0.1) & (self.wave <= wave_max+0.1)
+            self.flux[mask_wave] = np.nan
 
     def bary_corr(self, replace_wave=True, return_v_bary=False):
 
@@ -509,25 +520,6 @@ class DataSpectrum(Spectrum):
                 self.flux[idx_low : idx_low + n_edge_pixels]   = np.nan
                 self.flux[idx_high : idx_high - n_edge_pixels] = np.nan
 
-                '''
-                wave_min, wave_max = self.order_wlen_ranges[i,j]
-                
-                mask_wave = (self.wave >= wave_min - 0.5) & \
-                            (self.wave <= wave_max + 0.5)
-                mask_det  = (mask_wave & self.mask_isfinite)
-
-                if mask_det.any():
-
-                    flux_i = self.flux[mask_det]
-
-                    # Set the first and last N pixels of each detector to NaN
-                    flux_i[:n_edge_pixels]  = np.nan
-                    flux_i[-n_edge_pixels:] = np.nan
-
-                    # Set clipped values to NaNs
-                    self.flux[mask_det] = flux_i
-                '''
-
         # Update the isfinite mask
         self.update_isfinite_mask()
 
@@ -633,14 +625,6 @@ class DataSpectrum(Spectrum):
                 )
             poly_model[mask_det] = np.poly1d(p)(self.wave[mask_det])
 
-        '''
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(15,5))
-        ax.plot(self.wave.flatten(), self.flux.flatten(), 'k.-')
-        ax.plot(self.wave.flatten(), 1.2*np.nanpercentile(self.flux,q=95) * self.transm.flatten(), c='C0')
-        ax.plot(self.wave.flatten(), 1.2*np.nanpercentile(self.flux,q=95) * transm_skycalc.flatten(), c='C1')
-        plt.show()
-        '''
         # Apply correction for telluric transmission
         tell_corr_flux = self.flux / self.transm
         # Replace the deepest tellurics with NaNs

@@ -28,6 +28,8 @@ class Chemistry:
         'H2S': ('H2S_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
         'FeH': ('FeH_main_iso', 55.845 + 1.00784, (0,0,1)), 
         'TiO': ('TiO_48_Exomol_McKemmish', 47.867 + 15.999, (0,1,0)), 
+        'HF': ('HF_main_iso', 1.00784 + 18.998403, (0,0,1)), 
+        'HCl': ('HCl_main_iso', 1.00784 + 35.453, (0,0,1)), 
         
         'H2': ('H2', 2*1.00784, (0,0,2)), 
         'HD': ('H2_12', 1.00784 + 2.014, (0,0,2)), 
@@ -41,10 +43,9 @@ class Chemistry:
 
     species_plot_info = {
         '12CO': ('C2', r'$^{12}$CO'), 
-        #'13CO': ('C5', r'$^{13}$CO'), 
         '13CO': ('chocolate', r'$^{13}$CO'), 
         'C18O': ('C6', r'C$^{18}$O'), 
-        'C17O': ('cyan', r'C$^{17}$O'), 
+        'C17O': ('C7', r'C$^{17}$O'), 
 
         'H2O': ('C3', r'H$_2$O'), 
         'H2O_181': ('C7', r'H$_2^{18}$O'), 
@@ -56,18 +57,20 @@ class Chemistry:
         'NH3': ('C8', r'NH$_3$'), 
         'CO2': ('C9', r'CO$_2$'),
         'HCN': ('C10', r'HCN'), 
-        'H2S': ('r', r'H$_2$S'), 
-        'FeH': ('C1', r'FeH'), 
-        'TiO': ('k', r'TiO'), 
+        'H2S': ('C11', r'H$_2$S'), 
+        'FeH': ('C12', r'FeH'), 
+        'TiO': ('C13', r'TiO'), 
+        'HF': ('C14', r'HF'), 
+        'HCl': ('C15', r'HCl'), 
         
-        #'H2': ('C0', r'H$_2$'), 
-        'HD': ('b', r'HD'), 
+        #'H2': ('C16', r'H$_2$'), 
+        'HD': ('C17', r'HD'), 
 
-        'K': ('k', r'K'), 
-        'Na': ('k', r'Na'), 
-        'Ti': ('k', r'Ti'), 
-        'Fe': ('k', r'Na'), 
-        #'He': ('C1', r'He'), 
+        'K': ('C18', r'K'), 
+        'Na': ('C19', r'Na'), 
+        'Ti': ('C20', r'Ti'), 
+        'Fe': ('C21', r'Na'), 
+        #'He': ('C22', r'He'), 
         }
 
     # Neglect certain species to find respective contribution
@@ -90,6 +93,8 @@ class Chemistry:
         'H2S': False, 
         'FeH': False, 
         'TiO': False, 
+        'HF': False, 
+        'HCl': False, 
 
         #'H2': False, 
         'HD': False, 

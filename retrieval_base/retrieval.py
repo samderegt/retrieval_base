@@ -110,6 +110,9 @@ def pre_processing(conf):
     # Crop the spectrum
     d_spec.crop_spectrum()
 
+    # Remove the ghost signatures
+    d_spec.mask_ghosts()
+
     # Re-shape the spectrum to a 3-dimensional array
     d_spec.reshape_orders_dets()
 

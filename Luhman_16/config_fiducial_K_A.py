@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'test_fiducial_K_A_ret_1'
+prefix = 'fiducial_K_A_ret_2'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -48,8 +48,8 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'log_a': [(-18,-15), r'$\log\ a_1$'], 
-    'log_l': [(-3,-0.3), r'$\log\ l$'], 
+    'log_a': [(-17,-15), r'$\log\ a_1$'], 
+    'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -66,21 +66,25 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
-    'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
-    'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
-    'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
-    'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
-    'log_C18O': [(-10,-2), r'$\log\ \mathrm{C^{18}O}$'], 
-    'log_C17O': [(-10,-2), r'$\log\ \mathrm{C^{17}O}$'], 
-    'log_H2S': [(-10,-2), r'$\log\ \mathrm{H_{2}S}$'], 
-    'log_HDO': [(-10,-2), r'$\log\ \mathrm{HDO}$'], 
-    'log_K': [(-10,-2), r'$\log\ \mathrm{K}$'], 
-    'log_Na': [(-10,-2), r'$\log\ \mathrm{Na}$'], 
-    #'log_Ti': [(-10,-2), r'$\log\ \mathrm{Ti}$'], 
-    #'log_HD': [(-10,-2), r'$\log\ \mathrm{HD}$'], 
+    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'], 
+    'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
+
+    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_{2}O}$'], 
+    #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
+
+    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_{2}S}$'], 
+    'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
+    'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
+    
+    #'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
+    #'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
+    #'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
@@ -134,30 +138,40 @@ enforce_PT_corr = False
 
 line_species = [
     'H2O_pokazatel_main_iso', 
-    'HDO_voronin', 
+    #'HDO_voronin', 
+
     'CO_main_iso', 
     'CO_36', 
     'CO_28', 
     'CO_27', 
+
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
     'CO2_main_iso', 
     'HCN_main_iso', 
-    'K', 
-    'Na_allard', 
-    #'Ti', 
-    #'H2_12', 
     'H2S_main_iso', 
+    'HF_main_iso', 
+    'HCl_main_iso', 
+
+    #'K', 
+    #'Na_allard', 
+    #'Ti', 
     ]
 cloud_species = None
-species_to_plot_VMR = ['12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'H2S']
-species_to_plot_CCF = ['13CO', 'C18O', 'HCN', 'H2S', 'HDO']
+species_to_plot_VMR = [
+    '12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl'
+    ]
+species_to_plot_CCF = [
+    #'13CO', 'C18O', 'HCN', 'H2S', 'HDO'
+    '13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl'
+    ]
 
 scale_flux = True
 scale_err  = True
 scale_GP_amp = False
 cholesky_mode = 'banded'
 GP_trunc_dist = 3
+GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
 
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
@@ -174,4 +188,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 400
