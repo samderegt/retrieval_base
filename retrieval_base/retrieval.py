@@ -132,6 +132,9 @@ def pre_processing(conf):
     d_spec.prepare_for_covariance(
         prepare_err_eff=conf.prepare_for_covariance
         )
+    d_spec.err_eff = np.mean(
+        d_spec.err[d_spec.mask_isfinite], axis=-1
+        )
 
     # Plot the pre-processed spectrum
     figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)

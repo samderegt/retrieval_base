@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_2'
+prefix = 'fiducial_K_A_ret_3'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -48,7 +48,8 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'log_a': [(-17,-15), r'$\log\ a_1$'], 
+    #'log_a': [(-17,-15), r'$\log\ a$'], 
+    'a': [(0.0,0.8), r'$a$'], 
     'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
@@ -168,7 +169,8 @@ species_to_plot_CCF = [
 
 scale_flux = True
 scale_err  = True
-scale_GP_amp = False
+#scale_GP_amp = False
+scale_GP_amp = True
 cholesky_mode = 'banded'
 GP_trunc_dist = 3
 GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
@@ -188,4 +190,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 400
+n_iter_before_update = 200

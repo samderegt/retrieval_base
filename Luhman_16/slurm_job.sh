@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 09:00:00
+#SBATCH -t 05:00:00
 #SBATCH -p genoa
-#SBATCH --ntasks=112
+#SBATCH --ntasks=130
 #SBATCH --mem=336G
 
-#SBATCH --job-name=fiducial_K_A_ret_2
+#SBATCH --job-name=fiducial_K_A_ret_3
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
