@@ -127,7 +127,7 @@ class GaussianProcesses(Covariance):
         self.separation = self.get_banded(
             self.separation, max_value=max_separation
             )
-        if self.err_eff is not None:
+        if isinstance(self.err_eff, np.ndarray):
             self.err_eff = self.get_banded(self.err_eff)
             self.err_eff = self.err_eff[:self.separation.shape[0]]
 
