@@ -631,7 +631,7 @@ def fig_VMR(ax_VMR,
             )
 
     ax_VMR.legend(
-        loc='upper left', ncols=2, handlelength=0.5, 
+        loc='upper left', ncol=2, handlelength=0.5, 
         handletextpad=0.3, framealpha=0.7
         )
     ax_VMR.set(

@@ -505,12 +505,12 @@ class DataSpectrum(Spectrum):
 
                 if prepare_err_eff:
                     # Arithmetic mean of the squared flux-errors
-                    err_ij  = self.err[i,j,mask_ij]
+                    #err_ij  = self.err[i,j,mask_ij]
                     #self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
-                    self.err_eff[i,j] = np.mean(err_ij)
+                    #self.err_eff[i,j] = np.mean(err_ij)
                     
-                    #flux_ij  = self.flux[i,j,mask_ij]
-                    #self.err_eff[i,j] = np.std(flux_ij)
+                    flux_ij  = self.flux[i,j,mask_ij]
+                    self.err_eff[i,j] = np.std(flux_ij)
 
     def clip_det_edges(self, n_edge_pixels=30):
         

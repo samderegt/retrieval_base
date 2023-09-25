@@ -50,8 +50,9 @@ sigma_clip_width = 8
 # Define the priors of the parameters
 free_params = {
     # Uncertainty scaling
-    'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_l': [(-3,-0.8), r'$\log\ l$'], 
+    #'log_a': [(-18,-14), r'$\log\ a_1$'], 
+    'a': [(0.0,2.0), r'$a$'], 
+    'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -59,8 +60,8 @@ free_params = {
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
-    'vsini': [(10,50), r'$v\ \sin\ i$'], 
-    'rv': [(10,25), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10,35), r'$v\ \sin\ i$'], 
+    'rv': [(15,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -68,46 +69,45 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
-    'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
-    #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_C18O': [(-10,-2), r'$\log\ \mathrm{C^{18}O}$'], 
-    #'log_C17O': [(-10,-2), r'$\log\ \mathrm{C^{17}O}$'], 
+    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    #'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    #'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'], 
+    #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
 
-    'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
-    'log_HDO': [(-10,-2), r'$\log\ \mathrm{HDO}$'], 
+    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_{2}O}$'], 
+    #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
 
-    'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_{3}}$'], 
+    #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_{2}S}$'], 
+    'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
+    'log_CrH': [(-12,-2), r'$\log\ \mathrm{CrH}$'], 
+    'log_NaH': [(-12,-2), r'$\log\ \mathrm{NaH}$'], 
 
-    'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
-    'log_FeH': [(-10,-2), r'$\log\ \mathrm{FeH}$'], 
-    #'log_H2S': [(-10,-2), r'$\log\ \mathrm{H_{2}S}$'], 
-    'log_TiO': [(-10,-2), r'$\log\ \mathrm{^{48}TiO}$'], 
+    'log_TiO': [(-12,-2), r'$\log\ \mathrm{^{48}TiO}$'], 
+    'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
+    #'log_AlO': [(-12,-2), r'$\log\ \mathrm{AlO}$'], 
+    #'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
+    #'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
+    'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
     
-    'log_K': [(-10,-2), r'$\log\ \mathrm{K}$'], 
-    'log_Na': [(-10,-2), r'$\log\ \mathrm{Na}$'], 
-    #'log_Ti': [(-10,-2), r'$\log\ \mathrm{Ti}$'],
-    'log_Fe': [(-10,-2), r'$\log\ \mathrm{Fe}$'], 
+    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
+    'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
+    #'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
+    'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,6000), r'$T_0$'], 
-    #'dlnT_dlnP_0': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{0}$'], 
-    #'dlnT_dlnP_1': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{1}$'], 
-    #'dlnT_dlnP_2': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{2}$'], 
-    #'dlnT_dlnP_3': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{3}$'], 
-    #'dlnT_dlnP_4': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{4}$'], 
-    #'dlnT_dlnP_5': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{5}$'], 
-
     'T_1': [(0,5000), r'$T_1$'], 
     'T_2': [(0,4000), r'$T_2$'], 
     'T_3': [(0,3000), r'$T_3$'], 
     'T_4': [(0,3000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
-    'T_7': [(0,2000), r'$T_7$'], 
+    #'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -126,7 +126,7 @@ constant_params = {
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.5, 
     'd_log_P_45': 0.75, 
-    'd_log_P_56': 1, 
+    #'d_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -142,21 +142,20 @@ enforce_PT_corr = False
 
 line_species = [
     'CO_main_iso', 
-    #'CO_36', 
-    #'CO_28', 
-    #'CO_27', 
-
     'H2O_pokazatel_main_iso', 
-    'HDO_voronin', 
-    
     'CH4_hargreaves_main_iso', 
-
     'NH3_coles_main_iso', 
-    #'CO2_main_iso', 
-    'HCN_main_iso', 
-    #'H2S_main_iso', 
+
+    #'HCN_main_iso', 
+    'H2S_main_iso', 
     'FeH_main_iso', 
+    'CrH_main_iso', 
+    'NaH_main_iso', 
+
     'TiO_48_Exomol_McKemmish', 
+    'VO_Exomol_McKemmish', 
+    #'CO2_main_iso', 
+    'HCl_main_iso', 
 
     'K', 
     'Na_allard', 
@@ -164,12 +163,18 @@ line_species = [
     'Fe', 
     ]
 cloud_species = None
-species_to_plot_VMR = ['12CO', 'H2O', 'CH4', 'NH3', 'FeH', 'TiO', 'Na', 'K']
-species_to_plot_CCF = ['12CO', 'HCN', 'TiO', 'NH3', 'FeH']
+species_to_plot_VMR = [
+    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'K', 'Na', 'Ti', 'Fe', 
+    ]
+species_to_plot_CCF = [
+    #'12CO', 'HCN', 'TiO', 'NH3', 'FeH'
+    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'Ti', 'Fe', 
+    ]
 
 scale_flux = True
 scale_err  = True
-scale_GP_amp = False
+#scale_GP_amp = False
+scale_GP_amp = True
 cholesky_mode = 'banded'
 GP_trunc_dist = 3
 GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
@@ -177,7 +182,7 @@ GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = False
+prepare_for_covariance = True
 
 apply_high_pass_filter = False
 
@@ -189,4 +194,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 400
+n_iter_before_update = 200

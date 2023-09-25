@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_4'
+prefix = 'fiducial_K_A_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -49,7 +49,8 @@ sigma_clip_width = 8
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-17,-15), r'$\log\ a$'], 
-    'a': [(0.0,2.0), r'$a$'], 
+    #'a': [(0.0,2.0), r'$a$'], 
+    'log_a': [(-4,0), r'$\log\ a$'], 
     'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
@@ -91,13 +92,6 @@ free_params = {
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     'T_0': [(0,6000), r'$T_0$'], 
-    #'dlnT_dlnP_0': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{0}$'], 
-    #'dlnT_dlnP_1': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{1}$'], 
-    #'dlnT_dlnP_2': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{2}$'], 
-    #'dlnT_dlnP_3': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{3}$'], 
-    #'dlnT_dlnP_4': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{4}$'], 
-    #'dlnT_dlnP_5': [(-0.3,0.6), r'$\frac{\mathrm{d}\ln T}{\mathrm{d}\ln P}_{5}$'], 
-
     'T_1': [(0,5000), r'$T_1$'], 
     'T_2': [(0,4000), r'$T_2$'], 
     'T_3': [(0,3000), r'$T_3$'], 

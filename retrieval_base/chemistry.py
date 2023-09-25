@@ -30,11 +30,17 @@ class Chemistry:
         '13CH4': ('CH4_31111_hargreaves', 13.003355 + 4*1.00784, (1,0,4)), 
 
         'NH3': ('NH3_coles_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
-        'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
         'HCN': ('HCN_main_iso', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
         'H2S': ('H2S_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
         'FeH': ('FeH_main_iso', 55.845 + 1.00784, (0,0,1)), 
+        'CrH': ('CrH_main_iso', 51.9961 + 1.00784, (0,0,1)), 
+        'NaH': ('NaH_main_iso', 22.989769 + 1.00784, (0,0,1)), 
+
         'TiO': ('TiO_48_Exomol_McKemmish', 47.867 + 15.999, (0,1,0)), 
+        'VO': ('VO_Exomol_McKemmish', 50.9415 + 15.999, (0,1,0)), 
+        'AlO': ('AlO_main_iso', 26.981539 + 15.999, (0,1,0)), 
+        'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
+
         'HF': ('HF_main_iso', 1.00784 + 18.998403, (0,0,1)), 
         'HCl': ('HCl_main_iso', 1.00784 + 35.453, (0,0,1)), 
         
@@ -45,6 +51,9 @@ class Chemistry:
         'Na': ('Na_allard', 22.989769, (0,0,0)), 
         'Ti': ('Ti', 47.867, (0,0,0)), 
         'Fe': ('Fe', 55.845, (0,0,0)), 
+        'Ca': ('Ca', 40.078, (0,0,0)), 
+        'Al': ('Al', 26.981539, (0,0,0)), 
+        'Mg': ('Mg', 24.305, (0,0,0)), 
         'He': ('He', 4.002602, (0,0,0)), 
         }
 
@@ -62,11 +71,17 @@ class Chemistry:
         '13CH4': ('purple', r'$^{13}$CH$_4$'), 
         
         'NH3': ('C8', r'NH$_3$'), 
-        'CO2': ('C9', r'CO$_2$'),
         'HCN': ('C10', r'HCN'), 
         'H2S': ('C11', r'H$_2$S'), 
         'FeH': ('C12', r'FeH'), 
+        'CrH': ('C15', r'CrH'), 
+        'NaH': ('C15', r'NaH'), 
+
         'TiO': ('C13', r'TiO'), 
+        'VO': ('C15', r'VO'), 
+        'AlO': ('C14', r'AlO'), 
+        'CO2': ('C9', r'CO$_2$'),
+
         'HF': ('C14', r'HF'), 
         'HCl': ('C15', r'HCl'), 
         
@@ -77,6 +92,9 @@ class Chemistry:
         'Na': ('C19', r'Na'), 
         'Ti': ('C20', r'Ti'), 
         'Fe': ('C21', r'Na'), 
+        'Ca': ('C22', r'Ca'), 
+        'Al': ('C23', r'Al'), 
+        'Mg': ('C24', r'Mg'), 
         #'He': ('C22', r'He'), 
         }
 
@@ -95,11 +113,17 @@ class Chemistry:
         '13CH4': False, 
         
         'NH3': False, 
-        'CO2': False, 
         'HCN': False, 
         'H2S': False, 
         'FeH': False, 
+        'CrH': False, 
+        'NaH': False, 
+
         'TiO': False, 
+        'VO': False, 
+        'AlO': False, 
+        'CO2': False, 
+
         'HF': False, 
         'HCl': False, 
 
@@ -110,6 +134,9 @@ class Chemistry:
         'Na': False, 
         'Ti': False, 
         'Fe': False, 
+        'Ca': False, 
+        'Al': False, 
+        'Mg': False, 
         #'He': False, 
         }
 
