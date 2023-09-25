@@ -18,10 +18,10 @@ from .spectrum import DataSpectrum, ModelSpectrum, Photometry
 from .parameters import Parameters
 from .pRT_model import pRT_model
 from .log_likelihood import LogLikelihood
-from .PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA, PT_profile_Zhang
-from .chemistry import FreeChemistry, EqChemistry
+from .PT_profile import get_PT_profile_class
+from .chemistry import get_Chemistry_class
+from .covariance import get_Covariance_class
 from .callback import CallBack
-from .covariance import Covariance, GaussianProcesses
 
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
@@ -132,9 +132,6 @@ def pre_processing(conf):
     d_spec.prepare_for_covariance(
         prepare_err_eff=conf.prepare_for_covariance
         )
-    d_spec.err_eff = np.mean(
-        d_spec.err[d_spec.mask_isfinite], axis=-1
-        )
 
     # Plot the pre-processed spectrum
     figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
@@ -205,38 +202,20 @@ class Retrieval:
             scale_err=self.conf.scale_err, 
             )
 
-
-        if self.Param.PT_mode == 'Molliere':
-            self.PT = PT_profile_Molliere(
-                self.pRT_atm.pressure, 
-                conv_adiabat=True
-                )
-        elif self.Param.PT_mode == 'free':
-            self.PT = PT_profile_free(
-                self.pRT_atm.pressure, 
-                ln_L_penalty_order=self.conf.ln_L_penalty_order, 
-                PT_interp_mode=self.conf.PT_interp_mode, 
-                )
-        elif self.Param.PT_mode == 'free_gradient':
-            self.PT = PT_profile_Zhang(
-                self.pRT_atm.pressure, 
-                PT_interp_mode=self.conf.PT_interp_mode, 
-                )
-        elif self.Param.PT_mode == 'grid':
-            self.PT = PT_profile_SONORA(
-                self.pRT_atm.pressure, 
-                )
-
-        if self.Param.chem_mode == 'free':
-            self.Chem = FreeChemistry(
-                self.pRT_atm.line_species, self.pRT_atm.pressure, 
-                spline_order=self.conf.chem_spline_order
-                )
-        elif self.Param.chem_mode == 'eqchem':
-            self.Chem = EqChemistry(
-                self.pRT_atm.line_species, self.pRT_atm.pressure
-                )
-
+        self.PT = get_PT_profile_class(
+            self.pRT_atm.pressure, 
+            self.Param.PT_mode, 
+            conv_adiabat=True, 
+            ln_L_penalty_order=self.conf.ln_L_penalty_order, 
+            PT_interp_mode=self.conf.PT_interp_mode, 
+            )
+        self.Chem = get_Chemistry_class(
+            self.pRT_atm.line_species, 
+            self.pRT_atm.pressure, 
+            self.Param.chem_mode, 
+            spline_order=self.conf.chem_spline_order, 
+            )
+        
         self.Cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
@@ -244,29 +223,14 @@ class Retrieval:
                 # Select only the finite pixels
                 mask_ij = self.d_spec.mask_isfinite[i,j]
 
-                if np.isin(['a', 'log_a', f'a_{i+1}', f'log_a_{i+1}', 'ls1'], self.Param.param_keys).any():
+                self.Cov[i,j] = get_Covariance_class(
+                    self.d_spec.err[i,j,mask_ij], 
+                    self.Param.cov_mode, 
+                    separation=self.d_spec.separation[i,j], 
+                    err_eff=self.d_spec.err_eff[i,j], 
+                    max_separation=self.conf.GP_max_separation, 
+                    )
 
-                    # Use a GaussianProcesses instance
-                    if self.conf.prepare_for_covariance:
-                        self.Cov[i,j] = GaussianProcesses(
-                            err=self.d_spec.err[i,j,mask_ij], 
-                            separation=self.d_spec.separation[i,j], 
-                            err_eff=self.d_spec.err_eff[i,j], 
-                            max_separation=self.conf.GP_max_separation, 
-                            )
-                    else:
-                        self.Cov[i,j] = GaussianProcesses(
-                            err=self.d_spec.err[i,j,mask_ij], 
-                            separation=self.d_spec.separation[i,j], 
-                            err_eff=self.d_spec.err_eff, 
-                            max_separation=self.conf.GP_max_separation, 
-                            )
-                else:
-                    # Use a Covariance instance instead
-                    self.Cov[i,j] = Covariance(
-                        err=self.d_spec.err[i,j,mask_ij]
-                        )
-        
         del self.d_spec.separation, self.d_spec.err_eff
         
         self.CB = CallBack(
@@ -294,12 +258,6 @@ class Retrieval:
                 af.pickle_save(self.conf.prefix+'data/pRT_atm_broad.pkl', self.pRT_atm_broad)
 
         # Set to None initially, changed during evaluation
-        self.Chem.mass_fractions_envelopes = None
-        self.Chem.mass_fractions_posterior = None
-        self.Chem.unquenched_mass_fractions_posterior = None
-        self.Chem.unquenched_mass_fractions_envelopes = None
-        self.PT.temperature_envelopes = None
-
         self.m_spec_species  = None
         self.pRT_atm_species = None
         self.LogLike_species = None
@@ -323,7 +281,9 @@ class Retrieval:
             return -np.inf
 
         # Retrieve the ln L penalty (=0 by default)
-        ln_L_penalty = self.PT.ln_L_penalty
+        ln_L_penalty = 0
+        if hasattr(self.PT, 'ln_L_penalty'):
+            ln_L_penalty = self.PT.ln_L_penalty
 
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
@@ -356,57 +316,19 @@ class Retrieval:
         
         if (self.m_spec.flux <= 0).any() or \
             (~np.isfinite(self.m_spec.flux)).any():
-            # Something wrong in the spectrum
+            # Something is wrong in the spectrum
             return -np.inf
 
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
 
-                mask_ij = self.d_spec.mask_isfinite[i,j]
-                wave_ij = self.d_spec.wave[i,j][mask_ij]
-
-                # Reset the covariance matrix
-                self.Cov[i,j].cov_reset()
-
-                if self.Param.params['a'][i,j] != 0:
-                    # Add a radial-basis function kernel
-                    self.Cov[i,j].add_RBF_kernel(
-                        a=self.Param.params['a'][i,j], 
-                        l=self.Param.params['l'][i,j], 
-                        trunc_dist=self.conf.GP_trunc_dist, 
-                        scale_GP_amp=self.conf.scale_GP_amp
-                        )
-                
-                if self.Param.params['beta'][i,j] != 1:
-                    # Scale the flux uncertainty
-                    self.Cov[i,j].add_data_err_scaling(
-                        beta=self.Param.params['beta'][i,j]
-                        )
-
-                if self.Param.params['x_tol'] is not None:
-                    # Add a model uncertainty (Piette et al. 2020)
-                    self.Cov[i,j].add_model_err(
-                        model_err=self.Param.params['x_tol'] * \
-                            self.m_spec[i,j,mask_ij]
-                        )
-
-                if self.Param.params['b'] is not None:
-                    # Add a model uncertainty (Line et al. 2015)
-                    self.Cov[i,j].add_model_err(
-                        model_err=np.sqrt(10**self.Param.params['b'])
-                        )
-
-                if self.Param.params['ls1'] is not None:
-                    self.Cov[i,j].add_tanh_Gibbs_kernel(
-                        wave=wave_ij, 
-                        a1=self.Param.params['ls1'], 
-                        a2=self.Param.params['ls2'], 
-                        w=self.Param.params['w'], 
-                        loc1=self.Param.params['loc1'], 
-                        l=self.Param.params['l'][i,j], 
-                        trunc_dist=self.conf.GP_trunc_dist, 
-                        scale_GP_amp=self.conf.scale_GP_amp
-                        )
+                # Update the covariance matrix
+                self.Cov[i,j](
+                    a=self.Param.params['a'][i,j], 
+                    l=self.Param.params['l'][i,j], 
+                    trunc_dist=self.conf.GP_trunc_dist, 
+                    scale_GP_amp=self.conf.scale_GP_amp
+                    )
 
         # Retrieve the log-likelihood
         ln_L = self.LogLike(

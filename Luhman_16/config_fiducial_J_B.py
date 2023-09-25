@@ -25,14 +25,14 @@ filter_2MASS = '2MASS/2MASS.J'
 
 pwv = 1.5
 
-ra, dec = 162.297895, -53.31703
-mjd = 59946.32563173
+ra, dec = 162.299451, -53.31767
+mjd = 59946.35286502
 
-ra_std, dec_std = 161.739683, -56.75788
-mjd_std = 59946.31615474
+ra_std, dec_std = 161.738984, -56.75771
+mjd_std = 59946.3601578
 T_std = 15000
 log_g_std = 2.3
-rv_std, vsini_std = 31.00, 250
+rv_std, vsini_std = 31.00, 280
 
 slit = 'w_0.4'
 lbl_opacity_sampling = 3

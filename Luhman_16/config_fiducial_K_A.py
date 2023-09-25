@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_3'
+prefix = 'fiducial_K_A_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -32,7 +32,7 @@ ra_std, dec_std = 161.739683, -56.75788
 mjd_std = 59946.31615474
 T_std = 15000
 log_g_std = 2.3
-rv_std, vsini_std = 31.00, 250
+rv_std, vsini_std = 31.00, 280
 
 slit = 'w_0.4'
 lbl_opacity_sampling = 3
@@ -49,7 +49,7 @@ sigma_clip_width = 8
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-17,-15), r'$\log\ a$'], 
-    'a': [(0.0,0.8), r'$a$'], 
+    'a': [(0.0,2.0), r'$a$'], 
     'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
@@ -58,8 +58,8 @@ free_params = {
     'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
-    'vsini': [(10,50), r'$v\ \sin\ i$'], 
-    'rv': [(10,25), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10,35), r'$v\ \sin\ i$'], 
+    'rv': [(15,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -77,11 +77,11 @@ free_params = {
 
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_{4}}$'], 
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
+    #'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
     'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_{2}S}$'], 
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
-    'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
+    #'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
     
     #'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     #'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
@@ -104,7 +104,7 @@ free_params = {
     'T_4': [(0,3000), r'$T_4$'], 
     'T_5': [(0,2000), r'$T_5$'], 
     'T_6': [(0,2000), r'$T_6$'], 
-    'T_7': [(0,2000), r'$T_7$'], 
+    #'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
@@ -116,14 +116,15 @@ constant_params = {
 
     # PT profile
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
+    #'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
+    'log_P_knots': [-6, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
     'd_log_P_12': 0.5, 
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.5, 
     'd_log_P_45': 0.75, 
-    'd_log_P_56': 1, 
+    #'d_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
 }
@@ -148,11 +149,11 @@ line_species = [
 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
-    'CO2_main_iso', 
+    #'CO2_main_iso', 
     'HCN_main_iso', 
     'H2S_main_iso', 
     'HF_main_iso', 
-    'HCl_main_iso', 
+    #'HCl_main_iso', 
 
     #'K', 
     #'Na_allard', 
@@ -160,11 +161,12 @@ line_species = [
     ]
 cloud_species = None
 species_to_plot_VMR = [
-    '12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl'
+    #'12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl', 
+    '12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = [
-    #'13CO', 'C18O', 'HCN', 'H2S', 'HDO'
-    '13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl'
+    #'13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl', 
+    '13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HF', 
     ]
 
 scale_flux = True
@@ -178,7 +180,7 @@ GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
-prepare_for_covariance = False
+prepare_for_covariance = True
 
 apply_high_pass_filter = False
 

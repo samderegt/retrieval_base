@@ -4,16 +4,30 @@ from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
-class PT_profile:
+def get_PT_profile_class(pressure, mode, **kwargs):
+
+    if mode == 'free':
+        return PT_profile_free(pressure, **kwargs)
+    
+    if mode == 'Molliere':
+        return PT_profile_Molliere(pressure, **kwargs)
+    
+    if mode == 'free_gradient':
+        return PT_profile_Zhang(pressure, **kwargs)
+    
+    if mode == 'grid':
+        return PT_profile_SONORA(pressure, **kwargs)
+
+class PT_profile():
 
     def __init__(self, pressure):
         
         self.pressure = pressure
-        self.ln_L_penalty = 0
+        self.temperature_envelopes = None
 
 class PT_profile_SONORA(PT_profile):
 
-    def __init__(self, pressure, path_to_SONORA_PT='./data/SONORA_PT_structures'):
+    def __init__(self, pressure, path_to_SONORA_PT='./data/SONORA_PT_structures', **kwargs):
 
         # Give arguments to the parent class
         super().__init__(pressure)
@@ -135,7 +149,7 @@ class PT_profile_SONORA(PT_profile):
     
 class PT_profile_free(PT_profile):
 
-    def __init__(self, pressure, ln_L_penalty_order=3, PT_interp_mode='log'):
+    def __init__(self, pressure, ln_L_penalty_order=3, PT_interp_mode='log', **kwargs):
         
         # Give arguments to the parent class
         super().__init__(pressure)
@@ -234,7 +248,7 @@ class PT_profile_free(PT_profile):
 
 class PT_profile_Zhang(PT_profile):
 
-    def __init__(self, pressure, PT_interp_mode='cubic'):
+    def __init__(self, pressure, PT_interp_mode='cubic', **kwargs):
         
         # Give arguments to the parent class
         super().__init__(pressure)
@@ -271,7 +285,7 @@ class PT_profile_Zhang(PT_profile):
 
 class PT_profile_Kitzmann(PT_profile):
 
-    def __init__(self, pressure, order=2):
+    def __init__(self, pressure, order=2, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(pressure)
@@ -349,7 +363,7 @@ class PT_profile_Kitzmann(PT_profile):
         
 class PT_profile_Molliere(PT_profile):
 
-    def __init__(self, pressure, conv_adiabat=True):
+    def __init__(self, pressure, conv_adiabat=True, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(pressure)

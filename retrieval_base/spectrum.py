@@ -494,7 +494,6 @@ class DataSpectrum(Spectrum):
                 # Mask the arrays, on-the-spot is slower
                 mask_ij = self.mask_isfinite[i,j]
                 wave_ij = self.wave[i,j,mask_ij]
-                err_ij  = self.err[i,j,mask_ij]
 
                 # Wavelength separation between all pixels within order/detector
                 separation_ij = np.abs(wave_ij[None,:] - wave_ij[:,None])
@@ -506,7 +505,12 @@ class DataSpectrum(Spectrum):
 
                 if prepare_err_eff:
                     # Arithmetic mean of the squared flux-errors
-                    self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
+                    err_ij  = self.err[i,j,mask_ij]
+                    #self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
+                    self.err_eff[i,j] = np.mean(err_ij)
+                    
+                    #flux_ij  = self.flux[i,j,mask_ij]
+                    #self.err_eff[i,j] = np.std(flux_ij)
 
     def clip_det_edges(self, n_edge_pixels=30):
         
@@ -527,6 +531,7 @@ class DataSpectrum(Spectrum):
 
         lines_to_mask = [1282.0, 1945.09,2166.12]
         mask_width = [7, 10,10]
+        #mask_width = [7, 10,5]
 
         # Get the barycentric velocity during the standard observation
         v_bary = self.bary_corr(return_v_bary=True)

@@ -3,6 +3,13 @@ from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
+def get_Chemistry_class(line_species, pressure, mode, **kwargs):
+
+    if mode == 'free':
+        return FreeChemistry(line_species, pressure, **kwargs)
+    if mode == 'eqchem':
+        return EqChemistry(line_species, pressure, **kwargs)
+
 class Chemistry:
 
     # Dictionary with info per molecular/atomic species
@@ -113,6 +120,12 @@ class Chemistry:
         self.pressure     = pressure
         self.n_atm_layers = len(self.pressure)
 
+        # Set to None initially, changed during evaluation
+        self.mass_fractions_envelopes = None
+        self.mass_fractions_posterior = None
+        self.unquenched_mass_fractions_posterior = None
+        self.unquenched_mass_fractions_envelopes = None
+
     def remove_species(self, species):
 
         # Remove the contribution of the specified species
@@ -145,10 +158,9 @@ class Chemistry:
         elif info_key == 'label':
             return cls.species_plot_info[species][1]
 
-
 class FreeChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, spline_order=1):
+    def __init__(self, line_species, pressure, spline_order=0, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)
@@ -257,7 +269,7 @@ class FreeChemistry(Chemistry):
 
 class EqChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure):
+    def __init__(self, line_species, pressure, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)

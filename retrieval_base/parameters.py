@@ -132,6 +132,13 @@ class Parameters:
         else:
             self.chem_mode = 'free'
 
+        # Check if Gaussian processes are used
+        GP_param_keys = ['a', 'log_a', 'a_1', 'log_a_1']
+        if np.isin(GP_param_keys, self.param_keys).any():
+            self.cov_mode = 'GP'
+        else:
+            self.cov_mode = None
+
         # Check if clouds (and which type) are included
         self.cloud_mode = None
         MgSiO3_param_keys = ['log_X_MgSiO3', 'f_sed', 'log_K_zz', 'sigma_g']

@@ -32,7 +32,7 @@ ra_std, dec_std = 161.739683, -56.75788
 mjd_std = 59946.31615474
 T_std = 15000
 log_g_std = 2.3
-rv_std, vsini_std = 31.00, 250
+rv_std, vsini_std = 31.00, 280
 
 slit = 'w_0.4'
 lbl_opacity_sampling = 3

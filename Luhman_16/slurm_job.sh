@@ -5,10 +5,10 @@
 #SBATCH --error=logs/%x_%j.err
 #SBATCH -t 05:00:00
 #SBATCH -p genoa
-#SBATCH --ntasks=130
+#SBATCH --ntasks=115
 #SBATCH --mem=336G
 
-#SBATCH --job-name=fiducial_K_A_ret_3
+#SBATCH --job-name=fiducial_K_A_ret_4
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 

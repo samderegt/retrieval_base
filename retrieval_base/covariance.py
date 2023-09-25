@@ -1,12 +1,18 @@
 import numpy as np
-from scipy.sparse import csc_matrix
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
-from sksparse.cholmod import cholesky
+def get_Covariance_class(err, mode=None, **kwargs):
+
+    if mode == 'GP':
+        # Use a GaussianProcesses instance
+        return GaussianProcesses(err, **kwargs)
+    
+    # Use a Covariance instance instead
+    return Covariance(err, **kwargs)
 
 class Covariance:
      
-    def __init__(self, err):
+    def __init__(self, err, **kwargs):
 
         # Set-up the covariance matrix
         self.err = err
@@ -64,15 +70,13 @@ class Covariance:
             
         # Only invert the diagonal
         return 1/self.cov * b
-            
-        
+    
     def get_dense_cov(self):
 
         if self.is_matrix:
             return self.cov
         
         return np.diag(self.cov)
-
 
 class GaussianProcesses(Covariance):
 
@@ -104,7 +108,7 @@ class GaussianProcesses(Covariance):
 
         return banded_array
 
-    def __init__(self, err, separation, err_eff=None, max_separation=None):
+    def __init__(self, err, separation, err_eff=None, max_separation=None, **kwargs):
         '''
         Create a covariance matrix suited for Gaussian processes. 
 
@@ -133,6 +137,16 @@ class GaussianProcesses(Covariance):
 
         # Give arguments to the parent class
         super().__init__(err)
+
+    def __call__(self, **kwargs):
+
+        # Reset the covariance matrix
+        self.cov_reset()
+
+        RBF_kwargs = ['a', 'l']
+        if all([kwargs.get(key) is not None for key in RBF_kwargs]):
+            # Add a radial-basis function kernel
+            self.add_RBF_kernel(**kwargs)
 
     def cov_reset(self):
 
