@@ -155,6 +155,9 @@ class GaussianProcesses(Covariance):
 
         RBF_f_kwargs = ['a_f', 'l_f']
         if all([kwargs.get(key) is not None for key in RBF_f_kwargs]):
+            if kwargs.get('a_f') == 0:
+                return
+            
             kwargs['a'] = kwargs.get('a_f')
             kwargs['l'] = kwargs.get('l_f')
             # Add a radial-basis function kernel

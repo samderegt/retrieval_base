@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_7'
+prefix = 'fiducial_K_A_ret_8'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -51,10 +51,10 @@ free_params = {
     # Uncertainty scaling
     #'log_a': [(-17,-15), r'$\log\ a$'], 
     #'a': [(0.0,2.0), r'$a$'], 
-    'log_a': [(0,0.5), r'$\log\ a$'], 
+    'log_a': [(0,0.6), r'$\log\ a$'], 
     'log_l': [(-1.5,-0.8), r'$\log\ l$'],
-    'log_a_f': [(-4,-2), r'$\log\ a_f$'], 
-    'log_l_f': [(-3,-0.8), r'$\log\ l_f$'], 
+    #'log_a_f': [(-4,-2), r'$\log\ a_f$'], 
+    #'log_l_f': [(-3,-0.8), r'$\log\ l_f$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
@@ -94,13 +94,13 @@ free_params = {
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,5000), r'$T_1$'], 
-    'T_2': [(0,4000), r'$T_2$'], 
-    'T_3': [(0,3000), r'$T_3$'], 
-    'T_4': [(0,3000), r'$T_4$'], 
-    'T_5': [(0,2000), r'$T_5$'], 
-    'T_6': [(0,2000), r'$T_6$'], 
+    'T_0': [(1000,5000), r'$T_0$'], 
+    'T_1': [(500,3500), r'$T_1$'], 
+    'T_2': [(0,2000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
+    #'T_5': [(0,2000), r'$T_5$'], 
+    #'T_6': [(0,2000), r'$T_6$'], 
     #'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
@@ -117,10 +117,12 @@ constant_params = {
     'log_P_knots': [-6, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
-    'd_log_P_12': 0.5, 
-    'd_log_P_23': 0.5, 
-    'd_log_P_34': 0.5, 
-    'd_log_P_45': 0.75, 
+    'd_log_P_12': 0.75, 
+    'd_log_P_23': 1.0, 
+    #'d_log_P_12': 0.5, 
+    #'d_log_P_23': 0.5, 
+    #'d_log_P_34': 0.5, 
+    #'d_log_P_45': 0.75, 
     #'d_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
@@ -163,7 +165,7 @@ species_to_plot_VMR = [
     ]
 species_to_plot_CCF = [
     #'13CO', 'C18O', 'C17O', 'CO2', 'HCN', 'H2S', 'HF', 'HCl', 
-    '13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HF', 
+    '12CO', 'H2O', 'CH4', 'NH3', '13CO', 'C18O', 'C17O', 'HCN', 'H2S', 'HF', 
     ]
 
 scale_flux = True
@@ -189,4 +191,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 400

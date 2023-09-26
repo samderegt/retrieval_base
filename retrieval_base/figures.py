@@ -238,13 +238,6 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
                 # Plot the residuals
                 res_ij = d_spec.flux[i,j] - LogLike.f[i,j]*m_spec.flux[i,j]
                 ax_res.plot(d_spec.wave[i,j], res_ij, c='k', lw=0.5)
-                '''
-                ax_res.plot(
-                    d_spec.wave[i,j], 
-                    np.random.normal(0, d_spec.err[i,j], size=len(d_spec.err[i,j]))*res_ij/res_ij, 
-                    c='k', lw=0.5
-                    )
-                '''
                 ax_res.plot(
                     [d_spec.wave[i,j].min(), d_spec.wave[i,j].max()], 
                     [0,0], c=bestfit_color, lw=1
@@ -257,7 +250,7 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
                         )
 
                 # Show the mean error
-                mean_err_ij = np.mean(d_spec.err[i,j][d_spec.mask_isfinite[i,j]])
+                mean_err_ij = np.mean(Cov[i,j].err)
                 ax_res.errorbar(
                     d_spec.wave[i,j].min()-0.2, 0, yerr=1*mean_err_ij, 
                     fmt='none', lw=1, ecolor='k', capsize=2, color='k', 
@@ -271,8 +264,6 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
                 cov *= LogLike.beta[i,j]**2
 
                 # Get the mean error from the trace
-                #mean_err_ij = np.sqrt(np.trace(cov)/len(cov))
-                #mean_scaled_err_ij = LogLike.beta[i,j]*mean_err_ij
                 mean_scaled_err_ij = np.mean(np.diag(np.sqrt(cov)))
 
                 ax_res.errorbar(
@@ -287,12 +278,6 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
                     loc='upper right', ncol=2, fontsize=8, handlelength=1, 
                     framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                     )
-                '''
-                ax_res.legend(
-                    loc='upper right', ncol=2, fontsize=8, handlelength=1, 
-                    framealpha=0.7, handletextpad=0.3, columnspacing=0.8
-                    )
-                '''
 
     # Set the labels for the final axis
     ax_spec.set(ylabel=ylabel_spec)

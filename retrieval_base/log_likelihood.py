@@ -66,7 +66,7 @@ class LogLikelihood:
 
                 m_flux_ij = m_spec.flux[i,j,mask_ij]
                 d_flux_ij = self.d_spec.flux[i,j,mask_ij]
-                d_err_ij  = self.d_spec.err[i,j,mask_ij]
+                d_err_ij  = Cov[i,j].err
 
                 res_ij = (d_flux_ij - m_flux_ij)
                 

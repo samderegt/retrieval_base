@@ -19,6 +19,7 @@ class pRT_model:
                  n_atm_layers=50, 
                  cloud_mode=None, 
                  chem_mode='free', 
+                 rv_range=(-50,50), 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -73,6 +74,8 @@ class pRT_model:
         self.cloud_mode = cloud_mode
         self.chem_mode  = chem_mode
 
+        self.rv_max = max(np.abs(list(rv_range)))
+
         # Define the atmospheric layers
         self.pressure = np.logspace(log_P_range[0], log_P_range[1], n_atm_layers)
 
@@ -83,9 +86,8 @@ class pRT_model:
 
         # pRT model is somewhat wider than observed spectrum
         if CB_active:
-            wave_pad = 10
-        else:
-            wave_pad = 1
+            self.rv_max = 1000
+        wave_pad = 1.1 * self.rv_max/(nc.c*1e-5) * self.d_wave.max()
 
         self.wave_range_micron = np.concatenate(
             (self.d_wave.min(axis=(1,2))[None,:]-wave_pad, 

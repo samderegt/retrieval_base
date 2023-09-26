@@ -161,6 +161,7 @@ def pre_processing(conf):
         continuum_opacities=['H2-H2', 'H2-He'], 
         log_P_range=(-6,2), 
         n_atm_layers=50, 
+        rv_range=conf.free_params['rv'][0], 
         )
 
     # Save as pickle
@@ -195,6 +196,28 @@ class Retrieval:
         self.pRT_atm.cloud_mode = self.Param.cloud_mode
         self.pRT_atm.chem_mode  = self.Param.chem_mode
 
+        self.Cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
+        for i in range(self.d_spec.n_orders):
+            for j in range(self.d_spec.n_dets):
+                
+                # Select only the finite pixels
+                mask_ij = self.d_spec.mask_isfinite[i,j]
+
+                if not mask_ij.any():
+                    continue
+
+                self.Cov[i,j] = get_Covariance_class(
+                    self.d_spec.err[i,j,mask_ij], 
+                    self.Param.cov_mode, 
+                    separation=self.d_spec.separation[i,j], 
+                    err_eff=self.d_spec.err_eff[i,j], 
+                    flux_eff=self.d_spec.flux_eff[i,j], 
+                    max_separation=self.conf.GP_max_separation, 
+                    )
+
+        del self.d_spec.separation, self.d_spec.err_eff, self.d_spec.flux_eff
+        del self.d_spec.err
+
         self.LogLike = LogLikelihood(
             self.d_spec, 
             n_params=self.Param.n_params, 
@@ -215,26 +238,6 @@ class Retrieval:
             self.Param.chem_mode, 
             spline_order=self.conf.chem_spline_order, 
             )
-        
-        self.Cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
-        for i in range(self.d_spec.n_orders):
-            for j in range(self.d_spec.n_dets):
-                
-                # Select only the finite pixels
-                mask_ij = self.d_spec.mask_isfinite[i,j]
-                if not mask_ij.any():
-                    continue
-
-                self.Cov[i,j] = get_Covariance_class(
-                    self.d_spec.err[i,j,mask_ij], 
-                    self.Param.cov_mode, 
-                    separation=self.d_spec.separation[i,j], 
-                    err_eff=self.d_spec.err_eff[i,j], 
-                    flux_eff=self.d_spec.flux_eff[i,j], 
-                    max_separation=self.conf.GP_max_separation, 
-                    )
-
-        del self.d_spec.separation, self.d_spec.err_eff, self.d_spec.flux_eff
         
         self.CB = CallBack(
             d_spec=self.d_spec, 

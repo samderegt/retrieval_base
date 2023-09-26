@@ -339,7 +339,7 @@ class DataSpectrum(Spectrum):
 
         # Set to None by default
         self.separation = None
-        self.err_eff = None
+        self.err_eff, self.flux_eff = None, None
 
     def load_spectrum_excalibuhr(self, file_target, file_wave=None):
 
@@ -510,9 +510,9 @@ class DataSpectrum(Spectrum):
                     #self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
                     self.err_eff[i,j] = np.mean(err_ij)
 
-                    flux_ij  = self.flux[i,j,mask_ij]
+                    #flux_ij  = self.flux[i,j,mask_ij]
                     #self.err_eff[i,j] = np.std(flux_ij)
-                    self.flux_eff[i,j] = np.sqrt(1/2*(flux_ij[None,:]**2 + flux_ij[:,None]**2))
+                    #self.flux_eff[i,j] = np.sqrt(1/2*(flux_ij[None,:]**2 + flux_ij[:,None]**2))
                     
 
     def clip_det_edges(self, n_edge_pixels=30):
@@ -533,8 +533,8 @@ class DataSpectrum(Spectrum):
     def get_transmission(self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb'):
 
         lines_to_mask = [1282.0, 1945.09,2166.12]
-        #mask_width = [7, 10,10]
-        mask_width = [7, 10,30]
+        mask_width = [7, 10,10]
+        #mask_width = [7, 10,30]
         #mask_width = [7, 10,5]
 
         # Get the barycentric velocity during the standard observation

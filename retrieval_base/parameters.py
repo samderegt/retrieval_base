@@ -14,6 +14,8 @@ class Parameters:
         # Uncertainty scaling
         'log_a': -np.inf, 
         'log_l': 0, 
+        'log_a_f': -np.inf, 
+        'log_l_f': 0, 
         'beta': 1,  
         'beta_tell': None, 
         'x_tol': None, 
