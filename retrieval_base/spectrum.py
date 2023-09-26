@@ -533,7 +533,8 @@ class DataSpectrum(Spectrum):
     def get_transmission(self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb'):
 
         lines_to_mask = [1282.0, 1945.09,2166.12]
-        mask_width = [7, 10,10]
+        #mask_width = [7, 10,10]
+        mask_width = [7, 10,30]
         #mask_width = [7, 10,5]
 
         # Get the barycentric velocity during the standard observation
@@ -563,6 +564,7 @@ class DataSpectrum(Spectrum):
             # Apply rotational and instrumental broadening
             ref_wave, ref_flux = self.rot_broadening(
                 ref_vsini, epsilon_limb=0.3, 
+                #ref_vsini, epsilon_limb=0.6, 
                 wave=ref_wave, flux=ref_flux, 
                 replace_wave_flux=False
                 )

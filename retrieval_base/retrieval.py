@@ -222,6 +222,8 @@ class Retrieval:
                 
                 # Select only the finite pixels
                 mask_ij = self.d_spec.mask_isfinite[i,j]
+                if not mask_ij.any():
+                    continue
 
                 self.Cov[i,j] = get_Covariance_class(
                     self.d_spec.err[i,j,mask_ij], 
@@ -322,6 +324,9 @@ class Retrieval:
 
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
+
+                if not self.d_spec.mask_isfinite[i,j].any():
+                    continue
 
                 # Update the covariance matrix
                 self.Cov[i,j](

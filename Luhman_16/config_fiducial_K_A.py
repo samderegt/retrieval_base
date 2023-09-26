@@ -6,7 +6,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_6'
+prefix = 'fiducial_K_A_ret_7'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1900, 2500)
@@ -32,6 +32,7 @@ ra_std, dec_std = 161.739683, -56.75788
 mjd_std = 59946.31615474
 T_std = 15000
 log_g_std = 2.3
+#log_g_std = 3.5
 rv_std, vsini_std = 31.00, 280
 
 slit = 'w_0.4'
@@ -50,10 +51,10 @@ free_params = {
     # Uncertainty scaling
     #'log_a': [(-17,-15), r'$\log\ a$'], 
     #'a': [(0.0,2.0), r'$a$'], 
-    'log_a': [(-1.5,0.5), r'$\log\ a$'], 
+    'log_a': [(0,0.5), r'$\log\ a$'], 
     'log_l': [(-1.5,-0.8), r'$\log\ l$'],
-    'log_a_f': [(-8,-1), r'$\log\ a_f$'], 
-    'log_l_f': [(-4,-0.8), r'$\log\ l_f$'], 
+    'log_a_f': [(-4,-2), r'$\log\ a_f$'], 
+    'log_l_f': [(-3,-0.8), r'$\log\ l_f$'], 
 
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
