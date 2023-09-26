@@ -326,13 +326,22 @@ class Parameters:
         if 'l' not in self.param_keys:
             self.params['l'] = 10**self.params['log_l']
 
+        if 'a_f' not in self.param_keys:
+            self.params['a_f'] = 10**self.params['log_a_f']
+        if 'l_f' not in self.param_keys:
+            self.params['l_f'] = 10**self.params['log_l_f']
+
         # Reshape to values for each order and detector
-        self.params['a'] = np.ones((self.n_orders, self.n_dets)) * self.params['a']
-        self.params['l'] = np.ones((self.n_orders, self.n_dets)) * self.params['l']
+        self.params['a']    = np.ones((self.n_orders, self.n_dets)) * self.params['a']
+        self.params['l']    = np.ones((self.n_orders, self.n_dets)) * self.params['l']
+        self.params['a_f']  = np.ones((self.n_orders, self.n_dets)) * self.params['a_f']
+        self.params['l_f']  = np.ones((self.n_orders, self.n_dets)) * self.params['l_f']
         self.params['beta'] = np.ones((self.n_orders, self.n_dets)) * self.params['beta']
 
         # Make a copy of the global values
-        a, l, beta = np.copy(self.params['a']), np.copy(self.params['l']), np.copy(self.params['beta'])
+        a, l     = np.copy(self.params['a']), np.copy(self.params['l'])
+        a_f, l_f = np.copy(self.params['a_f']), np.copy(self.params['l_f'])
+        beta = np.copy(self.params['beta'])
         
         for i in range(self.n_orders):
             for j in range(self.n_dets):
@@ -344,13 +353,25 @@ class Parameters:
                 if f'a_{i+1}' in self.param_keys:
                     a[i,:] = self.params[f'a_{i+1}']
                     self.params['a'] = a
-
                 if f'log_l_{i+1}' in self.param_keys:
                     l[i,:] = 10**self.params[f'log_l_{i+1}']
                     self.params['l'] = l
                 if f'l_{i+1}' in self.param_keys:
                     l[i,:] = self.params[f'l_{i+1}']
                     self.params['l'] = l
+
+                if f'log_a_f_{i+1}' in self.param_keys:
+                    a_f[i,:] = 10**self.params[f'log_a_f_{i+1}']
+                    self.params['a'] = a_f
+                if f'a_f_{i+1}' in self.param_keys:
+                    a_f[i,:] = self.params[f'a_f_{i+1}']
+                    self.params['a_f'] = a_f
+                if f'log_l_f_{i+1}' in self.param_keys:
+                    l_f[i,:] = 10**self.params[f'log_l_f_{i+1}']
+                    self.params['l_f'] = l_f
+                if f'l_f_{i+1}' in self.param_keys:
+                    l_f[i,:] = self.params[f'l_f_{i+1}']
+                    self.params['l_f'] = l_f
 
                 if f'beta_{i+1}' in self.param_keys:
                     beta[i,:] = self.params[f'beta_{i+1}']

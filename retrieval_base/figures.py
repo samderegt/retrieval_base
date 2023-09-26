@@ -584,7 +584,10 @@ def fig_VMR(ax_VMR,
             x1 = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][1]
             x2 = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][-2]
 
-            if (np.abs(x2-x1) > 1.0).any():
+            # Plot the median VMR profile
+            VMR_i = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][3]
+
+            if (np.abs(x2-x1) > 0.5).all():
                 continue
 
             # Plot the VMR envelope as well
@@ -596,9 +599,6 @@ def fig_VMR(ax_VMR,
             ax_VMR.fill_betweenx(
                 y=pressure, x1=x1, x2=x2, color=VMR_envelope_colors_i[1], ec='none', alpha=0.5
                 )
-            
-            # Plot the median VMR profile
-            VMR_i = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][3]
 
         # Plot volume-mixing ratio as function of pressure
         ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i)

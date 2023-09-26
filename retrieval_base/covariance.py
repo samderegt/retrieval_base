@@ -108,7 +108,7 @@ class GaussianProcesses(Covariance):
 
         return banded_array
 
-    def __init__(self, err, separation, err_eff=None, max_separation=None, **kwargs):
+    def __init__(self, err, separation, err_eff=None, flux_eff=None, max_separation=None, **kwargs):
         '''
         Create a covariance matrix suited for Gaussian processes. 
 
@@ -125,7 +125,8 @@ class GaussianProcesses(Covariance):
         
         # Pre-computed average error and wavelength separation
         self.separation = np.abs(separation)
-        self.err_eff = err_eff
+        self.err_eff  = err_eff
+        self.flux_eff = flux_eff
 
         # Convert to banded matrices
         self.separation = self.get_banded(
@@ -134,6 +135,10 @@ class GaussianProcesses(Covariance):
         if isinstance(self.err_eff, np.ndarray):
             self.err_eff = self.get_banded(self.err_eff)
             self.err_eff = self.err_eff[:self.separation.shape[0]]
+
+        if isinstance(self.flux_eff, np.ndarray):
+            self.flux_eff = self.get_banded(self.flux_eff)
+            self.flux_eff = self.flux_eff[:self.separation.shape[0]]
 
         # Give arguments to the parent class
         super().__init__(err)
@@ -146,7 +151,14 @@ class GaussianProcesses(Covariance):
         RBF_kwargs = ['a', 'l']
         if all([kwargs.get(key) is not None for key in RBF_kwargs]):
             # Add a radial-basis function kernel
-            self.add_RBF_kernel(**kwargs)
+            self.add_RBF_kernel(array=self.err_eff, **kwargs)
+
+        RBF_f_kwargs = ['a_f', 'l_f']
+        if all([kwargs.get(key) is not None for key in RBF_f_kwargs]):
+            kwargs['a'] = kwargs.get('a_f')
+            kwargs['l'] = kwargs.get('l_f')
+            # Add a radial-basis function kernel
+            self.add_RBF_kernel(array=self.flux_eff, **kwargs)
 
     def cov_reset(self):
 
@@ -156,7 +168,7 @@ class GaussianProcesses(Covariance):
 
         self.is_matrix = True
 
-    def add_RBF_kernel(self, a, l, trunc_dist=5, scale_GP_amp=False):
+    def add_RBF_kernel(self, a, l, array, trunc_dist=5, scale_GP_amp=False, **kwargs):
         '''
         Add a radial-basis function kernel to the covariance matrix. 
         The amplitude can be scaled by the flux-uncertainties of 
@@ -185,10 +197,16 @@ class GaussianProcesses(Covariance):
         GP_amp = a**2
         if scale_GP_amp:
             # Use amplitude as fraction of flux uncertainty
+            '''
             if isinstance(self.err_eff, float):
                 GP_amp *= self.err_eff**2
             else:
                 GP_amp *= self.err_eff[w_ij]**2
+            '''
+            if isinstance(array, float):
+                GP_amp *= array**2
+            else:
+                GP_amp *= array[w_ij]**2
 
         # Gaussian radial-basis function kernel
         self.cov[w_ij] += GP_amp * np.exp(-(self.separation[w_ij])**2/(2*l**2))

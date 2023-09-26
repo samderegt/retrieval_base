@@ -228,10 +228,11 @@ class Retrieval:
                     self.Param.cov_mode, 
                     separation=self.d_spec.separation[i,j], 
                     err_eff=self.d_spec.err_eff[i,j], 
+                    flux_eff=self.d_spec.flux_eff[i,j], 
                     max_separation=self.conf.GP_max_separation, 
                     )
 
-        del self.d_spec.separation, self.d_spec.err_eff
+        del self.d_spec.separation, self.d_spec.err_eff, self.d_spec.flux_eff
         
         self.CB = CallBack(
             d_spec=self.d_spec, 
@@ -326,6 +327,8 @@ class Retrieval:
                 self.Cov[i,j](
                     a=self.Param.params['a'][i,j], 
                     l=self.Param.params['l'][i,j], 
+                    a_f=self.Param.params['a_f'][i,j], 
+                    l_f=self.Param.params['l_f'][i,j], 
                     trunc_dist=self.conf.GP_trunc_dist, 
                     scale_GP_amp=self.conf.scale_GP_amp
                     )
