@@ -6,7 +6,7 @@ file_params = 'config_fiducial_J_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_A_ret_1'
+prefix = 'fiducial_J_A_ret_2'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 wave_range = (1115, 1325)
@@ -49,9 +49,12 @@ sigma_clip_width = 8
 
 # Define the priors of the parameters
 free_params = {
+    # Data resolution
+    'res': [(20000,200000), r'res'], 
+
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-3,0.6), r'$\log\ a$'], 
+    'log_a': [(-1,0.4), r'$\log\ a$'], 
     'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
@@ -69,7 +72,7 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
-    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    #'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
     #'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'], 
     #'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'], 
     #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
@@ -82,19 +85,19 @@ free_params = {
     #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_{2}S}$'], 
     'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
-    'log_CrH': [(-12,-2), r'$\log\ \mathrm{CrH}$'], 
-    'log_NaH': [(-12,-2), r'$\log\ \mathrm{NaH}$'], 
+    #'log_CrH': [(-12,-2), r'$\log\ \mathrm{CrH}$'], 
+    #'log_NaH': [(-12,-2), r'$\log\ \mathrm{NaH}$'], 
 
-    'log_TiO': [(-12,-2), r'$\log\ \mathrm{^{48}TiO}$'], 
+    #'log_TiO': [(-12,-2), r'$\log\ \mathrm{^{48}TiO}$'], 
     'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
     #'log_AlO': [(-12,-2), r'$\log\ \mathrm{AlO}$'], 
     #'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
     #'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
-    'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
+    #'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
     
     'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
-    #'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
+    'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
     # PT profile
@@ -144,7 +147,7 @@ enforce_PT_corr = False
 
 
 line_species = [
-    'CO_main_iso', 
+    #'CO_main_iso', 
     'H2O_pokazatel_main_iso', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
@@ -153,17 +156,17 @@ line_species = [
     #'H2S_main_iso', 
     'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
-    'CrH_main_iso', 
-    'NaH_main_iso', 
+    #'CrH_main_iso', 
+    #'NaH_main_iso', 
 
-    'TiO_48_Exomol_McKemmish', 
+    #'TiO_48_Exomol_McKemmish', 
     'VO_ExoMol_McKemmish', 
     #'CO2_main_iso', 
-    'HCl_main_iso', 
+    #'HCl_main_iso', 
 
     'K', 
     'Na_allard', 
-    #'Ti', 
+    'Ti', 
     'Fe', 
     ]
 cloud_species = None
