@@ -31,13 +31,14 @@ class Chemistry:
 
         'NH3': ('NH3_coles_main_iso', 14.0067 + 3*1.00784, (0,0,3)), 
         'HCN': ('HCN_main_iso', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
-        'H2S': ('H2S_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
+        #'H2S': ('H2S_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
+        'H2S': ('H2S_ExoMol_main_iso', 2*1.00784 + 32.065, (0,0,2)), 
         'FeH': ('FeH_main_iso', 55.845 + 1.00784, (0,0,1)), 
         'CrH': ('CrH_main_iso', 51.9961 + 1.00784, (0,0,1)), 
         'NaH': ('NaH_main_iso', 22.989769 + 1.00784, (0,0,1)), 
 
         'TiO': ('TiO_48_Exomol_McKemmish', 47.867 + 15.999, (0,1,0)), 
-        'VO': ('VO_Exomol_McKemmish', 50.9415 + 15.999, (0,1,0)), 
+        'VO': ('VO_ExoMol_McKemmish', 50.9415 + 15.999, (0,1,0)), 
         'AlO': ('AlO_main_iso', 26.981539 + 15.999, (0,1,0)), 
         'CO2': ('CO2_main_iso', 12.011 + 2*15.999, (1,2,0)),
 
@@ -75,7 +76,7 @@ class Chemistry:
         'H2S': ('C11', r'H$_2$S'), 
         'FeH': ('C12', r'FeH'), 
         'CrH': ('C15', r'CrH'), 
-        'NaH': ('C15', r'NaH'), 
+        'NaH': ('C16', r'NaH'), 
 
         'TiO': ('C13', r'TiO'), 
         'VO': ('C15', r'VO'), 
@@ -91,7 +92,7 @@ class Chemistry:
         'K': ('C18', r'K'), 
         'Na': ('C19', r'Na'), 
         'Ti': ('C20', r'Ti'), 
-        'Fe': ('C21', r'Na'), 
+        'Fe': ('C21', r'Fe'), 
         'Ca': ('C22', r'Ca'), 
         'Al': ('C23', r'Al'), 
         'Mg': ('C24', r'Mg'), 

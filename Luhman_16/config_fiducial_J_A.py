@@ -51,7 +51,7 @@ sigma_clip_width = 8
 free_params = {
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'a': [(0.0,2.0), r'$a$'], 
+    'log_a': [(-3,0.6), r'$\log\ a$'], 
     'log_l': [(-2,-0.8), r'$\log\ l$'], 
 
     # General properties
@@ -100,13 +100,13 @@ free_params = {
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    'T_0': [(0,6000), r'$T_0$'], 
-    'T_1': [(0,5000), r'$T_1$'], 
-    'T_2': [(0,4000), r'$T_2$'], 
-    'T_3': [(0,3000), r'$T_3$'], 
-    'T_4': [(0,3000), r'$T_4$'], 
-    'T_5': [(0,2000), r'$T_5$'], 
-    'T_6': [(0,2000), r'$T_6$'], 
+    'T_0': [(1000,5000), r'$T_0$'], 
+    'T_1': [(500,3500), r'$T_1$'], 
+    'T_2': [(0,2000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
+    #'T_5': [(0,2000), r'$T_5$'], 
+    #'T_6': [(0,2000), r'$T_6$'], 
     #'T_7': [(0,2000), r'$T_7$'], 
 
     'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
@@ -119,13 +119,16 @@ constant_params = {
 
     # PT profile
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
-    'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
+    #'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
+    'log_P_knots': [-6, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
-    'd_log_P_12': 0.5, 
-    'd_log_P_23': 0.5, 
-    'd_log_P_34': 0.5, 
-    'd_log_P_45': 0.75, 
+    'd_log_P_12': 0.75, 
+    'd_log_P_23': 1.0, 
+    #'d_log_P_12': 0.5, 
+    #'d_log_P_23': 0.5, 
+    #'d_log_P_34': 0.5, 
+    #'d_log_P_45': 0.75, 
     #'d_log_P_56': 1, 
 
     'epsilon_limb': 0.65, 
@@ -147,13 +150,14 @@ line_species = [
     'NH3_coles_main_iso', 
 
     #'HCN_main_iso', 
-    'H2S_main_iso', 
+    #'H2S_main_iso', 
+    'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
     'CrH_main_iso', 
     'NaH_main_iso', 
 
     'TiO_48_Exomol_McKemmish', 
-    'VO_Exomol_McKemmish', 
+    'VO_ExoMol_McKemmish', 
     #'CO2_main_iso', 
     'HCl_main_iso', 
 
@@ -168,7 +172,7 @@ species_to_plot_VMR = [
     ]
 species_to_plot_CCF = [
     #'12CO', 'HCN', 'TiO', 'NH3', 'FeH'
-    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'Ti', 'Fe', 
+    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'K', 'Na', 'Ti', 'Fe', 
     ]
 
 scale_flux = True
@@ -177,7 +181,12 @@ scale_err  = True
 scale_GP_amp = True
 cholesky_mode = 'banded'
 GP_trunc_dist = 3
-GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
+
+GP_max_separation = 20
+if free_params.get('log_l') is not None:
+    GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
+if free_params.get('l') is not None:
+    GP_max_separation = GP_trunc_dist * free_params['l'][0][1]
 
 # Prepare the wavelength separation and
 # average squared error arrays and keep 

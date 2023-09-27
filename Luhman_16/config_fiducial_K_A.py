@@ -174,8 +174,13 @@ scale_err  = True
 scale_GP_amp = True
 cholesky_mode = 'banded'
 GP_trunc_dist = 3
-GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
 
+GP_max_separation = 20
+if free_params.get('log_l') is not None:
+    GP_max_separation = GP_trunc_dist * 10**free_params['log_l'][0][1]
+if free_params.get('l') is not None:
+    GP_max_separation = GP_trunc_dist * free_params['l'][0][1]
+    
 # Prepare the wavelength separation and
 # average squared error arrays and keep 
 # in memory
