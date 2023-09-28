@@ -301,7 +301,7 @@ def fig_bestfit_model(
     else:
         return ax_spec, ax_res
 
-def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
+def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, w_set=''):
 
     all_cov = np.zeros(
         (d_spec.n_orders, d_spec.n_dets, 
@@ -377,7 +377,7 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
     ax[d_spec.n_orders//2,0].set(ylabel='Wavelength (nm)')
 
     if prefix is not None:
-        plt.savefig(prefix+'plots/cov_matrices.pdf')
+        plt.savefig(prefix+f'plots/cov_matrices_{w_set}.pdf')
         plt.close(fig)
 
     return all_cov
@@ -720,7 +720,8 @@ def fig_residual_ACF(d_spec,
                      Cov, 
                      rv=np.arange(-500,500+1e-6,1), 
                      bestfit_color='C1', 
-                     prefix=None
+                     prefix=None, 
+                     w_set=''
                      ):
 
     # Create a spectrum residual object
@@ -807,7 +808,7 @@ def fig_residual_ACF(d_spec,
     ax[-1,1].set(xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$')
 
     if prefix is not None:
-        fig.savefig(prefix+'plots/auto_correlation_residuals.pdf')
+        fig.savefig(prefix+f'plots/auto_correlation_residuals_{w_set}.pdf')
 
     #plt.show()
     plt.close(fig)
@@ -893,7 +894,8 @@ def fig_species_contribution(d_spec,
                              rv_CCF=np.arange(-1000,1000+1e-6,5), 
                              rv_to_exclude=(-100,100), 
                              bin_size=25, 
-                             prefix=None
+                             prefix=None, 
+                             w_set='', 
                              ):
 
     if not os.path.exists(prefix+'plots/species'):
@@ -1049,5 +1051,5 @@ def fig_species_contribution(d_spec,
     ax_CCF[len(species_to_plot)//2].set(ylabel='S/N')
 
     if prefix is not None:
-        fig_CCF.savefig(prefix+f'plots/species/CCF.pdf')
+        fig_CCF.savefig(prefix+f'plots/species/CCF_{w_set}.pdf')
     plt.close(fig_CCF)

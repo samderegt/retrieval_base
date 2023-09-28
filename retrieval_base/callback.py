@@ -167,7 +167,8 @@ class CallBack:
                     LogLike=self.LogLike[w_set], 
                     Cov=self.Cov[w_set], 
                     species_to_plot=self.species_to_plot_CCF, 
-                    prefix=self.prefix
+                    prefix=self.prefix, 
+                    w_set=w_set, 
                     )
             
                 # Plot the auto-correlation of the residuals
@@ -177,7 +178,8 @@ class CallBack:
                     LogLike=self.LogLike[w_set], 
                     Cov=self.Cov[w_set], 
                     bestfit_color=self.bestfit_color, 
-                    prefix=self.prefix
+                    prefix=self.prefix, 
+                    w_set=w_set, 
                     )
 
                 # Plot the covariance matrices
@@ -186,7 +188,8 @@ class CallBack:
                     Cov=self.Cov[w_set], 
                     d_spec=self.d_spec[w_set], 
                     cmap=self.envelope_cmap, 
-                    prefix=self.prefix
+                    prefix=self.prefix, 
+                    w_set=w_set, 
                     )
 
             # Plot the abundances in a corner-plot
