@@ -44,19 +44,19 @@ class Spectrum:
             [1192.52,1193.49], [1219.01,1220.04], [1246.71,1247.76], 
             [1275.70,1276.80], [1306.05,1307.15], [1337.98,1338.94], 
             # Mask K I lines
-            [1241,1246], [1251,1255], 
+            #[1241,1246], [1251,1255], 
             ])
         }
     n_pixels = 2048
 
-    def __init__(self, wave, flux, err=None, wlen_setting='K2166'):
+    def __init__(self, wave, flux, err=None, w_set='K2166'):
 
         self.wave = wave
         self.flux = flux
         self.err  = err
 
-        self.wlen_setting = wlen_setting
-        self.order_wlen_ranges = self.settings[self.wlen_setting]
+        self.w_set = w_set
+        self.order_wlen_ranges = self.settings[self.w_set]
         self.n_orders, self.n_dets, _ = self.order_wlen_ranges.shape
 
         # Make the isfinite mask
@@ -237,6 +237,7 @@ class Spectrum:
                             order_wlen_ranges=self.order_wlen_ranges, 
                             sigma=sigma, 
                             prefix=prefix, 
+                            w_set=self.w_set, 
                             )
 
         if replace_flux:
@@ -314,13 +315,13 @@ class DataSpectrum(Spectrum):
                  file_wave=None, 
                  slit='w_0.2', 
                  wave_range=(1900,2500), 
-                 wlen_setting='K2166', 
+                 w_set='K2166', 
                  ):
 
         if file_target is not None:
             wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)
         
-        super().__init__(wave, flux, err, wlen_setting)
+        super().__init__(wave, flux, err, w_set)
 
         # Reshape the orders and detectors
         #self.reshape_orders_dets()
@@ -396,11 +397,11 @@ class DataSpectrum(Spectrum):
 
     def mask_ghosts(self):
         
-        if self.ghosts.get(self.wlen_setting) is None:
+        if self.ghosts.get(self.w_set) is None:
             return
             
         # Loop over all segments of the ghost signature
-        for (wave_min, wave_max) in self.ghosts.get(self.wlen_setting):
+        for (wave_min, wave_max) in self.ghosts.get(self.w_set):
 
             mask_wave = (self.wave >= wave_min-0.1) & (self.wave <= wave_max+0.1)
             self.flux[mask_wave] = np.nan
@@ -686,6 +687,7 @@ class DataSpectrum(Spectrum):
             tell_threshold=tell_threshold, 
             order_wlen_ranges=self.order_wlen_ranges, 
             prefix=prefix, 
+            w_set=self.w_set, 
             )
 
         self.transm /= poly_model

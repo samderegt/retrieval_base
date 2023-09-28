@@ -37,6 +37,7 @@ def fig_flux_calib_2MASS(wave,
                          tell_threshold=0.2, 
                          order_wlen_ranges=None, 
                          prefix=None, 
+                         w_set='', 
                          ):
 
     fig, ax = plt.subplots(
@@ -70,7 +71,7 @@ def fig_flux_calib_2MASS(wave,
     ax[1].legend(loc='upper left')
 
     if prefix is not None:
-        plt.savefig(prefix+'plots/flux_calib_tell_corr.pdf')
+        plt.savefig(prefix+f'plots/flux_calib_tell_corr_{w_set}.pdf')
     #plt.show()
     plt.close(fig)
 
@@ -100,11 +101,11 @@ def fig_flux_calib_2MASS(wave,
             ax[i].set(xlim=(wave_min, wave_max))
         
         if prefix is not None:
-            plt.savefig(prefix+'plots/tell_corr_zoom_ins.pdf')
+            plt.savefig(prefix+f'plots/tell_corr_zoom_ins_{w_set}.pdf')
         #plt.show()
         plt.close(fig)
 
-def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma, prefix=None):
+def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma, prefix=None, w_set=''):
 
     # Plot zoom-ins of the sigma-clipping procedure
     n_orders = order_wlen_ranges.shape[0]
@@ -135,11 +136,11 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
     ax[-1].legend()
     
     if prefix is not None:
-        plt.savefig(prefix+'plots/sigma_clip_zoom_ins.pdf')
+        plt.savefig(prefix+f'plots/sigma_clip_zoom_ins_{w_set}.pdf')
     #plt.show()
     plt.close(fig)
 
-def fig_spec_to_fit(d_spec, prefix=None):
+def fig_spec_to_fit(d_spec, prefix=None, w_set=''):
 
     ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
     if d_spec.high_pass_filtered:
@@ -156,11 +157,22 @@ def fig_spec_to_fit(d_spec, prefix=None):
                   )
 
     if prefix is not None:
-        plt.savefig(prefix+'plots/spec_to_fit.pdf')
+        plt.savefig(prefix+f'plots/spec_to_fit_{w_set}.pdf')
     #plt.show()
     plt.close(fig)
 
-def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=None, ax_res=None, prefix=None):
+def fig_bestfit_model(
+        d_spec, 
+        m_spec, 
+        LogLike, 
+        Cov, 
+        xlabel='Wavelength (nm)', 
+        bestfit_color='C1', 
+        ax_spec=None, 
+        ax_res=None, 
+        prefix=None, 
+        w_set=''
+        ):
 
     if (ax_spec is None) and (ax_res is None):
         # Create a new figure
@@ -178,7 +190,7 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
     else:
         is_new_fig = False
 
-    ylabel_spec = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+    ylabel_spec = r'$F_\lambda$'+'\n'+r'$(\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
     if d_spec.high_pass_filtered:
         ylabel_spec = r'$F_\lambda$ (high-pass filtered)'
 
@@ -281,10 +293,10 @@ def fig_bestfit_model(d_spec, m_spec, LogLike, Cov, bestfit_color='C1', ax_spec=
 
     # Set the labels for the final axis
     ax_spec.set(ylabel=ylabel_spec)
-    ax_res.set(xlabel='Wavelength (nm)', ylabel='Residuals')
+    ax_res.set(xlabel=xlabel, ylabel='Res.')
 
     if is_new_fig and (prefix is not None):
-        plt.savefig(prefix+'plots/bestfit_spec.pdf')
+        plt.savefig(prefix+f'plots/bestfit_spec_{w_set}.pdf')
         plt.close(fig)
     else:
         return ax_spec, ax_res
@@ -371,9 +383,10 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None):
     return all_cov
 
 def fig_PT(PT, 
-           integrated_contr_em=None, 
-           integrated_contr_em_per_order=None, 
-           integrated_opa_cloud=None, 
+           pRT_atm, 
+           #integrated_contr_em=None, 
+           #integrated_contr_em_per_order=None, 
+           #integrated_opa_cloud=None, 
            ax_PT=None, 
            envelope_colors=None, 
            posterior_color='C0', 
@@ -382,7 +395,9 @@ def fig_PT(PT,
            yticks=np.logspace(-6, 2, 9), 
            xlim=(1,3500), 
            show_ln_L_penalty=False, 
-           prefix=None
+           prefix=None, 
+           contr_em_color={'J1226':'b', 'K2166':'r'}, 
+           opa_cloud_color={'J1226':'b', 'K2166':'r'}, 
            ):
     
     if ax_PT is None:
@@ -452,21 +467,32 @@ def fig_PT(PT,
         )
     ax_PT.invert_yaxis()
 
-    if (integrated_contr_em != 0).any():
+    for w_set in pRT_atm.keys():
+        integrated_contr_em = pRT_atm[w_set].int_contr_em
+        integrated_contr_em_per_order = None
+        integrated_opa_cloud = pRT_atm[w_set].int_opa_cloud
+
         # Add the integrated emission contribution function
         ax_contr = ax_PT.twiny()
         fig_contr_em(
-            ax_contr, integrated_contr_em, 
+            ax_contr, 
+            integrated_contr_em, 
             integrated_contr_em_per_order, 
-            PT.pressure, bestfit_color=bestfit_color
+            PT.pressure, 
+            bestfit_color=contr_em_color[w_set]
             )
-    
-    if (integrated_opa_cloud != 0).any():
+        
+        if (integrated_opa_cloud == 0).all():
+            continue
+        
         # Add the integrated cloud opacity
         ax_opa_cloud = ax_PT.twiny()
         fig_opa_cloud(
-            ax_opa_cloud, integrated_opa_cloud, PT.pressure, 
-            xlim=(1e0, 1e-10), color='grey'
+            ax_opa_cloud, 
+            integrated_opa_cloud, 
+            PT.pressure, 
+            xlim=(1e2, 1e-8), 
+            color=opa_cloud_color[w_set]
             )
     
     # Save or return the axis
@@ -509,15 +535,15 @@ def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, p
 def fig_opa_cloud(ax_opa_cloud, integrated_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey'):
 
     ax_opa_cloud.plot(
-        integrated_opa_cloud, pressure, c=color, ls='--', alpha=0.7
+        integrated_opa_cloud, pressure, c=color, lw=1, ls=':', alpha=0.5
         )
     
     # Set the color of the upper axis-spine
     ax_opa_cloud.tick_params(
-        axis='x', which='both', top=True, labeltop=True, colors=color
+        axis='x', which='both', top=True, labeltop=True, colors='0.5'
         )
-    ax_opa_cloud.spines['top'].set_color(color)
-    ax_opa_cloud.xaxis.label.set_color(color)
+    ax_opa_cloud.spines['top'].set_color('0.5')
+    ax_opa_cloud.xaxis.label.set_color('0.5')
 
     ax_opa_cloud.set(
         xlabel=r'$\kappa_\mathrm{cloud}\ (\mathrm{cm^2\ g^{-1}})$', 
@@ -801,7 +827,8 @@ def plot_ax_CCF(ax,
                 ):
 
     if pRT_atm_wo_species is not None:
-        pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid_only.copy()
+        #pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid_only.copy()
+        pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid.copy()
     else:
         pRT_atm_wo_species_flux_pRT_grid = None
 

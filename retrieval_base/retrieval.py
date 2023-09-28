@@ -2,19 +2,16 @@ import os
 
 from mpi4py import MPI
 import time
-import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-import matplotlib.pyplot as plt
 import numpy as np
-import argparse
 import copy
 
 import pymultinest
 
-from .spectrum import DataSpectrum, ModelSpectrum, Photometry
+from .spectrum import DataSpectrum, Photometry
 from .parameters import Parameters
 from .pRT_model import pRT_model
 from .log_likelihood import LogLikelihood
@@ -26,7 +23,7 @@ from .callback import CallBack
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-def pre_processing(conf):
+def pre_processing(conf, conf_data):
 
     # Set up the output directories
     af.create_output_dir(conf.prefix, conf.file_params)
@@ -39,15 +36,15 @@ def pre_processing(conf):
         wave=None, 
         flux=None, 
         err=None, 
-        ra=conf.ra, 
-        dec=conf.dec, 
-        mjd=conf.mjd, 
-        pwv=conf.pwv, 
-        file_target=conf.file_target, 
-        file_wave=conf.file_wave, 
-        slit=conf.slit, 
-        wave_range=conf.wave_range, 
-        wlen_setting=conf.wlen_setting, 
+        ra=conf_data['ra'], 
+        dec=conf_data['dec'], 
+        mjd=conf_data['mjd'], 
+        pwv=conf_data['pwv'], 
+        file_target=conf_data['file_target'], 
+        file_wave=conf_data['file_wave'], 
+        slit=conf_data['slit'], 
+        wave_range=conf_data['wave_range'], 
+        w_set=conf_data['w_set'], 
         )
     d_spec.clip_det_edges()
     
@@ -55,15 +52,15 @@ def pre_processing(conf):
         wave=None, 
         flux=None, 
         err=None, 
-        ra=conf.ra_std, 
-        dec=conf.dec_std, 
-        mjd=conf.mjd_std, 
-        pwv=conf.pwv, 
-        file_target=conf.file_std, 
-        file_wave=conf.file_std, 
-        slit=conf.slit, 
-        wave_range=conf.wave_range, 
-        wlen_setting=conf.wlen_setting, 
+        ra=conf_data['ra_std'], 
+        dec=conf_data['dec_std'], 
+        mjd=conf_data['mjd_std'], 
+        pwv=conf_data['pwv'], 
+        file_target=conf_data['file_std'], 
+        file_wave=conf_data['file_std'], 
+        slit=conf_data['slit'], 
+        wave_range=conf_data['wave_range'], 
+        w_set=conf_data['w_set'], 
         )
     d_std_spec.clip_det_edges()
 
@@ -73,8 +70,8 @@ def pre_processing(conf):
     # Get transmission from telluric std and add to target's class
     #d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
     d_std_spec.get_transmission(
-        T=conf.T_std, log_g=conf.log_g_std, 
-        ref_rv=conf.rv_std, ref_vsini=conf.vsini_std, 
+        T=conf_data['T_std'], log_g=conf_data['log_g_std'], 
+        ref_rv=conf_data['rv_std'], ref_vsini=conf_data['vsini_std'], 
         #mode='bb'
         mode='PHOENIX'
         )
@@ -92,17 +89,17 @@ def pre_processing(conf):
     # Apply flux calibration using the 2MASS broadband magnitude
     d_spec.flux_calib_2MASS(
         photom_2MASS, 
-        conf.filter_2MASS, 
-        tell_threshold=conf.tell_threshold, 
+        conf_data['filter_2MASS'], 
+        tell_threshold=conf_data['tell_threshold'], 
         prefix=conf.prefix, 
-        file_skycalc_transm=conf.file_skycalc_transm, 
+        file_skycalc_transm=conf_data['file_skycalc_transm'], 
         )
     del photom_2MASS
 
     # Apply sigma-clipping
     d_spec.sigma_clip_median_filter(
         sigma=3, 
-        filter_width=conf.sigma_clip_width, 
+        filter_width=conf_data['sigma_clip_width'], 
         prefix=conf.prefix
         )
     #d_spec.sigma_clip_poly(sigma=3, prefix=conf.prefix)
@@ -134,19 +131,22 @@ def pre_processing(conf):
         )
 
     # Plot the pre-processed spectrum
-    figs.fig_spec_to_fit(d_spec, prefix=conf.prefix)
+    figs.fig_spec_to_fit(
+        d_spec, prefix=conf.prefix, w_set=d_spec.w_set
+        )
 
     # Save the data
-    np.save(conf.prefix+'data/d_spec_wave.npy', d_spec.wave)
-    np.save(conf.prefix+'data/d_spec_flux.npy', d_spec.flux)
-    np.save(conf.prefix+'data/d_spec_err.npy', d_spec.err)
-    np.save(conf.prefix+'data/d_spec_transm.npy', d_spec.transm)
+    np.save(conf.prefix+f'data/d_spec_wave_{d_spec.w_set}.npy', d_spec.wave)
+    np.save(conf.prefix+f'data/d_spec_flux_{d_spec.w_set}.npy', d_spec.flux)
+    np.save(conf.prefix+f'data/d_spec_err_{d_spec.w_set}.npy', d_spec.err)
+    np.save(conf.prefix+f'data/d_spec_transm_{d_spec.w_set}.npy', d_spec.transm)
 
-    np.save(conf.prefix+'data/d_spec_flux_uncorr.npy', d_spec.flux_uncorr)
+    np.save(conf.prefix+f'data/d_spec_flux_uncorr_{d_spec.w_set}.npy', d_spec.flux_uncorr)
     del d_spec.flux_uncorr
+    del d_spec.transm, d_spec.transm_err
 
     # Save as pickle
-    af.pickle_save(conf.prefix+'data/d_spec.pkl', d_spec)
+    af.pickle_save(conf.prefix+f'data/d_spec_{d_spec.w_set}.pkl', d_spec)
 
     # --- Set up a pRT model --------------------------------------------
 
@@ -155,7 +155,7 @@ def pre_processing(conf):
         line_species=conf.line_species, 
         d_spec=d_spec, 
         mode='lbl', 
-        lbl_opacity_sampling=conf.lbl_opacity_sampling, 
+        lbl_opacity_sampling=conf_data['lbl_opacity_sampling'], 
         cloud_species=conf.cloud_species, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
@@ -165,7 +165,7 @@ def pre_processing(conf):
         )
 
     # Save as pickle
-    af.pickle_save(conf.prefix+'data/pRT_atm.pkl', pRT_atm)
+    af.pickle_save(conf.prefix+f'data/pRT_atm_{d_spec.w_set}.pkl', pRT_atm)
 
 class Retrieval:
 
@@ -174,67 +174,83 @@ class Retrieval:
         self.conf = conf
         self.evaluation = evaluation
 
-        # Load the DataSpectrum and pRT_model classes
-        self.d_spec  = af.pickle_load(self.conf.prefix+'data/d_spec.pkl')
-        self.pRT_atm = af.pickle_load(self.conf.prefix+'data/pRT_atm.pkl')
+        self.d_spec  = {}
+        self.pRT_atm = {}
+        param_wlen_settings = {}
+        for w_set in conf.config_data.keys():
+
+            # Load the DataSpectrum and pRT_model classes
+            self.d_spec[w_set]  = af.pickle_load(self.conf.prefix+f'data/d_spec_{w_set}.pkl')
+            self.pRT_atm[w_set] = af.pickle_load(self.conf.prefix+f'data/pRT_atm_{w_set}.pkl')
+
+            param_wlen_settings[w_set] = [self.d_spec[w_set].n_orders, self.d_spec[w_set].n_dets]
 
         # Create a Parameters instance
         self.Param = Parameters(
             free_params=self.conf.free_params, 
             constant_params=self.conf.constant_params, 
-            n_orders=self.d_spec.n_orders, 
-            n_dets=self.d_spec.n_dets, 
-            enforce_PT_corr=self.conf.enforce_PT_corr
-            )    
-
-        if 'beta_tell' not in self.Param.param_keys:
-            # Transmissivity will not be requested, save on memory
-            self.d_spec.transm     = None
-            self.d_spec.transm_err = None
-
-        # Update the cloud/chemistry-mode
-        self.pRT_atm.cloud_mode = self.Param.cloud_mode
-        self.pRT_atm.chem_mode  = self.Param.chem_mode
-
-        self.Cov = np.empty((self.d_spec.n_orders, self.d_spec.n_dets), dtype=object)
-        for i in range(self.d_spec.n_orders):
-            for j in range(self.d_spec.n_dets):
-                
-                # Select only the finite pixels
-                mask_ij = self.d_spec.mask_isfinite[i,j]
-
-                if not mask_ij.any():
-                    continue
-
-                self.Cov[i,j] = get_Covariance_class(
-                    self.d_spec.err[i,j,mask_ij], 
-                    self.Param.cov_mode, 
-                    separation=self.d_spec.separation[i,j], 
-                    err_eff=self.d_spec.err_eff[i,j], 
-                    flux_eff=self.d_spec.flux_eff[i,j], 
-                    max_separation=self.conf.GP_max_separation, 
-                    )
-
-        del self.d_spec.separation, self.d_spec.err_eff, self.d_spec.flux_eff
-        del self.d_spec.err
-
-        self.LogLike = LogLikelihood(
-            self.d_spec, 
-            n_params=self.Param.n_params, 
-            scale_flux=self.conf.scale_flux, 
-            scale_err=self.conf.scale_err, 
+            PT_mode=self.conf.PT_mode, 
+            n_T_knots=self.conf.n_T_knots, 
+            enforce_PT_corr=self.conf.enforce_PT_corr, 
+            chem_mode=self.conf.chem_mode, 
+            cloud_mode=self.conf.cloud_mode, 
+            cov_mode=self.conf.cov_mode, 
+            wlen_settings=param_wlen_settings, 
+            #n_orders=self.d_spec.n_orders, 
+            #n_dets=self.d_spec.n_dets, 
             )
+        
+        self.Cov     = {}
+        self.LogLike = {}
+        for w_set in conf.config_data.keys():
+            
+            # Update the cloud/chemistry-mode
+            self.pRT_atm[w_set].cloud_mode = self.Param.cloud_mode
+            self.pRT_atm[w_set].chem_mode  = self.Param.chem_mode
+
+            self.Cov[w_set] = np.empty(
+                (self.d_spec[w_set].n_orders, self.d_spec[w_set].n_dets), dtype=object
+                )
+            for i in range(self.d_spec[w_set].n_orders):
+                for j in range(self.d_spec[w_set].n_dets):
+                    
+                    # Select only the finite pixels
+                    mask_ij = self.d_spec[w_set].mask_isfinite[i,j]
+
+                    if not mask_ij.any():
+                        continue
+
+                    self.Cov[w_set][i,j] = get_Covariance_class(
+                        self.d_spec[w_set].err[i,j,mask_ij], 
+                        self.Param.cov_mode, 
+                        separation=self.d_spec[w_set].separation[i,j], 
+                        err_eff=self.d_spec[w_set].err_eff[i,j], 
+                        flux_eff=self.d_spec[w_set].flux_eff[i,j], 
+                        max_separation=self.conf.GP_max_separation, 
+                        )
+
+            del self.d_spec[w_set].separation, 
+            del self.d_spec[w_set].err_eff, 
+            del self.d_spec[w_set].flux_eff
+            del self.d_spec[w_set].err
+
+            self.LogLike[w_set] = LogLikelihood(
+                self.d_spec[w_set], 
+                n_params=self.Param.n_params, 
+                scale_flux=self.conf.scale_flux, 
+                scale_err=self.conf.scale_err, 
+                )
 
         self.PT = get_PT_profile_class(
-            self.pRT_atm.pressure, 
+            self.pRT_atm[w_set].pressure, 
             self.Param.PT_mode, 
             conv_adiabat=True, 
             ln_L_penalty_order=self.conf.ln_L_penalty_order, 
             PT_interp_mode=self.conf.PT_interp_mode, 
             )
         self.Chem = get_Chemistry_class(
-            self.pRT_atm.line_species, 
-            self.pRT_atm.pressure, 
+            self.pRT_atm[w_set].line_species, 
+            self.pRT_atm[w_set].pressure, 
             self.Param.chem_mode, 
             spline_order=self.conf.chem_spline_order, 
             )
@@ -251,17 +267,26 @@ class Retrieval:
             )
 
         if (rank == 0) and self.evaluation:
-            if os.path.exists(self.conf.prefix+'data/pRT_atm_broad.pkl'):
-                # Load the pRT model
-                self.pRT_atm_broad = af.pickle_load(self.conf.prefix+'data/pRT_atm_broad.pkl')
+            self.pRT_atm_broad = {}
+            for w_set in conf.config_data.keys():
+                
+                if os.path.exists(self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl'):
 
-            else:
+                    # Load the pRT model
+                    self.pRT_atm_broad[w_set] = af.pickle_load(
+                        self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl'
+                        )
+                    continue
+
                 # Create a wider pRT model during evaluation
-                self.pRT_atm_broad = copy.deepcopy(self.pRT_atm)
-                self.pRT_atm_broad.get_atmospheres(CB_active=True)
+                self.pRT_atm_broad[w_set] = copy.deepcopy(self.pRT_atm[w_set])
+                self.pRT_atm_broad[w_set].get_atmospheres(CB_active=True)
 
                 # Save for convenience
-                af.pickle_save(self.conf.prefix+'data/pRT_atm_broad.pkl', self.pRT_atm_broad)
+                af.pickle_save(
+                    self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl', 
+                    self.pRT_atm_broad[w_set]
+                    )
 
         # Set to None initially, changed during evaluation
         self.m_spec_species  = None
@@ -305,49 +330,53 @@ class Retrieval:
             # Return temperatures and mass fractions during evaluation
             return (temperature, mass_fractions)
 
-        if self.evaluation:
-            # Retrieve the model spectrum, with the wider pRT model
-            pRT_atm_to_use = self.pRT_atm_broad
-        else:
-            pRT_atm_to_use = self.pRT_atm
+        self.m_spec = {}
+        ln_L = ln_L_penalty
+        for h, w_set in enumerate(list(self.conf.config_data.keys())):
+            
+            pRT_atm_to_use = self.pRT_atm[w_set]
+            if self.evaluation:
+                # Retrieve the model spectrum, with the wider pRT model
+                pRT_atm_to_use = self.pRT_atm_broad[w_set]
         
-        # Retrieve the model spectrum
-        self.m_spec = pRT_atm_to_use(
-            mass_fractions, 
-            temperature, 
-            self.Param.params, 
-            get_contr=self.CB.active, 
-            get_full_spectrum=self.evaluation, 
-            )
+            # Retrieve the model spectrum
+            self.m_spec[w_set] = pRT_atm_to_use(
+                mass_fractions, 
+                temperature, 
+                self.Param.params, 
+                get_contr=self.CB.active, 
+                get_full_spectrum=self.evaluation, 
+                )
         
-        if (self.m_spec.flux <= 0).any() or \
-            (~np.isfinite(self.m_spec.flux)).any():
-            # Something is wrong in the spectrum
-            return -np.inf
+            if (self.m_spec[w_set].flux <= 0).any() or \
+                (~np.isfinite(self.m_spec[w_set].flux)).any():
+                # Something is wrong in the spectrum
+                return -np.inf
 
-        for i in range(self.d_spec.n_orders):
-            for j in range(self.d_spec.n_dets):
+            for i in range(self.d_spec[w_set].n_orders):
+                for j in range(self.d_spec[w_set].n_dets):
 
-                if not self.d_spec.mask_isfinite[i,j].any():
-                    continue
+                    if not self.d_spec[w_set].mask_isfinite[i,j].any():
+                        continue
 
-                # Update the covariance matrix
-                self.Cov[i,j](
-                    a=self.Param.params['a'][i,j], 
-                    l=self.Param.params['l'][i,j], 
-                    a_f=self.Param.params['a_f'][i,j], 
-                    l_f=self.Param.params['l_f'][i,j], 
-                    trunc_dist=self.conf.GP_trunc_dist, 
-                    scale_GP_amp=self.conf.scale_GP_amp
-                    )
+                    # Update the covariance matrix
+                    self.Cov[w_set][i,j](
+                        self.Param.params, 
+                        w_set, 
+                        order=i, 
+                        det=j, 
+                        trunc_dist=self.conf.GP_trunc_dist, 
+                        scale_GP_amp=self.conf.scale_GP_amp
+                        )
 
-        # Retrieve the log-likelihood
-        ln_L = self.LogLike(
-            self.m_spec, 
-            self.Cov, 
-            ln_L_penalty=ln_L_penalty, 
-            evaluation=self.evaluation
-            )
+            # Retrieve the log-likelihood
+            ln_L += self.LogLike[w_set](
+                self.m_spec[w_set], 
+                self.Cov[w_set], 
+                is_first_w_set=(h==0), 
+                #ln_L_penalty=ln_L_penalty, 
+                evaluation=self.evaluation, 
+                )
         
         time_B = time.time()
         self.CB.elapsed_times.append(time_B-time_A)
@@ -375,6 +404,12 @@ class Retrieval:
                 # Update the Parameters instance
                 self.Param.params[key_j] = params_i[j]
 
+                if key_j.startswith('log_'):
+                    self.Param.params = self.Param.log_to_linear(self.Param.params, key_j)
+
+                if key_j.startswith('invgamma_'):
+                    self.Param.params[key_j.replace('invgamma_', '')] = self.Param.params[key_j]
+                    
             # Update the parameters
             self.Param.read_PT_params(cube=None)
             self.Param.read_uncertainty_params()
@@ -455,8 +490,11 @@ class Retrieval:
 
     def get_species_contribution(self):
 
-        self.m_spec_species, self.pRT_atm_species = {}, {}
+        #self.m_spec_species, self.pRT_atm_species = {}, {}
 
+        self.m_spec_species = dict.fromkeys(self.d_spec.keys(), {})
+        self.pRT_atm_species = dict.fromkeys(self.d_spec.keys(), {})
+        '''
         # Ignore all species
         for species_j, (line_species_j, _, _) in self.Chem.species_info.items():
             if line_species_j in self.Chem.line_species:
@@ -465,42 +503,46 @@ class Retrieval:
         self.PMN_lnL_func()
         m_spec_continuum = np.copy(self.m_spec.flux)
         pRT_atm_continuum = self.pRT_atm_broad.flux_pRT_grid.copy()
+        '''
 
         # Assess the species' contribution
         for species_i in self.Chem.species_info:
+
             line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
+            if line_species_i not in self.Chem.line_species:
+                continue
 
-            if line_species_i in self.Chem.line_species:
+            '''
+            # Ignore all other species
+            self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, True)
+            self.Chem.neglect_species[species_i] = False
+            
+            # Create the spectrum and evaluate lnL
+            self.PMN_lnL_func()
 
-                # Ignore all other species
-                for species_j, (line_species_j, _, _) in self.Chem.species_info.items():
-                    if line_species_j in self.Chem.line_species:
-                        self.Chem.neglect_species[species_j] = True
-                self.Chem.neglect_species[species_i] = False
-                
-                # Create the spectrum and evaluate lnL
-                self.PMN_lnL_func()
+            flux_only = np.copy(self.m_spec.flux)
+            self.pRT_atm_broad.flux_pRT_grid_only = [
+                self.pRT_atm_broad.flux_pRT_grid[i].copy() \
+                for i in range(self.d_spec.n_orders)
+                ]
+            
+            for species_j in self.Chem.species_info:
+                self.Chem.neglect_species[species_j] = False
+            '''
+            # Ignore one species at a time
+            self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, False)
+            self.Chem.neglect_species[species_i] = True
 
-                flux_only = np.copy(self.m_spec.flux) - m_spec_continuum
-                self.pRT_atm_broad.flux_pRT_grid_only = [
-                    self.pRT_atm_broad.flux_pRT_grid[i].copy() - pRT_atm_continuum[i] \
-                    for i in range(len(self.pRT_atm_broad.atm))
-                    ]
+            # Create the spectrum and evaluate lnL
+            self.PMN_lnL_func()
 
-                for species_j in self.Chem.species_info:
-                    self.Chem.neglect_species[species_j] = False
-                # Ignore this species for now
-                self.Chem.neglect_species[species_i] = True
+            #self.m_spec.flux_only = flux_only
+            for w_set in self.d_spec.keys():
+                self.m_spec_species[w_set][species_i]  = copy.deepcopy(self.m_spec[w_set])
+                self.pRT_atm_species[w_set][species_i] = copy.deepcopy(self.pRT_atm_broad[w_set])
 
-                # Create the spectrum and evaluate lnL
-                self.PMN_lnL_func()
-
-                self.m_spec.flux_only = flux_only
-                self.m_spec_species[species_i]  = copy.deepcopy(self.m_spec)
-                self.pRT_atm_species[species_i] = copy.deepcopy(self.pRT_atm_broad)
-
-                # Include this species again
-                self.Chem.neglect_species[species_i] = False
+        # Include all species again
+        self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, False)
 
     def get_all_spectra(self, posterior, save_spectra=False):
 
@@ -649,6 +691,12 @@ class Retrieval:
             # Update the Parameters instance
             self.Param.params[key_i] = bestfit_params[i]
         
+            if key_i.startswith('log_'):
+                self.Param.params = self.Param.log_to_linear(self.Param.params, key_i)
+
+            if key_i.startswith('invgamma_'):
+                self.Param.params[key_i.replace('invgamma_', '')] = self.Param.params[key_i]
+
         # Update the parameters
         self.Param.read_PT_params(cube=None)
         self.Param.read_uncertainty_params()
@@ -663,16 +711,14 @@ class Retrieval:
         self.PMN_lnL_func()
         self.CB.active = False
 
+        for w_set in self.conf.config_data.keys():
+            self.m_spec[w_set].flux_envelope = None
+
+        pRT_atm_to_use = self.pRT_atm
         if self.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
-
             #self.m_spec.flux_envelope = flux_envelope
-            self.m_spec.flux_envelope = None
-        else:
-            pRT_atm_to_use = self.pRT_atm
-
-            self.m_spec.flux_envelope = None
 
         # Call the CallBack class and make summarizing figures
         self.CB(

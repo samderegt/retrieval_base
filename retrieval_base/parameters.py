@@ -3,7 +3,6 @@ from scipy.stats import invgamma
 
 from petitRADTRANS.retrieval import cloud_cond as fc
 
-from .spectrum import Spectrum
 from .chemistry import Chemistry
 
 class Parameters:
@@ -12,85 +11,91 @@ class Parameters:
     all_params = {
 
         # Uncertainty scaling
-        'log_a': -np.inf, 
-        'log_l': 0, 
-        'log_a_f': -np.inf, 
-        'log_l_f': 0, 
+        'a': 0, 'l': 1, 
+        'a_f': 0, 'l_f': 1, 
         'beta': 1,  
-        'beta_tell': None, 
-        'x_tol': None, 
-        'b': None, 
-        'ls1': None,
-        'ls2': None,
-
 
         # General properties
-        'R_p': 1.0, 
-        'log_g': 5.0, 
-        'epsilon_limb': 0.6, 
-        'parallax': 250, # mas
-
+        #'R_p': 1.0, 
+        #'log_g': 5.0, 
+        #'epsilon_limb': 0.6, 
+        #'parallax': 250, # mas
 
         # Velocities
-        'vsini': 10.0, 
-        'rv': 0.0, 
+        #'vsini': 10.0, 
+        #'rv': 0.0, 
 
 
         # Cloud properties (specify cloud base)
-        'log_X_cloud_base_MgSiO3': None, 
-        'log_P_base_MgSiO3': None, 
+        #'log_X_cloud_base_MgSiO3': None, 
+        #'log_P_base_MgSiO3': None, 
 
         # Cloud properties (cloud base from condensation)
-        'log_X_MgSiO3': None, 
+        #'log_X_MgSiO3': None, 
         'f_sed': None, 
         'log_K_zz': None, 
         'sigma_g': None, 
 
         # Cloud properties (gray cloud)
-        'log_opa_base_gray': None, 
-        'log_P_base_gray': None, 
-        'f_sed_gray': None, 
-        'cloud_slope': 0, 
+        #'log_opa_base_gray': None, 
+        #'log_P_base_gray': None, 
+        #'f_sed_gray': None, 
+        #'cloud_slope': 0, 
 
 
         # Chemistry (chemical equilibrium)
-        'C/O': None, 
-        'Fe/H': None, 
-        'log_P_quench': -8, 
+        #'C/O': None, 
+        #'Fe/H': None, 
+        #'log_P_quench': -8, 
 
         # Chemistry (free)
-        'log_12CO': -np.inf, 
-        'log_H2O': -np.inf, 
-        'log_CH4': -np.inf, 
-        'log_NH3': -np.inf, 
-        'log_HCN': -np.inf, 
-        'log_CO2': -np.inf, 
-        'log_C_ratio': -np.inf, 
-        'log_O_ratio': -np.inf, 
+        #'log_12CO': -np.inf, 
+        #'log_H2O': -np.inf, 
+        #'log_CH4': -np.inf, 
+        #'log_NH3': -np.inf, 
+        #'log_HCN': -np.inf, 
+        #'log_CO2': -np.inf, 
+        #'log_C_ratio': -np.inf, 
+        #'log_O_ratio': -np.inf, 
 
 
         # PT profile (free)
-        'log_gamma': None, 
+        #'log_gamma': None, 
 
-        'T_0': 4000, 
-        'T_1': 2000, 
-        'T_2': 1800, 
-        'T_3': 1500, 
-        'T_3': 1400, 
+        #'T_0': 4000, 
+        #'T_1': 2000, 
+        #'T_2': 1800, 
+        #'T_3': 1500, 
+        #'T_3': 1400, 
         # etc.
-        'log_P_knots': np.array([-6,-2,0,1,2], dtype=np.float64), 
+        #'log_P_knots': np.array([-6,-2,0,1,2], dtype=np.float64), 
 
         # PT profile (Molliere et al. 2020)
-        'log_P_phot': 0.0, 
-        'alpha': 1.0, 
-        'T_int': 1800, 
+        #'log_P_phot': 0.0, 
+        #'alpha': 1.0, 
+        #'T_int': 1800, 
 
         # PT profile (SONORA grid)
-        'T_eff': 1300, 
+        #'T_eff': 1300, 
 
     }
 
-    def __init__(self, free_params, constant_params, n_orders=7, n_dets=3, enforce_PT_corr=False):
+    def __init__(
+            self, 
+            free_params, 
+            constant_params, 
+            PT_mode='free', 
+            n_T_knots=None, 
+            enforce_PT_corr=False, 
+            chem_mode='free', 
+            cloud_mode='gray', 
+            cov_mode=None, 
+            wlen_settings={
+                'J1226': [9,3], 'K2166': [7,3], 
+                }
+            #n_orders=7, 
+            #n_dets=3, 
+            ):
 
         # Separate the prior range from the mathtext label
         self.param_priors, self.param_mathtext = {}, {}
@@ -101,60 +106,36 @@ class Parameters:
         self.param_keys = np.array(list(self.param_priors.keys()))
         self.n_params = len(self.param_keys)
 
-        # Count the number of temperature knots above the base
-        for i in range(1,100):
-            if (f'T_{i}' not in self.param_keys) and (f'dlnT_dlnP_{i-1}' not in self.param_keys):
-                self.n_T_knots = i-1
-                break
-
         # Create dictionary with constant parameter-values
         self.params = self.all_params.copy()
         self.params.update(constant_params)
 
+        for key_i in list(self.params.keys()):
+            if key_i.startswith('log_'):
+                self.params = self.log_to_linear(self.params, key_i)
 
-        # Check if Molliere et al. (2020) PT-profile is used
-        Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
-        PT_grid_param_keys = ['log_g', 'T_eff']
-        free_PT_gradient_param_keys = ['dlnT_dlnP_0']
+        # Check the used PT profile
+        self.PT_mode = PT_mode
+        assert(self.PT_mode in ['free', 'free_gradient', 'grid', 'Molliere'])
 
-        if np.isin(Molliere_param_keys, self.param_keys).all():
-            self.PT_mode = 'Molliere'
-        elif np.isin(PT_grid_param_keys, self.param_keys).all():
-            self.PT_mode = 'grid'
-        elif np.isin(free_PT_gradient_param_keys, self.param_keys).all():
-            self.PT_mode = 'free_gradient'
-        else:
-            self.PT_mode = 'free'
-
-        # Check if equilibrium- or free-chemistry is used
-        eqchem_param_keys = ['C/O', 'Fe/H']
-       
-        if np.isin(eqchem_param_keys, self.param_keys).all():
-            self.chem_mode = 'eqchem'
-        else:
-            self.chem_mode = 'free'
-
-        # Check if Gaussian processes are used
-        GP_param_keys = ['a', 'log_a', 'a_1', 'log_a_1']
-        if np.isin(GP_param_keys, self.param_keys).any():
-            self.cov_mode = 'GP'
-        else:
-            self.cov_mode = None
-
-        # Check if clouds (and which type) are included
-        self.cloud_mode = None
-        MgSiO3_param_keys = ['log_X_MgSiO3', 'f_sed', 'log_K_zz', 'sigma_g']
-        gray_cloud_param_keys = ['log_opa_base_gray', 'log_P_base_gray', 'f_sed_gray']
-        
-        if np.isin(MgSiO3_param_keys, self.param_keys).all():
-            self.cloud_mode = 'MgSiO3'
-        elif np.isin(gray_cloud_param_keys, self.param_keys).all():
-            self.cloud_mode = 'gray'
-
-        self.n_orders = n_orders
-        self.n_dets   = n_dets
-
+        self.n_T_knots = n_T_knots - 1
         self.enforce_PT_corr = enforce_PT_corr
+
+        # Check the used chemistry type
+        self.chem_mode = chem_mode
+        assert(self.chem_mode in ['eqchem', 'free'])
+        
+        # Check the used cloud type
+        self.cloud_mode = cloud_mode
+        if cloud_mode == 'grey':
+            self.cloud_mode = 'gray'
+        assert(self.cloud_mode in ['gray', 'MgSiO3', None])
+
+        # Check the used covariance definition
+        self.cov_mode = cov_mode
+        assert(self.cov_mode in ['GP', None])
+
+        self.wlen_settings = wlen_settings
 
     def __call__(self, cube, ndim=None, nparams=None):
         '''
@@ -192,6 +173,12 @@ class Parameters:
                 cube[i] = low + (high-low)*cube[i]
 
             self.params[key_i] = cube[i]
+
+            if key_i.startswith('log_'):
+                self.params = self.log_to_linear(self.params, key_i)
+
+            if key_i.startswith('invgamma_'):
+                self.params[key_i.replace('invgamma_', '')] = self.params[key_i]
 
         # Read the parameters for the model's segments
         cube = self.read_PT_params(cube)
@@ -236,9 +223,7 @@ class Parameters:
         if self.PT_mode in ['free', 'Molliere']:
 
             # Fill the pressure knots
-            self.params['P_knots'] = 10**np.array(
-                self.params['log_P_knots'], dtype=np.float64
-                )[[0,-1]]
+            self.params['P_knots'] = self.params['P_knots'][[0,-1]]
             for i in range(self.n_T_knots-1):
                 
                 if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
@@ -270,9 +255,6 @@ class Parameters:
                 self.params['T_knots'].append(T_i)
 
             self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
-
-            # Convert from logarithmic to linear scale
-            self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
             
             if 'invgamma_gamma' in self.param_keys:
                 self.params['gamma'] = self.params['invgamma_gamma']
@@ -280,9 +262,7 @@ class Parameters:
         if (self.PT_mode == 'free_gradient'):
 
             # Fill the pressure knots
-            self.params['P_knots'] = 10**np.array(
-                self.params['log_P_knots'], dtype=np.float64
-                )[[0,-1]]
+            self.params['P_knots'] = self.params['P_knots'][[0,-1]]
             for i in range(self.n_T_knots-2):
                 
                 if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
@@ -321,17 +301,38 @@ class Parameters:
         return cube
 
     def read_uncertainty_params(self):
+        
+        cov_keys = ['beta', 'a', 'l', 'a_f', 'l_f']
 
-        # Convert the logarithmic value to linear scale
-        if 'a' not in self.param_keys:
-            self.params['a'] = 10**self.params['log_a']
-        if 'l' not in self.param_keys:
-            self.params['l'] = 10**self.params['log_l']
+        for w_set, (n_orders, n_dets) in self.wlen_settings.items():
+            
+            for key_i in cov_keys:
 
-        if 'a_f' not in self.param_keys:
-            self.params['a_f'] = 10**self.params['log_a_f']
-        if 'l_f' not in self.param_keys:
-            self.params['l_f'] = 10**self.params['log_l_f']
+                # Make specific for each wlen setting
+                if f'{key_i}_{w_set}' not in self.param_keys:
+                    self.params[f'{key_i}_{w_set}'] = self.params[f'{key_i}']
+
+                # Reshape to values for each order and detector
+                self.params[f'{key_i}_{w_set}'] = \
+                    np.ones((n_orders, n_dets)) * self.params[f'{key_i}_{w_set}']
+                
+                # Loop over the orders
+                for i in range(n_orders):
+
+                    # Replace the constant with a free parameter
+                    if f'{key_i}_{i+1}' in self.param_keys:
+                        self.params[f'{key_i}_{w_set}'][i,:] = \
+                            self.params[f'{key_i}_{i+1}']
+                        
+                    if f'{key_i}_{w_set}_{i+1}' in self.param_keys:
+                        self.params[f'{key_i}_{w_set}'][i,:] = \
+                            self.params[f'{key_i}_{w_set}_{i+1}']
+
+        '''
+        for key_i in cov_keys:
+
+            if self.params.get(key_i) is None:
+
 
         # Reshape to values for each order and detector
         self.params['a']    = np.ones((self.n_orders, self.n_dets)) * self.params['a']
@@ -349,28 +350,16 @@ class Parameters:
             for j in range(self.n_dets):
 
                 # Replace the constants with the free parameters
-                if f'log_a_{i+1}' in self.param_keys:
-                    a[i,:] = 10**self.params[f'log_a_{i+1}']
-                    self.params['a'] = a
                 if f'a_{i+1}' in self.param_keys:
                     a[i,:] = self.params[f'a_{i+1}']
                     self.params['a'] = a
-                if f'log_l_{i+1}' in self.param_keys:
-                    l[i,:] = 10**self.params[f'log_l_{i+1}']
-                    self.params['l'] = l
                 if f'l_{i+1}' in self.param_keys:
                     l[i,:] = self.params[f'l_{i+1}']
                     self.params['l'] = l
 
-                if f'log_a_f_{i+1}' in self.param_keys:
-                    a_f[i,:] = 10**self.params[f'log_a_f_{i+1}']
-                    self.params['a'] = a_f
                 if f'a_f_{i+1}' in self.param_keys:
                     a_f[i,:] = self.params[f'a_f_{i+1}']
                     self.params['a_f'] = a_f
-                if f'log_l_f_{i+1}' in self.param_keys:
-                    l_f[i,:] = 10**self.params[f'log_l_f_{i+1}']
-                    self.params['l_f'] = l_f
                 if f'l_f_{i+1}' in self.param_keys:
                     l_f[i,:] = self.params[f'l_f_{i+1}']
                     self.params['l_f'] = l_f
@@ -378,14 +367,9 @@ class Parameters:
                 if f'beta_{i+1}' in self.param_keys:
                     beta[i,:] = self.params[f'beta_{i+1}']
                     self.params['beta'] = beta
+        '''
 
     def read_chemistry_params(self):
-
-        # Convert from logarithmic to linear scale
-        self.params = self.log_to_linear(self.params, 
-                                         ['log_C_ratio', 'log_O_ratio', 'log_P_quench'], 
-                                         ['C_ratio', 'O_ratio', 'P_quench'], 
-                                         )
 
         if self.chem_mode == 'eqchem':
             # Use chemical equilibrium
@@ -402,17 +386,29 @@ class Parameters:
                 # If multiple VMRs are given
                 for j in range(3):
                     if f'log_{species_i}_{j}' in self.param_keys:
-                        self.VMR_species[f'{species_i}_{j}'] = 10**self.params[f'log_{species_i}_{j}']
+                        self.VMR_species[f'{species_i}_{j}'] = self.params[f'{species_i}_{j}']
 
                 if f'log_{species_i}' in self.param_keys:
-                    self.VMR_species[f'{species_i}'] = 10**self.params[f'log_{species_i}']
-                elif species_i == '13CO' and ('log_C_ratio' in self.param_keys):
+                    self.VMR_species[f'{species_i}'] = self.params[f'{species_i}']
+                    continue
+
+                if species_i == '13CO' and ('log_13C/12C_ratio' in self.param_keys):
                     # Use isotope ratio to retrieve the VMR
-                    self.VMR_species[species_i] = self.params['C_ratio'] * 10**self.params['log_12CO']
-                elif species_i == 'C18O' and ('log_O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_12CO']
-                elif species_i == 'H2O_181' and ('log_O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_H2O']
+                    self.VMR_species[species_i] = self.params['13C/12C_ratio'] * self.params['12CO']
+
+                if species_i == '13CH4' and ('log_13C/12C_ratio' in self.param_keys):
+                    # Use isotope ratio to retrieve the VMR
+                    self.VMR_species[species_i] = self.params['13C/12C_ratio'] * self.params['CH4']
+
+                if species_i == 'C18O' and ('log_18O/16O_ratio' in self.param_keys):
+                    self.VMR_species[species_i] = self.params['18O/16O_ratio'] * self.params['12CO']
+                if species_i == 'C17O' and ('log_17O/16O_ratio' in self.param_keys):
+                    self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['12CO']
+
+                if species_i == 'H2O_181' and ('log_18O/16O_ratio' in self.param_keys):
+                    self.VMR_species[species_i] = self.params['18O/16O_ratio'] * self.params['H2O']
+                if species_i == 'H2O_171' and ('log_17O/16O_ratio' in self.param_keys):
+                    self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['H2O']
         
     def read_cloud_params(self, pressure=None, temperature=None):
 
@@ -427,16 +423,11 @@ class Parameters:
                                                                 )
 
             # Log mass fraction at the cloud base
-            self.params['log_X_cloud_base_MgSiO3'] = np.log10(10**self.params['log_X_MgSiO3'] * X_eq_MgSiO3)
-
-        # Convert the cloud parameters from log to linear scale
-        self.params = self.log_to_linear(self.params, 
-            key_log=['log_K_zz', 'log_P_base_MgSiO3', 'log_X_cloud_base_MgSiO3', 'log_P_base_gray', 'log_opa_base_gray'], 
-            key_lin=['K_zz', 'P_base_MgSiO3', 'X_cloud_base_MgSiO3', 'P_base_gray', 'opa_base_gray'], 
-            )
+            self.params['log_X_cloud_base_MgSiO3'] = np.log10(self.params['X_MgSiO3'] * X_eq_MgSiO3)
+            self.params['X_cloud_base_MgSiO3'] = 10**self.params['log_X_cloud_base_MgSiO3']
 
     @classmethod
-    def log_to_linear(cls, param_dict, key_log, key_lin, verbose=True):
+    def log_to_linear(cls, param_dict, key_log, key_lin=None, verbose=False):
 
         if not isinstance(key_log, (list, tuple, np.ndarray)):
             key_log = [key_log]
@@ -446,15 +437,11 @@ class Parameters:
         
         for key_log_i, key_lin_i in zip(key_log, key_lin):
 
-            if key_log_i not in list(param_dict.keys()):
-                # key_log_i is not in the supplied dictionary
-                param_dict[key_log_i] = None
-
-                if verbose:
-                    print(f'\nWarning: key_log_i={key_log_i} not found in dictionary, set to None.')
+            if key_lin_i is None:
+                key_lin_i = key_log_i.replace('log_', '')
 
             # Value of the logarithmic parameter
-            val_log = param_dict[key_log_i]           
+            val_log = param_dict[key_log_i]
 
             if isinstance(val_log, (float, int, np.ndarray)):
                 # Convert from log to linear if float or integer

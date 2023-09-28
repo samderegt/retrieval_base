@@ -19,7 +19,7 @@ class LogLikelihood:
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
         
-    def __call__(self, m_spec, Cov, ln_L_penalty=0, evaluation=False):
+    def __call__(self, m_spec, Cov, is_first_w_set=False, ln_L_penalty=0, evaluation=False):
         '''
         Evaluate the total log-likelihood given the model spectrum and parameters.
 
@@ -37,20 +37,22 @@ class LogLikelihood:
 
         # Set up the total log-likelihood for this model 
         # (= 0 if there is no penalty)
-        self.ln_L = ln_L_penalty
+        #self.ln_L = ln_L_penalty
+        self.ln_L = 0
         self.chi_squared = 0
-        
-        if evaluation:
-            # Arrays to store log-likelihood and chi-squared per pixel in
-            self.ln_L_per_pixel        = np.nan * np.ones_like(self.d_spec.flux)
-            self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
 
         # Array to store the linear flux-scaling terms
         self.f    = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
         # Array to store the uncertainty-scaling terms
         self.beta = np.ones((self.d_spec.n_orders, self.d_spec.n_dets))
         
-        N_tot = self.d_spec.mask_isfinite.sum()
+        if evaluation:
+            # Arrays to store log-likelihood and chi-squared per pixel in
+            self.ln_L_per_pixel        = np.nan * np.ones_like(self.d_spec.flux)
+            self.chi_squared_per_pixel = np.nan * np.ones_like(self.d_spec.flux)
+            
+            N_tot = self.d_spec.mask_isfinite.sum()
+            self.ln_L_per_pixel[self.d_spec.mask_isfinite] = ln_L_penalty/N_tot
 
         # Loop over all orders and detectors
         for i in range(self.d_spec.n_orders):
@@ -81,7 +83,8 @@ class LogLikelihood:
                 # Chi-squared and optimal uncertainty scaling terms still need to be added
                 ln_L_ij = -(N_ij/2*np.log(2*np.pi) + 1/2*Cov[i,j].logdet)
 
-                if self.scale_flux and not (i==0 and j==0):
+                # Without linear scaling of detectors
+                if self.scale_flux and (not (i==0 and j==0) or not is_first_w_set):
                     # Only scale the flux relative to the first order/detector
 
                     # Scale the model flux to minimize the chi-squared error
@@ -130,7 +133,7 @@ class LogLikelihood:
                     sigma_tilde_k = 1/sigma_bar_kk
 
                     # Scale the ln L penalty by the number of good pixels
-                    self.ln_L_per_pixel[i,j,mask_ij] = ln_L_penalty/N_tot - (
+                    self.ln_L_per_pixel[i,j,mask_ij] += -(
                         1/2*np.log(2*np.pi*sigma_tilde_k) + \
                         1/2*(d_flux_ij - mu_tilde_k)**2/sigma_tilde_k
                         )

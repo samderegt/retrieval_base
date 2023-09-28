@@ -213,11 +213,12 @@ class FreeChemistry(Chemistry):
                 continue
 
             if line_species_i in self.line_species:
-
+                
                 if self.VMRs.get(species_i) is not None:
                     # Single value given: constant, vertical profile
                     VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
-                else:
+
+                if self.VMRs.get(f'{species_i}_0') is not None:
                     # Multiple values given, use spline interpolation
 
                     # Define the spline knots in pressure-space

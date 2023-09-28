@@ -56,6 +56,7 @@ class pRT_model:
         self.d_mask_isfinite = d_spec.mask_isfinite
         self.d_resolution    = d_spec.resolution
         self.apply_high_pass_filter = d_spec.high_pass_filtered
+        self.w_set = d_spec.w_set
 
         self.line_species = line_species
         self.mode = mode
@@ -148,6 +149,8 @@ class pRT_model:
 
         if self.params.get('res') is not None:
             self.d_resolution = self.params['res']
+        if self.params.get(f'res_{self.w_set}') is not None:
+            self.d_resolution = self.params[f'res_{self.w_set}']
 
         # Add clouds if requested
         self.add_clouds()
@@ -164,7 +167,9 @@ class pRT_model:
         '''
 
         self.give_absorption_opacity = None
-        self.f_seds = None
+        self.f_sed  = None
+        self.K_zz   = None
+        self.sigma_g = None
 
         if self.cloud_mode == 'MgSiO3':
 
@@ -175,9 +180,11 @@ class pRT_model:
             self.mass_fractions['MgSiO3(c)'] = np.zeros_like(self.pressure)
             self.mass_fractions['MgSiO3(c)'][mask_above_deck] = self.params['X_cloud_base_MgSiO3'] * \
                 (self.pressure[mask_above_deck]/self.params['P_base_MgSiO3'])**self.params['f_sed']
-            self.params['K_zz'] = self.params['K_zz'] * np.ones_like(self.pressure)
+            #self.params['K_zz'] = self.params['K_zz'] * np.ones_like(self.pressure)
+            self.K_zz = self.params['K_zz'] * np.ones_like(self.pressure)
+            self.sigma_g = self.params['sigma_g']
 
-            self.f_seds = {'MgSiO3(c)': self.params['f_sed']}
+            self.f_sed = {'MgSiO3(c)': self.params['f_sed']}
         
         elif self.cloud_mode == 'gray':
             
@@ -213,7 +220,8 @@ class pRT_model:
         opa_gray_cloud[:,mask_above_deck] = self.params['opa_base_gray'] * \
             (pressure[mask_above_deck]/self.params['P_base_gray'])**self.params['f_sed_gray']
 
-        opa_gray_cloud = opa_gray_cloud * (wave_micron[:,None] / 1)**self.params['cloud_slope']
+        if self.params.get('cloud_slope') is not None:
+            opa_gray_cloud *= (wave_micron[:,None] / 1)**self.params['cloud_slope']
 
         return opa_gray_cloud
 
@@ -254,9 +262,9 @@ class pRT_model:
                 self.mass_fractions, 
                 gravity=10**self.params['log_g'], 
                 mmw=self.mass_fractions['MMW'], 
-                Kzz=self.params['K_zz'], 
-                fsed=self.f_seds, 
-                sigma_lnorm=self.params['sigma_g'],
+                Kzz=self.K_zz, 
+                fsed=self.f_sed, 
+                sigma_lnorm=self.sigma_g,
                 give_absorption_opacity=self.give_absorption_opacity, 
                 contribution=get_contr, 
                 )

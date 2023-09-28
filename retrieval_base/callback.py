@@ -94,8 +94,22 @@ class CallBack:
         # Create the labels
         self.param_labels = np.array(list(self.Param.param_mathtext.values()))
 
-        print('\nReduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
-            self.LogLike.chi_squared_red, self.LogLike.chi_squared, self.LogLike.n_dof
+        chi_squared_tot, n_dof = 0, 0
+        for w_set in self.LogLike.keys():
+            print(f'\n--- {w_set} -------------------------')
+            print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
+                self.LogLike[w_set].chi_squared_red, self.LogLike[w_set].chi_squared, self.LogLike[w_set].n_dof
+                ))
+            
+            chi_squared_tot += self.LogLike[w_set].chi_squared
+            #n_dof += self.LogLike[w_set].n_dof
+            n_dof += self.d_spec[w_set].mask_isfinite.sum()
+
+        n_dof -= self.LogLike[w_set].n_params
+
+        print(f'\n--- Total -------------------------')
+        print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
+            chi_squared_tot/n_dof, chi_squared_tot, n_dof
             ))
 
         # Read the best-fitting free parameters
@@ -109,64 +123,25 @@ class CallBack:
                 print('{} = {:.2f}'.format(key_i, self.Param.params[key_i]))
                 self.bestfit_params.append(self.Param.params[key_i])
 
-        if self.LogLike.scale_flux:
-            print('\nOptimal flux-scaling parameters:')
-            print(self.LogLike.f.round(2))
-        if self.LogLike.scale_err:
-            print('\nOptimal uncertainty-scaling parameters:')
-            print(self.LogLike.beta.round(2))
+        for w_set in self.LogLike.keys():
+            print(f'\n--- {w_set} -------------------------')
+            if self.LogLike[w_set].scale_flux:
+                print('\nOptimal flux-scaling parameters:')
+                print(self.LogLike[w_set].f.round(2))
+            if self.LogLike[w_set].scale_err:
+                print('\nOptimal uncertainty-scaling parameters:')
+                print(self.LogLike[w_set].beta.round(2))
         
         self.bestfit_params = np.array(self.bestfit_params)
         
         # Save the bestfit parameters in a .json file
         # and the ModelSpectrum instance as .pkl
         self.save_bestfit()
-        #exit()
-        
-        if self.evaluation:
-            
-            # Plot the CCFs + spectra of species' contributions
-            figs.fig_species_contribution(
-                d_spec=self.d_spec, 
-                m_spec=self.m_spec, 
-                m_spec_species=self.m_spec_species, 
-                pRT_atm=self.pRT_atm, 
-                pRT_atm_species=self.pRT_atm_species, 
-                Chem=self.Chem, 
-                LogLike=self.LogLike, 
-                Cov=self.Cov, 
-                species_to_plot=self.species_to_plot_CCF, 
-                prefix=self.prefix
-                )
-            
-            # Plot the auto-correlation of the residuals
-            figs.fig_residual_ACF(
-                d_spec=self.d_spec, 
-                m_spec=self.m_spec, 
-                LogLike=self.LogLike, 
-                Cov=self.Cov, 
-                bestfit_color=self.bestfit_color, 
-                prefix=self.prefix
-                )
-
-            # Plot the covariance matrices
-            all_cov = figs.fig_cov(
-                LogLike=self.LogLike, 
-                Cov=self.Cov, 
-                d_spec=self.d_spec, 
-                cmap=self.envelope_cmap, 
-                prefix=self.prefix
-                )
-
-            # Plot the abundances in a corner-plot
-            self.fig_abundances_corner()
             
         # Save a separate figure of the PT profile
         figs.fig_PT(
             PT=self.PT, 
-            integrated_contr_em=self.pRT_atm.int_contr_em, 
-            integrated_contr_em_per_order=self.pRT_atm.int_contr_em_per_order, 
-            integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
+            pRT_atm=self.pRT_atm, 
             ax_PT=None, 
             envelope_colors=self.envelope_colors, 
             posterior_color=self.posterior_color, 
@@ -176,6 +151,46 @@ class CallBack:
 
         # Make a summary figure
         self.fig_summary()
+
+        if self.evaluation:
+            
+            for w_set in self.d_spec.keys():
+
+                # Plot the CCFs + spectra of species' contributions
+                figs.fig_species_contribution(
+                    d_spec=self.d_spec[w_set], 
+                    m_spec=self.m_spec[w_set], 
+                    m_spec_species=self.m_spec_species[w_set], 
+                    pRT_atm=self.pRT_atm[w_set], 
+                    pRT_atm_species=self.pRT_atm_species[w_set], 
+                    Chem=self.Chem, 
+                    LogLike=self.LogLike[w_set], 
+                    Cov=self.Cov[w_set], 
+                    species_to_plot=self.species_to_plot_CCF, 
+                    prefix=self.prefix
+                    )
+            
+                # Plot the auto-correlation of the residuals
+                figs.fig_residual_ACF(
+                    d_spec=self.d_spec[w_set], 
+                    m_spec=self.m_spec[w_set], 
+                    LogLike=self.LogLike[w_set], 
+                    Cov=self.Cov[w_set], 
+                    bestfit_color=self.bestfit_color, 
+                    prefix=self.prefix
+                    )
+
+                # Plot the covariance matrices
+                all_cov = figs.fig_cov(
+                    LogLike=self.LogLike[w_set], 
+                    Cov=self.Cov[w_set], 
+                    d_spec=self.d_spec[w_set], 
+                    cmap=self.envelope_cmap, 
+                    prefix=self.prefix
+                    )
+
+            # Plot the abundances in a corner-plot
+            self.fig_abundances_corner()
 
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
@@ -194,32 +209,46 @@ class CallBack:
 
         dict_to_save = {
             'params': params_to_save, 
-            'f': self.LogLike.f.tolist(), 
-            'beta': self.LogLike.beta.tolist(), 
+            #'f': self.LogLike.f.tolist(), 
+            #'beta': self.LogLike.beta.tolist(), 
             'temperature': self.PT.temperature.tolist(), 
             'pressure': self.PT.pressure.tolist(), 
         }
+        for w_set in self.LogLike.keys():
+            dict_to_save[f'f_{w_set}'] = self.LogLike[w_set].f.tolist()
+            dict_to_save[f'beta_{w_set}'] = self.LogLike[w_set].beta.tolist()
 
         with open(self.prefix+'data/bestfit.json', 'w') as fp:
             json.dump(dict_to_save, fp, indent=4)
 
         # Save some of the objects
-        af.pickle_save(self.prefix+'data/bestfit_m_spec.pkl', self.m_spec)
         af.pickle_save(self.prefix+'data/bestfit_PT.pkl', self.PT)
         af.pickle_save(self.prefix+'data/bestfit_Chem.pkl', self.Chem)
 
-        # Save the best-fitting log-likelihood
-        LogLike_to_save = copy.deepcopy(self.LogLike)
-        del LogLike_to_save.d_spec
-        af.pickle_save(self.prefix+'data/bestfit_LogLike.pkl', LogLike_to_save)
+        for w_set in self.LogLike.keys():
+            af.pickle_save(self.prefix+f'data/bestfit_m_spec_{w_set}.pkl', self.m_spec[w_set])
 
-        # Save the best-fitting covariance matrix
-        af.pickle_save(self.prefix+'data/bestfit_Cov.pkl', self.Cov)
+            # Save the best-fitting log-likelihood
+            LogLike_to_save = copy.deepcopy(self.LogLike[w_set])
+            del LogLike_to_save.d_spec
+            af.pickle_save(self.prefix+f'data/bestfit_LogLike_{w_set}.pkl', LogLike_to_save)
 
-        # Save the contribution functions and cloud opacities
-        np.save(self.prefix+'data/bestfit_int_contr_em.npy', self.pRT_atm.int_contr_em)
-        np.save(self.prefix+'data/bestfit_int_contr_em_per_order.npy', self.pRT_atm.int_contr_em_per_order)
-        np.save(self.prefix+'data/bestfit_int_opa_cloud.npy', self.pRT_atm.int_opa_cloud)
+            # Save the best-fitting covariance matrix
+            af.pickle_save(self.prefix+f'data/bestfit_Cov_{w_set}.pkl', self.Cov[w_set])
+
+            # Save the contribution functions and cloud opacities
+            np.save(
+                self.prefix+f'data/bestfit_int_contr_em_{w_set}.npy', 
+                self.pRT_atm[w_set].int_contr_em
+                )
+            np.save(
+                self.prefix+f'data/bestfit_int_contr_em_per_order_{w_set}.npy', 
+                self.pRT_atm[w_set].int_contr_em_per_order
+                )
+            np.save(
+                self.prefix+f'data/bestfit_int_opa_cloud_{w_set}.npy', 
+                self.pRT_atm[w_set].int_opa_cloud
+                )
 
     def fig_abundances_corner(self):
 
@@ -399,23 +428,34 @@ class CallBack:
 
         fig, ax = self.fig_corner()
 
-        # Plot the best-fitting spectrum
-        ax_spec = fig.add_axes([0.4,0.8,0.55,0.15])
-        l, b, w, h = ax_spec.get_position().bounds
-        ax_res = fig.add_axes([l,b-h/3,w,h/3])
+        n_w_set = len(self.d_spec)
+        l, b, w, h = [0.4,0.70,0.57,0.25]
 
-        ax_spec, ax_res = figs.fig_bestfit_model(
-            d_spec=self.d_spec, 
-            m_spec=self.m_spec, 
-            LogLike=self.LogLike, 
-            Cov=self.Cov, 
-            bestfit_color=self.bestfit_color, 
-            ax_spec=ax_spec, 
-            ax_res=ax_res, 
-            prefix=self.prefix, 
-            )
+        ax_spec, ax_res = [], []        
+        #ax_res_dims, ax_spec_dims = [], []
+        for i, w_set in enumerate(list(self.d_spec.keys())):
+            ax_res_dim_i  = [l, b+i*(h+0.03)/(n_w_set), w, 0.97*h/(5*n_w_set)]
+            ax_spec_dim_i = [l, ax_res_dim_i[1]+ax_res_dim_i[3], w, 4*0.97*h/(5*n_w_set)]
 
-        ax_VMR = fig.add_axes([0.63,0.475,0.1,0.22])
+            #ax_res_dims.append(ax_res_dim_i)
+            #ax_spec_dims.append(ax_spec_dim_i)
+            ax_spec.append(fig.add_axes(ax_spec_dim_i))
+            ax_res.append(fig.add_axes(ax_res_dim_i))
+
+            # Plot the best-fitting spectrum
+            ax_spec[i], ax_res[i] = figs.fig_bestfit_model(
+                d_spec=self.d_spec[w_set], 
+                m_spec=self.m_spec[w_set], 
+                LogLike=self.LogLike[w_set], 
+                Cov=self.Cov[w_set], 
+                bestfit_color=self.bestfit_color, 
+                ax_spec=ax_spec[i], 
+                ax_res=ax_res[i], 
+                prefix=self.prefix, 
+                xlabel=['Wavelength (nm)', None][i]
+                )
+
+        ax_VMR = fig.add_axes([0.65,0.43,0.1,0.22])
         l, b, w, h = ax_VMR.get_position().bounds
         ax_PT = fig.add_axes([l+w,b,h,h])
         #ax_contr = ax_PT.twiny()
@@ -431,9 +471,10 @@ class CallBack:
         # Plot the best-fitting PT profile
         ax_PT = figs.fig_PT(
             PT=self.PT, 
-            integrated_contr_em=self.pRT_atm.int_contr_em, 
-            integrated_contr_em_per_order=self.pRT_atm.int_contr_em_per_order, 
-            integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
+            pRT_atm=self.pRT_atm, 
+            #integrated_contr_em=self.pRT_atm.int_contr_em, 
+            #integrated_contr_em_per_order=self.pRT_atm.int_contr_em_per_order, 
+            #integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
             ax_PT=ax_PT, 
             envelope_colors=self.envelope_colors, 
             posterior_color=self.posterior_color, 
@@ -469,14 +510,16 @@ class CallBack:
             fig.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
         plt.close(fig)
 
-        # Plot the best-fit spectrum in subplots
-        figs.fig_bestfit_model(
-            d_spec=self.d_spec, 
-            m_spec=self.m_spec, 
-            LogLike=self.LogLike, 
-            Cov=self.Cov, 
-            bestfit_color=self.bestfit_color, 
-            ax_spec=None, 
-            ax_res=None, 
-            prefix=self.prefix, 
-            )
+        for w_set in self.d_spec.keys():
+            # Plot the best-fit spectrum in subplots
+            figs.fig_bestfit_model(
+                d_spec=self.d_spec[w_set], 
+                m_spec=self.m_spec[w_set], 
+                LogLike=self.LogLike[w_set], 
+                Cov=self.Cov[w_set], 
+                bestfit_color=self.bestfit_color, 
+                ax_spec=None, 
+                ax_res=None, 
+                prefix=self.prefix, 
+                w_set=w_set
+                )

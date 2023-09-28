@@ -135,8 +135,8 @@ def CCF(d_spec,
 
             if m_flux_wo_species_pRT_grid is not None:
                 # Perform the cross-correlation on the residuals
-                #m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
-                m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
+                m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
+                #m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
 
             # Function to interpolate the model spectrum
             m_interp_func = interp1d(
