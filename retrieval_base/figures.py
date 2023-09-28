@@ -531,7 +531,7 @@ def fig_VMR(ax_VMR,
             pressure, 
             ylabel=r'$P\ \mathrm{(bar)}$', 
             yticks=np.logspace(-6, 2, 9), 
-            xlim=(1e-8, 1e-2), 
+            xlim=(1e-12, 1e-2), 
             ):
 
     MMW = Chem.mass_fractions['MMW']
