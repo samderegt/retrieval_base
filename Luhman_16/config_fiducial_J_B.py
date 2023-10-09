@@ -50,12 +50,12 @@ cov_mode = 'GP'
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    #'log_res_K2166': [(4,5.4), r'$\log\ R_\mathrm{K}$'], 
+    'log_res_J1226': [(4,5.4), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a_J1226': [(-1,0.4), r'$\log\ a_\mathrm{J}$'], 
-    'log_l_J1226': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
+    'log_a': [(-1,0.4), r'$\log\ a_\mathrm{J}$'], 
+    'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
     #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
     #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
 
@@ -72,7 +72,7 @@ free_params = {
     'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
     'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
-    'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
+    #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
     #'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
