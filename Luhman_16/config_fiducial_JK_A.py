@@ -71,7 +71,7 @@ cov_mode = 'GP'
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    'log_res_K2166': [(4,5.7), r'$\log\ R_\mathrm{K}$'], 
+    'log_res_K2166': [(4,5.4), r'$\log\ R_\mathrm{K}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 

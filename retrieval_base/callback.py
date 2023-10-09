@@ -377,7 +377,7 @@ class CallBack:
             bins=20, 
             max_n_ticks=3, 
 
-            quantiles=[0.16,0.84], 
+            #quantiles=[0.16,0.84], 
             color=self.posterior_color, 
             linewidths=0.5, 
             hist_kwargs={'color':self.posterior_color}, 
@@ -445,6 +445,9 @@ class CallBack:
             ax_spec.append(fig.add_axes(ax_spec_dim_i))
             ax_res.append(fig.add_axes(ax_res_dim_i))
 
+        ax_spec = np.array(ax_spec)[::-1]
+        ax_res  = np.array(ax_res)[::-1]
+        for i, w_set in enumerate(list(self.d_spec.keys())):
             # Plot the best-fitting spectrum
             ax_spec[i], ax_res[i] = figs.fig_bestfit_model(
                 d_spec=self.d_spec[w_set], 
