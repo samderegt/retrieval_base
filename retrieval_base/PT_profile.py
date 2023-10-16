@@ -13,7 +13,7 @@ def get_PT_profile_class(pressure, mode, **kwargs):
         return PT_profile_Molliere(pressure, **kwargs)
     
     if mode == 'free_gradient':
-        return PT_profile_Zhang(pressure, **kwargs)
+        return PT_profile_free_gradient(pressure, **kwargs)
     
     if mode == 'grid':
         return PT_profile_SONORA(pressure, **kwargs)
@@ -246,14 +246,14 @@ class PT_profile_free(PT_profile):
                               1/2*np.log(2*np.pi*self.gamma)
                               )
 
-class PT_profile_Zhang(PT_profile):
+class PT_profile_free_gradient(PT_profile):
 
-    def __init__(self, pressure, PT_interp_mode='cubic', **kwargs):
+    def __init__(self, pressure, PT_interp_mode='quadratic', **kwargs):
         
         # Give arguments to the parent class
         super().__init__(pressure)
 
-        self.ln_pressure = np.log(self.pressure)[::-1]
+        self.flipped_ln_pressure = np.log(self.pressure)[::-1]
         self.PT_interp_mode = PT_interp_mode
 
     def __call__(self, params):
@@ -263,21 +263,23 @@ class PT_profile_Zhang(PT_profile):
 
         # Perform interpolation over dlnT/dlnP gradients
         interp_func = interp1d(
-            params['ln_P_knots'], params['dlnT_dlnP_knots'], 
+            params['log_P_knots'], params['dlnT_dlnP_knots'], 
             kind=self.PT_interp_mode
             )
-        self.dlnT_dlnP = interp_func(self.ln_pressure)
+        dlnT_dlnP_array = interp_func(np.log10(self.pressure))[::-1]
 
         # Compute the temperatures based on the gradient
-        T_i = params['T_0']
-        self.temperature = [T_i, ]
-        for i in range(1, len(self.pressure)):
+        self.temperature = [params['T_0'], ]
+        for i in range(len(self.pressure)-1):
+
+            ln_P_i1 = self.flipped_ln_pressure[i+1]
+            ln_P_i  = self.flipped_ln_pressure[i]
             
-            T_i = np.exp(
-                np.log(T_i) + self.dlnT_dlnP[i-1] * \
-                (self.ln_pressure[i] - self.ln_pressure[i-1])
+            T_i1 = np.exp(
+                np.log(self.temperature[-1]) + \
+                (ln_P_i1 - ln_P_i) * dlnT_dlnP_array[i]
                 )
-            self.temperature.append(T_i)
+            self.temperature.append(T_i1)
 
         self.temperature = np.array(self.temperature)[::-1]
 

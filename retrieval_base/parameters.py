@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import invgamma
+from scipy.stats import invgamma, norm
 
 from petitRADTRANS.retrieval import cloud_cond as fc
 
@@ -15,69 +15,10 @@ class Parameters:
         'a_f': 0, 'l_f': 1, 
         'beta': 1,  
 
-        # General properties
-        #'R_p': 1.0, 
-        #'log_g': 5.0, 
-        #'epsilon_limb': 0.6, 
-        #'parallax': 250, # mas
-
-        # Velocities
-        #'vsini': 10.0, 
-        #'rv': 0.0, 
-
-
-        # Cloud properties (specify cloud base)
-        #'log_X_cloud_base_MgSiO3': None, 
-        #'log_P_base_MgSiO3': None, 
-
         # Cloud properties (cloud base from condensation)
-        #'log_X_MgSiO3': None, 
         'f_sed': None, 
         'log_K_zz': None, 
         'sigma_g': None, 
-
-        # Cloud properties (gray cloud)
-        #'log_opa_base_gray': None, 
-        #'log_P_base_gray': None, 
-        #'f_sed_gray': None, 
-        #'cloud_slope': 0, 
-
-
-        # Chemistry (chemical equilibrium)
-        #'C/O': None, 
-        #'Fe/H': None, 
-        #'log_P_quench': -8, 
-
-        # Chemistry (free)
-        #'log_12CO': -np.inf, 
-        #'log_H2O': -np.inf, 
-        #'log_CH4': -np.inf, 
-        #'log_NH3': -np.inf, 
-        #'log_HCN': -np.inf, 
-        #'log_CO2': -np.inf, 
-        #'log_C_ratio': -np.inf, 
-        #'log_O_ratio': -np.inf, 
-
-
-        # PT profile (free)
-        #'log_gamma': None, 
-
-        #'T_0': 4000, 
-        #'T_1': 2000, 
-        #'T_2': 1800, 
-        #'T_3': 1500, 
-        #'T_3': 1400, 
-        # etc.
-        #'log_P_knots': np.array([-6,-2,0,1,2], dtype=np.float64), 
-
-        # PT profile (Molliere et al. 2020)
-        #'log_P_phot': 0.0, 
-        #'alpha': 1.0, 
-        #'T_int': 1800, 
-
-        # PT profile (SONORA grid)
-        #'T_eff': 1300, 
-
     }
 
     def __init__(
@@ -93,8 +34,6 @@ class Parameters:
             wlen_settings={
                 'J1226': [9,3], 'K2166': [7,3], 
                 }
-            #n_orders=7, 
-            #n_dets=3, 
             ):
 
         # Separate the prior range from the mathtext label
@@ -118,7 +57,7 @@ class Parameters:
         self.PT_mode = PT_mode
         assert(self.PT_mode in ['free', 'free_gradient', 'grid', 'Molliere'])
 
-        self.n_T_knots = n_T_knots - 1
+        self.n_T_knots = n_T_knots
         self.enforce_PT_corr = enforce_PT_corr
 
         # Check the used chemistry type
@@ -166,6 +105,13 @@ class Parameters:
                 
                 # Sample from the inverse gamma prior
                 cube[i] = invgamma.ppf(cube[i], a=invgamma_a, loc=0, scale=invgamma_b)
+
+            elif key_i.startswith('gaussian_'):
+                # Get the two parameters defining the Gaussian pdf
+                mu, sigma = self.param_priors[key_i]
+                
+                # Sample from the Gaussian prior
+                cube[i] = norm.ppf(cube[i], loc=mu, scale=sigma)
             
             else:
                 # Sample within the boundaries
@@ -179,6 +125,9 @@ class Parameters:
 
             if key_i.startswith('invgamma_'):
                 self.params[key_i.replace('invgamma_', '')] = self.params[key_i]
+
+            if key_i.startswith('gaussian_'):
+                self.params[key_i.replace('gaussian_', '')] = self.params[key_i]
 
         # Read the parameters for the model's segments
         cube = self.read_PT_params(cube)
@@ -220,28 +169,26 @@ class Parameters:
             self.params['T_3'] = self.params['T_2'] * (high - (high-low)*self.cube[idx])
             cube[idx] = self.params['T_3']
 
-        if self.PT_mode in ['free', 'Molliere']:
+        if self.PT_mode in ['free', 'free_gradient', 'Molliere']:
 
             # Fill the pressure knots
-            self.params['P_knots'] = self.params['P_knots'][[0,-1]]
+            self.params['log_P_knots'] = np.array(self.params['log_P_knots'])
             for i in range(self.n_T_knots-1):
                 
                 if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
                     # Add the difference in log P to the previous knot
-                    log_P_i = np.log10(self.params['P_knots'][1]) - \
+                    self.params['log_P_knots'][-(i+1)-1] = \
+                        self.params['log_P_knots'][::-1][i] - \
                         self.params[f'd_log_P_{i}{i+1}']
-                else:
-                    # Use the stationary knot
-                    log_P_i = self.params['log_P_knots'][-i-2]
+            
+            self.params['P_knots']     = 10**self.params['log_P_knots']
+            self.params['ln_P_knots']  = np.log(self.params['P_knots'])
 
-                # Insert each pressure knot into the array
-                self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
-
-            self.params['log_P_knots'] = np.log10(self.params['P_knots'])
+        if self.PT_mode in ['free', 'Molliere']:
             
             # Combine the upper temperature knots into an array
             self.params['T_knots'] = []
-            for i in range(self.n_T_knots):
+            for i in range(self.n_T_knots-1):
 
                 T_i = self.params[f'T_{i+1}']
 
@@ -261,42 +208,24 @@ class Parameters:
 
         if (self.PT_mode == 'free_gradient'):
 
-            # Fill the pressure knots
-            self.params['P_knots'] = self.params['P_knots'][[0,-1]]
-            for i in range(self.n_T_knots-2):
-                
-                if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
-                    # Add the difference in log P to the previous knot
-                    log_P_i = np.log10(self.params['P_knots'][1]) - \
-                        self.params[f'd_log_P_{i}{i+1}']
-                else:
-                    # Use the stationary knot
-                    log_P_i = self.params['log_P_knots'][-i-2]
-
-                # Insert each pressure knot into the array
-                self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
-
-            self.params['log_P_knots'] = np.log10(self.params['P_knots'])
-            self.params['ln_P_knots']  = np.log(self.params['P_knots'])
-
-            # Combine the upper temperature knots into an array
-            T_i = self.params['T_0']
-            self.params['ln_P_knots'] = np.log(self.params['P_knots'])
-            
-            self.params['T_knots'] = [T_i, ]
-            self.params['dlnT_dlnP_knots'] = [
+            # Combine the upper temperature knots into an array            
+            self.params['T_knots'] = [self.params['T_0'], ]
+            self.params['dlnT_dlnP_knots'] = np.array([
                 self.params[f'dlnT_dlnP_{i}'] for i in range(self.n_T_knots)
-                ]
-            for i in range(1,self.n_T_knots):
+                ])
+            for i in range(self.n_T_knots-1):
 
-                T_i = np.exp(
-                    np.log(T_i) + self.params[f'dlnT_dlnP_{i-1}'] * \
-                    (self.params['ln_P_knots'][-i-1] - self.params['ln_P_knots'][-i]) 
+                ln_P_i1 = self.params['ln_P_knots'][::-1][i+1]
+                ln_P_i  = self.params['ln_P_knots'][::-1][i]
+
+                T_i1 = np.exp(
+                    np.log(self.params['T_knots'][-1]) + \
+                    (ln_P_i1 - ln_P_i) * self.params[f'dlnT_dlnP_{i}']
                     )
-                self.params['T_knots'].append(T_i)
+                self.params['T_knots'].append(T_i1)
 
             self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
-            self.params['dlnT_dlnP_knots'] = np.array(self.params['dlnT_dlnP_knots'])
+            self.params['dlnT_dlnP_knots'] = self.params['dlnT_dlnP_knots'][::-1]
             
         return cube
 

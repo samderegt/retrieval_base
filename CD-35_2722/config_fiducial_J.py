@@ -1,48 +1,47 @@
 import numpy as np
 
-file_params = 'config_fiducial_J_B.py'
+file_params = 'config_fiducial_J.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_5_blue_orders'
+prefix = 'fiducial_J'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
-        #'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        'w_set': 'J1226', 'wave_range': (1115, 1187), 
+        'w_set': 'J1226', 'wave_range': (1115, 1338), 
         #'w_set': 'J1226', 'wave_range': (1240, 1295), 
-
-        'file_target': './data/Luhman_16B_J.dat', 
-        'file_std': './data/Luhman_16_std_J.dat', 
-        'file_wave': './data/Luhman_16_std_J.dat', 
+        'file_target': './data/CD-352722B_SECONDARY_CRIRES_SPEC2D.dat', 
+        'file_std': './data/tetCol_PRIMARY_CRIRES_SPEC2D.dat', 
+        #'file_wave': './data/CD-352722B_PRIMARY_CRIRES_SPEC2D.dat', 
+        'file_wave': './data/tetCol_PRIMARY_CRIRES_SPEC2D.dat', 
         'file_skycalc_transm': f'./data/skycalc_transm_J1226.dat', 
 
         'filter_2MASS': '2MASS/2MASS.J', 
-        'pwv': 1.5, 
+        'pwv': 10.0, 
 
-        'ra': 162.299451, 'dec': -53.31767, 'mjd': 59946.35286502, 
-        'ra_std': 161.738984, 'dec_std': -56.75771, 'mjd_std': 59946.3601578, 
+        'ra': 92.32931, 'dec': -35.82562, 'mjd': 59976.19169392, 
+        'ra_std': 91.880871, 'dec_std': -37.25333, 'mjd_std': 59976.16994589, 
 
-        'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
+        'T_std': 15000, 'log_g_std': 2.5, 'rv_std': 45.30, 'vsini_std': 249, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.6, 'sigma_clip_width': 8, 
+        'tell_threshold': 0.5, 'sigma_clip_width': 8, 
         }, 
     }
 
 magnitudes = {
-    '2MASS/2MASS.J': (11.22, 0.04), # Burgasser et al. (2013)
-    '2MASS/2MASS.Ks': (9.73, 0.09), 
+    '2MASS/2MASS.J': (13.63, 0.11), # Wahhaj et al. (2011)
+    '2MASS/2MASS.Ks': (12.01, 0.07), 
 }
 
 ####################################################################################
 # Model parameters
 ####################################################################################
 
-PT_mode = 'free_gradient'
+PT_mode = 'free'
 chem_mode  = 'free'
 cloud_mode = 'gray'
 cov_mode = 'GP'
@@ -51,11 +50,11 @@ cov_mode = 'GP'
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    'log_res_J1226': [(4,5.4), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
+    'log_a': [(-1,0.4), r'$\log\ a_\mathrm{J}$'], 
     'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
     #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
     #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
@@ -63,7 +62,7 @@ free_params = {
     # General properties
     'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
-    'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0.2,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
     'vsini': [(10,35), r'$v\ \sin\ i$'], 
@@ -89,7 +88,7 @@ free_params = {
     #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_{2}S}$'], 
     'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
-    #'log_CrH': [(-12,-2), r'$\log\ \mathrm{CrH}$'], 
+    'log_CrH': [(-12,-2), r'$\log\ \mathrm{CrH}$'], 
     #'log_NaH': [(-12,-2), r'$\log\ \mathrm{NaH}$'], 
 
     'log_TiO': [(-12,-2), r'$\log\ \mathrm{^{48}TiO}$'], 
@@ -105,40 +104,33 @@ free_params = {
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
     # PT profile
-    'gaussian_dlnT_dlnP_0': [(0.23840403,0.04608704), r'$\nabla_{T,0}$'], 
-    'gaussian_dlnT_dlnP_1': [(0.23120480,0.06246088), r'$\nabla_{T,1}$'], 
-    'gaussian_dlnT_dlnP_2': [(0.20749723,0.07635955), r'$\nabla_{T,2}$'], 
-    'gaussian_dlnT_dlnP_3': [(0.13568251,0.07681570), r'$\nabla_{T,3}$'], 
-    'gaussian_dlnT_dlnP_4': [(0.12486866,0.20639092), r'$\nabla_{T,4}$'], 
-    'T_0': [(1000,20000), r'$T_0$'], 
-    #'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
+    'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
-    #'T_0': [(1000,5000), r'$T_0$'], 
-    #'T_1': [(500,3500), r'$T_1$'], 
-    #'T_2': [(0,2000), r'$T_2$'], 
-    #'T_3': [(0,2000), r'$T_3$'], 
-    #'T_4': [(0,2000), r'$T_4$'], 
+    'T_0': [(1000,5000), r'$T_0$'], 
+    'T_1': [(500,3500), r'$T_1$'], 
+    'T_2': [(0,2000), r'$T_2$'], 
+    'T_3': [(0,2000), r'$T_3$'], 
+    'T_4': [(0,2000), r'$T_4$'], 
     #'T_5': [(0,2000), r'$T_5$'], 
     #'T_6': [(0,2000), r'$T_6$'], 
     #'T_7': [(0,2000), r'$T_7$'], 
 
-    #'d_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
+    'd_log_P_01': [(0,2), r'$\Delta\log\ P_{01}$'], 
 }
 
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 496,  # +/- 37 mas
+    'parallax': 44.7203,  # +/- 0.0128 mas
 
     # PT profile
     #'log_P_knots': [-6, -1.25, -0.25, 0.5, 1, 1.5, 2], 
     #'log_P_knots': [-6, -2.25, -1.25, -0.5, 0.0, 0.5, 1, 2], 
-    #'log_P_knots': [-6, -1.25, -0.5, 0.0, 0.5, 1, 2], 
-    'log_P_knots': [-6, -2, -2/3, 2/3, 2], 
+    'log_P_knots': [-6, -1.25, -0.5, 0.0, 0.5, 1, 2], 
 
     #'d_log_P_01': 1.0, 
-    #'d_log_P_12': 0.5, 
-    #'d_log_P_23': 0.75, 
+    'd_log_P_12': 0.5, 
+    'd_log_P_23': 0.75, 
     #'d_log_P_34': 1.0, 
 
     #'d_log_P_12': 0.75, 
@@ -158,8 +150,7 @@ chem_spline_order = 0
 
 # Log-likelihood penalty
 ln_L_penalty_order = 3
-#PT_interp_mode = 'log'
-PT_interp_mode = 'quadratic'
+PT_interp_mode = 'log'
 enforce_PT_corr = False
 n_T_knots = 5
 
@@ -178,7 +169,7 @@ line_species = [
     #'H2S_main_iso', 
     'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
-    #'CrH_main_iso', 
+    'CrH_main_iso', 
     #'NaH_main_iso', 
 
     'TiO_48_Exomol_McKemmish', 
@@ -234,4 +225,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 200
+n_iter_before_update = 50

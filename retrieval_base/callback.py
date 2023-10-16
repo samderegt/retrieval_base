@@ -377,7 +377,7 @@ class CallBack:
             bins=20, 
             max_n_ticks=3, 
 
-            #quantiles=[0.16,0.84], 
+            quantiles=[0.16,0.84], 
             color=self.posterior_color, 
             linewidths=0.5, 
             hist_kwargs={'color':self.posterior_color}, 

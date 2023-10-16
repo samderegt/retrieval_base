@@ -1,6 +1,7 @@
 __pycache__/
 *egg-info/
 
+ATMO_2020_models/
 */data/
 */retrieval_outputs/
 */plots/
