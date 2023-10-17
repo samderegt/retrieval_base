@@ -409,6 +409,9 @@ class Retrieval:
 
                 if key_j.startswith('invgamma_'):
                     self.Param.params[key_j.replace('invgamma_', '')] = self.Param.params[key_j]
+
+                if key_j.startswith('gaussian_'):
+                    self.Param.params[key_j.replace('gaussian_', '')] = self.Param.params[key_j]
                     
             # Update the parameters
             self.Param.read_PT_params(cube=None)

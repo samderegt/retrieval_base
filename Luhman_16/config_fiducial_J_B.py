@@ -6,13 +6,13 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_5_blue_orders'
+prefix = 'fiducial_J_B_ret_9'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
-        #'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        'w_set': 'J1226', 'wave_range': (1115, 1187), 
+        'w_set': 'J1226', 'wave_range': (1115, 1325), 
+        #'w_set': 'J1226', 'wave_range': (1115, 1187), 
         #'w_set': 'J1226', 'wave_range': (1240, 1295), 
 
         'file_target': './data/Luhman_16B_J.dat', 
@@ -51,7 +51,7 @@ cov_mode = 'GP'
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    #'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
@@ -70,7 +70,7 @@ free_params = {
     'rv': [(15,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10,3), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
     'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
     #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
@@ -105,12 +105,12 @@ free_params = {
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
     # PT profile
-    'gaussian_dlnT_dlnP_0': [(0.23840403,0.04608704), r'$\nabla_{T,0}$'], 
-    'gaussian_dlnT_dlnP_1': [(0.23120480,0.06246088), r'$\nabla_{T,1}$'], 
-    'gaussian_dlnT_dlnP_2': [(0.20749723,0.07635955), r'$\nabla_{T,2}$'], 
-    'gaussian_dlnT_dlnP_3': [(0.13568251,0.07681570), r'$\nabla_{T,3}$'], 
-    'gaussian_dlnT_dlnP_4': [(0.12486866,0.20639092), r'$\nabla_{T,4}$'], 
-    'T_0': [(1000,20000), r'$T_0$'], 
+    'dlnT_dlnP_0': [(0.1,0.5), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_1': [(0.05,0.5), r'$\nabla_{T,1}$'], 
+    'dlnT_dlnP_2': [(0.0,0.5), r'$\nabla_{T,2}$'], 
+    'dlnT_dlnP_3': [(0.0,0.5), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(0.0,0.5), r'$\nabla_{T,4}$'], 
+    'T_0': [(1000,15000), r'$T_0$'], 
     #'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     #'T_0': [(1000,5000), r'$T_0$'], 
