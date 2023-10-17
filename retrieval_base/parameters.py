@@ -142,6 +142,9 @@ class Parameters:
     
     def read_PT_params(self, cube=None):
 
+        if self.params.get('temperature') is not None:
+            return cube
+
         if self.PT_mode == 'grid':
             return cube
 

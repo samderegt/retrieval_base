@@ -6,13 +6,13 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_9'
+prefix = 'fiducial_J_B_ret_11'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
-        'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        #'w_set': 'J1226', 'wave_range': (1115, 1187), 
+        #'w_set': 'J1226', 'wave_range': (1115, 1325), 
+        'w_set': 'J1226', 'wave_range': (1115, 1187), 
         #'w_set': 'J1226', 'wave_range': (1240, 1295), 
 
         'file_target': './data/Luhman_16B_J.dat', 
@@ -51,7 +51,7 @@ cov_mode = 'GP'
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    #'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
@@ -105,12 +105,12 @@ free_params = {
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
     # PT profile
-    'dlnT_dlnP_0': [(0.1,0.5), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.05,0.5), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.0,0.5), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.0,0.5), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(0.0,0.5), r'$\nabla_{T,4}$'], 
-    'T_0': [(1000,15000), r'$T_0$'], 
+    #'dlnT_dlnP_0': [(0.1,0.5), r'$\nabla_{T,0}$'], 
+    #'dlnT_dlnP_1': [(0.05,0.5), r'$\nabla_{T,1}$'], 
+    #'dlnT_dlnP_2': [(0.0,0.5), r'$\nabla_{T,2}$'], 
+    #'dlnT_dlnP_3': [(0.0,0.5), r'$\nabla_{T,3}$'], 
+    #'dlnT_dlnP_4': [(0.0,0.5), r'$\nabla_{T,4}$'], 
+    #'T_0': [(1000,15000), r'$T_0$'], 
     #'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
 
     #'T_0': [(1000,5000), r'$T_0$'], 
@@ -152,6 +152,10 @@ constant_params = {
 
     'epsilon_limb': 0.65, 
 }
+
+import json
+with open('./retrieval_outputs/fiducial_K_B_ret_1/test_data/bestfit.json') as f:
+    constant_params['temperature'] = np.array(json.load(f)['temperature'])
 
 # Polynomial order of non-vertical abundance profile
 chem_spline_order = 0

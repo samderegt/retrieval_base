@@ -299,13 +299,19 @@ class Retrieval:
 
         # Param.params dictionary is already updated
 
-        # Retrieve the temperatures
-        try:
-            temperature = self.PT(self.Param.params)
-        except:
-            # Something went wrong with interpolating
-            temperature = self.PT(self.Param.params)
-            return -np.inf
+        if self.Param.params.get('temperature') is not None:
+            # Read the constant temperatures
+            temperature = self.Param.params.get('temperature')
+            self.PT.temperature = temperature
+        
+        else:
+            # Retrieve the temperatures
+            try:
+                temperature = self.PT(self.Param.params)
+            except:
+                # Something went wrong with interpolating
+                temperature = self.PT(self.Param.params)
+                return -np.inf
 
         if temperature.min() < 0:
             # Negative temperatures are rejected
