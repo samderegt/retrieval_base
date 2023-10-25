@@ -438,7 +438,8 @@ def fig_PT(PT,
     ax_PT.plot(
         PT.temperature, PT.pressure, c=bestfit_color, lw=1, label=label
         )
-    if hasattr(PT, 'T_knots'):
+    from retrieval_base.PT_profile import PT_profile_free_gradient
+    if hasattr(PT, 'T_knots') and not isinstance(PT, PT_profile_free_gradient):
         ax_PT.plot(
             PT.T_knots, PT.P_knots, c=bestfit_color, ls='', marker='o', markersize=3
             )
@@ -563,15 +564,6 @@ def fig_VMR(ax_VMR,
 
     MMW = Chem.mass_fractions['MMW']
 
-    if hasattr(Chem, 'P_quench'):
-        # Get the un-quenched mass fractions
-        unquenched_Chem = copy.deepcopy(Chem)
-        unquenched_Chem(
-            params={'C/O': Chem.CO, 'Fe/H': Chem.FeH, 'P_quench': None, 
-                    'C_ratio': Chem.C_ratio, 'O_ratio': Chem.O_ratio}, 
-            temperature=Chem.temperature
-            )
-
     for species_i in Chem.species_info.keys():
         
         if species_i not in species_to_plot:
@@ -633,8 +625,7 @@ def fig_VMR(ax_VMR,
         ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
 
         # Find the un-quenched VMR
-        unquenched_mass_fraction_i = \
-            unquenched_Chem.mass_fractions[line_species_i]
+        unquenched_mass_fraction_i = Chem.unquenched_mass_fractions[line_species_i]
         unquenched_VMR_i = unquenched_mass_fraction_i * MMW/mass_i
 
         # Plot volume-mixing ratio as function of pressure

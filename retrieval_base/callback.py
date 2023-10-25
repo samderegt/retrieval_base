@@ -226,7 +226,10 @@ class CallBack:
 
         # Save some of the objects
         af.pickle_save(self.prefix+'data/bestfit_PT.pkl', self.PT)
-        af.pickle_save(self.prefix+'data/bestfit_Chem.pkl', self.Chem)
+
+        Chem_to_save = copy.copy(self.Chem)
+        del Chem_to_save.fastchem, Chem_to_save.output, Chem_to_save.input
+        af.pickle_save(self.prefix+'data/bestfit_Chem.pkl', Chem_to_save)
 
         for w_set in self.LogLike.keys():
             af.pickle_save(self.prefix+f'data/bestfit_m_spec_{w_set}.pkl', self.m_spec[w_set])

@@ -127,7 +127,7 @@ def pre_processing(conf, conf_data):
 
     # Prepare the wavelength separation and average squared error arrays
     d_spec.prepare_for_covariance(
-        prepare_err_eff=conf.prepare_for_covariance
+        prepare_err_eff=conf.cov_kwargs['prepare_for_covariance']
         )
 
     # Plot the pre-processed spectrum
@@ -190,14 +190,12 @@ class Retrieval:
             free_params=self.conf.free_params, 
             constant_params=self.conf.constant_params, 
             PT_mode=self.conf.PT_mode, 
-            n_T_knots=self.conf.n_T_knots, 
-            enforce_PT_corr=self.conf.enforce_PT_corr, 
+            n_T_knots=self.conf.PT_kwargs['n_T_knots'], 
+            enforce_PT_corr=self.conf.PT_kwargs['enforce_PT_corr'], 
             chem_mode=self.conf.chem_mode, 
             cloud_mode=self.conf.cloud_mode, 
             cov_mode=self.conf.cov_mode, 
             wlen_settings=param_wlen_settings, 
-            #n_orders=self.d_spec.n_orders, 
-            #n_dets=self.d_spec.n_dets, 
             )
         
         self.Cov     = {}
@@ -226,7 +224,7 @@ class Retrieval:
                         separation=self.d_spec[w_set].separation[i,j], 
                         err_eff=self.d_spec[w_set].err_eff[i,j], 
                         flux_eff=self.d_spec[w_set].flux_eff[i,j], 
-                        max_separation=self.conf.GP_max_separation, 
+                        **self.conf.cov_kwargs
                         )
 
             del self.d_spec[w_set].separation, 
@@ -244,15 +242,13 @@ class Retrieval:
         self.PT = get_PT_profile_class(
             self.pRT_atm[w_set].pressure, 
             self.Param.PT_mode, 
-            conv_adiabat=True, 
-            ln_L_penalty_order=self.conf.ln_L_penalty_order, 
-            PT_interp_mode=self.conf.PT_interp_mode, 
+            **self.conf.PT_kwargs, 
             )
         self.Chem = get_Chemistry_class(
             self.pRT_atm[w_set].line_species, 
             self.pRT_atm[w_set].pressure, 
             self.Param.chem_mode, 
-            spline_order=self.conf.chem_spline_order, 
+            **self.conf.chem_kwargs, 
             )
         
         self.CB = CallBack(
@@ -313,9 +309,13 @@ class Retrieval:
                 temperature = self.PT(self.Param.params)
                 return -np.inf
 
-        if temperature.min() < 0:
-            # Negative temperatures are rejected
+        if temperature.min() < 200:
+            # Temperatures too low for reasonable FastChem convergence
             return -np.inf
+        
+        #if temperature.min() < 0:
+        #    # Negative temperatures are rejected
+        #    return -np.inf
 
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = 0
@@ -325,7 +325,7 @@ class Retrieval:
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
             mass_fractions = self.Chem(self.Param.VMR_species, self.Param.params)
-        elif self.Param.chem_mode == 'eqchem':
+        elif self.Param.chem_mode in ['eqchem', 'fastchem']:
             mass_fractions = self.Chem(self.Param.params, temperature)
 
         if not isinstance(mass_fractions, dict):
@@ -367,12 +367,9 @@ class Retrieval:
 
                     # Update the covariance matrix
                     self.Cov[w_set][i,j](
-                        self.Param.params, 
-                        w_set, 
-                        order=i, 
-                        det=j, 
-                        trunc_dist=self.conf.GP_trunc_dist, 
-                        scale_GP_amp=self.conf.scale_GP_amp
+                        self.Param.params, w_set, 
+                        order=i, det=j, 
+                        **self.conf.cov_kwargs, 
                         )
 
             # Retrieve the log-likelihood
@@ -515,7 +512,7 @@ class Retrieval:
         '''
 
         # Assess the species' contribution
-        for species_i in self.Chem.species_info:
+        for species_i in self.Chem.species_info.keys():
 
             line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
             if line_species_i not in self.Chem.line_species:
