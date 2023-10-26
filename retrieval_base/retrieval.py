@@ -309,13 +309,13 @@ class Retrieval:
                 temperature = self.PT(self.Param.params)
                 return -np.inf
 
-        if temperature.min() < 200:
+        if (temperature.min() < 150) and (self.Param.chem_mode=='fastchem'):
             # Temperatures too low for reasonable FastChem convergence
             return -np.inf
         
-        #if temperature.min() < 0:
-        #    # Negative temperatures are rejected
-        #    return -np.inf
+        if temperature.min() < 0:
+            # Negative temperatures are rejected
+            return -np.inf
 
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = 0
@@ -385,6 +385,55 @@ class Retrieval:
         self.CB.elapsed_times.append(time_B-time_A)
 
         return ln_L
+    
+    def parallel_for_loop(self, func, iterable, **kwargs):
+
+        n_iter = len(iterable)
+        n_procs = comm.Get_size()
+        
+        # Number of iterables to compute per process
+        perrank = int(n_iter / n_procs) + 1
+
+        # Lower, upper indices to compute for this rank
+        low, high = rank*perrank, (rank+1)*perrank
+        if rank == comm.Get_size()-1:
+            # Final rank has fewer iterations
+            high = n_iter
+
+        # Run the function
+        returned = []
+        for i in range(low, high):
+            returned_i = func(iterable[i], **kwargs)
+            returned.append(returned_i)
+
+        # Pause until all processes finished
+        comm.Barrier()
+
+        # Combine the outputs
+        all_returned = comm.gather(returned, root=0)
+        if rank != 0:
+            return
+        
+        if not hasattr(returned_i, '__len__'):
+            # Only 1 value returned per process
+            
+            # Concatenate the lists
+            flat_all_returned = []
+            for sublist in all_returned:
+                for item in sublist:
+                    flat_all_returned.append(item)
+
+            return flat_all_returned
+        
+        # Multiple values returned per process
+        flat_all_returned = [[] for _ in range(len(returned_i))]
+        for sublist_1 in all_returned:
+            for sublist_2 in sublist_1:
+                for i, item in enumerate(sublist_2):
+                    
+                    flat_all_returned[i].append(item)
+
+        return flat_all_returned
 
     def get_PT_mf_envelopes(self, posterior):
 
@@ -399,7 +448,88 @@ class Retrieval:
         self.Chem.FeH_posterior = []
 
         self.PT.temperature_envelopes = []
+                    
+        def func(params_i):
 
+            for j, key_j in enumerate(self.Param.param_keys):
+                # Update the Parameters instance
+                self.Param.params[key_j] = params_i[j]
+
+                if key_j.startswith('log_'):
+                    self.Param.params = self.Param.log_to_linear(self.Param.params, key_j)
+
+                if key_j.startswith('invgamma_'):
+                    self.Param.params[key_j.replace('invgamma_', '')] = self.Param.params[key_j]
+
+                if key_j.startswith('gaussian_'):
+                    self.Param.params[key_j.replace('gaussian_', '')] = self.Param.params[key_j]
+
+            # Update the parameters
+            self.Param.read_PT_params(cube=None)
+            self.Param.read_uncertainty_params()
+            self.Param.read_chemistry_params()
+            self.Param.read_cloud_params()
+
+            # Class instances with best-fitting parameters
+            returned = self.PMN_lnL_func()
+            
+            if isinstance(returned, float):
+                # PT profile or mass fractions failed
+                return None, None, None, None, None
+
+            # Store the temperatures and mass fractions
+            temperature_i, mass_fractions_i = returned
+            unquenched_mass_fractions_i = None
+            if hasattr(self.Chem, 'unquenched_mass_fractions'):
+                unquenched_mass_fractions_i = self.Chem.unquenched_mass_fractions
+
+            # Return the temperature, mass fractions, unquenched, C/O ratio and Fe/H
+            return temperature_i, mass_fractions_i, unquenched_mass_fractions_i, self.Chem.CO, self.Chem.FeH
+        
+        # Compute the mass fractions posterior in parallel
+        returned = self.parallel_for_loop(func, posterior)
+
+        if returned is None:
+            return
+        
+        self.PT.temperature_posterior, \
+        mass_fractions_posterior, \
+        unquenched_mass_fractions_posterior, \
+        self.Chem.CO_posterior, \
+        self.Chem.FeH_posterior \
+            = returned
+        
+        self.PT.temperature_posterior = np.array(self.PT.temperature_posterior)
+        self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
+        self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
+
+        # Create the lists to store mass fractions per line species
+        for line_species_i in mass_fractions_posterior[0].keys():
+
+            self.Chem.mass_fractions_posterior[line_species_i] = []
+
+            if unquenched_mass_fractions_posterior[0] is None:
+                continue
+            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
+
+        # Store the mass fractions posterior in the correct order
+        for mf_i, unquenched_mf_i in zip(mass_fractions_posterior, unquenched_mass_fractions_posterior):
+            
+            # Loop over the line species
+            for line_species_i in mf_i.keys():
+
+                self.Chem.mass_fractions_posterior[line_species_i].append(
+                    mf_i[line_species_i]
+                    )
+
+                if unquenched_mf_i is None:
+                    continue
+                # Store the unquenched mass fractions
+                self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
+                    unquenched_mf_i[line_species_i]
+                    )
+        
+        '''
         # Sample envelopes from the posterior
         for i, params_i in enumerate(posterior):
 
@@ -456,6 +586,7 @@ class Retrieval:
                     self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
                         self.Chem.unquenched_mass_fractions[line_species_i]
                         )
+        '''
 
         # Convert profiles to 1, 2, 3-sigma equivalent and median
         q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
@@ -464,11 +595,12 @@ class Retrieval:
 
         # Retain the pressure-axis
         self.PT.temperature_envelopes = af.quantiles(
-            np.array(self.PT.temperature_envelopes), q=q, axis=0
+            self.PT.temperature_posterior, q=q, axis=0
             )
 
         self.Chem.mass_fractions_envelopes = {}
-        #for line_species_i in self.Chem.line_species:
+        self.Chem.unquenched_mass_fractions_envelopes = {}
+
         for line_species_i in self.Chem.mass_fractions.keys():
 
             self.Chem.mass_fractions_posterior[line_species_i] = \
@@ -477,20 +609,18 @@ class Retrieval:
             self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
                 self.Chem.mass_fractions_posterior[line_species_i], q=q, axis=0
                 )
-        
-        self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
-        self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
+            
+            if unquenched_mass_fractions_posterior[0] is None:
+                continue
 
-        self.Chem.unquenched_mass_fractions_envelopes = {}
-        if hasattr(self.Chem, 'unquenched_mass_fractions'):
-            # Store the unquenched mass fractions
-            for line_species_i in self.Chem.unquenched_mass_fractions.keys():
-                self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
-                    np.array(self.Chem.unquenched_mass_fractions_posterior[line_species_i])
+        # Store the unquenched mass fractions
+        for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
+                np.array(self.Chem.unquenched_mass_fractions_posterior[line_species_i])
 
-                self.Chem.unquenched_mass_fractions_envelopes[line_species_i] = af.quantiles(
-                    self.Chem.unquenched_mass_fractions_posterior[line_species_i], q=q, axis=0
-                    )
+            self.Chem.unquenched_mass_fractions_envelopes[line_species_i] = af.quantiles(
+                self.Chem.unquenched_mass_fractions_posterior[line_species_i], q=q, axis=0
+                )
 
         self.CB.return_PT_mf = False
 
@@ -691,6 +821,9 @@ class Retrieval:
 
             # Remove the last 2 columns
             posterior = posterior[:,:-2]
+
+        if rank != 0:
+            return
 
         # Evaluate the model with best-fitting parameters
         for i, key_i in enumerate(self.Param.param_keys):

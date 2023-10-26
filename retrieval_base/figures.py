@@ -591,7 +591,7 @@ def fig_VMR(ax_VMR,
             # Plot the median VMR profile
             VMR_i = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][3]
 
-            if (np.abs(np.log10(x2)-np.log10(x1)) > 0.5).any():
+            if not (np.abs(np.log10(x2)-np.log10(x1)) < 1.0).any():
                 continue
 
             # Plot the VMR envelope as well

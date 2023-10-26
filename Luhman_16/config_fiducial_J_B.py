@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_13'
+prefix = 'fiducial_J_B_ret_15'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -75,15 +75,15 @@ free_params = {
     'C/O': [(0,1), r'C/O'], 
     'Fe/H': [(-1.5,1.5), r'[Fe/H]'], 
     'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
-    'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
+    #'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # PT profile
-    'dlnT_dlnP_0': [(0.1,0.5), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.05,0.5), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.0,0.5), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.0,0.5), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(0.0,0.5), r'$\nabla_{T,4}$'], 
-    'T_0': [(2000,8000), r'$T_0$'], 
+    'dlnT_dlnP_0': [(0.12, 0.29), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_1': [(0.13,0.32), r'$\nabla_{T,1}$'], 
+    'dlnT_dlnP_2': [(0.03,0.23), r'$\nabla_{T,2}$'], 
+    'dlnT_dlnP_3': [(0.0,0.13), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(-0.03,0.13), r'$\nabla_{T,4}$'], 
+    'T_0': [(2000,6000), r'$T_0$'], 
 }
 
 # Constants to use if prior is not given
@@ -122,45 +122,33 @@ chem_kwargs = dict(
     gas_data_file  = f'{fastchem_path}/input/logK/logK.dat', 
     cond_data_file = f'{fastchem_path}/input/logK/logK_condensates.dat', 
     verbose_level  = 1, 
-    #use_eq_cond      = True, 
-    use_eq_cond      = False, 
-    #use_rainout_cond = True,
-    use_rainout_cond = False,
+    use_eq_cond      = True, 
+    #use_eq_cond      = False, 
+    use_rainout_cond = True,
+    #use_rainout_cond = False,
 )
 
 line_species = [
-    #'CO_main_iso', 
-    #'CO_36', 
-    #'CO_28', 
-    #'CO_27', 
-
     'H2O_pokazatel_main_iso', 
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
 
-    #'HCN_main_iso', 
-    #'H2S_main_iso', 
     'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
-    'CrH_main_iso', 
-    #'NaH_main_iso', 
 
     'TiO_48_Exomol_McKemmish', 
     'VO_ExoMol_McKemmish', 
-    #'CO2_main_iso', 
     'HF_main_iso', 
-    'HCl_main_iso', 
 
     'K', 
     'Na_allard', 
-    #'Ti', 
     'Fe', 
     ]
 species_to_plot_VMR = [
-    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'K', 'Na', 'Ti', 'Fe', '13CO', 'C18O', 'C17O', 'HCN', 'HF', 
+    'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'TiO', 'VO', 'K', 'Na', 'Fe', 'HF', 
     ]
 species_to_plot_CCF = [
-    '12CO', 'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'CrH', 'NaH', 'TiO', 'VO', 'HCl', 'K', 'Na', 'Ti', 'Fe', '13CO', 'C18O', 'C17O', 'HCN', 'HF', 
+    'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'TiO', 'VO', 'K', 'Na', 'Fe', 'HF', 
     ]
 
 ####################################################################################

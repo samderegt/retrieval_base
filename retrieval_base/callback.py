@@ -298,10 +298,19 @@ class CallBack:
                 )
                 included_params.extend(['C/O', 'C/H'])
 
-        elif self.Param.chem_mode == 'eqchem':
+        elif self.Param.chem_mode in ['eqchem', 'fastchem']:
             
             if 'log_C_ratio' in self.Param.param_keys:
                 included_params.append('log_C_ratio')
+            
+            if 'log_C13_12_ratio' in self.Param.param_keys:
+                included_params.append('log_C13_12_ratio')
+
+            if 'log_O18_16_ratio' in self.Param.param_keys:
+                included_params.append('log_O18_16_ratio')
+            
+            if 'log_O17_16_ratio' in self.Param.param_keys:
+                included_params.append('log_O17_16_ratio')
             
             if 'log_P_quench' in self.Param.param_keys:
                 included_params.append('log_P_quench')

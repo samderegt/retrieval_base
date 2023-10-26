@@ -546,7 +546,7 @@ class FastChemistry(Chemistry):
             self.mass_fractions[line_species_i] = \
                 self.VMR[:,index] * mass_i / self.mass_fractions['MMW']
     
-    def quench_chemistry(self, species_to_quench=['12CO', 'CH4', 'H2O']):
+    def quench_chemistry(self, species_to_quench=['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O']):
 
         # Layers to be replaced by a constant abundance
         mask_quenched = (self.pressure < self.P_quench)
@@ -559,7 +559,7 @@ class FastChemistry(Chemistry):
 
             # Store the unquenched abundance profiles
             mass_fraction_i = self.mass_fractions[line_species_i]
-            self.unquenched_mass_fractions[line_species_i] = np.copy(mass_fraction_i)
+            #self.unquenched_mass_fractions[line_species_i] = np.copy(mass_fraction_i)
             
             # Own implementation of quenching, using interpolation
             mass_fraction_i[mask_quenched] = np.interp(
@@ -649,13 +649,19 @@ class FastChemistry(Chemistry):
         # Store the pRT mass fractions in a dictionary
         self.get_pRT_mass_fractions()
 
-        # Quench the CO-CH4 chemistry
-        if self.P_quench is not None:
-            self.unquenched_mass_fractions = {}
-            self.quench_chemistry()
-
         # Obtain the mass fractions for the isotopologues
         self.get_isotope_mass_fractions()
+
+        # Quench the CO-CH4 chemistry
+        if self.P_quench is not None:
+            self.unquenched_mass_fractions = self.mass_fractions.copy()
+            #self.quench_chemistry()
+            self.quench_chemistry(
+                species_to_quench=[
+                    '12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O', 
+                    'NH3', 'HCN', 
+                    ]
+                )
 
         for species_i in self.neglect_species:
             if self.neglect_species[species_i]:
