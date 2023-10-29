@@ -7,9 +7,9 @@ if __name__ == '__main__':
 
     # Instantiate the parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pre_processing', action='store_true')
-    parser.add_argument('--retrieval', action='store_true')
-    parser.add_argument('--evaluation', action='store_true')
+    parser.add_argument('--pre_processing', '-p', action='store_true')
+    parser.add_argument('--retrieval', '-r', action='store_true')
+    parser.add_argument('--evaluation', '-e', action='store_true')
     parser.add_argument('--synthetic', action='store_true')
     args = parser.parse_args()
 

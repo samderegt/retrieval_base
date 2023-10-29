@@ -7,14 +7,16 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_15'
+prefix = 'fiducial_J_B_ret_16'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
         'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        #'w_set': 'J1226', 'wave_range': (1115, 1187), 
+        #'w_set': 'J1226', 'wave_range': (1115, 1139), 
         #'w_set': 'J1226', 'wave_range': (1240, 1295), 
+
+        'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
 
         'file_target': './data/Luhman_16B_J.dat', 
         'file_std': './data/Luhman_16_std_J.dat', 
@@ -31,6 +33,8 @@ config_data = {
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
         'tell_threshold': 0.6, 'sigma_clip_width': 8, 
+
+        'log_P_range': (-4,2), 'n_atm_layers': 35, 
         }, 
     }
 
@@ -51,30 +55,31 @@ free_params = {
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
-    'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
+    #'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
+    #'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
     #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
     #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
-    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
-    'vsini': [(10,35), r'$v\ \sin\ i$'], 
-    'rv': [(15,22), r'$v_\mathrm{rad}$'], 
+    'vsini': [(20,30), r'$v\ \sin\ i$'], 
+    'rv': [(16,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-6,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-4,2), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
     #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    'C/O': [(0,1), r'C/O'], 
+    'C/O': [(0.1,1), r'C/O'], 
     'Fe/H': [(-1.5,1.5), r'[Fe/H]'], 
-    'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
+    'log_P_quench_CO_CH4': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
+    'log_P_quench_N2_NH3': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
     #'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
 
     # PT profile
@@ -93,7 +98,7 @@ constant_params = {
     'epsilon_limb': 0.65, 
 
     # PT profile
-    'log_P_knots': [-6, -2, -2/3, 2/3, 2], 
+    'log_P_knots': [-4, -2, -2/3, 2/3, 2], 
 }
 
 ####################################################################################
@@ -117,6 +122,11 @@ import pyfastchem
 fastchem_path = os.path.dirname(pyfastchem.__file__)
 chem_kwargs = dict(
     #spline_order   = 0
+
+    quench_setup = {
+        'P_quench_CO_CH4': ['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O'], 
+        'P_quench_N2_NH3': ['N2', 'HCN', 'NH3'], 
+        }, 
 
     abundance_file = f'{fastchem_path}/input/element_abundances/asplund_2020.dat', 
     gas_data_file  = f'{fastchem_path}/input/logK/logK.dat', 
@@ -169,14 +179,17 @@ cov_kwargs = dict(
 )
 
 if free_params.get('log_l') is not None:
-    cov_kwargs['max_separation'] = cov_kwargs['trunc_dist'] * 10**free_params['log_l'][0][1]
+    cov_kwargs['max_separation'] = \
+        cov_kwargs['trunc_dist'] * 10**free_params['log_l'][0][1]
 if free_params.get('l') is not None:
-    cov_kwargs['max_separation'] = cov_kwargs['trunc_dist'] * free_params['l'][0][1]
+    cov_kwargs['max_separation'] = \
+        cov_kwargs['trunc_dist'] * free_params['l'][0][1]
 
 if (free_params.get('log_l_K2166') is not None) and \
     (free_params.get('log_l_J1226') is not None):
     cov_kwargs['max_separation'] = cov_kwargs['trunc_dist'] * \
-        10**max([free_params['log_l_K2166'][0][1], free_params['log_l_J1226'][0][1]])
+        10**max([free_params['log_l_K2166'][0][1], \
+                 free_params['log_l_J1226'][0][1]])
 
 ####################################################################################
 # PT parameters

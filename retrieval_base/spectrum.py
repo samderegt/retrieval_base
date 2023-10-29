@@ -43,8 +43,6 @@ class Spectrum:
             [1119.44,1120.33], [1142.78,1143.76], [1167.12,1168.08], 
             [1192.52,1193.49], [1219.01,1220.04], [1246.71,1247.76], 
             [1275.70,1276.80], [1306.05,1307.15], [1337.98,1338.94], 
-            # Mask K I lines
-            [1241,1246], [1251,1255], 
             ])
         }
     n_pixels = 2048
@@ -395,15 +393,24 @@ class DataSpectrum(Spectrum):
 
         self.flux[~mask_wave] = np.nan
 
-    def mask_ghosts(self):
+    def mask_ghosts(self, wave_to_mask=None):
         
+        # Mask user-specified lines
+        if wave_to_mask is not None:
+            for (wave_min, wave_max) in wave_to_mask:
+
+                mask_wave = (self.wave >= wave_min-0.1) & \
+                    (self.wave <= wave_max+0.1)
+                self.flux[mask_wave] = np.nan
+
         if self.ghosts.get(self.w_set) is None:
             return
             
         # Loop over all segments of the ghost signature
         for (wave_min, wave_max) in self.ghosts.get(self.w_set):
 
-            mask_wave = (self.wave >= wave_min-0.1) & (self.wave <= wave_max+0.1)
+            mask_wave = (self.wave >= wave_min-0.1) & \
+                (self.wave <= wave_max+0.1)
             self.flux[mask_wave] = np.nan
 
     def bary_corr(self, replace_wave=True, return_v_bary=False):

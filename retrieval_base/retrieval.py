@@ -108,7 +108,7 @@ def pre_processing(conf, conf_data):
     d_spec.crop_spectrum()
 
     # Remove the ghost signatures
-    d_spec.mask_ghosts()
+    d_spec.mask_ghosts(wave_to_mask=conf_data.get('wave_to_mask'))
 
     # Re-shape the spectrum to a 3-dimensional array
     d_spec.reshape_orders_dets()
@@ -159,8 +159,8 @@ def pre_processing(conf, conf_data):
         cloud_species=conf.cloud_species, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
-        log_P_range=(-6,2), 
-        n_atm_layers=50, 
+        log_P_range=conf_data.get('log_P_range'), 
+        n_atm_layers=conf_data.get('n_atm_layers'), 
         rv_range=conf.free_params['rv'][0], 
         )
 

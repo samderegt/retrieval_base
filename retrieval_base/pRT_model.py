@@ -78,6 +78,10 @@ class pRT_model:
         self.rv_max = max(np.abs(list(rv_range)))
 
         # Define the atmospheric layers
+        if log_P_range is None:
+            log_P_range = (-6,2)
+        if n_atm_layers is None:
+            n_atm_layers = 50
         self.pressure = np.logspace(log_P_range[0], log_P_range[1], n_atm_layers)
 
         # Make the pRT.Radtrans objects

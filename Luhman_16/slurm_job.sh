@@ -8,7 +8,7 @@
 #SBATCH --ntasks=128
 #SBATCH --mem=960G
 
-#SBATCH --job-name=fiducial_J_B_ret_15
+#SBATCH --job-name=fiducial_J_B_ret_16
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -31,11 +31,11 @@ echo "Starting Python script"
 
 # Replace the config file and run pre-processing
 sed -i 's/import config as conf/import config_fiducial_J_B as conf/g' retrieval_script.py
-python retrieval_script.py --pre_processing
+python retrieval_script.py -p
 
 # Run the retrieval and evaluation
-mpiexec -np 128 --bind-to core python retrieval_script.py --retrieval
-mpiexec -np 128 --bind-to core python retrieval_script.py --evaluation
+mpiexec -np 128 --bind-to core python retrieval_script.py -r
+mpiexec -np 128 --bind-to core python retrieval_script.py -e
 
 # Revert to original config file
 sed -i 's/import config_fiducial_J_B as conf/import config as conf/g' retrieval_script.py

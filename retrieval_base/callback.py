@@ -228,7 +228,12 @@ class CallBack:
         af.pickle_save(self.prefix+'data/bestfit_PT.pkl', self.PT)
 
         Chem_to_save = copy.copy(self.Chem)
-        del Chem_to_save.fastchem, Chem_to_save.output, Chem_to_save.input
+        if hasattr(Chem_to_save, 'fastchem'):
+            del Chem_to_save.fastchem
+        if hasattr(Chem_to_save, 'output'):
+            del Chem_to_save.output
+        if hasattr(Chem_to_save, 'input'):
+            del Chem_to_save.input
         af.pickle_save(self.prefix+'data/bestfit_Chem.pkl', Chem_to_save)
 
         for w_set in self.LogLike.keys():
@@ -300,20 +305,19 @@ class CallBack:
 
         elif self.Param.chem_mode in ['eqchem', 'fastchem']:
             
-            if 'log_C_ratio' in self.Param.param_keys:
-                included_params.append('log_C_ratio')
-            
-            if 'log_C13_12_ratio' in self.Param.param_keys:
-                included_params.append('log_C13_12_ratio')
+            for key in self.Param.param_keys:
+                if key.startswith('log_C_ratio'):
+                    included_params.append(key)
+                
+                elif key.startswith('log_C13_12_ratio'):
+                    included_params.append(key)
+                elif key.startswith('log_O18_16_ratio'):
+                    included_params.append(key)
+                elif key.startswith('log_O17_16_ratio'):
+                    included_params.append(key)
 
-            if 'log_O18_16_ratio' in self.Param.param_keys:
-                included_params.append('log_O18_16_ratio')
-            
-            if 'log_O17_16_ratio' in self.Param.param_keys:
-                included_params.append('log_O17_16_ratio')
-            
-            if 'log_P_quench' in self.Param.param_keys:
-                included_params.append('log_P_quench')
+                elif key.startswith('log_P_quench'):
+                    included_params.append(key)
 
             included_params.extend(['C/O', 'Fe/H'])
 

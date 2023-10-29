@@ -16,7 +16,7 @@ class Chemistry:
     # Dictionary with info per molecular/atomic species
     # (pRT_name, pyfc_name, mass, number of (C,O,H) atoms
     species_info = {
-        '12CO':     ('CO_main_iso',            'C1O1',     12.011 + 15.999,            (1,1,0)), 
+        '12CO':    ('CO_main_iso',             'C1O1',     12.011 + 15.999,            (1,1,0)), 
        #'12CO':    ('CO_high',                 'C1O1',     12.011 + 15.999,            (1,1,0)), 
         '13CO':    ('CO_36',                   None,       13.003355 + 15.999,         (1,1,0)), 
        #'13CO':    ('CO_36_high',              None,       13.003355 + 15.999,         (1,1,0)), 
@@ -24,11 +24,11 @@ class Chemistry:
         'C17O':    ('CO_27',                   None,       12.011 + 16.999131,         (1,1,0)), 
   
         'H2O':     ('H2O_pokazatel_main_iso',  'H2O1',     2*1.00784 + 15.999,         (0,1,2)), 
-        'H2O_181': ('H2O_181',                 None,       2*1.00784 + 17.9991610,     (0,1,2)), 
-        'HDO':     ('HDO_voronin',             None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
+       #'H2O_181': ('H2O_181',                 None,       2*1.00784 + 17.9991610,     (0,1,2)), 
+       #'HDO':     ('HDO_voronin',             None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
   
         'CH4':     ('CH4_hargreaves_main_iso', 'C1H4',     12.011 + 4*1.00784,         (1,0,4)), 
-        '13CH4':   ('CH4_31111_hargreaves',    None,       13.003355 + 4*1.00784,      (1,0,4)), 
+       #'13CH4':   ('CH4_31111_hargreaves',    None,       13.003355 + 4*1.00784,      (1,0,4)), 
   
         'NH3':     ('NH3_coles_main_iso',      'H3N1',     14.0067 + 3*1.00784,        (0,0,3)), 
         'HCN':     ('HCN_main_iso',            'C1H1N1_1', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
@@ -47,7 +47,7 @@ class Chemistry:
         'HCl':     ('HCl_main_iso',            'Cl1H1',    1.00784 + 35.453,           (0,0,1)), 
         
         'H2':      ('H2',                      'H2',       2*1.00784,                  (0,0,2)), 
-        'HD':      ('H2_12',                   None,       1.00784 + 2.014,            (0,0,2)), 
+       #'HD':      ('H2_12',                   None,       1.00784 + 2.014,            (0,0,2)), 
 
         'K':       ('K',                       'K',        39.0983,                    (0,0,0)), 
         'Na':      ('Na_allard',               'Na',       22.989769,                  (0,0,0)), 
@@ -155,17 +155,20 @@ class Chemistry:
         self.unquenched_mass_fractions_posterior = None
         self.unquenched_mass_fractions_envelopes = None
 
-    def remove_species(self, species):
+    def remove_species(self):
 
         # Remove the contribution of the specified species
-        for species_i in species:
+        for species_i, remove in self.neglect_species.items():
             
+            if not remove:
+                continue
+
             # Read the name of the pRT line species
             line_species_i = self.read_species_info(species_i, 'pRT_name')
 
-            # Set mass fraction to negligible values
+            # Set abundance to 0 to evaluate species' contribution
             if line_species_i in self.line_species:
-                self.mass_fractions[line_species_i] = 0
+                self.mass_fractions[line_species_i] *= 0
 
     @classmethod
     def read_species_info(cls, species, info_key):
@@ -298,73 +301,34 @@ class FreeChemistry(Chemistry):
         self.FeH = np.mean(self.FeH)
         self.CH = np.mean(self.CH)
 
-        for species_i in self.neglect_species:
-            if self.neglect_species[species_i]:
-                line_species_i = self.read_species_info(species_i, 'pRT_name')
-
-                # Set abundance to 0 to evaluate species' contribution
-                self.mass_fractions[line_species_i] *= 0
+        # Remove certain species
+        self.remove_species()
 
         return self.mass_fractions
 
 class EqChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, **kwargs):
+    def __init__(self, line_species, pressure, quench_setup={}, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)
 
+        # Retrieve the mass ratios of the isotopologues
+        self.mass_ratio_13CO_12CO = self.read_species_info('13CO', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        self.mass_ratio_C18O_12CO = self.read_species_info('C18O', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        self.mass_ratio_C17O_12CO = self.read_species_info('C17O', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        
         # Load the interpolation function
         import petitRADTRANS.poor_mans_nonequ_chem as pm
         self.pm_interpol_abundances = pm.interpol_abundances
 
-        # Retrieve the mass ratios of the isotopologues
-        self.mass_ratio_13CO_12CO = self.read_species_info('13CO', 'mass') / \
-                                    self.read_species_info('12CO', 'mass')
-
-        self.mass_ratio_C18O_12CO = self.read_species_info('C18O', 'mass') / \
-                                    self.read_species_info('12CO', 'mass')
-        self.mass_ratio_H2_18O_H2O = self.read_species_info('H2O_181', 'mass') / \
-                                     self.read_species_info('H2O', 'mass')
-
-    def quench_CO_CH4(self, pm_mass_fractions):
-
-        # Layers to be replaced by a constant abundance
-        mask_quenched = (self.pressure < self.P_quench)
-
-        for i, species_i in enumerate(['CO', 'CH4', 'H2O']):
-            
-            # Store the unquenched abundance profiles
-            line_species_i = self.read_species_info(
-                ['12CO', 'CH4', 'H2O'][i], 'pRT_name'
-                )
-            self.unquenched_mass_fractions[line_species_i] = \
-                np.copy(pm_mass_fractions[species_i])
-
-            # Own implementation of quenching, using interpolation
-            mass_fraction_i = pm_mass_fractions[species_i]
-            mass_fraction_i[mask_quenched] = np.interp(
-                np.log10(self.P_quench), xp=np.log10(self.pressure), fp=mass_fraction_i
-                )
-            #mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
-            #                                           xp=self.pressure, 
-            #                                           fp=mass_fraction_i
-            #                                           )
-            pm_mass_fractions[species_i] = mass_fraction_i
-
-        return pm_mass_fractions
-
-    def __call__(self, params, temperature):
-
-        # Update the parameters
-        self.CO = params['C/O']
-        self.FeH = params['Fe/H']
-        self.P_quench = params['P_quench']
-
-        self.C_ratio = params['C_ratio']
-        self.O_ratio = params['O_ratio']
-
-        self.temperature = temperature
+        # Species to quench per quench pressure
+        self.quench_setup = quench_setup
+        
+    def get_pRT_mass_fractions(self):
 
         # Retrieve the mass fractions from the chem-eq table
         pm_mass_fractions = self.pm_interpol_abundances(
@@ -374,42 +338,114 @@ class EqChemistry(Chemistry):
             self.pressure
             )
         
-        self.mass_fractions = {'MMW': pm_mass_fractions['MMW']}
-
-        if self.P_quench is not None:
-            self.unquenched_mass_fractions = {}
-            pm_mass_fractions = self.quench_CO_CH4(pm_mass_fractions)
-
+        # Fill in the dictionary with the right keys
+        self.mass_fractions = {
+            'MMW': pm_mass_fractions['MMW']
+            }
+        
         for line_species_i in self.line_species:
-            if (line_species_i == 'CO_main_iso') or (line_species_i == 'CO_high'):
+
+            if line_species_i in ['CO_main_iso', 'CO_high']:
                 # 12CO mass fraction
                 self.mass_fractions[line_species_i] = \
-                    (1 - self.C_ratio * self.mass_ratio_13CO_12CO - \
-                     self.O_ratio * self.mass_ratio_C18O_12CO) * pm_mass_fractions['CO']
-
-            elif (line_species_i == 'CO_36') or (line_species_i == 'CO_36_high'):
+                    (1 - self.C13_12_ratio * self.mass_ratio_13CO_12CO - \
+                     self.O18_16_ratio * self.mass_ratio_C18O_12CO - \
+                     self.O17_16_ratio * self.mass_ratio_C17O_12CO
+                    ) * pm_mass_fractions['CO']
+                
+            elif line_species_i in ['CO_36', 'CO_36_high']:
                 # 13CO mass fraction
                 self.mass_fractions[line_species_i] = \
-                    self.C_ratio * self.mass_ratio_13CO_12CO * pm_mass_fractions['CO']
-
-            elif line_species_i == 'CO_28':
+                    self.C13_12_ratio * self.mass_ratio_13CO_12CO * \
+                    pm_mass_fractions['CO']
+            
+            elif line_species_i in ['CO_28', 'CO_28_high']:
                 # C18O mass fraction
                 self.mass_fractions[line_species_i] = \
-                    self.O_ratio * self.mass_ratio_C18O_12CO * pm_mass_fractions['CO']
-
+                    self.O18_16_ratio * self.mass_ratio_C18O_12CO * \
+                    pm_mass_fractions['CO']
+            
+            elif line_species_i in ['CO_27', 'CO_27_high']:
+                # C17O mass fraction
+                self.mass_fractions[line_species_i] = \
+                    self.O17_16_ratio * self.mass_ratio_C17O_12CO * \
+                    pm_mass_fractions['CO']
+                
             else:
-                self.mass_fractions[line_species_i] = pm_mass_fractions[line_species_i.split('_')[0]]
-
+                # All other species
+                self.mass_fractions[line_species_i] = \
+                    pm_mass_fractions[line_species_i.split('_')[0]]
+        
         # Add the H2 and He abundances
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
 
-        for species_i in self.neglect_species:
-            if self.neglect_species[species_i]:
-                line_species_i = self.read_species_info(species_i, 'pRT_name')
+    def quench_chemistry(self, quench_key='P_quench'):
 
-                # Set abundance to 0 to evaluate species' contribution
-                self.mass_fractions[line_species_i] *= 0
+        # Layers to be replaced by a constant abundance
+        mask_quenched = (self.pressure < self.P_quench[quench_key])
+
+        for species_i in self.quench_setup[quench_key]:
+
+            if self.species_info.get(species_i) is None:
+                continue
+
+            line_species_i = self.read_species_info(species_i, 'pRT_name')
+            if not line_species_i in self.line_species:
+                continue
+
+            # Store the unquenched abundance profiles
+            mass_fraction_i = self.mass_fractions[line_species_i]
+            #self.unquenched_mass_fractions[line_species_i] = np.copy(mass_fraction_i)
+            
+            # Own implementation of quenching, using interpolation
+            mass_fraction_i[mask_quenched] = np.interp(
+                np.log10(self.P_quench[quench_key]), 
+                xp=np.log10(self.pressure), fp=mass_fraction_i
+                )
+            self.mass_fractions[line_species_i] = mass_fraction_i
+            #mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
+            #                                           xp=self.pressure, 
+            #                                           fp=mass_fraction_i
+            #                                           )
+
+    def __call__(self, params, temperature):
+
+        # Update the parameters
+        self.CO  = params.get('C/O')
+        self.FeH = params.get('Fe/H')
+
+        self.C13_12_ratio = params.get('C13_12_ratio')
+        self.O18_16_ratio = params.get('O18_16_ratio')
+        self.O17_16_ratio = params.get('O17_16_ratio')
+
+        if self.C13_12_ratio is None:
+            self.C13_12_ratio = 0
+        if self.O18_16_ratio is None:
+            self.O18_16_ratio = 0
+        if self.O17_16_ratio is None:
+            self.O17_16_ratio = 0
+
+        self.temperature = temperature
+
+        # Retrieve the mass fractions
+        self.get_pRT_mass_fractions()
+
+        self.unquenched_mass_fractions = self.mass_fractions.copy()
+        self.P_quench = {}
+        for quench_key, species_to_quench in self.quench_setup.items():
+
+            if params.get(quench_key) is None:
+                continue
+
+            # Add to all quenching points
+            self.P_quench[quench_key] = params.get(quench_key)
+
+            # Quench this chemical network
+            self.quench_chemistry(quench_key)
+
+        # Remove certain species
+        self.remove_species()
 
         return self.mass_fractions
 
@@ -425,6 +461,7 @@ class FastChemistry(Chemistry):
             verbose_level=1, 
             use_eq_cond=True, 
             use_rainout_cond=True, 
+            quench_setup={}, 
             **kwargs
             ):
         
@@ -438,6 +475,9 @@ class FastChemistry(Chemistry):
                                     self.read_species_info('12CO', 'mass')
         self.mass_ratio_C17O_12CO = self.read_species_info('C17O', 'mass') / \
                                     self.read_species_info('12CO', 'mass')
+
+        # Species to quench per quench pressure
+        self.quench_setup = quench_setup
 
         import pyfastchem as pyfc
 
@@ -464,14 +504,13 @@ class FastChemistry(Chemistry):
         #self.fastchem.setParameter('accuracyChem', 1e-5)
         self.fastchem.setParameter('accuracyChem', 1e-4)
 
-        self.fastchem.setParameter('nbIterationsChemCond', 100)
-        self.fastchem.setParameter('nbIterationsChem', 3000)
-        self.fastchem.setParameter('nbIterationsCond', 700)
+        #self.fastchem.setParameter('nbIterationsChemCond', 100)
+        #self.fastchem.setParameter('nbIterationsChem', 3000)
+        #self.fastchem.setParameter('nbIterationsCond', 700)
         
-        self.fastchem.setParameter('nbIterationsNewton', 1000)
-        self.fastchem.setParameter('nbIterationsBisection', 1000)
-        self.fastchem.setParameter('nbIterationsNelderMead', 1000)
-        # ...
+        #self.fastchem.setParameter('nbIterationsNewton', 1000)
+        #self.fastchem.setParameter('nbIterationsBisection', 1000)
+        #self.fastchem.setParameter('nbIterationsNelderMead', 1000)
 
         # Compute the solar abundances, C/O and Fe/H
         self.get_solar_abundances()
@@ -546,12 +585,15 @@ class FastChemistry(Chemistry):
             self.mass_fractions[line_species_i] = \
                 self.VMR[:,index] * mass_i / self.mass_fractions['MMW']
     
-    def quench_chemistry(self, species_to_quench=['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O']):
+    def quench_chemistry(self, quench_key='P_quench'):
 
         # Layers to be replaced by a constant abundance
-        mask_quenched = (self.pressure < self.P_quench)
+        mask_quenched = (self.pressure < self.P_quench[quench_key])
 
-        for species_i in species_to_quench:
+        for species_i in self.quench_setup[quench_key]:
+
+            if self.species_info.get(species_i) is None:
+                continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             if not line_species_i in self.line_species:
@@ -563,9 +605,14 @@ class FastChemistry(Chemistry):
             
             # Own implementation of quenching, using interpolation
             mass_fraction_i[mask_quenched] = np.interp(
-                np.log10(self.P_quench), xp=np.log10(self.pressure), fp=mass_fraction_i
+                np.log10(self.P_quench[quench_key]), 
+                xp=np.log10(self.pressure), fp=mass_fraction_i
                 )
             self.mass_fractions[line_species_i] = mass_fraction_i
+            #mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
+            #                                           xp=self.pressure, 
+            #                                           fp=mass_fraction_i
+            #                                           )
     
     def get_isotope_mass_fractions(self):
         
@@ -605,7 +652,6 @@ class FastChemistry(Chemistry):
         # Update the parameters
         self.CO  = params.get('C/O')
         self.FeH = params.get('Fe/H')
-        self.P_quench = params.get('P_quench')
 
         self.C13_12_ratio = params.get('C13_12_ratio')
         self.O18_16_ratio = params.get('O18_16_ratio')
@@ -652,22 +698,20 @@ class FastChemistry(Chemistry):
         # Obtain the mass fractions for the isotopologues
         self.get_isotope_mass_fractions()
 
-        # Quench the CO-CH4 chemistry
-        if self.P_quench is not None:
-            self.unquenched_mass_fractions = self.mass_fractions.copy()
-            #self.quench_chemistry()
-            self.quench_chemistry(
-                species_to_quench=[
-                    '12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O', 
-                    'NH3', 'HCN', 
-                    ]
-                )
+        self.unquenched_mass_fractions = self.mass_fractions.copy()
+        self.P_quench = {}
+        for quench_key, species_to_quench in self.quench_setup.items():
 
-        for species_i in self.neglect_species:
-            if self.neglect_species[species_i]:
-                line_species_i = self.read_species_info(species_i, 'pRT_name')
+            if params.get(quench_key) is None:
+                continue
 
-                # Set abundance to 0 to evaluate species' contribution
-                self.mass_fractions[line_species_i] *= 0
+            # Add to all quenching points
+            self.P_quench[quench_key] = params.get(quench_key)
+
+            # Quench this chemical network
+            self.quench_chemistry(quench_key)
+
+        # Remove certain species
+        self.remove_species()
 
         return self.mass_fractions

@@ -609,29 +609,30 @@ def fig_VMR(ax_VMR,
 
         if not hasattr(Chem, 'P_quench'):
             continue
-        if not (species_i in ['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O']):
-            continue
 
-        if Chem.P_quench < pressure.min():
-            continue
-        if Chem.P_quench > pressure.max():
-            continue
+        for quench_key, P_quench in Chem.P_quench.items():
 
-        # Place a marker at the quench pressure
-        P_quench_i   = pressure[pressure < Chem.P_quench][-1]
-        VMR_quench_i = VMR_i[pressure < Chem.P_quench][-1]
+            if not (species_i in Chem.quench_setup[quench_key]):
+                continue
 
-        # Interpolate to find the quenched VMR
-        ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
+            if (P_quench < pressure.min()) or (P_quench > pressure.max()):
+                continue
 
-        # Find the un-quenched VMR
-        unquenched_mass_fraction_i = Chem.unquenched_mass_fractions[line_species_i]
-        unquenched_VMR_i = unquenched_mass_fraction_i * MMW/mass_i
+            # Place a marker at the quench pressure
+            P_quench_i   = pressure[pressure < P_quench][-1]
+            VMR_quench_i = VMR_i[pressure < P_quench][-1]
 
-        # Plot volume-mixing ratio as function of pressure
-        ax_VMR.plot(
-            unquenched_VMR_i, pressure, c=color_i, lw=1, ls='--', alpha=0.8
-            )
+            # Interpolate to find the quenched VMR
+            ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
+
+            # Find the un-quenched VMR
+            unquenched_mass_fraction_i = Chem.unquenched_mass_fractions[line_species_i]
+            unquenched_VMR_i = unquenched_mass_fraction_i * MMW/mass_i
+
+            # Plot volume-mixing ratio as function of pressure
+            ax_VMR.plot(
+                unquenched_VMR_i, pressure, c=color_i, lw=1, ls='--', alpha=0.8
+                )
 
     ax_VMR.legend(
         loc='upper left', ncol=2, handlelength=0.5, 
