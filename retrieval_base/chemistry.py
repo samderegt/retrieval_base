@@ -10,6 +10,8 @@ def get_Chemistry_class(line_species, pressure, mode, **kwargs):
         return EqChemistry(line_species, pressure, **kwargs)
     if mode == 'fastchem':
         return FastChemistry(line_species, pressure, **kwargs)
+    if mode == 'SONORAchem':
+        return SONORAChemistry(line_species, pressure, **kwargs)
 
 class Chemistry:
 
@@ -404,10 +406,6 @@ class EqChemistry(Chemistry):
                 xp=np.log10(self.pressure), fp=mass_fraction_i
                 )
             self.mass_fractions[line_species_i] = mass_fraction_i
-            #mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
-            #                                           xp=self.pressure, 
-            #                                           fp=mass_fraction_i
-            #                                           )
 
     def __call__(self, params, temperature):
 
@@ -609,10 +607,6 @@ class FastChemistry(Chemistry):
                 xp=np.log10(self.pressure), fp=mass_fraction_i
                 )
             self.mass_fractions[line_species_i] = mass_fraction_i
-            #mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
-            #                                           xp=self.pressure, 
-            #                                           fp=mass_fraction_i
-            #                                           )
     
     def get_isotope_mass_fractions(self):
         
@@ -697,6 +691,301 @@ class FastChemistry(Chemistry):
 
         # Obtain the mass fractions for the isotopologues
         self.get_isotope_mass_fractions()
+
+        self.unquenched_mass_fractions = self.mass_fractions.copy()
+        self.P_quench = {}
+        for quench_key, species_to_quench in self.quench_setup.items():
+
+            if params.get(quench_key) is None:
+                continue
+
+            # Add to all quenching points
+            self.P_quench[quench_key] = params.get(quench_key)
+
+            # Quench this chemical network
+            self.quench_chemistry(quench_key)
+
+        # Remove certain species
+        self.remove_species()
+
+        return self.mass_fractions
+    
+class SONORAChemistry(Chemistry):
+
+    def __init__(
+            self, 
+            line_species, 
+            pressure, 
+            path_SONORA_chem, 
+            quench_setup={}, 
+            **kwargs
+            ):
+
+        # Give arguments to the parent class
+        super().__init__(line_species, pressure)
+
+        # Retrieve the mass ratios of the isotopologues
+        self.mass_ratio_13CO_12CO = self.read_species_info('13CO', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        self.mass_ratio_C18O_12CO = self.read_species_info('C18O', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        self.mass_ratio_C17O_12CO = self.read_species_info('C17O', 'mass') / \
+                                    self.read_species_info('12CO', 'mass')
+        
+        # Species to quench per quench pressure
+        self.quench_setup = quench_setup
+
+        # Prepare the interpolation functions
+        self.path_SONORA_chem = path_SONORA_chem
+        self.get_interp_func()
+
+    def get_VMR_table(self):
+
+        CO_solar = 0.458
+
+        import glob
+        all_files = np.sort(
+            glob.glob(f'{self.path_SONORA_chem}/*/sonora_*.txt')
+            )
+        all_FeH, all_CO, all_T, all_log_P, all_species = [], [], [], [], []
+        for file_i in all_files:
+            # Re-format the FeH string
+            FeH_i = file_i.split('feh')[-1]
+            FeH_i = FeH_i.split('_')[0]
+            FeH_i = float(FeH_i[:2] + '.' + FeH_i[2:])
+            all_FeH.append(FeH_i)
+
+            # Re-format the C/O string
+            CO_i = file_i.split('co_')[-1]
+            CO_i = CO_i.split('.')[0]
+            CO_i = float(CO_i[:1] + '.' + CO_i[1:])
+            # Scale to the non-solar C/O ratio
+            CO_i *= CO_solar
+            all_CO.append(CO_i)
+
+            # Read the temperatures and pressures
+            T_i, log_P_i = np.loadtxt(file_i, skiprows=1, usecols=(0,1)).T
+            all_T.append(T_i)
+            all_log_P.append(log_P_i)
+
+            species_i = np.loadtxt(file_i, max_rows=1, dtype=str)[4:]
+            all_species.append(species_i)
+
+        # Define the grids
+        self.FeH_grid   = np.unique(all_FeH)
+        self.CO_grid    = np.unique(all_CO)
+        self.T_grid     = np.unique(all_T)
+        self.log_P_grid = np.unique(all_log_P)
+        self.species_grid = all_species[0]
+
+        # Retrieve abundances at each grid point
+        all_VMR = np.nan * np.ones((
+            self.FeH_grid.size, self.CO_grid.size, 
+            self.T_grid.size, self.log_P_grid.size, 
+            self.species_grid.size
+        ))
+        for i, file_i in enumerate(all_files):
+            # Parameter combination
+            FeH_i   = all_FeH[i]
+            CO_i    = all_CO[i]
+            T_i     = all_T[i]
+            log_P_i = all_log_P[i]
+
+            # Obtain the indices for parameter combination
+            idx = [
+                np.argwhere(self.FeH_grid==FeH_i).flatten()[0], 
+                np.argwhere(self.CO_grid==CO_i).flatten()[0], 
+                None, None
+                #np.argwhere(self.T_grid[:,None] == T_i[None,:])[:,0], 
+                #np.argwhere(self.log_P_grid[:,None] == log_P_i[None,:])[:,0], 
+            ]
+            
+            # Fill in the table
+            VMR_i = np.loadtxt(
+                file_i, skiprows=1, usecols=np.arange(2,2+len(self.species_grid),1)
+                )
+            for k, (T_k, log_P_k) in enumerate(zip(T_i, log_P_i)):
+                idx[2] = np.argwhere(self.T_grid==T_k).flatten()[0]
+                idx[3] = np.argwhere(self.log_P_grid==log_P_k).flatten()[0]
+
+                all_VMR[idx[0],idx[1],idx[2],idx[3],:] = VMR_i[k,:]
+
+        # Compute the mean molecular weight at each grid point
+        from molmass import Formula
+        masses = {}
+        for species_i in self.species_grid:
+            try:
+                f = Formula(species_i)
+                mass_i = f.isotope.massnumber
+            except:
+                mass_i = np.nan
+            masses[species_i] = mass_i
+        masses = np.array(list(masses.values()))
+        all_MMW = np.nansum(all_VMR * masses[None,None,None,None,:], axis=-1)
+
+        #print(self.FeH_grid[0], self.CO_grid[0])
+        #print(all_VMR[0,0,:,:,1])
+        #print(all_MMW[0,:,:,0])
+        #exit()
+
+        return all_VMR, all_MMW
+    
+    def get_interp_func(self):
+
+        # Obtain the table
+        all_VMR, all_MMW = self.get_VMR_table()
+
+        # Function to generate interpolation function
+        def func(values):
+            from scipy.interpolate import RegularGridInterpolator
+            points = (
+                self.FeH_grid, self.CO_grid, self.T_grid, self.log_P_grid
+                )
+            interp_func = RegularGridInterpolator(
+                points, values, method='linear', 
+                bounds_error=False, 
+                #bounds_error=True, 
+                #fill_value=np.nan
+                fill_value=None
+            )
+            return interp_func
+
+        # Store the interpolation functions
+        self.interp_func = {
+            'MMW': func(all_MMW)
+            }
+        for species_i in self.species_info.keys():
+
+            line_species_i = self.read_species_info(species_i, 'pRT_name')
+            if (line_species_i not in self.line_species) and \
+                (line_species_i not in ['H2', 'He']):
+                continue
+
+            self.interp_func[species_i] = None
+            
+            if species_i == '12CO':
+                species_i = 'CO'
+            if species_i not in self.species_grid:
+                continue
+
+            idx = (self.species_grid == species_i)
+            self.interp_func[species_i] = func(np.log10(all_VMR[:,:,:,:,idx]))
+
+    def quench_chemistry(self, quench_key='P_quench'):
+
+        # Layers to be replaced by a constant abundance
+        mask_quenched = (self.pressure < self.P_quench[quench_key])
+
+        for species_i in self.quench_setup[quench_key]:
+
+            if self.species_info.get(species_i) is None:
+                continue
+
+            line_species_i = self.read_species_info(species_i, 'pRT_name')
+            if not line_species_i in self.line_species:
+                continue
+
+            # Store the unquenched abundance profiles
+            mass_fraction_i = self.mass_fractions[line_species_i]
+            #self.unquenched_mass_fractions[line_species_i] = np.copy(mass_fraction_i)
+            
+            # Own implementation of quenching, using interpolation
+            mass_fraction_i[mask_quenched] = np.interp(
+                np.log10(self.P_quench[quench_key]), 
+                xp=np.log10(self.pressure), fp=mass_fraction_i
+                )
+            self.mass_fractions[line_species_i] = mass_fraction_i
+
+    def get_pRT_mass_fractions(self, params):
+
+        # Point to interpolate onto
+        point = (self.FeH, self.CO, self.temperature, np.log10(self.pressure))
+
+        VMRs = {}
+        for species_i, func_i in self.interp_func.items():
+
+            if species_i == 'MMW':
+                continue
+
+            if func_i is None:
+                # Use free-chemistry if species not included in table
+                res_i = params[f'log_{species_i}'] * np.ones_like(self.pressure)
+            else:
+                # Interpolate the abundances
+                res_i = func_i(point).flatten()
+
+            if np.isnan(res_i).any():
+                return -np.inf
+            
+            # Abundance interpolation performed in log-space
+            VMRs[species_i] = 10**res_i
+
+        # Fill in the dictionary with the right keys
+        self.mass_fractions = {
+            'MMW': self.interp_func['MMW'](point).flatten()
+            }
+        
+        for line_species_i in self.line_species:
+
+            if line_species_i in ['CO_main_iso', 'CO_high']:
+                # 12CO mass fraction
+                self.mass_fractions[line_species_i] = \
+                    (1 - self.C13_12_ratio - self.O18_16_ratio - self.O17_16_ratio) * VMRs['CO']
+                
+            elif line_species_i in ['CO_36', 'CO_36_high']:
+                # 13CO mass fraction
+                self.mass_fractions[line_species_i] = self.C13_12_ratio * VMRs['CO']
+            
+            elif line_species_i in ['CO_28', 'CO_28_high']:
+                # C18O mass fraction
+                self.mass_fractions[line_species_i] = self.O18_16_ratio * VMRs['CO']
+            
+            elif line_species_i in ['CO_27', 'CO_27_high']:
+                # C17O mass fraction
+                self.mass_fractions[line_species_i] = self.O17_16_ratio * VMRs['CO']
+                
+            else:
+                # All other species
+                self.mass_fractions[line_species_i] = VMRs[line_species_i.split('_')[0]]
+        
+        # Add the H2 and He abundances
+        self.mass_fractions['H2'] = VMRs['H2']
+        self.mass_fractions['He'] = VMRs['He']
+
+        # Convert from VMRs to mass fractions
+        for species_i in self.species_info.keys():
+            line_species_i = self.read_species_info(species_i, 'pRT_name')
+            mass_i = self.read_species_info(species_i, 'mass')
+
+            if line_species_i not in self.line_species:
+                continue
+
+            #print(self.mass_fractions[line_species_i].shape)
+            self.mass_fractions[line_species_i] *= mass_i / self.mass_fractions['MMW']
+    
+    def __call__(self, params, temperature):
+
+        # Update the parameters
+        self.CO  = params.get('C/O')
+        self.FeH = params.get('Fe/H')
+
+        self.C13_12_ratio = params.get('C13_12_ratio')
+        self.O18_16_ratio = params.get('O18_16_ratio')
+        self.O17_16_ratio = params.get('O17_16_ratio')
+
+        if self.C13_12_ratio is None:
+            self.C13_12_ratio = 0
+        if self.O18_16_ratio is None:
+            self.O18_16_ratio = 0
+        if self.O17_16_ratio is None:
+            self.O17_16_ratio = 0
+
+        self.temperature = temperature
+
+        # Retrieve the mass fractions
+        res = self.get_pRT_mass_fractions(params)
+        if res is not None:
+            return -np.inf
 
         self.unquenched_mass_fractions = self.mass_fractions.copy()
         self.P_quench = {}

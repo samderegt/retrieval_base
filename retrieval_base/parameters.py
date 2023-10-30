@@ -62,7 +62,7 @@ class Parameters:
 
         # Check the used chemistry type
         self.chem_mode = chem_mode
-        assert(self.chem_mode in ['eqchem', 'free', 'fastchem'])
+        assert(self.chem_mode in ['eqchem', 'free', 'fastchem', 'SONORAchem'])
         
         # Check the used cloud type
         self.cloud_mode = cloud_mode
@@ -303,7 +303,7 @@ class Parameters:
 
     def read_chemistry_params(self):
 
-        if self.chem_mode in ['eqchem', 'fastchem']:
+        if self.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
             # Use chemical equilibrium
             self.VMR_species = None
 

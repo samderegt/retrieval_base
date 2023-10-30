@@ -303,7 +303,7 @@ class CallBack:
                 )
                 included_params.extend(['C/O', 'C/H'])
 
-        elif self.Param.chem_mode in ['eqchem', 'fastchem']:
+        elif self.Param.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
             
             for key in self.Param.param_keys:
                 if key.startswith('log_C_ratio'):

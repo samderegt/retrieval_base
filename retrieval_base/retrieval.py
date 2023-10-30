@@ -313,6 +313,13 @@ class Retrieval:
             # Temperatures too low for reasonable FastChem convergence
             return -np.inf
         
+        '''
+        if ((temperature.min() < 75) or (temperature.max() > 4000)) and \
+            (self.Param.chem_mode=='SONORAchem'):
+            # Temperatures outside of SONORA chem-eq. range
+            return -np.inf
+        '''
+        
         if temperature.min() < 0:
             # Negative temperatures are rejected
             return -np.inf
@@ -325,7 +332,7 @@ class Retrieval:
         # Retrieve the chemical abundances
         if self.Param.chem_mode == 'free':
             mass_fractions = self.Chem(self.Param.VMR_species, self.Param.params)
-        elif self.Param.chem_mode in ['eqchem', 'fastchem']:
+        elif self.Param.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
             mass_fractions = self.Chem(self.Param.params, temperature)
 
         if not isinstance(mass_fractions, dict):
