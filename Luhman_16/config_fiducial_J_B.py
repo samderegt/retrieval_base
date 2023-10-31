@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_17'
+prefix = 'fiducial_J_B_ret_18'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -55,8 +55,8 @@ free_params = {
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    #'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
-    #'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
+    'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
+    'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
     #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
     #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
 
@@ -222,4 +222,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-n_iter_before_update = 400
+n_iter_before_update = 200

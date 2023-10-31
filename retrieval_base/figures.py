@@ -464,9 +464,9 @@ def fig_PT(PT,
         
     ax_PT.set(
         xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 
-        ylabel=ylabel, ylim=(PT.pressure.min(), PT.pressure.max()), 
-        yscale='log', yticks=yticks
+        ylabel=ylabel, yscale='log', yticks=yticks
         )
+    ax_PT.set_ylim(PT.pressure.min(), PT.pressure.max())
     ax_PT.invert_yaxis()
 
     for w_set in pRT_atm.keys():

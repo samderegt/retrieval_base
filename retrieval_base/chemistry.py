@@ -860,11 +860,12 @@ class SONORAChemistry(Chemistry):
             if (line_species_i not in self.line_species) and \
                 (line_species_i not in ['H2', 'He']):
                 continue
-
-            self.interp_func[species_i] = None
             
             if species_i == '12CO':
                 species_i = 'CO'
+
+            self.interp_func[species_i] = None
+
             if species_i not in self.species_grid:
                 continue
 
@@ -908,6 +909,8 @@ class SONORAChemistry(Chemistry):
                 continue
 
             if func_i is None:
+                if params.get(f'log_{species_i}') is None:
+                    continue
                 # Use free-chemistry if species not included in table
                 res_i = params[f'log_{species_i}'] * np.ones_like(self.pressure)
             else:
