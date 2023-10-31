@@ -313,13 +313,6 @@ class Retrieval:
             # Temperatures too low for reasonable FastChem convergence
             return -np.inf
         
-        '''
-        if ((temperature.min() < 75) or (temperature.max() > 4000)) and \
-            (self.Param.chem_mode=='SONORAchem'):
-            # Temperatures outside of SONORA chem-eq. range
-            return -np.inf
-        '''
-        
         if temperature.min() < 0:
             # Negative temperatures are rejected
             return -np.inf
@@ -410,6 +403,8 @@ class Retrieval:
         # Run the function
         returned = []
         for i in range(low, high):
+            if i >= len(iterable):
+                break
             returned_i = func(iterable[i], **kwargs)
             returned.append(returned_i)
 
