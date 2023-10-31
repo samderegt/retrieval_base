@@ -55,7 +55,7 @@ free_params = {
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-1,0.2), r'$\log\ a_\mathrm{J}$'], 
+    'log_a': [(-1,0.4), r'$\log\ a_\mathrm{J}$'], 
     'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{J}$'], 
     #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
     #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
@@ -71,7 +71,7 @@ free_params = {
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-4,2), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-5,2), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
     #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
 
@@ -84,10 +84,10 @@ free_params = {
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
 
     # PT profile
-    'dlnT_dlnP_0': [(0.12, 0.29), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_0': [(0.12, 0.5), r'$\nabla_{T,0}$'], 
     'dlnT_dlnP_1': [(0.13,0.32), r'$\nabla_{T,1}$'], 
     'dlnT_dlnP_2': [(0.03,0.23), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.0,0.13), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_3': [(0.0,0.2), r'$\nabla_{T,3}$'], 
     'dlnT_dlnP_4': [(-0.03,0.13), r'$\nabla_{T,4}$'], 
     'T_0': [(2000,5000), r'$T_0$'], 
 }
