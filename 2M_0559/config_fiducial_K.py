@@ -6,32 +6,29 @@ file_params = 'config_fiducial_J.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_ret_1'
+prefix = 'fiducial_K_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
-    'J1226': {
-        'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        #'w_set': 'J1226', 'wave_range': (1240, 1266), 
-        #'w_set': 'J1226', 'wave_range': (1115, 1139), 
+    'K2166': {
+        'w_set': 'K2166', 'wave_range': (1900, 2500), 
 
-        'file_target': './data/2M_0559_J.dat', 
-        'file_std': './data/2M_0559_std_J.dat', 
-        'file_wave': './data/2M_0559_std_J.dat', 
-        'file_skycalc_transm': f'./data/skycalc_transm_J1226.dat', 
+        'file_target': './data/2M_0559_K.dat', 
+        'file_std': './data/2M_0559_std_K.dat', 
+        'file_wave': './data/2M_0559_K.dat', 
+        'file_skycalc_transm': f'./data/skycalc_transm_K2166.dat', 
 
-        'filter_2MASS': '2MASS/2MASS.J', 
+        'filter_2MASS': '2MASS/2MASS.Ks', 
         'pwv': 10.0, 
 
         'ra': 89.834193, 'dec': -14.08239, 'mjd': 59977.26137825, 
         'ra_std': 90.460453, 'dec_std': -10.59824, 'mjd_std': 59977.20176338, 
 
-        'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         'T_std': 16258, 'log_g_std': 3.5, 'rv_std': -39.00, 'vsini_std':45, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.6, 'sigma_clip_width': 8, 
-
+        'tell_threshold': 0.8, 'sigma_clip_width': 8, 
+    
         'log_P_range': (-5,3), 'n_atm_layers': 50, 
         }, 
     }
@@ -60,13 +57,13 @@ free_params = {
     #'log_l': [(-2,0.4), r'$\log\ l_\mathrm{J}$'], 
 
     # General properties
-    'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
-    'vsini': [(0,40), r'$v\ \sin\ i$'], 
-    'rv': [(-25,-5), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10,30), r'$v\ \sin\ i$'], 
+    'rv': [(-20,-10), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -78,7 +75,7 @@ free_params = {
     'C/O': [(0.15,1), r'C/O'], 
     'Fe/H': [(-1,1), r'[Fe/H]'], 
     'log_P_quench_CO_CH4': [(-5,3), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
-    #'log_P_quench_N2_NH3': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
+    'log_P_quench_N2_NH3': [(-5,3), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
     #'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
     #'log_O18_16_ratio': [(-10,0), r'$\log\ \mathrm{^{18}O/^{16}O}$'], 
     #'log_O17_16_ratio': [(-10,0), r'$\log\ \mathrm{^{17}C/^{16}O}$'], 
@@ -145,7 +142,7 @@ chem_kwargs = dict(
 )
 
 line_species = [
-    #'CO_main_iso', 
+    'CO_main_iso', 
     #'CO_36', 
     #'CO_28', 
     #'CO_27', 
@@ -158,23 +155,26 @@ line_species = [
     'HF_main_iso', 
     'HCl_main_iso', 
 
-    #'HCN_main_iso', 
-    #'CO2_main_iso', 
+    'HCN_main_iso', 
+    'CO2_main_iso', 
 
-    'FeH_main_iso', 
+    #'FeH_main_iso', 
 
     #'TiO_48_Exomol_McKemmish', 
     #'VO_ExoMol_McKemmish', 
 
-    'K', 
-    'Na_allard', 
-    'Fe', 
+    #'K', 
+    #'Na_allard', 
+    #'Fe', 
     ]
 species_to_plot_VMR = [
-    #'12CO', '13CO', 'C18O', 'C17O', 'HCN', 'CO2', 
-    'H2O', 'CH4', 'NH3', 'H2S', 'FeH', #'TiO', 'VO', 
-    'K', 'Na', 'Fe', 
+    '12CO', 'HCN', 'CO2', 
+    'H2O', 'CH4', 'NH3', 'H2S', 
     'HF', 'HCl', 
+    #'12CO', '13CO', 'C18O', 'C17O', 'HCN', 'CO2', 
+    #'H2O', 'CH4', 'NH3', 'H2S', 'FeH', #'TiO', 'VO', 
+    #'K', 'Na', 'Fe', 
+    #'HF', 'HCl', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
@@ -232,6 +232,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 200
-#n_live_points = 20
-n_iter_before_update = 100
-#n_iter_before_update = 5
+n_iter_before_update = 200
