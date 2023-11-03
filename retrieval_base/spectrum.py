@@ -743,7 +743,7 @@ class DataSpectrum(Spectrum):
         transm_skycalc = transm_skycalc.flatten()
         
         # Convert [um] -> [nm]
-        wave_skycalc = wave_skycalc.value * 1e3
+        wave_skycalc = wave_skycalc.value# * 1e3
 
         # Apply instrumental broadening
         transm_skycalc = self.instr_broadening(
