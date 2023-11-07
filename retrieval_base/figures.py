@@ -585,6 +585,9 @@ def fig_VMR(ax_VMR,
 
         if Chem.mass_fractions_envelopes is not None:
 
+            # Median MMW
+            MMW = Chem.mass_fractions_envelopes['MMW'][3]
+
             x1 = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][1]
             x2 = MMW/mass_i * Chem.mass_fractions_envelopes[line_species_i][-2]
 
@@ -623,10 +626,13 @@ def fig_VMR(ax_VMR,
             VMR_quench_i = VMR_i[pressure < P_quench][-1]
 
             # Interpolate to find the quenched VMR
-            ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
+            #ax_VMR.scatter(VMR_quench_i, P_quench_i, c=color_i, s=20, marker='_')
 
             # Find the un-quenched VMR
             unquenched_mass_fraction_i = Chem.unquenched_mass_fractions[line_species_i]
+            if Chem.mass_fractions_envelopes is not None:
+                unquenched_mass_fraction_i = Chem.mass_fractions_envelopes[line_species_i][3]
+
             unquenched_VMR_i = unquenched_mass_fraction_i * MMW/mass_i
 
             # Plot volume-mixing ratio as function of pressure

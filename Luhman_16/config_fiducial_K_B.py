@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_3'
+prefix = 'fiducial_K_B_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -75,18 +75,19 @@ free_params = {
     # Chemistry
     'C/O': [(0.15,1), r'C/O'], 
     'Fe/H': [(-1,1), r'[Fe/H]'], 
-    'log_P_quench_CO_CH4': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
-    'log_P_quench_N2_NH3': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
+    'log_P_quench_CO_CH4': [(-5,2), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
+    'log_P_quench_N2_NH3': [(-5,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
     'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
     'log_O18_16_ratio': [(-10,0), r'$\log\ \mathrm{^{18}O/^{16}O}$'], 
     'log_O17_16_ratio': [(-10,0), r'$\log\ \mathrm{^{17}C/^{16}O}$'], 
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
+    'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
 
     # PT profile
-    'dlnT_dlnP_0': [(0.12, 0.5), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_0': [(0.12, 0.29), r'$\nabla_{T,0}$'], 
     'dlnT_dlnP_1': [(0.13,0.32), r'$\nabla_{T,1}$'], 
     'dlnT_dlnP_2': [(0.03,0.23), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.0,0.2), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_3': [(0.0,0.14), r'$\nabla_{T,3}$'], 
     'dlnT_dlnP_4': [(-0.03,0.13), r'$\nabla_{T,4}$'], 
     'T_0': [(2000,5000), r'$T_0$'], 
 }
@@ -125,7 +126,8 @@ chem_kwargs = dict(
 
     quench_setup = {
         'P_quench_CO_CH4': ['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O'], 
-        'P_quench_N2_NH3': ['N2', 'HCN', 'NH3'], 
+        #'P_quench_N2_NH3': ['N2', 'HCN', 'NH3'], 
+        'P_quench_N2_NH3': ['N2', 'NH3'], 
         }, 
     
     path_SONORA_chem = '../SONORA_models/chemistry', 
@@ -152,6 +154,7 @@ line_species = [
 
     'H2S_ExoMol_main_iso', 
     'HF_main_iso', 
+    'HCl_main_iso', 
 
     'HCN_main_iso', 
     'CO2_main_iso', 
