@@ -68,23 +68,43 @@ def pre_processing(conf, conf_data):
     # Instance of the Photometry class for the given magnitudes
     photom_2MASS = Photometry(magnitudes=conf.magnitudes)
 
-    # Get transmission from telluric std and add to target's class
-    #d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
-    d_std_spec.get_transmission(
-        T=conf_data['T_std'], log_g=conf_data['log_g_std'], 
-        ref_rv=conf_data['rv_std'], ref_vsini=conf_data['vsini_std'], 
-        #mode='bb'
-        mode='PHOENIX'
-        )
-    
-    # Interpolate onto the same wavelength grid as the target
-    d_std_spec.transm = np.interp(
-        d_spec.wave, d_std_spec.wave, d_std_spec.transm
-        )
-    d_std_spec.transm_err = np.interp(
-        d_spec.wave, d_std_spec.wave, d_std_spec.transm_err
-        )
-    d_spec.add_transmission(d_std_spec.transm, d_std_spec.transm_err)
+    if conf_data.get('file_molecfit_transm') is None:
+        # Get transmission from telluric std and add to target's class
+        #d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
+        d_std_spec.get_transm(
+            T=conf_data['T_std'], log_g=conf_data['log_g_std'], 
+            ref_rv=conf_data['rv_std'], ref_vsini=conf_data['vsini_std'], 
+            #mode='bb'
+            mode='PHOENIX'
+            )
+        
+        # Interpolate onto the same wavelength grid as the target
+        d_std_spec.transm = np.interp(
+            d_spec.wave, d_std_spec.wave, d_std_spec.transm
+            )
+        d_std_spec.transm_err = np.interp(
+            d_spec.wave, d_std_spec.wave, d_std_spec.transm_err
+            )
+        d_spec.add_transm(d_std_spec.transm, d_std_spec.transm_err)
+
+    else:
+        #print(d_spec.wave[0])
+        #print(d_std_spec.wave[0])
+        # Load the molecfit transmission spectrum
+        d_spec.load_molecfit_transm(
+            conf_data['file_molecfit_transm'], 
+            T=1500, 
+            tell_threshold=conf_data['tell_threshold']
+            )
+        d_std_spec.load_molecfit_transm(
+            conf_data['file_std_molecfit_transm'], 
+            T=conf_data['T_std'], 
+            tell_threshold=conf_data['tell_threshold']
+            )
+        
+        #d_spec.transm = np.copy(d_std_spec.transm)
+        d_spec.throughput = np.copy(d_std_spec.throughput)
+
     del d_std_spec
 
     # Apply flux calibration using the 2MASS broadband magnitude
@@ -94,6 +114,7 @@ def pre_processing(conf, conf_data):
         tell_threshold=conf_data['tell_threshold'], 
         prefix=conf.prefix, 
         file_skycalc_transm=conf_data['file_skycalc_transm'], 
+        molecfit=(conf_data.get('file_molecfit_transm') is not None)
         )
     del photom_2MASS
 

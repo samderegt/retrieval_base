@@ -55,15 +55,17 @@ def fig_flux_calib_2MASS(wave,
     ax[0].plot(wave, calib_flux, c='k', lw=0.5, 
                label=r'$F_\mathrm{CRIRES}/T_\mathrm{CRIRES}$'
                )
-    ax[0].set(ylim=(0, 1.5*np.nanpercentile(calib_flux, q=95)), 
+    ax[0].set(#ylim=(0, 1.5*np.nanpercentile(calib_flux, q=95)), 
               ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 
               )
     ax[0].legend(loc='upper left')
     
     ax[1].plot(wave, transm, c='k', lw=0.5, label=r'$T_\mathrm{CRIRES}$')
-    #ax[1].plot(wave, transm/poly_model, c='k', lw=0.5, alpha=0.5)
-    ax[1].plot(wave, poly_model, c='gray', lw=1)
-    ax[1].plot(wave, tell_threshold*poly_model, c='gray', lw=1, ls='--')
+    if isinstance(tell_threshold, np.ndarray):
+        ax[1].plot(wave, poly_model, c='gray', lw=1)
+        ax[1].plot(wave, tell_threshold, c='gray', lw=1, ls='--')
+    else:
+        ax[1].axhline(tell_threshold, c='gray', lw=1, ls='--')
     ax[1].plot(wave_2MASS, transm_2MASS, c='r', lw=1, label=r'$T_\mathrm{2MASS}$')
     ax[1].set(xlim=(wave.min()-20, wave.max()+20), xlabel=r'Wavelength (nm)', 
               ylim=(0,1.1), ylabel=r'Transmissivity'
@@ -92,8 +94,8 @@ def fig_flux_calib_2MASS(wave,
             mask_wave = np.arange(i*3*2048, (i+1)*3*2048, dtype=int)
 
             ax[i].plot(
-                wave[mask_wave], 
-                (calib_flux_wo_tell_corr/poly_model)[mask_wave], 
+                wave[mask_wave], calib_flux_wo_tell_corr[mask_wave], 
+                #(calib_flux_wo_tell_corr/poly_model)[mask_wave], 
                 c='k', lw=0.5, alpha=0.4
                 )
             ax[i].plot(wave[mask_wave], calib_flux[mask_wave], c='k', lw=0.5)

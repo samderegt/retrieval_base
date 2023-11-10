@@ -298,7 +298,6 @@ class Spectrum:
 
         return integral1/integral2
 
-    
 class DataSpectrum(Spectrum):
 
     def __init__(self, 
@@ -357,9 +356,6 @@ class DataSpectrum(Spectrum):
                 wave.append(wave_i)
                 flux.append(flux_i)
                 err.append(err_i)
-
-                # TODO: apply wavelength correction for each run and then combine
-                # (or fit for the nights separately?)
             
             wave = np.nanmean(np.array(wave), axis=0)
             flux = np.nansum(np.array(flux), axis=0)
@@ -522,8 +518,7 @@ class DataSpectrum(Spectrum):
 
                     #flux_ij  = self.flux[i,j,mask_ij]
                     #self.err_eff[i,j] = np.std(flux_ij)
-                    #self.flux_eff[i,j] = np.sqrt(1/2*(flux_ij[None,:]**2 + flux_ij[:,None]**2))
-                    
+                    #self.flux_eff[i,j] = np.sqrt(1/2*(flux_ij[None,:]**2 + flux_ij[:,None]**2))              
 
     def clip_det_edges(self, n_edge_pixels=30):
         
@@ -535,12 +530,43 @@ class DataSpectrum(Spectrum):
                 idx_high = self.n_pixels * (i*self.n_dets + j + 1)
 
                 self.flux[idx_low : idx_low + n_edge_pixels]   = np.nan
-                self.flux[idx_high : idx_high - n_edge_pixels] = np.nan
+                self.flux[idx_high - n_edge_pixels : idx_high] = np.nan
 
         # Update the isfinite mask
         self.update_isfinite_mask()
 
-    def get_transmission(self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb'):
+    def load_molecfit_transm(self, file_transm, T=10000, tell_threshold=0.0):
+
+        # Load the pre-computed transmission from molecfit
+        self.wave_transm, self.transm = np.loadtxt(file_transm).T
+
+        # Confirm that we are using the same wavelength grid
+        assert((self.wave == self.wave_transm).all())
+
+        mask_high_transm = (self.transm > tell_threshold)
+
+        # Retrieve a Planck spectrum for the given temperature
+        ref_flux = 2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
+                    1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)
+        
+        mask = (self.mask_isfinite & mask_high_transm)
+        p = np.polyfit(
+            self.wave[mask].flatten(), 
+            (self.flux/self.transm / ref_flux)[mask].flatten(), deg=2
+            )
+        self.throughput = np.poly1d(p)(self.wave)
+    
+        '''
+        import matplotlib.pyplot as plt
+        plt.plot(self.wave[mask], (self.flux/self.transm / ref_flux)[mask])
+        plt.plot(self.wave, self.throughput)
+        plt.ylim(0, self.throughput.max()*1.3)
+        plt.show()
+        #'''
+
+    def get_transm(
+            self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb', 
+            ):
 
         lines_to_mask = [1282.0, 1945.09,2166.12]
         mask_width = [7, 10,10]
@@ -604,7 +630,7 @@ class DataSpectrum(Spectrum):
         self.transm_err = self.err / ref_flux 
         self.transm_err /= np.nanmax(self.flux / ref_flux)
 
-    def add_transmission(self, transm, transm_err):
+    def add_transm(self, transm, transm_err):
         
         # Add transmission (e.g. from another instance) as attributes
         self.transm     = transm
@@ -613,48 +639,72 @@ class DataSpectrum(Spectrum):
         # Update the isfinite mask
         self.update_isfinite_mask(transm)
 
-    def flux_calib_2MASS(self, photom_2MASS, filter_2MASS, tell_threshold=0.2, replace_flux_err=True, prefix=None, file_skycalc_transm=None):
+    def flux_calib_2MASS(
+            self, 
+            photom_2MASS, 
+            filter_2MASS, 
+            tell_threshold=0.2, 
+            replace_flux_err=True, 
+            prefix=None, 
+            file_skycalc_transm=None, 
+            molecfit=False
+            ):
 
-        # Retrieve an approximate telluric transmission spectrum
-        wave_skycalc, transm_skycalc = self.get_skycalc_transm(
-            file_skycalc_transm=file_skycalc_transm
-            )
+        if molecfit:
 
-        # Interpolate onto the data wavelength grid
-        transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
+            # Apply correction for telluric transmission
+            tell_corr_flux = self.flux / self.transm / self.throughput
+            # Replace the deepest tellurics with NaNs
+            tell_corr_flux[self.transm < tell_threshold] = np.nan
 
-        #mask_high_transm = (transm_skycalc > 0.99)
-        #mask_high_transm = (transm_skycalc > 0.98)
-        mask_high_transm = (transm_skycalc > 0.95)
+            # Update the NaN mask
+            self.update_isfinite_mask(tell_corr_flux)
 
-        poly_model = np.nan * np.ones_like(self.wave)
-        for j in range(self.n_dets):
+            tell_corr_err = self.err / self.transm / self.throughput
 
-            # Select the spectrum within this order
-            mask_det = np.zeros_like(self.wave, dtype=bool)
+        else:
 
-            for i in range(self.n_orders):
-                wave_min, wave_max = self.order_wlen_ranges[i,j]
-                mask_det[(self.wave.flatten() >= wave_min-0.5) & \
-                    (self.wave.flatten() <= wave_max+0.5)] = True
-
-            # Linear fit to the continuum, where telluric absorption is minimal
-            p = np.polyfit(
-                self.wave[mask_det & mask_high_transm & self.mask_isfinite].flatten(), 
-                self.transm[mask_det & mask_high_transm & self.mask_isfinite].flatten(), deg=1
+            # Retrieve an approximate telluric transmission spectrum
+            wave_skycalc, transm_skycalc = self.get_skycalc_transm(
+                file_skycalc_transm=file_skycalc_transm
                 )
-            poly_model[mask_det] = np.poly1d(p)(self.wave[mask_det])
 
-        # Apply correction for telluric transmission
-        tell_corr_flux = self.flux / self.transm
-        # Replace the deepest tellurics with NaNs
-        tell_corr_flux[(self.transm/poly_model / np.nanmax(self.transm/poly_model)) < tell_threshold] = np.nan
-        # Update the NaN mask
-        self.update_isfinite_mask(tell_corr_flux)
+            # Interpolate onto the data wavelength grid
+            transm_skycalc = np.interp(self.wave, xp=wave_skycalc, fp=transm_skycalc)
 
-        tell_corr_err = np.sqrt((self.err/self.transm)**2 + \
-                                (tell_corr_flux*self.transm_err/self.transm)**2
-                                )
+            #mask_high_transm = (transm_skycalc > 0.99)
+            #mask_high_transm = (transm_skycalc > 0.98)
+            mask_high_transm = (transm_skycalc > 0.95)
+
+            self.throughput = np.nan * np.ones_like(self.wave)
+            for j in range(self.n_dets):
+
+                # Select the spectrum within this order
+                mask_det = np.zeros_like(self.wave, dtype=bool)
+
+                for i in range(self.n_orders):
+                    wave_min, wave_max = self.order_wlen_ranges[i,j]
+                    mask_det[(self.wave.flatten() >= wave_min-0.5) & \
+                        (self.wave.flatten() <= wave_max+0.5)] = True
+
+                # Linear fit to the continuum, where telluric absorption is minimal
+                p = np.polyfit(
+                    self.wave[mask_det & mask_high_transm & self.mask_isfinite].flatten(), 
+                    self.transm[mask_det & mask_high_transm & self.mask_isfinite].flatten(), deg=1
+                    )
+                self.throughput[mask_det] = np.poly1d(p)(self.wave[mask_det])
+
+            # Apply correction for telluric transmission
+            tell_corr_flux = self.flux / self.transm
+            # Replace the deepest tellurics with NaNs
+            tell_threshold *= self.throughput
+            tell_corr_flux[(self.transm / np.nanmax(self.transm)) < tell_threshold] = np.nan
+            # Update the NaN mask
+            self.update_isfinite_mask(tell_corr_flux)
+
+            tell_corr_err = np.sqrt((self.err/self.transm)**2 + \
+                                    (tell_corr_flux*self.transm_err/self.transm)**2
+                                    )
 
         # Read in the transmission curve of the broadband instrument
         wave_2MASS, transm_2MASS = photom_2MASS.transm_curves[filter_2MASS].T
@@ -684,11 +734,11 @@ class DataSpectrum(Spectrum):
         figs.fig_flux_calib_2MASS(
             wave=self.wave, 
             calib_flux=calib_flux, 
-            #calib_flux_wo_tell_corr=self.flux*poly_model*calib_flux, 
-            calib_flux_wo_tell_corr=self.flux*calib_factor, 
-            #transm=self.transm/poly_model, 
+            calib_flux_wo_tell_corr=(self.flux/self.throughput)*calib_factor, 
+            #calib_flux_wo_tell_corr=self.flux*calib_factor, 
+            #transm=self.transm/self.throughput, 
             transm=self.transm, 
-            poly_model=poly_model, 
+            poly_model=self.throughput, 
             wave_2MASS=wave_2MASS, 
             transm_2MASS=photom_2MASS.transm_curves[filter_2MASS].T[1], 
             tell_threshold=tell_threshold, 
@@ -697,12 +747,13 @@ class DataSpectrum(Spectrum):
             w_set=self.w_set, 
             )
 
-        self.transm /= poly_model
-        #self.transm /= np.nanmax(self.transm)
+        if not molecfit:
+            self.transm /= self.throughput
+            #self.transm /= np.nanmax(self.transm)
         
         self.flux_uncorr = None
         if replace_flux_err:
-            self.flux_uncorr = (self.flux/poly_model)*calib_factor
+            self.flux_uncorr = (self.flux/self.throughput)*calib_factor
 
             self.flux = calib_flux
             self.err  = calib_err
@@ -827,7 +878,6 @@ class ModelSpectrum(Spectrum):
         self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:
             self.rebin(d_wave, replace_wave_flux=True)
-
 
 class Photometry:
 
