@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_6'
+prefix = 'fiducial_K_B_ret_7'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -133,7 +133,8 @@ cloud_species = None
 ####################################################################################
 
 #chem_mode  = 'free'
-chem_mode  = 'SONORAchem'
+#chem_mode  = 'SONORAchem'
+chem_mode  = 'eqchem'
 
 #import pyfastchem
 #fastchem_path = os.path.dirname(pyfastchem.__file__)
@@ -146,7 +147,7 @@ chem_kwargs = dict(
     #    'P_quench_N2_NH3': ['N2', 'NH3'], 
         }, 
 
-    path_SONORA_chem = '../SONORA_models/chemistry', 
+    #path_SONORA_chem = '../SONORA_models/chemistry', 
 
     #abundance_file = f'{fastchem_path}/input/element_abundances/asplund_2020.dat', 
     #gas_data_file  = f'{fastchem_path}/input/logK/logK.dat', 
@@ -176,10 +177,10 @@ line_species = [
     'CO2_main_iso', 
     ]
 species_to_plot_VMR = [
-    '12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCN', 'CO2'
+    '12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCl', 'HCN', 'CO2'
     ]
 species_to_plot_CCF = [
-    '12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCN', 'CO2'
+    '12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCl', 'HCN', 'CO2'
     ]
 
 ####################################################################################

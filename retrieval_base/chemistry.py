@@ -330,7 +330,7 @@ class EqChemistry(Chemistry):
         # Species to quench per quench pressure
         self.quench_setup = quench_setup
         
-    def get_pRT_mass_fractions(self):
+    def get_pRT_mass_fractions(self, params):
 
         # Retrieve the mass fractions from the chem-eq table
         pm_mass_fractions = self.pm_interpol_abundances(
@@ -354,33 +354,52 @@ class EqChemistry(Chemistry):
                      self.O18_16_ratio * self.mass_ratio_C18O_12CO - \
                      self.O17_16_ratio * self.mass_ratio_C17O_12CO
                     ) * pm_mass_fractions['CO']
+                continue
                 
-            elif line_species_i in ['CO_36', 'CO_36_high']:
+            if line_species_i in ['CO_36', 'CO_36_high']:
                 # 13CO mass fraction
                 self.mass_fractions[line_species_i] = \
                     self.C13_12_ratio * self.mass_ratio_13CO_12CO * \
                     pm_mass_fractions['CO']
+                continue
             
-            elif line_species_i in ['CO_28', 'CO_28_high']:
+            if line_species_i in ['CO_28', 'CO_28_high']:
                 # C18O mass fraction
                 self.mass_fractions[line_species_i] = \
                     self.O18_16_ratio * self.mass_ratio_C18O_12CO * \
                     pm_mass_fractions['CO']
+                continue
             
-            elif line_species_i in ['CO_27', 'CO_27_high']:
+            if line_species_i in ['CO_27', 'CO_27_high']:
                 # C17O mass fraction
                 self.mass_fractions[line_species_i] = \
                     self.O17_16_ratio * self.mass_ratio_C17O_12CO * \
                     pm_mass_fractions['CO']
-                
-            else:
-                # All other species
-                self.mass_fractions[line_species_i] = \
-                    pm_mass_fractions[line_species_i.split('_')[0]]
+                continue
+
+            # All other species    
+            species_i = line_species_i.split('_')[0]
+            self.mass_fractions[line_species_i] = pm_mass_fractions.get(species_i)
         
         # Add the H2 and He abundances
         self.mass_fractions['H2'] = pm_mass_fractions['H2']
         self.mass_fractions['He'] = pm_mass_fractions['He']
+
+        # Convert the free-chemistry VMRs to mass fractions
+        for species_i in self.species_info.keys():
+            line_species_i = self.read_species_info(species_i, 'pRT_name')
+            mass_i = self.read_species_info(species_i, 'mass')
+
+            if line_species_i not in self.line_species:
+                continue
+            if self.mass_fractions.get(line_species_i) is not None:
+                continue
+
+            # Confirm that free-chemistry VMR is defined
+            assert(params.get(f'log_{species_i}') is not None)
+
+            VMR_i = 10**params.get(f'log_{species_i}')
+            self.mass_fractions[line_species_i] = VMR_i * mass_i / self.mass_fractions['MMW']
 
     def quench_chemistry(self, quench_key='P_quench'):
 
@@ -427,7 +446,7 @@ class EqChemistry(Chemistry):
         self.temperature = temperature
 
         # Retrieve the mass fractions
-        self.get_pRT_mass_fractions()
+        self.get_pRT_mass_fractions(params)
 
         self.unquenched_mass_fractions = self.mass_fractions.copy()
         self.P_quench = {}
