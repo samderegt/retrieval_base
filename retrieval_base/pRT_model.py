@@ -82,7 +82,9 @@ class pRT_model:
             log_P_range = (-6,2)
         if n_atm_layers is None:
             n_atm_layers = 50
-        self.pressure = np.logspace(log_P_range[0], log_P_range[1], n_atm_layers)
+        self.pressure = np.logspace(
+            log_P_range[0], log_P_range[1], n_atm_layers, dtype=np.float64
+            )
 
         # Make the pRT.Radtrans objects
         self.get_atmospheres(CB_active=False)

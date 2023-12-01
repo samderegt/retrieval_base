@@ -394,7 +394,7 @@ def fig_PT(PT,
            posterior_color='C0', 
            bestfit_color='C1', 
            ylabel=r'$P\ \mathrm{(bar)}$', 
-           yticks=np.logspace(-6, 2, 9), 
+           yticks=np.logspace(-6, 3, 10), 
            xlim=(1,3500), 
            show_ln_L_penalty=False, 
            prefix=None, 
@@ -463,6 +463,9 @@ def fig_PT(PT,
             )
     except:
         pass
+
+    if PT.pressure.max() > 1e2:
+        xlim = (1, 4500)
         
     ax_PT.set(
         xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 

@@ -359,7 +359,7 @@ class Parameters:
             self.params['X_cloud_base_MgSiO3'] = 10**self.params['log_X_cloud_base_MgSiO3']
 
     @classmethod
-    def log_to_linear(cls, param_dict, key_log, key_lin=None, verbose=False):
+    def log_to_linear(cls, param_dict, key_log, key_lin=None):
 
         if not isinstance(key_log, (list, tuple, np.ndarray)):
             key_log = [key_log]
@@ -379,7 +379,8 @@ class Parameters:
                 # Convert from log to linear if float or integer
                 param_dict[key_lin_i] = 10**val_log
             elif isinstance(val_log, list):
-                param_dict[key_lin_i] = 10**np.array(val_log)
+                param_dict[key_log_i] = np.array(val_log, dtype=np.float64)
+                param_dict[key_lin_i] = 10**np.array(val_log, dtype=np.float64)
 
             elif val_log is None:
                 # Set linear parameter to None as well
