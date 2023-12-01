@@ -88,8 +88,6 @@ def pre_processing(conf, conf_data):
         d_spec.add_transm(d_std_spec.transm, d_std_spec.transm_err)
 
     else:
-        #print(d_spec.wave[0])
-        #print(d_std_spec.wave[0])
         # Load the molecfit transmission spectrum
         d_spec.load_molecfit_transm(
             conf_data['file_molecfit_transm'], 
@@ -552,65 +550,6 @@ class Retrieval:
                 self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
                     unquenched_mf_i[line_species_i]
                     )
-        
-        '''
-        # Sample envelopes from the posterior
-        for i, params_i in enumerate(posterior):
-
-            for j, key_j in enumerate(self.Param.param_keys):
-                # Update the Parameters instance
-                self.Param.params[key_j] = params_i[j]
-
-                if key_j.startswith('log_'):
-                    self.Param.params = self.Param.log_to_linear(self.Param.params, key_j)
-
-                if key_j.startswith('invgamma_'):
-                    self.Param.params[key_j.replace('invgamma_', '')] = self.Param.params[key_j]
-
-                if key_j.startswith('gaussian_'):
-                    self.Param.params[key_j.replace('gaussian_', '')] = self.Param.params[key_j]
-                    
-            # Update the parameters
-            self.Param.read_PT_params(cube=None)
-            self.Param.read_uncertainty_params()
-            self.Param.read_chemistry_params()
-            self.Param.read_cloud_params()
-
-            # Class instances with best-fitting parameters
-            returned = self.PMN_lnL_func()
-
-            if i == 0:
-                for line_species_i in self.Chem.mass_fractions.keys():
-                    self.Chem.mass_fractions_posterior[line_species_i] = []
-
-                if hasattr(self.Chem, 'unquenched_mass_fractions'):
-                    for line_species_i in self.Chem.unquenched_mass_fractions.keys():
-                        self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
-
-            if isinstance(returned, float):
-                # PT profile or mass fractions failed
-                continue
-
-            # Store the temperatures and mass fractions
-            temperature_i, mass_fractions_i = returned
-            self.PT.temperature_envelopes.append(temperature_i)
-            # Loop over the line species
-            for line_species_i in self.Chem.mass_fractions.keys():
-                self.Chem.mass_fractions_posterior[line_species_i].append(
-                    mass_fractions_i[line_species_i]
-                    )
-
-            # Store the C/O ratio and Fe/H
-            self.Chem.CO_posterior.append(self.Chem.CO)
-            self.Chem.FeH_posterior.append(self.Chem.FeH)
-
-            if hasattr(self.Chem, 'unquenched_mass_fractions'):
-                # Store the unquenched mass fractions
-                for line_species_i in self.Chem.unquenched_mass_fractions.keys():
-                    self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
-                        self.Chem.unquenched_mass_fractions[line_species_i]
-                        )
-        '''
 
         # Convert profiles to 1, 2, 3-sigma equivalent and median
         q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
@@ -638,7 +577,7 @@ class Retrieval:
                 continue
 
         # Store the unquenched mass fractions
-        for line_species_i in self.Chem.unquenched_mass_fractions.keys():
+        for line_species_i in self.Chem.unquenched_mass_fractions_posterior.keys():
             self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
                 np.array(self.Chem.unquenched_mass_fractions_posterior[line_species_i])
 

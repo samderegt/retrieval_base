@@ -550,19 +550,24 @@ class DataSpectrum(Spectrum):
                     1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)
         
         mask = (self.mask_isfinite & mask_high_transm)
-        p = np.polyfit(
-            self.wave[mask].flatten(), 
-            (self.flux/self.transm / ref_flux)[mask].flatten(), deg=2
-            )
-        self.throughput = np.poly1d(p)(self.wave)
-    
-        '''
-        import matplotlib.pyplot as plt
-        plt.plot(self.wave[mask], (self.flux/self.transm / ref_flux)[mask])
-        plt.plot(self.wave, self.throughput)
-        plt.ylim(0, self.throughput.max()*1.3)
-        plt.show()
-        #'''
+
+        self.throughput = np.nan * np.ones_like(self.wave)
+        for j in range(self.n_dets):
+            # Select the spectrum within this order
+            mask_det = np.zeros_like(self.wave, dtype=bool)
+
+            for i in range(self.n_orders):
+                idx_low = self.n_pixels * (i*self.n_dets + j)
+                idx_high = self.n_pixels * (i*self.n_dets + j + 1)
+                
+                mask_det[idx_low:idx_high] = True
+
+            # Linear fit to the continuum, where telluric absorption is minimal
+            p = np.polyfit(
+                self.wave[mask_det & mask].flatten(), 
+                (self.flux/self.transm / ref_flux)[mask_det & mask].flatten(), deg=1
+                )
+            self.throughput[mask_det] = np.poly1d(p)(self.wave[mask_det])      
 
     def get_transm(
             self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb', 

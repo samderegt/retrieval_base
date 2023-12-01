@@ -268,7 +268,9 @@ class CallBack:
         # Plot the abundances
         if self.Param.chem_mode == 'free':
 
-            for species_i, (line_species_i, mass_i, COH_i) in self.Chem.species_info.items():
+            for species_i in self.Chem.species_info.keys():
+
+                line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
                 
                 # Add to the parameters to be plotted
                 if (line_species_i in self.Chem.line_species) and \

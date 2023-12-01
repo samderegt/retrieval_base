@@ -563,7 +563,7 @@ def fig_VMR(ax_VMR,
             species_to_plot, 
             pressure, 
             ylabel=r'$P\ \mathrm{(bar)}$', 
-            yticks=np.logspace(-6, 2, 9), 
+            yticks=np.logspace(-6, 3, 10), 
             xlim=(1e-12, 1e-2), 
             ):
 

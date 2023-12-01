@@ -9,7 +9,7 @@ echo "Starting Python script"
 
 # Replace the config file and run pre-processing
 sed -i 's/import config as conf/import config_fiducial_K_B as conf/g' retrieval_script.py
-python retrieval_script.py -p
+#python retrieval_script.py -p
 
 # Run the retrieval and evaluation
 mpiexec --use-hwthread-cpus --bind-to none -np $NTASKS python retrieval_script.py -r
