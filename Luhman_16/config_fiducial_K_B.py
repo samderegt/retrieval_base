@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_11'
+prefix = 'fiducial_K_B_ret_14'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -22,6 +22,7 @@ config_data = {
         
         'file_molecfit_transm': './data/Luhman_16B_K_molecfit_transm.dat', 
         'file_std_molecfit_transm': './data/Luhman_16_std_K_molecfit_transm.dat', 
+        'file_std_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat', 
 
         'filter_2MASS': '2MASS/2MASS.Ks', 
         'pwv': 1.5, 
@@ -63,7 +64,9 @@ free_params = {
     # General properties
     'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
-    #'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
+    'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
+    'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
 
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 
@@ -103,8 +106,8 @@ free_params = {
     'dlnT_dlnP_1': [(0.13,0.32), r'$\nabla_{T,1}$'], 
     'dlnT_dlnP_2': [(0.03,0.23), r'$\nabla_{T,2}$'], 
     #'dlnT_dlnP_3': [(0.03,0.23), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_3': [(0.0,0.23), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(-0.03,0.2), r'$\nabla_{T,4}$'], 
+    'dlnT_dlnP_3': [(0.0,0.4), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
 
     'T_0': [(2000,7000), r'$T_0$'], 
 }
@@ -113,7 +116,7 @@ free_params = {
 constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
-    'epsilon_limb': 0.65, 
+    #'epsilon_limb': 0.65, 
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 

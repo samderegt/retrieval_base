@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_18'
+prefix = 'fiducial_J_B_ret_20'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -23,6 +23,10 @@ config_data = {
         'file_wave': './data/Luhman_16_std_J.dat', 
         'file_skycalc_transm': f'./data/skycalc_transm_J1226.dat', 
 
+        'file_molecfit_transm': './data/Luhman_16B_J_molecfit_transm.dat', 
+        'file_std_molecfit_transm': './data/Luhman_16_std_J_molecfit_transm.dat', 
+        'file_std_molecfit_continuum': './data/Luhman_16_std_J_molecfit_continuum.dat', 
+
         'filter_2MASS': '2MASS/2MASS.J', 
         'pwv': 1.5, 
 
@@ -32,9 +36,9 @@ config_data = {
         'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.6, 'sigma_clip_width': 8, 
+        'tell_threshold': 0.7, 'sigma_clip_width': 8, 
 
-        'log_P_range': (-5,2), 'n_atm_layers': 50, 
+        'log_P_range': (-5,3), 'n_atm_layers': 50, 
         }, 
     }
 
@@ -71,25 +75,41 @@ free_params = {
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-5,2), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
     #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    'C/O': [(0.15,1), r'C/O'], 
-    'Fe/H': [(-1,1), r'[Fe/H]'], 
-    'log_P_quench_CO_CH4': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
-    'log_P_quench_N2_NH3': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
+    #'C/O': [(0.15,1), r'C/O'], 
+    #'Fe/H': [(-1,1), r'[Fe/H]'], 
+    #'log_P_quench_CO_CH4': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
+    #'log_P_quench_N2_NH3': [(-4,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
     #'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
 
+    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
+    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
+    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
+    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
+
+    'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
+    'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
+    'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
+
+    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
+    'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
+    #'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
+    'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
+
     # PT profile
-    'dlnT_dlnP_0': [(0.12, 0.5), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_0': [(0.12, 0.4), r'$\nabla_{T,0}$'], 
     'dlnT_dlnP_1': [(0.13,0.32), r'$\nabla_{T,1}$'], 
     'dlnT_dlnP_2': [(0.03,0.23), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.0,0.2), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(-0.03,0.13), r'$\nabla_{T,4}$'], 
-    'T_0': [(2000,5000), r'$T_0$'], 
+    #'dlnT_dlnP_3': [(0.03,0.23), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_3': [(0.0,0.4), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
+
+    'T_0': [(2000,7000), r'$T_0$'], 
 }
 
 # Constants to use if prior is not given
@@ -99,7 +119,7 @@ constant_params = {
     'epsilon_limb': 0.65, 
 
     # PT profile
-    'log_P_knots': [-5, -2, -2/3, 2/3, 2], 
+    'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 
 }
 
 ####################################################################################
@@ -117,19 +137,19 @@ cloud_species = None
 # Chemistry parameters
 ####################################################################################
 
-chem_mode  = 'SONORAchem'
+chem_mode  = 'free'
 
 #import pyfastchem
 #fastchem_path = os.path.dirname(pyfastchem.__file__)
 chem_kwargs = dict(
-    #spline_order   = 0
+    spline_order = 0, 
 
     quench_setup = {
         'P_quench_CO_CH4': ['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O'], 
         'P_quench_N2_NH3': ['N2', 'HCN', 'NH3'], 
         }, 
     
-    path_SONORA_chem = '../SONORA_models/chemistry', 
+    #path_SONORA_chem = '../SONORA_models/chemistry', 
 
     #abundance_file = f'{fastchem_path}/input/element_abundances/asplund_2020.dat', 
     #gas_data_file  = f'{fastchem_path}/input/logK/logK.dat', 
@@ -164,9 +184,7 @@ line_species = [
 species_to_plot_VMR = [
     'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'TiO', 'VO', 'K', 'Na', 'Fe', 'HF', 
     ]
-species_to_plot_CCF = [
-    'H2O', 'CH4', 'NH3', 'H2S', 'FeH', 'TiO', 'VO', 'K', 'Na', 'Fe', 'HF', 
-    ]
+species_to_plot_CCF = species_to_plot_VMR
 
 ####################################################################################
 # Covariance parameters

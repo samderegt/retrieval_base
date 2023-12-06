@@ -90,12 +90,13 @@ def pre_processing(conf, conf_data):
     else:
         # Load the molecfit transmission spectrum
         d_spec.load_molecfit_transm(
-            conf_data['file_molecfit_transm'], 
+            file_transm=conf_data['file_molecfit_transm'], 
             T=1500, 
             tell_threshold=conf_data['tell_threshold']
             )
         d_std_spec.load_molecfit_transm(
-            conf_data['file_std_molecfit_transm'], 
+            file_transm=conf_data['file_std_molecfit_transm'], 
+            file_continuum=conf_data['file_std_molecfit_continuum'], 
             T=conf_data['T_std'], 
             tell_threshold=conf_data['tell_threshold']
             )

@@ -245,7 +245,77 @@ class Spectrum:
             self.update_isfinite_mask()
 
         return flux_copy
-    
+
+    def rot_broadening_integration(self, 
+                                   vsini, epsilon_limb=0, 
+                                   dif_rot_delta=0, dif_rot_phi=1, 
+                                   nr=10, ntheta=100, 
+                                   wave=None, flux=None, 
+                                   replace_wave_flux=False
+                                   ):
+        
+        # Adopted from Carvalho & Johns-Krull (2023)
+
+        if wave is None:
+            wave = self.wave
+        if flux is None:
+            flux = self.flux
+
+        # Set-up interpolation beforehand
+        interp_func = interp1d(wave, flux, kind='linear', bounds_error=False)
+
+        flux_rot_broad = np.zeros_like(flux)
+        disk_area_tot = 0.0
+
+        dr = 1/nr # Radial grid spacing
+        # Loop over radial grid
+        for i in range(nr):
+
+            r_i = dr/2 + i*dr
+            ntheta_r_i = int(ntheta*r_i)
+
+            # Projected area
+            area_ij = ((r_i + dr/2)**2 - (r_i - dr/2)**2) / ntheta_r_i
+            
+            # Apply linear limb-darkening
+            if epsilon_limb != 0:
+                # Apply linear limb-darkening
+                #area_ij *= (1 - epsilon_limb + epsilon_limb*np.cos(np.arcsin(r_i)))
+                area_ij *= (1 - epsilon_limb + epsilon_limb*np.sqrt(1-r_i**2))
+                
+            # Loop over angle
+            for j in range(ntheta_r_i):
+                th_j = (np.pi + j*2*np.pi)/ntheta_r_i
+
+                # Velocity of grid-point
+                vl_ij = vsini * r_i * np.sin(th_j)
+                
+                if dif_rot_delta != 0:
+                    # Apply differential rotation
+                    #1 - dif_rot_delta/2 - dif_rot_delta/2 * np.cos(2*np.arccos(r_i*np.cos(th_j)))
+                    vl_ij *= (
+                        1 - dif_rot_delta/2 + \
+                        dif_rot_delta/2 * np.cos(dif_rot_phi*2*np.arcsin(r_i*np.cos(th_j)))
+                        )
+                
+                wave_shifted_ij = wave * (1 + vl_ij/(nc.c*1e-5))
+
+                # Add to the entire spectrum
+                flux_rot_broad += area_ij * interp_func(wave_shifted_ij)
+                disk_area_tot  += area_ij
+
+        # Normalize to account for over/under-estimation of disk area
+        flux_rot_broad /= disk_area_tot
+
+        if replace_wave_flux:
+            self.wave = wave
+            self.flux = flux_rot_broad
+        
+            return flux_rot_broad
+        
+        else:
+            return wave, flux_rot_broad
+
     def rot_broadening(self, vsini, epsilon_limb=0, wave=None, flux=None, replace_wave_flux=False):
 
         if wave is None:
@@ -535,39 +605,36 @@ class DataSpectrum(Spectrum):
         # Update the isfinite mask
         self.update_isfinite_mask()
 
-    def load_molecfit_transm(self, file_transm, T=10000, tell_threshold=0.0):
+    def load_molecfit_transm(self, file_transm, file_continuum=None, T=10000, tell_threshold=0.0):
 
         # Load the pre-computed transmission from molecfit
         self.wave_transm, self.transm = np.loadtxt(file_transm).T
 
         # Confirm that we are using the same wavelength grid
-        assert((self.wave == self.wave_transm).all())
+        assert(np.nansum(self.wave_transm-self.wave) == 0.0)
 
-        mask_high_transm = (self.transm > tell_threshold)
+        if file_continuum is None:
+            return
 
         # Retrieve a Planck spectrum for the given temperature
         ref_flux = 2*nc.h*nc.c**2/(self.wave.flatten()**5) * \
                     1/(np.exp(nc.h*nc.c/(self.wave*nc.kB*T)) - 1)
-        
-        mask = (self.mask_isfinite & mask_high_transm)
 
-        self.throughput = np.nan * np.ones_like(self.wave)
-        for j in range(self.n_dets):
-            # Select the spectrum within this order
-            mask_det = np.zeros_like(self.wave, dtype=bool)
+        _, continuum = np.loadtxt(file_continuum).T
 
-            for i in range(self.n_orders):
-                idx_low = self.n_pixels * (i*self.n_dets + j)
-                idx_high = self.n_pixels * (i*self.n_dets + j + 1)
-                
-                mask_det[idx_low:idx_high] = True
+        continuum /= self.wave
+        self.throughput = continuum / ref_flux
 
-            # Linear fit to the continuum, where telluric absorption is minimal
-            p = np.polyfit(
-                self.wave[mask_det & mask].flatten(), 
-                (self.flux/self.transm / ref_flux)[mask_det & mask].flatten(), deg=1
-                )
-            self.throughput[mask_det] = np.poly1d(p)(self.wave[mask_det])      
+        '''
+        import matplotlib.pyplot as plt
+        #plt.plot(self.wave, (self.flux/self.transm/ref_flux), c='k', lw=1)
+        plt.plot(self.wave, (self.flux), c='k', lw=1)
+        #plt.plot(self.wave[mask & mask_ref_lines], (self.flux/self.transm/ref_flux)[mask & mask_ref_lines], c='k', lw=1)
+        plt.plot(self.wave, self.throughput*ref_flux, c='C1', lw=2)
+        plt.ylim(0, 1.2*np.max(self.throughput*ref_flux))
+        plt.savefig('./plots/throughput.pdf')
+        plt.close()
+        '''
 
     def get_transm(
             self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb', 
@@ -870,6 +937,8 @@ class ModelSpectrum(Spectrum):
                             rv, 
                             vsini, 
                             epsilon_limb=0, 
+                            dif_rot_delta=None, 
+                            dif_rot_phi=1, 
                             out_res=1e6, 
                             in_res=1e6, 
                             d_wave=None, 
@@ -879,7 +948,16 @@ class ModelSpectrum(Spectrum):
         # Apply Doppler shift, rotational/instrumental broadening, 
         # and rebin onto a new wavelength grid
         self.rv_shift(rv, replace_wave=True)
-        self.rot_broadening(vsini, epsilon_limb, replace_wave_flux=True)
+
+        if dif_rot_delta is not None:
+            # Use the integration method
+            self.rot_broadening_integration(
+                vsini, epsilon_limb, dif_rot_delta, dif_rot_phi, replace_wave_flux=True
+                )
+        else:
+            # Use the convolution broadening
+            self.rot_broadening(vsini, epsilon_limb, replace_wave_flux=True)
+
         self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:
             self.rebin(d_wave, replace_wave_flux=True)
