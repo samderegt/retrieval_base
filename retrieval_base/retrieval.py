@@ -183,6 +183,7 @@ def pre_processing(conf, conf_data):
         log_P_range=conf_data.get('log_P_range'), 
         n_atm_layers=conf_data.get('n_atm_layers'), 
         rv_range=conf.free_params['rv'][0], 
+        vsini_range=conf.free_params['vsini'][0], 
         )
 
     # Save as pickle
@@ -838,6 +839,7 @@ class Retrieval:
         time.sleep(0.2*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval
+        #pymultinest.solve(
         pymultinest.run(
             LogLikelihood=self.PMN_lnL_func, 
             Prior=self.Param, 

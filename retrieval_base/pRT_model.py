@@ -20,6 +20,7 @@ class pRT_model:
                  cloud_mode=None, 
                  chem_mode='free', 
                  rv_range=(-50,50), 
+                 vsini_range=(10,30), 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -75,7 +76,10 @@ class pRT_model:
         self.cloud_mode = cloud_mode
         self.chem_mode  = chem_mode
 
-        self.rv_max = max(np.abs(list(rv_range)))
+        self.rv_max = np.array(list(rv_range))
+        self.rv_max[0] -= np.max(list(vsini_range))
+        self.rv_max[1] += np.max(list(vsini_range))
+        self.rv_max = np.max(np.abs(self.rv_max))
 
         # Define the atmospheric layers
         if log_P_range is None:
@@ -303,7 +307,8 @@ class pRT_model:
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params['epsilon_limb'], 
-                dif_rot_delta=self.params.get('dif_rot_delta'), 
+                epsilon_lat=self.params.get('epsilon_lat', 0), 
+                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
                 dif_rot_phi=self.params.get('dif_rot_phi', 1), 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 
@@ -393,7 +398,8 @@ class pRT_model:
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params['epsilon_limb'], 
-                dif_rot_delta=self.params.get('dif_rot_delta'), 
+                epsilon_lat=self.params.get('epsilon_lat', 0), 
+                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
                 dif_rot_phi=self.params.get('dif_rot_phi', 1), 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 
@@ -420,7 +426,8 @@ class pRT_model:
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params['epsilon_limb'], 
-                dif_rot_delta=self.params.get('dif_rot_delta'), 
+                epsilon_lat=self.params.get('epsilon_lat', 0), 
+                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
                 dif_rot_phi=self.params.get('dif_rot_phi', 1), 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 

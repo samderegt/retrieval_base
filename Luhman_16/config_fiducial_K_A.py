@@ -1,13 +1,13 @@
 import numpy as np
 import os
 
-file_params = 'config_fiducial_K_B.py'
+file_params = 'config_fiducial_K_A.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_9'
+prefix = 'fiducial_K_A_ret_10'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -64,10 +64,12 @@ free_params = {
     # General properties
     'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
-    #'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
+    'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
 
     # Velocities
-    'vsini': [(10,30), r'$v\ \sin\ i$'], 
+    'vsini': [(10,20), r'$v\ \sin\ i$'], 
     'rv': [(10,25), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
@@ -93,6 +95,8 @@ free_params = {
     #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
 
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
+    'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
@@ -169,6 +173,8 @@ line_species = [
     'CO_27', 
 
     'H2O_pokazatel_main_iso', 
+    'H2O_181', 
+
     'CH4_hargreaves_main_iso', 
     'NH3_coles_main_iso', 
 
@@ -181,7 +187,7 @@ line_species = [
     ]
 species_to_plot_VMR = [
     #'12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCl', 'HCN', 'CO2'
-    '12CO', '13CO', 'C18O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
+    '12CO', '13CO', 'C18O', 'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 

@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_14'
+prefix = 'fiducial_K_B_ret_19'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -52,7 +52,7 @@ magnitudes = {
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    #'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
@@ -64,7 +64,8 @@ free_params = {
     # General properties
     'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
-    'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
+    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
     'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
 
@@ -95,7 +96,13 @@ free_params = {
     #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
 
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
+    #'log_H2(17)O': [(-12,-2), r'$\log\ \mathrm{H_2^{17}O}$'], 
+    'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+    #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
+
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
+    #'log_13CH4': [(-12,-2), r'$\log\ \mathrm{^{13}CH_4}$'], 
+
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
     #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
@@ -171,7 +178,13 @@ line_species = [
     'CO_27', 
 
     'H2O_pokazatel_main_iso', 
+    'H2O_181', 
+    #'H2O_171', 
+    #'HDO_voronin', 
+
     'CH4_hargreaves_main_iso', 
+    #'13CH4_hargreaves', 
+
     'NH3_coles_main_iso', 
 
     'H2S_ExoMol_main_iso', 
@@ -183,7 +196,8 @@ line_species = [
     ]
 species_to_plot_VMR = [
     #'12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCl', 'HCN', 'CO2'
-    '12CO', '13CO', 'C18O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
+    #'12CO', '13CO', 'C18O', 'H2O', 'H2(18)O', 'H2(17)O', 'HDO', 'CH4', '13CH4', 'NH3', 'H2S', 'HF', 
+    '12CO', '13CO', 'C18O', 'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
