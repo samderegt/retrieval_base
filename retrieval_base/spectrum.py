@@ -11,7 +11,7 @@ import petitRADTRANS.nat_cst as nc
 from petitRADTRANS.retrieval import rebin_give_width as rgw
 
 import retrieval_base.auxiliary_functions as af
-import retrieval_base.figures as figs
+import retrieval_base.figures as figs   
 
 class Spectrum:
 
@@ -249,6 +249,7 @@ class Spectrum:
     def rot_broadening_integration(self, 
                                    vsini, epsilon_limb=0, epsilon_lat=0, 
                                    dif_rot_delta=0, dif_rot_phi=1, 
+                                   inclination=0, 
                                    nr=10, ntheta=100, 
                                    wave=None, flux=None, 
                                    replace_wave_flux=False
@@ -263,6 +264,9 @@ class Spectrum:
 
         flux_rot_broad = np.zeros_like(flux)
         disk_area_tot = 0.0
+
+        # Latitude at center of orthographic projection
+        lat_0 = np.deg2rad(inclination)
 
         dr = 1/nr # Radial grid spacing
         # Loop over radial grid
@@ -281,12 +285,26 @@ class Spectrum:
                 # Velocity of grid-point
                 vl_ij = vsini * r_i * np.sin(th_j)
                 
+                # Scale by the inclination, turns vsini into v_eq
+                #vl_ij *= np.abs(np.sin(np.deg2rad(90-inclination)))
+
+                # Orthographic projection
+                c = np.arcsin(r_i) # Angular distance
+                x = r_i * np.sin(th_j)
+                y = r_i * np.cos(th_j)
+
+                # Lat-/long-itude of grid-point, based on inclination
+                lat_ij = np.arcsin(
+                    np.cos(c)*np.sin(lat_0) + y/r_i*np.sin(c)*np.cos(lat_0)
+                )
+                #lon_ij = lon_0 + np.arctan2(
+                #    x*np.sin(c), r_i*np.cos(c)*np.cos(lat_0) - y*np.sin(c)*np.sin(lat_0)
+                #)
+                
                 if dif_rot_delta != 0:
                     # Apply differential rotation
-                    #1 - dif_rot_delta/2 - dif_rot_delta/2 * np.cos(2*np.arccos(r_i*np.cos(th_j)))
                     vl_ij *= (
-                        1 - dif_rot_delta/2 + \
-                        dif_rot_delta/2 * np.cos(dif_rot_phi*2*np.arcsin(r_i*np.cos(th_j)))
+                        1 - dif_rot_delta * np.sin(dif_rot_phi*lat_ij)**2
                         )
                     
                 # Factor to keep track of (limb)-darkening
@@ -297,7 +315,7 @@ class Spectrum:
                 if epsilon_lat != 0:
                     # Apply latitude-darkening
                     f_ij *= (
-                        1 - epsilon_lat/2 + epsilon_lat/2 * np.cos(dif_rot_phi*2*np.arcsin(r_i*np.cos(th_j)))
+                        1 - epsilon_lat * np.sin(dif_rot_phi*lat_ij)**2
                         )
                 
                 # Apply Doppler shift
@@ -933,6 +951,7 @@ class ModelSpectrum(Spectrum):
                             epsilon_lat=0, 
                             dif_rot_delta=None, 
                             dif_rot_phi=1, 
+                            inclination=0, 
                             out_res=1e6, 
                             in_res=1e6, 
                             d_wave=None, 
@@ -947,6 +966,7 @@ class ModelSpectrum(Spectrum):
         self.rot_broadening_integration(
             vsini, epsilon_limb, epsilon_lat, 
             dif_rot_delta, dif_rot_phi, 
+            inclination=inclination, 
             replace_wave_flux=True
             )
         self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)

@@ -10,6 +10,9 @@ class Parameters:
     # Dictionary of all possible parameters and their default values
     all_params = {
 
+        # Inclination
+        'inclination': 0, 
+
         # Uncertainty scaling
         'a': 0, 'l': 1, 
         'a_f': 0, 'l_f': 1, 
