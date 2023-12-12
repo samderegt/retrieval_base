@@ -5,6 +5,143 @@ import petitRADTRANS.nat_cst as nc
 
 from .spectrum import Spectrum, ModelSpectrum
 
+class RotationProfile:
+
+    def __init__(self, inc=0, lon_0=0, n_mu=10, n_theta=100):
+        
+        # Adopted from Carvalho & Johns-Krull (2023)
+        self.inc   = np.deg2rad(inc)
+        self.lon_0 = np.deg2rad(lon_0)
+        
+        self.n_mu    = n_mu
+        self.n_theta = n_theta
+
+        self.get_coords()
+        #self.polar_coords()
+        #self.spherical_coords()
+
+        print(self.unique_mu)
+        print(self.unique_w_gauss_mu)
+
+    def get_coords(self):
+        
+        # Gaussian quadrature grid
+        self.unique_mu, self.unique_w_gauss_mu = \
+            np.polynomial.legendre.leggauss(deg=self.n_mu)
+        self.unique_mu = 1/2*self.unique_mu + 1/2
+        self.unique_w_gauss_mu = 1/2*self.unique_w_gauss_mu
+        
+        self.mu_grid, self.w_gauss_mu = [], []
+        self.r_grid, self.theta_grid  = [], []
+        self.area_per_segment = []
+
+        # Radial grid spacing
+        for i, mu_i in enumerate(self.unique_mu):
+
+            r_i = np.sqrt(1-mu_i**2)
+
+            # Reduce number of angular segments close to centre
+            n_theta_r_i = int(self.n_theta*r_i)
+
+            # Projected area
+            #area_ij = ((r_i + dr/2)**2 - (r_i - dr/2)**2) / n_theta_r_i
+            area_ij = 1 / n_theta_r_i
+
+            for j in range(n_theta_r_i):
+                th_ij = (np.pi + j*2*np.pi)/n_theta_r_i
+                
+                self.mu_grid.append(mu_i)
+                self.w_gauss_mu.append(self.unique_w_gauss_mu[i])
+
+                self.r_grid.append(r_i)
+                self.theta_grid.append(th_ij)
+
+                self.area_per_segment.append(area_ij)
+
+        self.mu_grid    = np.array(self.mu_grid)
+        self.w_gauss_mu = np.array(self.w_gauss_mu)
+
+        self.r_grid     = np.array(self.r_grid)
+        self.theta_grid = np.array(self.theta_grid)
+        
+        self.area_per_segment = np.array(self.area_per_segment)
+
+        x = self.r_grid * np.sin(self.theta_grid)
+        y = self.r_grid * np.cos(self.theta_grid)
+        c = np.arccos(self.mu_grid)
+
+        self.lat_grid = np.arcsin(
+            np.cos(c)*np.sin(self.inc) + \
+            y/self.r_grid * np.sin(c)*np.cos(self.inc)
+            )
+        self.lon_grid = self.lon_0 + np.arctan2(
+            x*np.sin(c), self.r_grid * np.cos(c)*np.cos(self.inc) - \
+                                y * np.sin(c)*np.sin(self.inc)
+            )
+        
+        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)        
+        for unique_i, unique_mu_i in enumerate(self.unique_mu):
+            self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
+                
+    def __call__(self, wave, flux, params):
+
+        vsini = params.get('vsini', 0)
+        #epsilon_limb = params.get('epsilon_limb', 0)
+        #alpha_dif_rot = params.get('alpha_dif_rot')
+
+        # Compute velocity-grid
+        self.v_grid = vsini * self.r_grid * np.sin(self.theta_grid)
+        
+        # Scale by the inclination, turns vsini into v_eq
+        #self.v_grid *= np.abs(np.sin(np.deg2rad(90)-self.inc))
+
+        # Flux-scaling grid
+        self.f_grid = np.ones_like(self.r_grid)
+
+        flux_rot_broad = np.zeros_like(flux[0])
+        #flux_rot_broad_mu = np.zeros_like(flux)
+        for i, v_i in enumerate(self.v_grid):
+
+            # Corresponding incidence angle
+            mu_i         = self.mu_grid[i]
+            w_gauss_mu_i = self.w_gauss_mu[i]
+            flux_i       = flux[self.idx_mu[i]]
+
+            # Apply Doppler-shift
+            wave_shifted_i = wave * (1 + v_i/(nc.c*1e-5))
+            flux_shifted_i = np.interp(
+                wave, wave_shifted_i, flux_i, left=np.nan, right=np.nan
+                )
+
+            f_i    = self.f_grid[i]
+            area_i = self.area_per_segment[i]
+
+            # Add to the global spectrum
+            flux_rot_broad += f_i * area_i * 1/2*flux_shifted_i*mu_i*w_gauss_mu_i
+            #flux_rot_broad_mu[self.idx_mu[i]] += f_i * area_i * 1/2*flux_shifted_i*mu_i*w_gauss_mu_i
+
+        # Normalize to account for over/under-estimation of disk area
+        flux_rot_broad *= 4*np.pi / np.sum(self.f_grid * self.area_per_segment)
+        #flux_rot_broad_mu *= 4*np.pi / np.sum(self.f_grid * self.area_per_segment)
+
+        '''
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(12,8), nrows=2, sharex=True)
+
+        for flux_i, mu_i in zip(flux_rot_broad_mu, self.unique_mu):
+            wave_mask = (wave > 2365)
+            color = plt.get_cmap('RdBu')(1/2+v_i/vsini)
+            color = plt.get_cmap('viridis')(mu_i)
+            ax[0].plot(wave[wave_mask], flux_i[wave_mask], c=color, lw=1)
+
+        ax[1].plot(
+            wave[wave_mask], flux_rot_broad[wave_mask], c='k', lw=2
+            )
+        plt.show()
+        '''
+        
+        return flux_rot_broad
+
 class pRT_model:
 
     def __init__(self, 
@@ -21,6 +158,7 @@ class pRT_model:
                  chem_mode='free', 
                  rv_range=(-50,50), 
                  vsini_range=(10,30), 
+                 inclination=0, 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -51,6 +189,9 @@ class pRT_model:
             Chemistry mode to use for clouds, can be 'free' or 'eqchem'.
         
         '''
+
+        # Create instance of RotationProfile
+        self.Rot = RotationProfile(inc=inclination)
 
         # Read in attributes of the observed spectrum
         self.d_wave          = d_spec.wave
@@ -123,6 +264,13 @@ class pRT_model:
 
             # Set up the atmospheric layers
             atm_i.setup_opa_structure(self.pressure)
+
+            # Modify the incidence angles
+            atm_i.mu = self.Rot.unique_mu
+            
+            # Equal weights... not a proper Gaussian quadrature integration
+            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
+
             self.atm.append(atm_i)
 
     def __call__(self, 
@@ -279,10 +427,11 @@ class pRT_model:
                 contribution=get_contr, 
                 )
             wave_i = nc.c / atm_i.freq
-            flux_i = atm_i.flux
+            #flux_i = atm_i.flux
+            flux_i = atm_i.flux_mu
 
             # Convert [erg cm^{-2} s^{-1} Hz^{-1}] -> [erg cm^{-2} s^{-1} cm^{-1}]
-            flux_i *= nc.c / (wave_i**2)
+            flux_i *= nc.c / (wave_i[None,:]**2)
 
             # Convert [erg cm^{-2} s^{-1} cm^{-1}] -> [erg cm^{-2} s^{-1} nm^{-1}]
             flux_i /= 1e7
@@ -295,6 +444,12 @@ class pRT_model:
                 (self.params['R_p']*nc.r_jup_mean) / \
                 (1e3/self.params['parallax']*nc.pc)
                 )**2
+            
+            # Apply RV-shift
+            wave_i *= (1 + self.params['rv']/(nc.c*1e-5))
+
+            # Apply rotational broadening
+            flux_i = self.Rot(wave_i, flux_i, self.params)
 
             # Create a ModelSpectrum instance
             m_spec_i = ModelSpectrum(
@@ -302,6 +457,14 @@ class pRT_model:
                 lbl_opacity_sampling=self.lbl_opacity_sampling
                 )
             
+            # Apply instrumental broadening
+            m_spec_i.flux = m_spec_i.instr_broadening(
+                m_spec_i.wave, m_spec_i.flux, 
+                out_res=self.d_resolution, 
+                in_res=m_spec_i.resolution
+                )
+
+            '''            
             # Apply radial-velocity shift, rotational/instrumental broadening
             m_spec_i.shift_broaden_rebin(
                 rv=self.params['rv'], 
@@ -318,6 +481,7 @@ class pRT_model:
                 in_res=m_spec_i.resolution, 
                 rebin=False, 
                 )
+            '''
             if get_full_spectrum:
                 # Store the spectrum before the rebinning
                 self.wave_pRT_grid.append(m_spec_i.wave)

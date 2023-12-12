@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_24'
+prefix = 'fiducial_K_B_ret_25'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -33,7 +33,7 @@ config_data = {
         'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.9, 'sigma_clip_width': 8, 
+        'tell_threshold': 0.7, 'sigma_clip_width': 8, 
     
         'log_P_range': (-5,3), 'n_atm_layers': 50, 
         }, 
@@ -52,7 +52,7 @@ magnitudes = {
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{K}$'], 
+    'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
 
     # Uncertainty scaling
     #'log_a': [(-18,-14), r'$\log\ a_1$'], 
@@ -68,10 +68,7 @@ free_params = {
     #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
     #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
-    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
-    'lat_band': [(0,90), r'$\lambda_\mathrm{band}$'], 
-    'sigma_band': [(0,90), r'$\sigma_\mathrm{band}$'],  
-    
+
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 
     'rv': [(16,22), r'$v_\mathrm{rad}$'], 
@@ -127,7 +124,6 @@ constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
     #'epsilon_limb': 0.65, 
-    'inclination': 26, # degrees
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 

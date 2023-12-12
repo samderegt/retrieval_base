@@ -184,6 +184,7 @@ def pre_processing(conf, conf_data):
         n_atm_layers=conf_data.get('n_atm_layers'), 
         rv_range=conf.free_params['rv'][0], 
         vsini_range=conf.free_params['vsini'][0], 
+        inclination=conf.constant_params.get('inclination', 0)
         )
 
     # Save as pickle
