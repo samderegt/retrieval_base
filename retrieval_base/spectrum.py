@@ -249,6 +249,7 @@ class Spectrum:
     def rot_broadening_integration(self, 
                                    vsini, epsilon_limb=0, epsilon_lat=0, 
                                    dif_rot_delta=0, dif_rot_phi=1, 
+                                   epsilon_band=0, lat_band=None, sigma_band=0, 
                                    inclination=0, 
                                    nr=10, ntheta=100, 
                                    wave=None, flux=None, 
@@ -316,6 +317,15 @@ class Spectrum:
                     # Apply latitude-darkening
                     f_ij *= (
                         1 - epsilon_lat * np.sin(dif_rot_phi*lat_ij)**2
+                        )
+                    
+                if (lat_band is not None) and (sigma_band != 0) and (epsilon_band != 0):
+                    # Add a band, symmetric across the equator
+                    f_ij *= (
+                        1 - epsilon_band * np.exp(-(np.rad2deg(lat_ij)-lat_band)**2/(2*sigma_band**2))
+                        )
+                    f_ij *= (
+                        1 - epsilon_band * np.exp(-(np.rad2deg(lat_ij)-(-lat_band))**2/(2*sigma_band**2))
                         )
                 
                 # Apply Doppler shift
@@ -951,6 +961,9 @@ class ModelSpectrum(Spectrum):
                             epsilon_lat=0, 
                             dif_rot_delta=None, 
                             dif_rot_phi=1, 
+                            epsilon_band=0, 
+                            lat_band=None, 
+                            sigma_band=0, 
                             inclination=0, 
                             out_res=1e6, 
                             in_res=1e6, 
@@ -966,6 +979,7 @@ class ModelSpectrum(Spectrum):
         self.rot_broadening_integration(
             vsini, epsilon_limb, epsilon_lat, 
             dif_rot_delta, dif_rot_phi, 
+            epsilon_band=epsilon_band, lat_band=lat_band, sigma_band=sigma_band, 
             inclination=inclination, 
             replace_wave_flux=True
             )

@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_23'
+prefix = 'fiducial_K_B_ret_24'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -65,10 +65,13 @@ free_params = {
     'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
     'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
-    'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
-    'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
+    #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
+    #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
-
+    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
+    'lat_band': [(0,90), r'$\lambda_\mathrm{band}$'], 
+    'sigma_band': [(0,90), r'$\sigma_\mathrm{band}$'],  
+    
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 
     'rv': [(16,22), r'$v_\mathrm{rad}$'], 
