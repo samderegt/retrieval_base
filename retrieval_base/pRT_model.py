@@ -138,7 +138,7 @@ class RotationProfile:
         for unique_i, unique_mu_i in enumerate(self.unique_mu):
             self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
                 
-    def __call__(self, wave, flux, params):
+    def __call__(self, wave, flux, params, get_scaling=False):
 
         # Compute velocity-grid
         vsini = params.get('vsini', 0)
@@ -183,10 +183,14 @@ class RotationProfile:
 
             # Scale by (limb)-darkening and angular area
             f_i    = self.f_grid[i]
-            area_i = self.area_per_segment[i]
+            area_i = self.area_per_segment[i] 
             
             # Add to the global spectrum
             flux_rot_broad_mu[idx_mu_i,:] += f_i * area_i * flux_shifted_i
+
+            if get_scaling:
+                # Store the flux-scaling of this segment
+                self.f_grid[i] = np.nansum(f_i*flux_shifted_i)
 
         # Integrate over incidence angles
         if self.int_method == 'gauss_quadrature':
@@ -200,11 +204,9 @@ class RotationProfile:
                 axis=0
                 )
         
-        # Integrate over wavelengths to store limb-darkening
-        unique_f = np.nansum((self.unique_mu[:,None] * flux_rot_broad_mu), axis=-1)
-        unique_f /= np.nansum(unique_f)
-        for i, idx_mu_i in enumerate(self.idx_mu):
-            self.f_grid[i] = unique_f[idx_mu_i]
+        if get_scaling:
+            # Integrate over wavelengths to store limb-darkening
+            self.f_grid /= np.nanmax(self.f_grid)
             
         return flux_rot_broad
 
@@ -514,7 +516,7 @@ class pRT_model:
             wave_i *= (1 + self.params['rv']/(nc.c*1e-5))
 
             # Apply rotational broadening
-            flux_i = self.Rot(wave_i, flux_i, self.params)
+            flux_i = self.Rot(wave_i, flux_i, self.params, get_scaling=get_full_spectrum)
 
             # Convert to observation by scaling with planetary radius
             flux_i *= (
