@@ -63,7 +63,7 @@ free_params = {
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
-    #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
+    'epsilon_lat': [(-1,1), r'$\epsilon_\mathrm{lat}$'], 
     #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
 
@@ -121,6 +121,7 @@ free_params = {
 constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
+    'inclination': 26, # degrees
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 

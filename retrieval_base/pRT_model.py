@@ -7,9 +7,9 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=20, n_theta=200, int_method='trapezoid'):
+    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=10, n_theta=100, int_method='trapezoid'):
         
-        # Adopted from Carvalho & Johns-Krull (2023)
+        # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
         self.lon_0 = np.deg2rad(lon_0)
         
@@ -23,7 +23,10 @@ class RotationProfile:
         self.int_method = int_method
 
         self.get_coords()
-        print(self.unique_r, self.unique_mu)
+        #print(self.inc)
+        #print(self.unique_r, self.unique_mu)
+        #print(self.lat_grid)
+        #print(self.lon_grid)
 
     def get_coords(self):
 
@@ -123,7 +126,7 @@ class RotationProfile:
         # Latitudes + longitudes
         self.lat_grid = np.arcsin(
             np.cos(c)*np.sin(self.inc) + \
-            y/self.r_grid * np.sin(c)*np.cos(self.inc)
+            np.cos(self.theta_grid)*np.sin(c)*np.cos(self.inc)
             )
         self.lon_grid = self.lon_0 + np.arctan2(
             x*np.sin(c), self.r_grid * np.cos(c)*np.cos(self.inc) - \
@@ -150,6 +153,11 @@ class RotationProfile:
             # Linear limb-darkening for integrated flux
             epsilon_limb = params.get('epsilon_limb', 0)
             self.f_grid *= (1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2))
+
+        if params.get('epsilon_lat') is not None:
+            # Latitude-darkening
+            epsilon_lat = params.get('epsilon_lat')
+            self.f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
         self.f_grid /= np.sum(self.f_grid) # Normalize
 
@@ -187,6 +195,10 @@ class RotationProfile:
                 y=(self.unique_mu[:,None] * flux_rot_broad_mu)[::-1], 
                 axis=0
                 )
+        
+        # Integrate over wavelengths to store limb-darkening
+        self.f_grid = np.nansum((self.unique_mu[:,None] * flux_rot_broad_mu), axis=-1)
+        self.f_grid /= np.nansum(self.f_grid)
             
         return flux_rot_broad
 
