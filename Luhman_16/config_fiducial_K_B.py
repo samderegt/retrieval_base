@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_32'
+prefix = 'fiducial_K_B_ret_33'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -63,7 +63,7 @@ free_params = {
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
-    'epsilon_lat': [(-1,1), r'$\epsilon_\mathrm{lat}$'], 
+    'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
     #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
 

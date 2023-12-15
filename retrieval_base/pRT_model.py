@@ -7,7 +7,7 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=10, n_theta=100, int_method='trapezoid'):
+    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=15, n_theta=150, int_method='trapezoid'):
         
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
@@ -68,13 +68,14 @@ class RotationProfile:
 
             elif self.n_c is not None:
                 # Equidistant grid in angular distance
-                c = np.linspace(0, np.pi/2, self.n_c)
+                # Final incidence angle is not given to pRT
+                c = np.linspace(0, np.pi/2, self.n_c+1)
 
                 self.unique_mu = np.cos(c)
                 self.unique_r  = np.sqrt(1-self.unique_mu**2)
 
                 self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
-                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
+                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)-1
         
         self.mu_grid, self.w_gauss_mu = [], []
         self.r_grid, self.theta_grid  = [], []
@@ -167,6 +168,9 @@ class RotationProfile:
 
             idx_mu_i = self.idx_mu[i]
             if flux.ndim > 1:
+                if idx_mu_i >= len(flux):
+                    # Un-computed flux
+                    continue
                 flux_i = flux[idx_mu_i]
             else:
                 flux_i = flux
@@ -197,8 +201,10 @@ class RotationProfile:
                 )
         
         # Integrate over wavelengths to store limb-darkening
-        self.f_grid = np.nansum((self.unique_mu[:,None] * flux_rot_broad_mu), axis=-1)
-        self.f_grid /= np.nansum(self.f_grid)
+        unique_f = np.nansum((self.unique_mu[:,None] * flux_rot_broad_mu), axis=-1)
+        unique_f /= np.nansum(unique_f)
+        for i, idx_mu_i in enumerate(self.idx_mu):
+            self.f_grid[i] = unique_f[idx_mu_i]
             
         return flux_rot_broad
 
@@ -326,10 +332,10 @@ class pRT_model:
             atm_i.setup_opa_structure(self.pressure)
 
             # Modify the incidence angles
-            atm_i.mu = self.Rot.unique_mu
+            atm_i.mu = self.Rot.unique_mu[:-1]
             
             # Equal weights... not a proper Gaussian quadrature integration
-            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
+            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu[:-1]
 
             self.atm.append(atm_i)
 
