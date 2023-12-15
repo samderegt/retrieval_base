@@ -160,6 +160,23 @@ class RotationProfile:
             epsilon_lat = params.get('epsilon_lat')
             self.f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
+        if params.get('lat_band') is not None:
+            # Add a band at some latitude, with a Gaussian profile
+            lat_band     = np.deg2rad(params.get('lat_band'))
+            sigma_band   = np.deg2rad(params.get('sigma_band', 0))
+            epsilon_band = params.get('epsilon_band', 0)
+
+            self.f_grid *= (
+                1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
+                )
+            
+        if params.get('alpha_diff_rot') is not None:
+            # Differential rotation
+            alpha_diff_rot = params.get('alpha_diff_rot')
+            self.v_grid *= (
+                1 - alpha_diff_rot * np.sin(self.lat_grid)**2
+                )
+
         self.f_grid /= np.sum(self.f_grid) # Normalize
 
         # Store intensities per incidence angle
