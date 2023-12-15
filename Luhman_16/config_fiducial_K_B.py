@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_B_ret_25'
+prefix = 'fiducial_K_B_ret_32'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -52,19 +52,17 @@ magnitudes = {
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    #'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{K}$'], 
 
     # Uncertainty scaling
-    #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
-    'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
-    #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
-    #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
+    #'log_a': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
+    'log_a': [(0.1,0.25), r'$\log\ a_\mathrm{K}$'], 
+    'log_l': [(-2,-1), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
-    'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6.0), r'$\log\ g$'], 
-    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,5.5), r'$\log\ g$'], 
+    #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
     #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
     #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
     #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
@@ -116,14 +114,13 @@ free_params = {
     'dlnT_dlnP_3': [(0.0,0.4), r'$\nabla_{T,3}$'], 
     'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
 
-    'T_0': [(2000,7000), r'$T_0$'], 
+    'T_0': [(3000,7000), r'$T_0$'], 
 }
 
 # Constants to use if prior is not given
 constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
-    #'epsilon_limb': 0.65, 
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 
@@ -175,7 +172,7 @@ line_species = [
     'CO_main_iso', 
     'CO_36', 
     'CO_28', 
-    'CO_27', 
+    #'CO_27', 
 
     'H2O_pokazatel_main_iso', 
     'H2O_181', 
