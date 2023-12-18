@@ -106,22 +106,20 @@ class RotationProfile:
                 )
         
         # Flux-scaling grid
-        self.f_grid = f_grid
-
-        if self.f_grid is None:
-            self.f_grid = np.ones_like(self.r_grid)
+        if f_grid is None:
+            f_grid = np.ones_like(self.r_grid)
 
             if flux.ndim == 1:
                 # Linear limb-darkening for integrated flux
                 epsilon_limb = params.get('epsilon_limb', 0)
-                self.f_grid *= (
+                f_grid *= (
                     1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2)
                     )
 
             if params.get('epsilon_lat') is not None:
                 # Latitude-darkening
                 epsilon_lat = params.get('epsilon_lat')
-                self.f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
+                f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
             if params.get('lat_band') is not None:
                 # Add a band at some latitude, with a Gaussian profile
@@ -129,13 +127,15 @@ class RotationProfile:
                 sigma_band   = np.deg2rad(params.get('sigma_band', 0))
                 epsilon_band = params.get('epsilon_band', 0)
 
-                self.f_grid *= (
+                f_grid *= (
                     1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
                     )
 
-        integrated_f_grid = np.sum(self.f_grid * self.area_per_segment)
-        
-        # Store intensities per incidence angle
+        integrated_f_grid = np.sum(f_grid * self.area_per_segment)
+        if get_scaling:
+            self.f_grid = np.ones_like(f_grid) * np.nan
+
+        # Store global flux, integrated over incidence angles
         flux_rot_broad = np.zeros(flux.shape[-1])
         for i, v_i in enumerate(self.v_grid):
 
@@ -155,7 +155,7 @@ class RotationProfile:
                 )
 
             # Scale by (limb)-darkening and angular area
-            f_i    = self.f_grid[i]
+            f_i    = f_grid[i]
             area_i = self.area_per_segment[i]
             
             # Add to the global spectrum
@@ -163,7 +163,7 @@ class RotationProfile:
 
             if get_scaling:
                 # Store the flux-scaling of this segment
-                self.f_grid[i] = np.nansum(f_i*flux_shifted_i)
+                self.f_grid[i] = np.nansum(f_i*flux_shifted_i / integrated_f_grid)
         
         # Normalize to account for any over/under-estimation of total flux
         flux_rot_broad *= self.disk_area_tot / integrated_f_grid
@@ -457,6 +457,7 @@ class pRT_model:
                 sigma_lnorm=self.sigma_g,
                 give_absorption_opacity=self.give_absorption_opacity, 
                 contribution=get_contr, 
+                return_per_mu=True, 
                 )
             wave_i = nc.c / atm_i.freq
             if hasattr(atm_i, 'flux_mu'):
