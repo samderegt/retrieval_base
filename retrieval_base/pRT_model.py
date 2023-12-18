@@ -7,78 +7,29 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=10, n_theta=100, int_method='trapezoid'):
+    def __init__(self, inc=0, lon_0=0, n_c=15, n_theta=150):
         
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
         self.lon_0 = np.deg2rad(lon_0)
         
-        self.n_mu    = n_mu
-        self.n_r     = n_r
+        # Define grid to integrate over
         self.n_c     = n_c
-
         self.n_theta = n_theta
 
-        # Integration method
-        self.int_method = int_method
-
         self.get_coords()
-        #print(self.inc)
-        #print(self.unique_r, self.unique_mu)
-        #print(self.lat_grid)
-        #print(self.lon_grid)
 
     def get_coords(self):
 
-        if self.int_method == 'gauss_quadrature':
-            # Gaussian quadrature grid
-            self.unique_mu, self.unique_w_gauss_mu = \
-                np.polynomial.legendre.leggauss(deg=self.n_mu)
-            self.unique_mu         = 1/2*self.unique_mu + 1/2
-            self.unique_w_gauss_mu = 1/2*self.unique_w_gauss_mu
+        # Equidistant grid in angular distance
+        self.dc = (np.pi/2) / self.n_c
+        self.unique_c = np.arange(self.dc/2, np.pi/2, self.dc)
 
-            self.unique_r = np.sqrt(1-self.unique_mu**2)
+        self.unique_mu = np.cos(self.unique_c)
+        self.unique_r  = np.sqrt(1-self.unique_mu**2)
 
-        elif self.int_method == 'trapezoid':
-
-            if self.n_r is not None:
-                # Equidistant grid in radius
-                dr = 1 / self.n_r
-
-                self.unique_r  = np.arange(dr/2, 1, dr)
-                self.unique_mu = np.sqrt(1-self.unique_r**2)
-
-                a = 1.0 - (self.unique_r+dr/2)**2
-                b = 1.0 - (self.unique_r-dr/2)**2
-                a[a<0] = 0.0
-                b[b<0] = 0.0
-
-                self.unique_w_gauss_mu = np.abs(np.sqrt(a) - np.sqrt(b))
-                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
-                
-            elif self.n_mu is not None:
-                # Equidistant grid in mu
-                dmu = 1 / self.n_mu
-
-                self.unique_mu = np.arange(1-dmu/2, 0, -dmu)
-                self.unique_r  = np.sqrt(1-self.unique_mu**2)
-
-                self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
-                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
-
-            elif self.n_c is not None:
-                # Equidistant grid in angular distance
-                # Final incidence angle is not given to pRT
-                #c = np.linspace(0, np.pi/2, self.n_c+1)
-                dc = (np.pi/2) / self.n_c
-                self.unique_c = np.arange(dc/2, np.pi/2, dc)
-
-                self.unique_mu = np.cos(self.unique_c)
-                self.unique_r  = np.sqrt(1-self.unique_mu**2)
-
-                self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
-                #self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)-1
-                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
+        self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
+        self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
         
         self.mu_grid, self.w_gauss_mu = [], []
         self.r_grid, self.theta_grid  = [], []
@@ -96,7 +47,7 @@ class RotationProfile:
             if n_theta_r_i in [0,self.n_theta]:
                 # Angle-integration not necessary,
                 # flux at limb (mu=0) is 0 or vsini is 0
-                n_theta_r_i = 1                
+                n_theta_r_i = 1
                 
             # Projected area
             area_ij = 2*np.pi / n_theta_r_i
@@ -213,24 +164,8 @@ class RotationProfile:
                 self.f_grid[i] = np.nansum(f_i*flux_shifted_i)
 
         # Integrate over incidence angles
-        if self.int_method == 'gauss_quadrature':
-            flux_rot_broad = np.sum(
-                self.unique_mu[:,None] * flux_rot_broad_mu * \
-                    self.unique_w_gauss_mu[:,None], 
-                axis=0
-                )
-        elif self.int_method == 'trapezoid':
-            if self.n_c is not None:
-                y  = (self.unique_mu * np.sin(self.unique_c))[:,None] * flux_rot_broad_mu
-                dy = (np.pi/2) / self.n_c
-
-                flux_rot_broad = np.nansum(y*dy, axis=0)
-            else:
-                flux_rot_broad = np.trapz(
-                    x=self.unique_mu[::-1], 
-                    y=(self.unique_mu[:,None] * flux_rot_broad_mu)[::-1], 
-                    axis=0
-                    )
+        y = (self.unique_mu * np.sin(self.unique_c))[:,None] * flux_rot_broad_mu
+        flux_rot_broad = np.nansum(y*self.dc, axis=0)
         
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening
@@ -362,11 +297,9 @@ class pRT_model:
             atm_i.setup_opa_structure(self.pressure)
 
             # Modify the incidence angles
-            #atm_i.mu = self.Rot.unique_mu[:-1]
             atm_i.mu = self.Rot.unique_mu
             
             # Equal weights... not a proper Gaussian quadrature integration
-            #atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu[:-1]
             atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
 
             self.atm.append(atm_i)

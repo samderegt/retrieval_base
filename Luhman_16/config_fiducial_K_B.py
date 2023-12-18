@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'reference_diff_rot_K_B_ret_2'
+prefix = 'reference_diff_rot_K_B_ret_3'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
