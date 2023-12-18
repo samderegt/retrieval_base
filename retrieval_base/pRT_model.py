@@ -7,7 +7,7 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_c=15, n_theta=150):
+    def __init__(self, inc=0, lon_0=0, n_c=10, n_theta=100):
         
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
@@ -40,17 +40,14 @@ class RotationProfile:
 
             # Corresponding radius
             r_i = self.unique_r[i]
+            c_i = self.unique_c[i]
 
             # Reduce number of angular segments close to centre
             n_theta_r_i = int(self.n_theta*r_i)
-
-            if n_theta_r_i in [0,self.n_theta]:
-                # Angle-integration not necessary,
-                # flux at limb (mu=0) is 0 or vsini is 0
-                n_theta_r_i = 1
                 
             # Projected area
             area_ij = 2*np.pi / n_theta_r_i
+            area_ij *= mu_i * np.sin(c_i) * self.dc
 
             for j in range(n_theta_r_i):
                 th_ij = (np.pi + j*2*np.pi)/n_theta_r_i
@@ -71,7 +68,7 @@ class RotationProfile:
         
         # Normalize the projected area
         self.area_per_segment = np.array(self.area_per_segment)
-        self.area_per_segment *= len(self.area_per_segment)
+        self.disk_area_tot    = np.sum(self.area_per_segment)
 
         # 2D cartesian coordinates
         x = self.r_grid * np.sin(self.theta_grid)
@@ -92,7 +89,7 @@ class RotationProfile:
         for unique_i, unique_mu_i in enumerate(self.unique_mu):
             self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
                 
-    def __call__(self, wave, flux, params, get_scaling=False):
+    def __call__(self, wave, flux, params, f_grid=None, get_scaling=False):
 
         # Compute velocity-grid
         vsini = params.get('vsini', 0)
@@ -101,40 +98,45 @@ class RotationProfile:
         # Scale by the inclination, turns vsini into v_eq
         #self.v_grid *= np.abs(np.sin(np.deg2rad(90)-self.inc))
 
-        # Flux-scaling grid
-        self.f_grid = np.ones_like(self.r_grid)
-
-        if flux.ndim == 1:
-            # Linear limb-darkening for integrated flux
-            epsilon_limb = params.get('epsilon_limb', 0)
-            self.f_grid *= (1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2))
-
-        if params.get('epsilon_lat') is not None:
-            # Latitude-darkening
-            epsilon_lat = params.get('epsilon_lat')
-            self.f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
-
-        if params.get('lat_band') is not None:
-            # Add a band at some latitude, with a Gaussian profile
-            lat_band     = np.deg2rad(params.get('lat_band'))
-            sigma_band   = np.deg2rad(params.get('sigma_band', 0))
-            epsilon_band = params.get('epsilon_band', 0)
-
-            self.f_grid *= (
-                1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
-                )
-            
         if params.get('alpha_diff_rot') is not None:
             # Differential rotation
             alpha_diff_rot = params.get('alpha_diff_rot')
             self.v_grid *= (
                 1 - alpha_diff_rot * np.sin(self.lat_grid)**2
                 )
+        
+        # Flux-scaling grid
+        self.f_grid = f_grid
 
-        self.f_grid /= np.sum(self.f_grid) # Normalize
+        if self.f_grid is None:
+            self.f_grid = np.ones_like(self.r_grid)
 
+            if flux.ndim == 1:
+                # Linear limb-darkening for integrated flux
+                epsilon_limb = params.get('epsilon_limb', 0)
+                self.f_grid *= (
+                    1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2)
+                    )
+
+            if params.get('epsilon_lat') is not None:
+                # Latitude-darkening
+                epsilon_lat = params.get('epsilon_lat')
+                self.f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
+
+            if params.get('lat_band') is not None:
+                # Add a band at some latitude, with a Gaussian profile
+                lat_band     = np.deg2rad(params.get('lat_band'))
+                sigma_band   = np.deg2rad(params.get('sigma_band', 0))
+                epsilon_band = params.get('epsilon_band', 0)
+
+                self.f_grid *= (
+                    1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
+                    )
+
+        integrated_f_grid = np.sum(self.f_grid * self.area_per_segment)
+        
         # Store intensities per incidence angle
-        flux_rot_broad_mu = np.zeros((len(self.unique_mu), flux.shape[-1]))
+        flux_rot_broad = np.zeros(flux.shape[-1])
         for i, v_i in enumerate(self.v_grid):
 
             idx_mu_i = self.idx_mu[i]
@@ -154,18 +156,17 @@ class RotationProfile:
 
             # Scale by (limb)-darkening and angular area
             f_i    = self.f_grid[i]
-            area_i = self.area_per_segment[i] 
+            area_i = self.area_per_segment[i]
             
             # Add to the global spectrum
-            flux_rot_broad_mu[idx_mu_i,:] += f_i * area_i * flux_shifted_i
+            flux_rot_broad += f_i * area_i * flux_shifted_i
 
             if get_scaling:
                 # Store the flux-scaling of this segment
                 self.f_grid[i] = np.nansum(f_i*flux_shifted_i)
-
-        # Integrate over incidence angles
-        y = (self.unique_mu * np.sin(self.unique_c))[:,None] * flux_rot_broad_mu
-        flux_rot_broad = np.nansum(y*self.dc, axis=0)
+        
+        # Normalize to account for any over/under-estimation of total flux
+        flux_rot_broad *= self.disk_area_tot / integrated_f_grid
         
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening

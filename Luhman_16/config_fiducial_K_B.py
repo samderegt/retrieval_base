@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'reference_diff_rot_K_B_ret_3'
+prefix = 'reference_diff_rot_K_B_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -256,5 +256,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 100
 n_iter_before_update = 200
