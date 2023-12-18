@@ -7,7 +7,7 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=15, n_theta=150, int_method='trapezoid'):
+    def __init__(self, inc=0, lon_0=0, n_mu=None, n_r=None, n_c=10, n_theta=100, int_method='trapezoid'):
         
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
@@ -69,13 +69,16 @@ class RotationProfile:
             elif self.n_c is not None:
                 # Equidistant grid in angular distance
                 # Final incidence angle is not given to pRT
-                c = np.linspace(0, np.pi/2, self.n_c+1)
+                #c = np.linspace(0, np.pi/2, self.n_c+1)
+                dc = (np.pi/2) / self.n_c
+                self.unique_c = np.arange(dc/2, np.pi/2, dc)
 
-                self.unique_mu = np.cos(c)
+                self.unique_mu = np.cos(self.unique_c)
                 self.unique_r  = np.sqrt(1-self.unique_mu**2)
 
                 self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
-                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)-1
+                #self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)-1
+                self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
         
         self.mu_grid, self.w_gauss_mu = [], []
         self.r_grid, self.theta_grid  = [], []
@@ -122,16 +125,16 @@ class RotationProfile:
         # 2D cartesian coordinates
         x = self.r_grid * np.sin(self.theta_grid)
         y = self.r_grid * np.cos(self.theta_grid)
-        c = np.arccos(self.mu_grid) # Angular distance
+        self.c_grid = np.arccos(self.mu_grid) # Angular distance
 
         # Latitudes + longitudes
         self.lat_grid = np.arcsin(
-            np.cos(c)*np.sin(self.inc) + \
-            np.cos(self.theta_grid)*np.sin(c)*np.cos(self.inc)
+            np.cos(self.c_grid)*np.sin(self.inc) + \
+            np.cos(self.theta_grid)*np.sin(self.c_grid)*np.cos(self.inc)
             )
         self.lon_grid = self.lon_0 + np.arctan2(
-            x*np.sin(c), self.r_grid * np.cos(c)*np.cos(self.inc) - \
-                                y * np.sin(c)*np.sin(self.inc)
+            x*np.sin(self.c_grid), self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
+                                y * np.sin(self.c_grid)*np.sin(self.inc)
             )
         
         self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)        
@@ -212,14 +215,22 @@ class RotationProfile:
         # Integrate over incidence angles
         if self.int_method == 'gauss_quadrature':
             flux_rot_broad = np.sum(
-                self.unique_mu[:,None] * flux_rot_broad_mu * self.unique_w_gauss_mu[:,None], axis=0
-                )
-        elif self.int_method == 'trapezoid':
-            flux_rot_broad = np.trapz(
-                x=self.unique_mu[::-1], 
-                y=(self.unique_mu[:,None] * flux_rot_broad_mu)[::-1], 
+                self.unique_mu[:,None] * flux_rot_broad_mu * \
+                    self.unique_w_gauss_mu[:,None], 
                 axis=0
                 )
+        elif self.int_method == 'trapezoid':
+            if self.n_c is not None:
+                y  = (self.unique_mu * np.sin(self.unique_c))[:,None] * flux_rot_broad_mu
+                dy = (np.pi/2) / self.n_c
+
+                flux_rot_broad = np.nansum(y*dy, axis=0)
+            else:
+                flux_rot_broad = np.trapz(
+                    x=self.unique_mu[::-1], 
+                    y=(self.unique_mu[:,None] * flux_rot_broad_mu)[::-1], 
+                    axis=0
+                    )
         
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening
@@ -351,10 +362,12 @@ class pRT_model:
             atm_i.setup_opa_structure(self.pressure)
 
             # Modify the incidence angles
-            atm_i.mu = self.Rot.unique_mu[:-1]
+            #atm_i.mu = self.Rot.unique_mu[:-1]
+            atm_i.mu = self.Rot.unique_mu
             
             # Equal weights... not a proper Gaussian quadrature integration
-            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu[:-1]
+            #atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu[:-1]
+            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
 
             self.atm.append(atm_i)
 
