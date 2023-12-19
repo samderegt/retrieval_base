@@ -7,7 +7,7 @@ from .spectrum import Spectrum, ModelSpectrum
 
 class RotationProfile:
 
-    def __init__(self, inc=0, lon_0=0, n_c=10, n_theta=100):
+    def __init__(self, inc=0, lon_0=0, n_c=15, n_theta=150):
         
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
@@ -122,14 +122,21 @@ class RotationProfile:
                 f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
             if params.get('lat_band') is not None:
-                # Add a band at some latitude, with a Gaussian profile
-                lat_band     = np.deg2rad(params.get('lat_band'))
-                sigma_band   = np.deg2rad(params.get('sigma_band', 0))
-                epsilon_band = params.get('epsilon_band', 0)
+                # Add a band at some latitude
+                lat_band = np.deg2rad(params.get('lat_band'))
 
-                f_grid *= (
-                    1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
-                    )
+                sigma_band   = np.deg2rad(params.get('sigma_band', 0))
+                epsilon_band = params.get('epsilon_band', 1)
+
+                if sigma_band != 0:
+                    # Band with a Gaussian profile
+                    f_grid *= (
+                        1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
+                        )
+                else:
+                    # Change the flux above some latitude
+                    mask_band = (self.lat_grid > -lat_band) & (self.lat_grid < lat_band)
+                    f_grid[~mask_band] *= (1 - epsilon_band)
 
         integrated_f_grid = np.sum(f_grid * self.area_per_segment)
         if get_scaling:
