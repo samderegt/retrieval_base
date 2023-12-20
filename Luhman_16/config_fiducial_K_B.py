@@ -7,13 +7,13 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'reference_diff_rot_K_B_ret_4'
+prefix = '3_bands_K_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'K2166': {
-        'w_set': 'K2166', 'wave_range': (2300, 2400), 
-        #'w_set': 'K2166', 'wave_range': (1900, 2500), 
+        #'w_set': 'K2166', 'wave_range': (2300, 2400), 
+        'w_set': 'K2166', 'wave_range': (1900, 2500), 
 
         'file_target': './data/Luhman_16B_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
@@ -62,14 +62,9 @@ free_params = {
     # General properties
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
-    #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
-    #'epsilon_lat': [(0,1), r'$\epsilon_\mathrm{lat}$'], 
-    #'alpha_diff_rot': [(0,1), r'$\alpha_\mathrm{diff,rot}$'], 
-    #'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
-    #'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
-    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
-    #'sigma_band': [(0,90), r'$\sigma_\mathrm{band}$'], 
-    #'lat_band': [(-90,90), r'$\lambda_\mathrm{band}$'], 
+    'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
+    'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
+    'epsilon_band': [(0,1), r'$\epsilon_\mathrm{band}$'], 
 
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 
@@ -125,7 +120,7 @@ free_params = {
 constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
-    'inclination': 26, # degrees
+    'inclination': 0, # degrees
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 

@@ -3,7 +3,7 @@ import numpy as np
 from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
 
-from .spectrum import Spectrum, ModelSpectrum
+from .spectrum import ModelSpectrum
 
 class RotationProfile:
 
@@ -134,9 +134,23 @@ class RotationProfile:
                         1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
                         )
                 else:
-                    # Change the flux above some latitude
-                    mask_band = (self.lat_grid > -lat_band) & (self.lat_grid < lat_band)
-                    f_grid[~mask_band] *= (1 - epsilon_band)
+                    # Change the flux between some latitudes
+                    lat_band_upper = np.deg2rad(params.get('lat_band_upper', 90))
+                    
+                    mask_band = (np.abs(self.lat_grid) > lat_band)
+                    if lat_band_upper > lat_band:
+                        # Dark band at latitudes above equator
+                        mask_band = mask_band & (np.abs(self.lat_grid) < lat_band_upper)
+                    else:
+                        # Flip the bands, i.e. dark band on equator
+                        mask_band = mask_band | (np.abs(self.lat_grid) < lat_band_upper)
+
+                    f_grid[mask_band] *= (1 - epsilon_band)
+
+            if params.get('lat_band_low') is not None:
+                # Add a band at some latitude
+                lat_band = np.deg2rad(params.get('lat_band'))
+                epsilon_band = params.get('epsilon_band', 1)
 
         integrated_f_grid = np.sum(f_grid * self.area_per_segment)
         if get_scaling:
