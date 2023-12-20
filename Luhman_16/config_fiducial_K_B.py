@@ -7,13 +7,13 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = '3_bands_K_B_ret_1'
+prefix = 'equatorial_band_K_B_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'K2166': {
         #'w_set': 'K2166', 'wave_range': (2300, 2400), 
-        'w_set': 'K2166', 'wave_range': (1900, 2500), 
+        'w_set': 'K2166', 'wave_range': (2200, 2400), 
 
         'file_target': './data/Luhman_16B_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
@@ -63,8 +63,8 @@ free_params = {
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
     'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
-    'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
-    'epsilon_band': [(0,1), r'$\epsilon_\mathrm{band}$'], 
+    #'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
+    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
 
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 

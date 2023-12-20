@@ -145,7 +145,12 @@ class RotationProfile:
                         # Flip the bands, i.e. dark band on equator
                         mask_band = mask_band | (np.abs(self.lat_grid) < lat_band_upper)
 
-                    f_grid[mask_band] *= (1 - epsilon_band)
+                    if epsilon_band < 0:
+                        # Dark band on equator
+                        f_grid[~mask_band] *= (1 - np.abs(epsilon_band))
+                    else:
+                        # Bright band on equator
+                        f_grid[mask_band] *= (1 - epsilon_band)
 
             if params.get('lat_band_low') is not None:
                 # Add a band at some latitude
