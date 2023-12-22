@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'equatorial_band_K_B_ret_4'
+prefix = 'equatorial_band_K_B_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -33,7 +33,7 @@ config_data = {
         'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.7, 'sigma_clip_width': 8, 
+        'tell_threshold': 0.95, 'sigma_clip_width': 8, 
     
         'log_P_range': (-5,3), 'n_atm_layers': 50, 
         }, 
@@ -55,9 +55,8 @@ free_params = {
     #'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{K}$'], 
 
     # Uncertainty scaling
-    #'log_a': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
-    'log_a': [(0.1,0.25), r'$\log\ a_\mathrm{K}$'], 
-    'log_l': [(-2,-1), r'$\log\ l_\mathrm{K}$'], 
+    'log_a': [(-0.7,0.25), r'$\log\ a_\mathrm{K}$'], 
+    'log_l': [(-3,-1), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
