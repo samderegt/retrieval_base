@@ -4,201 +4,7 @@ from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
 
 from .spectrum import ModelSpectrum
-
-class RotationProfile:
-
-    def __init__(self, inc=0, lon_0=0, n_c=15, n_theta=150):
-        
-        # (Partially) adopted from Carvalho & Johns-Krull (2023)
-        self.inc   = np.deg2rad(inc)
-        self.lon_0 = np.deg2rad(lon_0)
-        
-        # Define grid to integrate over
-        self.n_c     = n_c
-        self.n_theta = n_theta
-
-        self.get_coords()
-
-    def get_coords(self):
-
-        # Equidistant grid in angular distance
-        self.dc = (np.pi/2) / self.n_c
-        self.unique_c = np.arange(self.dc/2, np.pi/2, self.dc)
-
-        self.unique_mu = np.cos(self.unique_c)
-        self.unique_r  = np.sqrt(1-self.unique_mu**2)
-
-        self.unique_w_gauss_mu = np.ones_like(self.unique_mu)
-        self.unique_w_gauss_mu /= np.sum(self.unique_w_gauss_mu)
-        
-        self.mu_grid, self.w_gauss_mu = [], []
-        self.r_grid, self.theta_grid  = [], []
-        self.area_per_segment = []
-
-        # Radial grid spacing
-        for i, mu_i in enumerate(self.unique_mu):
-
-            # Corresponding radius
-            r_i = self.unique_r[i]
-            c_i = self.unique_c[i]
-
-            # Reduce number of angular segments close to centre
-            n_theta_r_i = int(self.n_theta*r_i)
-                
-            # Projected area
-            area_ij = 2*np.pi / n_theta_r_i
-            area_ij *= mu_i * np.sin(c_i) * self.dc
-
-            for j in range(n_theta_r_i):
-                th_ij = (np.pi + j*2*np.pi)/n_theta_r_i
-                
-                self.mu_grid.append(mu_i)
-                self.w_gauss_mu.append(self.unique_w_gauss_mu[i])
-
-                self.r_grid.append(r_i)
-                self.theta_grid.append(th_ij)
-
-                self.area_per_segment.append(area_ij)
-
-        self.mu_grid    = np.array(self.mu_grid)
-        self.w_gauss_mu = np.array(self.w_gauss_mu)
-
-        self.r_grid     = np.array(self.r_grid)
-        self.theta_grid = np.array(self.theta_grid)
-        
-        # Normalize the projected area
-        self.area_per_segment = np.array(self.area_per_segment)
-        self.disk_area_tot    = np.sum(self.area_per_segment)
-
-        # 2D cartesian coordinates
-        x = self.r_grid * np.sin(self.theta_grid)
-        y = self.r_grid * np.cos(self.theta_grid)
-        self.c_grid = np.arccos(self.mu_grid) # Angular distance
-
-        # Latitudes + longitudes
-        self.lat_grid = np.arcsin(
-            np.cos(self.c_grid)*np.sin(self.inc) + \
-            np.cos(self.theta_grid)*np.sin(self.c_grid)*np.cos(self.inc)
-            )
-        self.lon_grid = self.lon_0 + np.arctan2(
-            x*np.sin(self.c_grid), self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
-                                y * np.sin(self.c_grid)*np.sin(self.inc)
-            )
-        
-        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)        
-        for unique_i, unique_mu_i in enumerate(self.unique_mu):
-            self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
-                
-    def __call__(self, wave, flux, params, f_grid=None, get_scaling=False):
-
-        # Compute velocity-grid
-        vsini = params.get('vsini', 0)
-        self.v_grid = vsini * self.r_grid * np.sin(self.theta_grid)
-        
-        # Scale by the inclination, turns vsini into v_eq
-        #self.v_grid *= np.abs(np.sin(np.deg2rad(90)-self.inc))
-
-        if params.get('alpha_diff_rot') is not None:
-            # Differential rotation
-            alpha_diff_rot = params.get('alpha_diff_rot')
-            self.v_grid *= (
-                1 - alpha_diff_rot * np.sin(self.lat_grid)**2
-                )
-        
-        # Flux-scaling grid
-        if f_grid is None:
-            f_grid = np.ones_like(self.r_grid)
-
-            if flux.ndim == 1:
-                # Linear limb-darkening for integrated flux
-                epsilon_limb = params.get('epsilon_limb', 0)
-                f_grid *= (
-                    1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2)
-                    )
-
-            if params.get('epsilon_lat') is not None:
-                # Latitude-darkening
-                epsilon_lat = params.get('epsilon_lat')
-                f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
-
-            if params.get('lat_band') is not None:
-                # Add a band at some latitude
-                lat_band = np.deg2rad(params.get('lat_band'))
-
-                sigma_band   = np.deg2rad(params.get('sigma_band', 0))
-                epsilon_band = params.get('epsilon_band', 1)
-
-                if sigma_band != 0:
-                    # Band with a Gaussian profile
-                    f_grid *= (
-                        1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
-                        )
-                else:
-                    # Change the flux between some latitudes
-                    lat_band_upper = np.deg2rad(params.get('lat_band_upper', 90))
-                    
-                    mask_band = (np.abs(self.lat_grid) > lat_band)
-                    if lat_band_upper > lat_band:
-                        # Dark band at latitudes above equator
-                        mask_band = mask_band & (np.abs(self.lat_grid) < lat_band_upper)
-                    else:
-                        # Flip the bands, i.e. dark band on equator
-                        mask_band = mask_band | (np.abs(self.lat_grid) < lat_band_upper)
-
-                    if epsilon_band < 0:
-                        # Dark band on equator
-                        f_grid[~mask_band] *= (1 - np.abs(epsilon_band))
-                    else:
-                        # Bright band on equator
-                        f_grid[mask_band] *= (1 - epsilon_band)
-
-            if params.get('lat_band_low') is not None:
-                # Add a band at some latitude
-                lat_band = np.deg2rad(params.get('lat_band'))
-                epsilon_band = params.get('epsilon_band', 1)
-
-        integrated_f_grid = np.sum(f_grid * self.area_per_segment)
-        if get_scaling:
-            self.f_grid = np.ones_like(f_grid) * np.nan
-
-        # Store global flux, integrated over incidence angles
-        flux_rot_broad = np.zeros(flux.shape[-1])
-        for i, v_i in enumerate(self.v_grid):
-
-            idx_mu_i = self.idx_mu[i]
-            if flux.ndim > 1:
-                if idx_mu_i >= len(flux):
-                    # Un-computed flux
-                    continue
-                flux_i = flux[idx_mu_i]
-            else:
-                flux_i = flux
-
-            # Apply Doppler-shift
-            wave_shifted_i = wave * (1 + v_i/(nc.c*1e-5))
-            flux_shifted_i = np.interp(
-                wave, wave_shifted_i, flux_i, left=np.nan, right=np.nan
-                )
-
-            # Scale by (limb)-darkening and angular area
-            f_i    = f_grid[i]
-            area_i = self.area_per_segment[i]
-            
-            # Add to the global spectrum
-            flux_rot_broad += f_i * area_i * flux_shifted_i
-
-            if get_scaling:
-                # Store the flux-scaling of this segment
-                self.f_grid[i] = np.nansum(f_i*flux_shifted_i / integrated_f_grid)
-        
-        # Normalize to account for any over/under-estimation of total flux
-        flux_rot_broad *= self.disk_area_tot / integrated_f_grid
-        
-        if get_scaling:
-            # Integrate over wavelengths to store limb-darkening
-            self.f_grid /= np.nanmax(self.f_grid)
-            
-        return flux_rot_broad
+from .rotation_profile import get_Rotation_class
 
 class pRT_model:
 
@@ -213,9 +19,9 @@ class pRT_model:
                  log_P_range=(-6,2), 
                  n_atm_layers=50, 
                  cloud_mode=None, 
-                 chem_mode='free', 
                  rv_range=(-50,50), 
                  vsini_range=(10,30), 
+                 rotation_mode='convolve', 
                  inclination=0, 
                  ):
         '''
@@ -243,13 +49,12 @@ class pRT_model:
             Number of atmospheric layers to model.
         cloud_mode : None or str
             Cloud mode to use, can be 'MgSiO3', 'gray' or None.
-        chem_mode : str
-            Chemistry mode to use for clouds, can be 'free' or 'eqchem'.
         
         '''
 
         # Create instance of RotationProfile
-        self.Rot = RotationProfile(inc=inclination)
+        self.rotation_mode = rotation_mode
+        self.Rot = get_Rotation_class(mode=self.rotation_mode, inc=inclination)
 
         # Read in attributes of the observed spectrum
         self.d_wave          = d_spec.wave
@@ -273,7 +78,6 @@ class pRT_model:
             self.do_scat_emis = True
 
         self.cloud_mode = cloud_mode
-        self.chem_mode  = chem_mode
 
         self.rv_max = np.array(list(rv_range))
         self.rv_max[0] -= np.max(list(vsini_range))
@@ -323,11 +127,11 @@ class pRT_model:
             # Set up the atmospheric layers
             atm_i.setup_opa_structure(self.pressure)
 
-            # Modify the incidence angles
-            atm_i.mu = self.Rot.unique_mu
-            
-            # Equal weights... not a proper Gaussian quadrature integration
-            atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
+            if self.rotation_mode == 'integrate':
+                # Modify the incidence angles
+                atm_i.mu = self.Rot.unique_mu
+                # Equal weights... not a proper Gaussian quadrature integration
+                atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
 
             self.atm.append(atm_i)
 
@@ -470,23 +274,27 @@ class pRT_model:
         self.CCF, self.m_ACF = [], []
         self.wave_pRT_grid, self.flux_pRT_grid = [], []
 
+        calc_flux_kwargs = dict(
+            temp    = self.temperature, 
+            abunds  = self.mass_fractions, 
+            gravity = 10**self.params['log_g'], 
+            mmw     = self.mass_fractions['MMW'], 
+            Kzz     = self.K_zz, 
+            fsed    = self.f_sed, 
+            sigma_lnorm = self.sigma_g,
+            give_absorption_opacity = self.give_absorption_opacity, 
+            contribution = get_contr, 
+            )
+        if self.rotation_mode == 'integrate':
+            calc_flux_kwargs['return_per_mu'] = True
+
         for i, atm_i in enumerate(self.atm):
             
             # Compute the emission spectrum
-            atm_i.calc_flux(
-                self.temperature, 
-                self.mass_fractions, 
-                gravity=10**self.params['log_g'], 
-                mmw=self.mass_fractions['MMW'], 
-                Kzz=self.K_zz, 
-                fsed=self.f_sed, 
-                sigma_lnorm=self.sigma_g,
-                give_absorption_opacity=self.give_absorption_opacity, 
-                contribution=get_contr, 
-                return_per_mu=True, 
-                )
+            atm_i.calc_flux(**calc_flux_kwargs)
+
             wave_i = nc.c / atm_i.freq
-            if hasattr(atm_i, 'flux_mu'):
+            if self.rotation_mode == 'integrate' and hasattr(atm_i, 'flux_mu'):
                 flux_i = atm_i.flux_mu
             else:
                 flux_i = atm_i.flux
@@ -507,7 +315,9 @@ class pRT_model:
             wave_i *= (1 + self.params['rv']/(nc.c*1e-5))
 
             # Apply rotational broadening
-            flux_i = self.Rot(wave_i, flux_i, self.params, get_scaling=get_full_spectrum)
+            wave_i, flux_i = self.Rot(
+                wave_i, flux_i, self.params, get_scaling=get_full_spectrum
+                )
 
             # Convert to observation by scaling with planetary radius
             flux_i *= (
@@ -528,24 +338,6 @@ class pRT_model:
                 in_res=m_spec_i.resolution
                 )
 
-            '''            
-            # Apply radial-velocity shift, rotational/instrumental broadening
-            m_spec_i.shift_broaden_rebin(
-                rv=self.params['rv'], 
-                vsini=self.params['vsini'], 
-                epsilon_limb=self.params['epsilon_limb'], 
-                epsilon_lat=self.params.get('epsilon_lat', 0), 
-                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
-                dif_rot_phi=self.params.get('dif_rot_phi', 1), 
-                epsilon_band=self.params.get('epsilon_band', 0), 
-                lat_band=self.params.get('lat_band'), 
-                sigma_band=self.params.get('sigma_band', 0),  
-                inclination=self.params.get('inclination', 0), 
-                out_res=self.d_resolution, 
-                in_res=m_spec_i.resolution, 
-                rebin=False, 
-                )
-            '''
             if get_full_spectrum:
                 # Store the spectrum before the rebinning
                 self.wave_pRT_grid.append(m_spec_i.wave)
@@ -630,13 +422,6 @@ class pRT_model:
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params.get('epsilon_limb', 0), 
-                epsilon_lat=self.params.get('epsilon_lat', 0), 
-                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
-                dif_rot_phi=self.params.get('dif_rot_phi', 1), 
-                epsilon_band=self.params.get('epsilon_band', 0), 
-                lat_band=self.params.get('lat_band'), 
-                sigma_band=self.params.get('sigma_band', 0),  
-                inclination=self.params.get('inclination', 0), 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 
                 rebin=True, 
@@ -662,13 +447,6 @@ class pRT_model:
                 rv=self.params['rv'], 
                 vsini=self.params['vsini'], 
                 epsilon_limb=self.params.get('epsilon_limb', 0), 
-                epsilon_lat=self.params.get('epsilon_lat', 0), 
-                dif_rot_delta=self.params.get('dif_rot_delta', 0), 
-                dif_rot_phi=self.params.get('dif_rot_phi', 1), 
-                epsilon_band=self.params.get('epsilon_band', 0), 
-                lat_band=self.params.get('lat_band'), 
-                sigma_band=self.params.get('sigma_band', 0),  
-                inclination=self.params.get('inclination', 0), 
                 out_res=self.d_resolution, 
                 in_res=m_spec_i.resolution, 
                 rebin=True, 

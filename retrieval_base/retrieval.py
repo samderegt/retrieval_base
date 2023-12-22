@@ -178,12 +178,14 @@ def pre_processing(conf, conf_data):
         mode='lbl', 
         lbl_opacity_sampling=conf_data['lbl_opacity_sampling'], 
         cloud_species=conf.cloud_species, 
+        cloud_mode=conf.cloud_mode, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
         log_P_range=conf_data.get('log_P_range'), 
         n_atm_layers=conf_data.get('n_atm_layers'), 
         rv_range=conf.free_params['rv'][0], 
         vsini_range=conf.free_params['vsini'][0], 
+        rotation_mode=conf.rotation_mode, 
         inclination=conf.constant_params.get('inclination', 0)
         )
 
@@ -226,8 +228,7 @@ class Retrieval:
         for w_set in conf.config_data.keys():
             
             # Update the cloud/chemistry-mode
-            self.pRT_atm[w_set].cloud_mode = self.Param.cloud_mode
-            self.pRT_atm[w_set].chem_mode  = self.Param.chem_mode
+            #self.pRT_atm[w_set].cloud_mode = self.Param.cloud_mode
 
             self.Cov[w_set] = np.empty(
                 (self.d_spec[w_set].n_orders, self.d_spec[w_set].n_dets), dtype=object

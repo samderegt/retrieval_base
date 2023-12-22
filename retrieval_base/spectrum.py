@@ -246,108 +246,6 @@ class Spectrum:
 
         return flux_copy
 
-    def rot_broadening_integration(self, 
-                                   vsini, epsilon_limb=0, epsilon_lat=0, 
-                                   dif_rot_delta=0, dif_rot_phi=1, 
-                                   epsilon_band=0, lat_band=None, sigma_band=0, 
-                                   inclination=0, 
-                                   nr=10, ntheta=100, 
-                                   wave=None, flux=None, 
-                                   replace_wave_flux=False
-                                   ):
-        
-        # Adopted from Carvalho & Johns-Krull (2023)
-
-        if wave is None:
-            wave = self.wave
-        if flux is None:
-            flux = self.flux
-
-        flux_rot_broad = np.zeros_like(flux)
-        disk_area_tot = 0.0
-
-        # Latitude at center of orthographic projection
-        lat_0 = np.deg2rad(inclination)
-
-        dr = 1/nr # Radial grid spacing
-        # Loop over radial grid
-        for i in range(nr):
-
-            r_i = dr/2 + i*dr
-            ntheta_r_i = int(ntheta*r_i)
-
-            # Projected area
-            area_ij = ((r_i + dr/2)**2 - (r_i - dr/2)**2) / ntheta_r_i
-            
-            # Loop over angle
-            for j in range(ntheta_r_i):
-                th_j = (np.pi + j*2*np.pi)/ntheta_r_i
-
-                # Velocity of grid-point
-                vl_ij = vsini * r_i * np.sin(th_j)
-                
-                # Scale by the inclination, turns vsini into v_eq
-                #vl_ij *= np.abs(np.sin(np.deg2rad(90-inclination)))
-
-                # Orthographic projection
-                c = np.arcsin(r_i) # Angular distance
-                x = r_i * np.sin(th_j)
-                y = r_i * np.cos(th_j)
-
-                # Lat-/long-itude of grid-point, based on inclination
-                lat_ij = np.arcsin(
-                    np.cos(c)*np.sin(lat_0) + y/r_i*np.sin(c)*np.cos(lat_0)
-                )
-                #lon_ij = lon_0 + np.arctan2(
-                #    x*np.sin(c), r_i*np.cos(c)*np.cos(lat_0) - y*np.sin(c)*np.sin(lat_0)
-                #)
-                
-                if dif_rot_delta != 0:
-                    # Apply differential rotation
-                    vl_ij *= (
-                        1 - dif_rot_delta * np.sin(dif_rot_phi*lat_ij)**2
-                        )
-                    
-                # Factor to keep track of (limb)-darkening
-                f_ij = 1
-                if epsilon_limb != 0:
-                    # Apply linear limb-darkening
-                    f_ij *= (1 - epsilon_limb + epsilon_limb*np.sqrt(1-r_i**2))
-                if epsilon_lat != 0:
-                    # Apply latitude-darkening
-                    f_ij *= (
-                        1 - epsilon_lat * np.sin(dif_rot_phi*lat_ij)**2
-                        )
-                    
-                if (lat_band is not None) and (sigma_band != 0) and (epsilon_band != 0):
-                    # Add a band, symmetric across the equator
-                    f_ij *= (
-                        1 - epsilon_band * np.exp(-(np.rad2deg(lat_ij)-lat_band)**2/(2*sigma_band**2))
-                        )
-                    f_ij *= (
-                        1 - epsilon_band * np.exp(-(np.rad2deg(lat_ij)-(-lat_band))**2/(2*sigma_band**2))
-                        )
-                
-                # Apply Doppler shift
-                wave_shifted_ij = wave * (1 + vl_ij/(nc.c*1e-5))
-                flux_shifted_ij = np.interp(wave_shifted_ij, wave, flux, left=np.nan, right=np.nan)
-
-                # Add to the global spectrum
-                flux_rot_broad += f_ij * area_ij * flux_shifted_ij
-                disk_area_tot  += f_ij * area_ij
-
-        # Normalize to account for over/under-estimation of disk area
-        flux_rot_broad /= disk_area_tot
-
-        if replace_wave_flux:
-            self.wave = wave
-            self.flux = flux_rot_broad
-        
-            return flux_rot_broad
-        
-        else:
-            return wave, flux_rot_broad
-
     def rot_broadening_convolution(self, vsini, epsilon_limb=0, wave=None, flux=None, replace_wave_flux=False):
 
         if wave is None:
@@ -958,13 +856,6 @@ class ModelSpectrum(Spectrum):
                             rv, 
                             vsini, 
                             epsilon_limb=0, 
-                            epsilon_lat=0, 
-                            dif_rot_delta=None, 
-                            dif_rot_phi=1, 
-                            epsilon_band=0, 
-                            lat_band=None, 
-                            sigma_band=0, 
-                            inclination=0, 
                             out_res=1e6, 
                             in_res=1e6, 
                             d_wave=None, 
@@ -975,13 +866,9 @@ class ModelSpectrum(Spectrum):
         # and rebin onto a new wavelength grid
         self.rv_shift(rv, replace_wave=True)
 
-        # Rotational broadening with integration method
-        self.rot_broadening_integration(
-            vsini, epsilon_limb, epsilon_lat, 
-            dif_rot_delta, dif_rot_phi, 
-            epsilon_band=epsilon_band, lat_band=lat_band, sigma_band=sigma_band, 
-            inclination=inclination, 
-            replace_wave_flux=True
+        # Rotational broadening with convolution method
+        self.rot_broadening_convolution(
+            vsini, epsilon_limb, replace_wave_flux=True
             )
         self.flux = self.instr_broadening(self.wave, self.flux, out_res, in_res)
         if rebin:

@@ -7,13 +7,12 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'equatorial_band_K_B_ret_5'
+prefix = 'test'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'K2166': {
-        #'w_set': 'K2166', 'wave_range': (2300, 2400), 
-        'w_set': 'K2166', 'wave_range': (2200, 2400), 
+        'w_set': 'K2166', 'wave_range': (2300, 2400), 
 
         'file_target': './data/Luhman_16B_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
@@ -33,7 +32,7 @@ config_data = {
         'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         
         'slit': 'w_0.4', 'lbl_opacity_sampling': 3, 
-        'tell_threshold': 0.95, 'sigma_clip_width': 8, 
+        'tell_threshold': 0.7, 'sigma_clip_width': 8, 
     
         'log_P_range': (-5,3), 'n_atm_layers': 50, 
         }, 
@@ -61,9 +60,10 @@ free_params = {
     # General properties
     'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
     'log_g': [(4,5.5), r'$\log\ g$'], 
-    'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
+    #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    #'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
     #'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
-    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
+    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
 
     # Velocities
     'vsini': [(20,30), r'$v\ \sin\ i$'], 
@@ -135,6 +135,8 @@ apply_high_pass_filter = False
 
 cloud_mode = 'gray'
 cloud_species = None
+
+rotation_mode = 'integrate'
 
 ####################################################################################
 # Chemistry parameters
