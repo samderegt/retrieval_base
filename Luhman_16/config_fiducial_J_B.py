@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_20'
+prefix = 'test_J'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -16,7 +16,7 @@ config_data = {
         #'w_set': 'J1226', 'wave_range': (1115, 1139), 
         #'w_set': 'J1226', 'wave_range': (1240, 1295), 
 
-        'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
+        #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
 
         'file_target': './data/Luhman_16B_J.dat', 
         'file_std': './data/Luhman_16_std_J.dat', 
@@ -92,8 +92,8 @@ free_params = {
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
 
-    'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
-    'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
+    #'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
+    #'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
     'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
 
     'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
@@ -133,6 +133,8 @@ apply_high_pass_filter = False
 cloud_mode = 'gray'
 cloud_species = None
 
+rotation_mode = 'integrate'
+
 ####################################################################################
 # Chemistry parameters
 ####################################################################################
@@ -169,8 +171,8 @@ line_species = [
     'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
 
-    'TiO_48_Exomol_McKemmish', 
-    'VO_ExoMol_McKemmish', 
+    #'TiO_48_Exomol_McKemmish', 
+    #'VO_ExoMol_McKemmish', 
     'HF_main_iso', 
 
     'K', 

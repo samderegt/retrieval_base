@@ -7,12 +7,13 @@ file_params = 'config_fiducial_K_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'test'
+prefix = 'test_K'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'K2166': {
-        'w_set': 'K2166', 'wave_range': (2300, 2400), 
+        #'w_set': 'K2166', 'wave_range': (2300, 2400), 
+        'w_set': 'K2166', 'wave_range': (1900, 2500), 
 
         'file_target': './data/Luhman_16B_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
@@ -93,7 +94,7 @@ free_params = {
 
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
     #'log_H2(17)O': [(-12,-2), r'$\log\ \mathrm{H_2^{17}O}$'], 
-    'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+    #'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
     #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
 
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
@@ -176,7 +177,7 @@ line_species = [
     #'CO_27', 
 
     'H2O_pokazatel_main_iso', 
-    'H2O_181', 
+    #'H2O_181', 
     #'H2O_171', 
     #'HDO_voronin', 
 

@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_K_A_ret_10'
+prefix = 'test_K_A'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
@@ -52,25 +52,23 @@ magnitudes = {
 free_params = {
     # Data resolution
     #'res': [(20000,200000), r'res'], 
-    #'log_res_J1226': [(4,5.2), r'$\log\ R_\mathrm{J}$'], 
+    #'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{K}$'], 
 
     # Uncertainty scaling
-    #'log_a': [(-18,-14), r'$\log\ a_1$'], 
-    'log_a': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
-    'log_l': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
-    #'log_a_K2166': [(-1,0.4), r'$\log\ a_\mathrm{K}$'], 
-    #'log_l_K2166': [(-2,-0.8), r'$\log\ l_\mathrm{K}$'], 
+    'log_a': [(-0.7,0.25), r'$\log\ a_\mathrm{K}$'], 
+    'log_l': [(-3,-1), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
-    'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6.0), r'$\log\ g$'], 
-    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
-    'dif_rot_delta': [(0,1), r'$\delta_\mathrm{dif,rot}$'], 
-    'dif_rot_phi': [(0.5,3), r'$\phi_\mathrm{dif,rot}$'], 
+    'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,5.5), r'$\log\ g$'], 
+    #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    #'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
+    #'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
+    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
 
     # Velocities
-    'vsini': [(10,20), r'$v\ \sin\ i$'], 
-    'rv': [(10,25), r'$v_\mathrm{rad}$'], 
+    'vsini': [(20,30), r'$v\ \sin\ i$'], 
+    'rv': [(16,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -95,9 +93,13 @@ free_params = {
     #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
 
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
-    'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+    #'log_H2(17)O': [(-12,-2), r'$\log\ \mathrm{H_2^{17}O}$'], 
+    #'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+    #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
 
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
+    #'log_13CH4': [(-12,-2), r'$\log\ \mathrm{^{13}CH_4}$'], 
+
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
     #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
@@ -111,14 +113,14 @@ free_params = {
     'dlnT_dlnP_3': [(0.0,0.4), r'$\nabla_{T,3}$'], 
     'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
 
-    'T_0': [(2000,7000), r'$T_0$'], 
+    'T_0': [(3000,7000), r'$T_0$'], 
 }
 
 # Constants to use if prior is not given
 constant_params = {
     # General properties
     'parallax': 496,  # +/- 37 mas
-    'epsilon_limb': 0.65, 
+    'inclination': 0, # degrees
 
     # PT profile
     'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 
@@ -134,6 +136,8 @@ apply_high_pass_filter = False
 
 cloud_mode = 'gray'
 cloud_species = None
+
+rotation_mode = 'integrate'
 
 ####################################################################################
 # Chemistry parameters
@@ -170,12 +174,16 @@ line_species = [
     'CO_main_iso', 
     'CO_36', 
     'CO_28', 
-    'CO_27', 
+    #'CO_27', 
 
     'H2O_pokazatel_main_iso', 
-    'H2O_181', 
+    #'H2O_181', 
+    #'H2O_171', 
+    #'HDO_voronin', 
 
     'CH4_hargreaves_main_iso', 
+    #'13CH4_hargreaves', 
+
     'NH3_coles_main_iso', 
 
     'H2S_ExoMol_main_iso', 
@@ -187,6 +195,7 @@ line_species = [
     ]
 species_to_plot_VMR = [
     #'12CO', '13CO', 'C18O', 'C17O', 'H2O', 'CH4', 'NH3', 'H2S', 'HF', 'HCl', 'HCN', 'CO2'
+    #'12CO', '13CO', 'C18O', 'H2O', 'H2(18)O', 'H2(17)O', 'HDO', 'CH4', '13CH4', 'NH3', 'H2S', 'HF', 
     '12CO', '13CO', 'C18O', 'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
@@ -244,5 +253,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 100
 n_iter_before_update = 200
