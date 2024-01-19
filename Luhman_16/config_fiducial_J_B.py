@@ -7,16 +7,16 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'test_J'
+prefix = 'K_Voigt_J_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
-        'w_set': 'J1226', 'wave_range': (1115, 1325), 
-        #'w_set': 'J1226', 'wave_range': (1115, 1139), 
-        #'w_set': 'J1226', 'wave_range': (1240, 1295), 
+        #'w_set': 'J1226', 'wave_range': (1115, 1325), 
+        'w_set': 'J1226', 'wave_range': (1240, 1267), 
 
         #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
+        'wave_to_mask': np.array([[1251,1255]]), # Mask K I lines
 
         'file_target': './data/Luhman_16B_J.dat', 
         'file_std': './data/Luhman_16_std_J.dat', 
@@ -89,15 +89,15 @@ free_params = {
 
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
     'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
-    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
-    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
+    #'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
+    #'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
 
     #'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
     #'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
     'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
 
     'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
-    'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
+    #'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
     #'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'], 
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
 
@@ -133,7 +133,8 @@ apply_high_pass_filter = False
 cloud_mode = 'gray'
 cloud_species = None
 
-rotation_mode = 'integrate'
+#rotation_mode = 'integrate'
+rotation_mode = 'convolve'
 
 ####################################################################################
 # Chemistry parameters
@@ -166,9 +167,9 @@ chem_kwargs = dict(
 line_species = [
     'H2O_pokazatel_main_iso', 
     'CH4_hargreaves_main_iso', 
-    'NH3_coles_main_iso', 
+    #'NH3_coles_main_iso', 
 
-    'H2S_ExoMol_main_iso', 
+    #'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
 
     #'TiO_48_Exomol_McKemmish', 
@@ -176,7 +177,8 @@ line_species = [
     'HF_main_iso', 
 
     'K', 
-    'Na_allard', 
+    #'K_asymmetric', 
+    #'Na_allard', 
     'Fe', 
 
     #'HCl_main_iso', 
@@ -241,5 +243,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 100
 n_iter_before_update = 200
