@@ -7,14 +7,14 @@ file_params = 'config_fiducial_J_A.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'K_Voigt_J_A_ret_3'
+prefix = 'K_asymmetric_J_A_ret_8'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'J1226': {
         #'w_set': 'J1226', 'wave_range': (1115, 1325),  
-        #'w_set': 'J1226', 'wave_range': (1240, 1267), 
-        'w_set': 'J1226', 'wave_range': (1240, 1326), 
+        'w_set': 'J1226', 'wave_range': (1240, 1267), 
+        #'w_set': 'J1226', 'wave_range': (1240, 1325), 
 
         #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
         'wave_to_mask': np.array([[1251,1255]]), # Mask K I lines
@@ -67,7 +67,7 @@ free_params = {
 
     # General properties
     'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(3.5,6.0), r'$\log\ g$'], 
+    'log_g': [(3.0,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0.1,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities
@@ -93,8 +93,8 @@ free_params = {
     #'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
     #'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
 
-    #'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
-    #'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
+    'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
+    'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'], 
     'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
 
     'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
@@ -133,8 +133,8 @@ apply_high_pass_filter = False
 cloud_mode = 'gray'
 cloud_species = None
 
-#rotation_mode = 'integrate'
-rotation_mode = 'convolve'
+rotation_mode = 'integrate'
+#rotation_mode = 'convolve'
 
 ####################################################################################
 # Chemistry parameters
@@ -172,12 +172,13 @@ line_species = [
     #'H2S_ExoMol_main_iso', 
     'FeH_main_iso', 
 
-    #'TiO_48_Exomol_McKemmish', 
-    #'VO_ExoMol_McKemmish', 
+    'TiO_48_Exomol_McKemmish', 
+    'VO_ExoMol_McKemmish', 
     'HF_main_iso', 
 
     #'K', 
     'K_asymmetric', 
+    #'K_asymmetric_nearwing', 
     #'Na_allard', 
     'Fe', 
 
