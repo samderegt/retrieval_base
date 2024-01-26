@@ -57,6 +57,7 @@ class Chemistry:
         'K':       ('K',                       'K',        39.0983,                    (0,0,0)), 
         #'K':       ('K_asymmetric',            'K',        39.0983,                    (0,0,0)), 
         #'K':       ('K_asymmetric_nearwing',   'K',        39.0983,                    (0,0,0)), 
+        #'K':       ('K_asymmetric_wo_natural_broadening','K',39.0983,                  (0,0,0)), 
         'Na':      ('Na_allard',               'Na',       22.989769,                  (0,0,0)), 
         'Ti':      ('Ti',                      'Ti',       47.867,                     (0,0,0)), 
         'Fe':      ('Fe',                      'Fe',       55.845,                     (0,0,0)), 
@@ -88,6 +89,7 @@ class Chemistry:
         'FeH': ('C12', r'FeH'), 
         'CrH': ('C15', r'CrH'), 
         'NaH': ('C16', r'NaH'), 
+        'TiH': ('C17', r'TiH'), 
 
         'TiO': ('C13', r'TiO'), 
         'VO': ('C15', r'VO'), 
@@ -107,6 +109,7 @@ class Chemistry:
         'Ca': ('C22', r'Ca'), 
         'Al': ('C23', r'Al'), 
         'Mg': ('C24', r'Mg'), 
+        'Cr': ('C25', r'Cr'), 
         #'He': ('C22', r'He'), 
         }
 
@@ -131,6 +134,7 @@ class Chemistry:
         'FeH': False, 
         'CrH': False, 
         'NaH': False, 
+        'TiH': False, 
 
         'TiO': False, 
         'VO': False, 
@@ -150,6 +154,7 @@ class Chemistry:
         'Ca': False, 
         'Al': False, 
         'Mg': False, 
+        'Cr': False, 
         #'He': False, 
         }
 
