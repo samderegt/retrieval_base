@@ -55,6 +55,7 @@ class Chemistry:
        #'HD':      ('H2_12',                   None,       1.00784 + 2.014,            (0,0,2)), 
 
         'K':       ('K',                       'K',        39.0983,                    (0,0,0)), 
+        'Kshift':  ('Kshift',                  'K',        39.0983,                    (0,0,0)), 
         #'K':       ('K_asymmetric',            'K',        39.0983,                    (0,0,0)), 
         #'K':       ('K_asymmetric_nearwing',   'K',        39.0983,                    (0,0,0)), 
         #'K':       ('K_asymmetric_wo_natural_broadening','K',39.0983,                  (0,0,0)), 
@@ -103,6 +104,7 @@ class Chemistry:
         'HD': ('C17', r'HD'), 
 
         'K': ('C18', r'K'), 
+        'Kshift': ('C18', r'K'), 
         'Na': ('C19', r'Na'), 
         'Ti': ('C20', r'Ti'), 
         'Fe': ('C21', r'Fe'), 
@@ -148,6 +150,7 @@ class Chemistry:
         'HD': False, 
 
         'K': False, 
+        'Kshift': False, 
         'Na': False, 
         'Ti': False, 
         'Fe': False, 

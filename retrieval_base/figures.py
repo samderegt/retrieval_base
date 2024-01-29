@@ -315,6 +315,8 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, w_set=''):
             
             # Only store the valid pixels
             mask_ij = d_spec.mask_isfinite[i,j]
+            if not mask_ij.any():
+                continue
 
             # Get the covariance matrix
             cov = Cov[i,j].get_dense_cov()
@@ -760,6 +762,8 @@ def fig_residual_ACF(d_spec,
         for j in range(n_dets):
             
             mask_ij = d_spec.mask_isfinite[i,j]
+            if not mask_ij.any():
+                continue
             wave_ij = d_spec.wave[i,j,mask_ij]
             delta_wave_ij = wave_ij[None,:] - wave_ij[:,None]
 
@@ -851,7 +855,8 @@ def plot_ax_CCF(ax,
 
     # Convert to signal-to-noise functions
     CCF_SNR, m_ACF_SNR, excluded_CCF_SNR = af.CCF_to_SNR(
-        rv, CCF.sum(axis=(0,1)), ACF=m_ACF.sum(axis=(0,1)), rv_to_exclude=rv_to_exclude
+        rv, CCF.sum(axis=(0,1)), ACF=m_ACF.sum(axis=(0,1)), 
+        rv_to_exclude=rv_to_exclude
         )
 
     ax.axvline(0, lw=1, c='k', alpha=0.2)
@@ -997,38 +1002,10 @@ def fig_species_contribution(d_spec,
                 for j in range(d_spec.n_dets):
 
                     label = r'$d-m_\mathrm{w/o\ ' + label_h.replace('$', '') + r'}$'
-                    if species_h in ['13CO', 'NH3']:
-                        alpha = 0.3
-                        label_1 = None
-                        label_2 = label + f' (binned to {bin_size} pixels)'
-                    else:
-                        alpha = 1.0
-                        label_1 = label
-
                     ax[i].plot(
                         d_spec.wave[i,j], d_res[i,j], 
-                        c='k', lw=0.5, alpha=alpha, label=label_1
+                        c='k', lw=0.5, label=label
                         )
-                    
-                    if species_h in ['13CO', 'NH3', 'C18O', 'C17O']:
-                        mask_ij = d_spec.mask_isfinite[i,j]
-                        binned_d_res_ij = np.nan * np.ones_like(d_res[i,j])
-                        #binned_d_res_ij[mask_ij] = gaussian_filter1d(d_res[i,j,mask_ij], sigma=bin_size)
-                        binned_d_res_ij = generic_filter(d_res[i,j], np.nanmedian, size=bin_size)
-
-                        ax[i].plot(
-                            d_spec.wave[i,j], binned_d_res_ij, c='k', lw=0.5, label=label_2
-                            )
-                    else:
-                        pass
-                        '''
-                        mask_ij = d_spec.mask_isfinite[i,j]
-                        low_pass_d_res_ij = np.nan * np.ones_like(d_res[i,j])
-                        low_pass_d_res_ij[mask_ij] = gaussian_filter1d(d_res[i,j,mask_ij], sigma=300)
-                        ax[i].plot(
-                            d_spec.wave[i,j], low_pass_d_res_ij, c='0.5', lw=1
-                            )
-                        '''
 
                     ax[i].plot(
                         d_spec.wave[i,j], m_res[i,j], c=color_h, lw=1, 
