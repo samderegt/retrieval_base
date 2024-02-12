@@ -29,6 +29,8 @@ class Chemistry:
         'H2(18)O':   ('H2O_181',                  None,       2*1.00784 + 17.9991610,     (0,1,2)), 
         'H2(17)O':   ('H2O_171',                  None,       2*1.00784 + 16.999131,      (0,1,2)), 
         'HDO':       ('HDO_voronin',              None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
+
+        'OH':        ('OH_main_iso',              None,       15.999 + 1.00784,           (0,1,1)), 
   
         'CH4':       ('CH4_hargreaves_main_iso',  'C1H4',     12.011 + 4*1.00784,         (1,0,4)), 
        #'13CH4':     ('CH4_31111_hargreaves',     None,       13.003355 + 4*1.00784,      (1,0,4)), 
@@ -89,6 +91,8 @@ class Chemistry:
         'H2(17)O': ('C7', r'H$_2^{17}$O'), 
         'HDO': ('b', r'HDO'), 
 
+        'OH': ('b', r'OH'), 
+
         'CH4': ('C4', r'CH$_4$'), 
         '13CH4': ('purple', r'$^{13}$CH$_4$'), 
         
@@ -144,6 +148,8 @@ class Chemistry:
         'H2(18)O': False, 
         'H2(17)O': False, 
         'HDO': False, 
+
+        'OH': False, 
 
         'CH4': False, 
         '13CH4': False, 
