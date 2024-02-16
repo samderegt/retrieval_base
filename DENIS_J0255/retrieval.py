@@ -1,6 +1,6 @@
 import os
 # To not have numpy start parallelizing on its own
-#os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
 
 from mpi4py import MPI
 import time

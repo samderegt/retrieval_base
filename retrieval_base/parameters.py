@@ -54,7 +54,12 @@ class Parameters:
         # Chemistry (chemical equilibrium)
         'C/O': None, 
         'Fe/H': None, 
-        'log_P_quench': -8, 
+        #'log_P_quench': -8, 
+        'log_P_quench_CO_CH4': -8, 
+        'log_P_quench_NH3': -8, 
+        'log_P_quench_HCN': -8, 
+        'log_P_quench_CO2': -8, 
+        'log_Kzz_chem': None, 
 
         # Chemistry (free)
         'log_12CO': -np.inf, 
@@ -293,10 +298,15 @@ class Parameters:
     def read_chemistry_params(self):
 
         # Convert from logarithmic to linear scale
-        self.params = self.log_to_linear(self.params, 
-                                         ['log_C_ratio', 'log_O_ratio', 'log_P_quench'], 
-                                         ['C_ratio', 'O_ratio', 'P_quench'], 
-                                         )
+        self.params = self.log_to_linear(
+            self.params, 
+            ['log_C_ratio', 'log_O_ratio', 
+             'log_P_quench_CO_CH4', 'log_P_quench_NH3', 
+             'log_P_quench_HCN', 'log_P_quench_CO2', 
+             'log_Kzz_chem'], 
+            ['C_ratio', 'O_ratio', 'P_quench_CO_CH4', 'P_quench_NH3', 
+             'P_quench_HCN', 'P_quench_CO2', 'Kzz_chem'], 
+            )
 
         if self.chem_mode == 'eqchem':
             # Use chemical equilibrium

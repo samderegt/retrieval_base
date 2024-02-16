@@ -1,6 +1,7 @@
 import numpy as np
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
+import petitRADTRANS.nat_cst as nc
 
 class Chemistry:
 
@@ -181,28 +182,103 @@ class EqChemistry(Chemistry):
         self.mass_ratio_H2_18O_H2O = self.read_species_info('H2O_181', 'mass') / \
                                      self.read_species_info('H2O', 'mass')
 
-    def quench_carbon_chemistry(self, pm_mass_fractions):
+    def quench_chemistry(self, pm_mass_fractions):
 
-        # Layers to be replaced by a constant abundance
-        mask_quenched = (self.pressure < self.P_quench)
+        for P_quench, species_to_quench in [
+            (self.P_quench_CO_CH4, ['CO', 'CH4', 'H2O']), 
+            (self.P_quench_NH3, ['NH3']), 
+            (self.P_quench_HCN, ['HCN']), 
+            (self.P_quench_CO2, ['CO2']), 
+            ]:
 
-        for species_i in ['CO', 'CH4', 'H2O']:
-            # Own implementation of quenching, using interpolation
-            mass_fraction_i = pm_mass_fractions[species_i]
-            mass_fraction_i[mask_quenched] = np.interp(self.P_quench, 
-                                                       xp=self.pressure, 
-                                                       fp=mass_fraction_i
-                                                       )
-            pm_mass_fractions[species_i] = mass_fraction_i
+            if P_quench is None:
+                continue
+
+            # Layers to be replaced by a constant abundance
+            mask_quenched = (self.pressure < P_quench)
+
+            for species_i in species_to_quench:
+                # Own implementation of quenching, using interpolation
+                mass_fraction_i = pm_mass_fractions[species_i]
+                mass_fraction_i[mask_quenched] = np.interp(P_quench, 
+                                                        xp=self.pressure, 
+                                                        fp=mass_fraction_i
+                                                        )
+                pm_mass_fractions[species_i] = mass_fraction_i
 
         return pm_mass_fractions
+    
+    def get_quench_pressure(self, pm_mass_fractions, alpha=1):
+
+        # Metallicity
+        met = 10**self.FeH
+
+        # Scale height at each layer
+        MMW = pm_mass_fractions['MMW']
+        H = nc.kB*self.temperature / (MMW*nc.amu*10**self.log_g)
+
+        # Mixing length/time-scales
+        L = alpha * H
+        t_mix = L**2 / (10**self.log_Kzz)
+
+        self.P_quench_CO_CH4 = None
+        self.P_quench_NH3 = None
+        self.P_quench_HCN = None
+        self.P_quench_CO2 = None
+        for t_mix_i, P_i, T_i in zip(t_mix[::-1], self.pressure[::-1], self.temperature[::-1]):
+
+            if T_i < 700:
+                continue
+            
+            if (self.P_quench_CO_CH4 is not None) and (self.P_quench_NH3 is not None) \
+                and (self.P_quench_HCN is not None):
+                break
+
+            # Zahnle & Marley (2014)
+            if self.P_quench_CO_CH4 is None:
+                # Chemical timescale of CO-CH4
+                t_CO_CH4_q1 = 1.5e-6 * P_i**(-1) * met**(-0.7) * np.exp(42000/T_i)
+                t_CO_CH4_q2 = 40 * P_i**(-2) * np.exp(25000/T_i)
+                t_CO_CH4 = (1/t_CO_CH4_q1 + 1/t_CO_CH4_q2)**(-1)
+
+                if t_mix_i < t_CO_CH4:
+                    # Mixing is more efficient than chemical reactions
+                    self.P_quench_CO_CH4 = P_i
+
+            if self.P_quench_NH3 is None:
+                # Chemical timescale of NH3-N2
+                t_NH3 = 1.0e-7 * P_i**(-1) * np.exp(52000/T_i)
+
+                if t_mix_i < t_NH3:
+                    self.P_quench_NH3 = P_i
+
+            if self.P_quench_HCN is None:
+                # Chemical timescale of HCN-NH3-N2
+                t_HCN = 1.5e-4 * P_i**(-1) * met**(-0.7) * np.exp(36000/T_i)
+
+                if t_mix_i < t_HCN:
+                    self.P_quench_HCN = P_i
+
+            if self.P_quench_CO2 is None:
+                # Chemical timescale of HCN-NH3-N2
+                t_CO2 = 1.0e-10 * P_i**(-0.5) * np.exp(38000/T_i)
+
+                if t_mix_i < t_CO2:
+                    self.P_quench_CO2 = P_i                
 
     def __call__(self, params, temperature):
 
         # Update the parameters
         self.CO = params['C/O']
         self.FeH = params['Fe/H']
-        self.P_quench = params['P_quench']
+        
+        self.P_quench_CO_CH4 = params.get('P_quench_CO_CH4')
+        self.P_quench_NH3 = params.get('P_quench_NH3')
+        self.P_quench_HCN = params.get('P_quench_HCN')
+        self.P_quench_CO2 = params.get('P_quench_CO2')
+
+        self.log_Kzz = params.get('log_Kzz_chem')
+        self.log_g = params.get('log_g')
 
         self.C_ratio = params['C_ratio']
         self.O_ratio = params['O_ratio']
@@ -218,8 +294,11 @@ class EqChemistry(Chemistry):
         
         self.mass_fractions = {'MMW': pm_mass_fractions['MMW']}
 
-        if self.P_quench is not None:
-            pm_mass_fractions = self.quench_carbon_chemistry(pm_mass_fractions)
+        if (self.log_Kzz is not None):
+            self.get_quench_pressure(pm_mass_fractions)
+
+        if (self.P_quench_CO_CH4 is not None):
+            pm_mass_fractions = self.quench_chemistry(pm_mass_fractions)
 
         for line_species_i in self.line_species:
             if (line_species_i == 'CO_main_iso') or (line_species_i == 'CO_high'):
