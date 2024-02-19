@@ -16,7 +16,7 @@ def get_Chemistry_class(line_species, pressure, mode, **kwargs):
 class Chemistry:
 
     # Dictionary with info per molecular/atomic species
-    # (pRT_name, pyfc_name, mass, number of (C,O,H) atoms
+    # (pRT_name, pyfc_name, mass, number of (C,O,H) atoms)
     species_info = {
         '12CO':      ('CO_main_iso',              'C1O1',     12.011 + 15.999,            (1,1,0)), 
        #'12CO':      ('CO_high',                  'C1O1',     12.011 + 15.999,            (1,1,0)), 
@@ -30,54 +30,56 @@ class Chemistry:
         'H2(17)O':   ('H2O_171',                  None,       2*1.00784 + 16.999131,      (0,1,2)), 
         'HDO':       ('HDO_voronin',              None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
 
-        'OH':        ('OH_main_iso',              None,       15.999 + 1.00784,           (0,1,1)), 
+        'OH':        ('OH_main_iso',              'H1O1',     15.999 + 1.00784,           (0,1,1)), 
+        'CH':        ('CH_main_iso',              'C1H1',     12.011 + 1.00784,           (1,0,1)), 
+        'CN':        ('CN_main_iso',              'C1N1',     12.011 + 14.0067,           (1,0,0)), 
   
         'CH4':       ('CH4_hargreaves_main_iso',  'C1H4',     12.011 + 4*1.00784,         (1,0,4)), 
        #'13CH4':     ('CH4_31111_hargreaves',     None,       13.003355 + 4*1.00784,      (1,0,4)), 
         '13CH4':     ('13CH4_hargreaves',         None,       13.003355 + 4*1.00784,      (1,0,4)), 
   
-        'NH3':       ('NH3_coles_main_iso',      'H3N1',     14.0067 + 3*1.00784,        (0,0,3)), 
-        'HCN':       ('HCN_main_iso',            'C1H1N1_1', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
-       #'H2S':       ('H2S_main_iso',            'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-       #'H2S':       ('H2S_Sid_main_iso',        'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'H2S':       ('H2S_ExoMol_main_iso',     'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'FeH':       ('FeH_main_iso',            'Fe1H1',    55.845 + 1.00784,           (0,0,1)), 
-        'CrH':       ('CrH_main_iso',            'Cr1H1',    51.9961 + 1.00784,          (0,0,1)), 
-        'NaH':       ('NaH_main_iso',            'H1Na1',    22.989769 + 1.00784,        (0,0,1)), 
-        'TiH':       ('TiH_main_iso',            'H1Ti1',    47.867 + 1.00784,           (0,0,1)), 
+        'NH3':       ('NH3_coles_main_iso',       'H3N1',     14.0067 + 3*1.00784,        (0,0,3)), 
+        'HCN':       ('HCN_main_iso',             'C1H1N1_1', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
+       #'H2S':       ('H2S_main_iso',             'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
+       #'H2S':       ('H2S_Sid_main_iso',         'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
+        'H2S':       ('H2S_ExoMol_main_iso',      'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
+        'FeH':       ('FeH_main_iso',             'Fe1H1',    55.845 + 1.00784,           (0,0,1)), 
+        'CrH':       ('CrH_main_iso',             'Cr1H1',    51.9961 + 1.00784,          (0,0,1)), 
+        'NaH':       ('NaH_main_iso',             'H1Na1',    22.989769 + 1.00784,        (0,0,1)), 
+        'TiH':       ('TiH_main_iso',             'H1Ti1',    47.867 + 1.00784,           (0,0,1)), 
 
-        '46TiO':     ('TiO_46_Exomol_McKemmish', 'O1Ti1',    45.952 + 15.999,            (0,1,0)), 
-        '47TiO':     ('TiO_47_Exomol_McKemmish', 'O1Ti1',    46.951 + 15.999,            (0,1,0)), 
-        '48TiO':     ('TiO_48_Exomol_McKemmish', 'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
-        '49TiO':     ('TiO_49_Exomol_McKemmish', 'O1Ti1',    48.947 + 15.999,            (0,1,0)), 
-        '50TiO':     ('TiO_50_Exomol_McKemmish', 'O1Ti1',    49.944 + 15.999,            (0,1,0)), 
-        'TiO':       ('TiO_48_Exomol_McKemmish', 'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
+        '46TiO':     ('TiO_46_Exomol_McKemmish',  None,       45.952 + 15.999,            (0,1,0)), 
+        '47TiO':     ('TiO_47_Exomol_McKemmish',  None,       46.951 + 15.999,            (0,1,0)), 
+        '48TiO':     ('TiO_48_Exomol_McKemmish',  'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
+        '49TiO':     ('TiO_49_Exomol_McKemmish',  None,       48.947 + 15.999,            (0,1,0)), 
+        '50TiO':     ('TiO_50_Exomol_McKemmish',  None,       49.944 + 15.999,            (0,1,0)), 
+        'TiO':       ('TiO_48_Exomol_McKemmish',  'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
+ 
+        'VO':        ('VO_ExoMol_McKemmish',      'O1V1',     50.9415 + 15.999,           (0,1,0)), 
+        'AlO':       ('AlO_main_iso',             'Al1O1',    26.981539 + 15.999,         (0,1,0)), 
+        'MgO':       ('MgO_Sid_main_iso',         'Mg1O1',    24.305 + 15.999,            (0,1,0)), 
+        'CO2':       ('CO2_main_iso',             'C1O2',     12.011 + 2*15.999,          (1,2,0)),
+     
+        'HF':        ('HF_main_iso',              'F1H1',     1.00784 + 18.998403,        (0,0,1)), 
+        'HCl':       ('HCl_main_iso',             'Cl1H1',    1.00784 + 35.453,           (0,0,1)), 
+          
+        'H2':        ('H2',                       'H2',       2*1.00784,                  (0,0,2)), 
+       #'HD':        ('H2_12',                    None,       1.00784 + 2.014,            (0,0,2)), 
 
-        'VO':        ('VO_ExoMol_McKemmish',     'O1V1',     50.9415 + 15.999,           (0,1,0)), 
-        'AlO':       ('AlO_main_iso',            'Al1O1',    26.981539 + 15.999,         (0,1,0)), 
-        'MgO':       ('MgO_Sid_main_iso',        'Mg1O1',    24.305 + 15.999,            (0,1,0)), 
-        'CO2':       ('CO2_main_iso',            'C1O2',     12.011 + 2*15.999,          (1,2,0)),
-    
-        'HF':        ('HF_main_iso',             'F1H1',     1.00784 + 18.998403,        (0,0,1)), 
-        'HCl':       ('HCl_main_iso',            'Cl1H1',    1.00784 + 35.453,           (0,0,1)), 
-        
-        'H2':        ('H2',                      'H2',       2*1.00784,                  (0,0,2)), 
-       #'HD':        ('H2_12',                   None,       1.00784 + 2.014,            (0,0,2)), 
-
-        'K':         ('K',                       'K',        39.0983,                    (0,0,0)), 
-        'Knearwing': ('Knearwing',               'K',        39.0983,                    (0,0,0)), 
-        'KshiftHe':  ('KshiftHe',                'K',        39.0983,                    (0,0,0)), 
-        'KshiftH2':  ('KshiftH2',                'K',        39.0983,                    (0,0,0)), 
-        'Na':        ('Na_allard',               'Na',       22.989769,                  (0,0,0)), 
-        'Ti':        ('Ti',                      'Ti',       47.867,                     (0,0,0)), 
-        'V':         ('V',                       'V',        50.9415,                    (0,0,0)), 
-        'Fe':        ('Fe',                      'Fe',       55.845,                     (0,0,0)), 
-        'Ca':        ('Ca',                      'Ca',       40.078,                     (0,0,0)), 
-        'Al':        ('Al',                      'Al',       26.981539,                  (0,0,0)), 
-        'Mg':        ('Mg',                      'Mg',       24.305,                     (0,0,0)), 
-        'Mn':        ('Mn',                      'Mn',       54.938044,                  (0,0,0)), 
-        'Cr':        ('Cr',                      'Cr',       51.9961,                    (0,0,0)), 
-        'He':        ('He',                      'He',       4.002602,                   (0,0,0)), 
+        'K':         ('K',                        'K',        39.0983,                    (0,0,0)), 
+        'Knearwing': ('Knearwing',                'K',        39.0983,                    (0,0,0)), 
+        'KshiftHe':  ('KshiftHe',                 'K',        39.0983,                    (0,0,0)), 
+        'KshiftH2':  ('KshiftH2',                 'K',        39.0983,                    (0,0,0)), 
+        'Na':        ('Na_allard',                'Na',       22.989769,                  (0,0,0)), 
+        'Ti':        ('Ti',                       'Ti',       47.867,                     (0,0,0)), 
+        'V':         ('V',                        'V',        50.9415,                    (0,0,0)), 
+        'Fe':        ('Fe',                       'Fe',       55.845,                     (0,0,0)), 
+        'Ca':        ('Ca',                       'Ca',       40.078,                     (0,0,0)), 
+        'Al':        ('Al',                       'Al',       26.981539,                  (0,0,0)), 
+        'Mg':        ('Mg',                       'Mg',       24.305,                     (0,0,0)), 
+        'Mn':        ('Mn',                       'Mn',       54.938044,                  (0,0,0)), 
+        'Cr':        ('Cr',                       'Cr',       51.9961,                    (0,0,0)), 
+        'He':        ('He',                       'He',       4.002602,                   (0,0,0)), 
         }
 
     species_plot_info = {
@@ -92,6 +94,8 @@ class Chemistry:
         'HDO': ('b', r'HDO'), 
 
         'OH': ('b', r'OH'), 
+        'CH': ('b', r'CH'), 
+        'CN': ('b', r'CN'), 
 
         'CH4': ('C4', r'CH$_4$'), 
         '13CH4': ('purple', r'$^{13}$CH$_4$'), 
@@ -150,6 +154,8 @@ class Chemistry:
         'HDO': False, 
 
         'OH': False, 
+        'CH': False, 
+        'CN': False, 
 
         'CH4': False, 
         '13CH4': False, 
