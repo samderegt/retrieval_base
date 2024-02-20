@@ -12,8 +12,8 @@ prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = {
     'K2166': {
-        #'w_set': 'K2166', 'wave_range': (2300, 2400), 
-        'w_set': 'K2166', 'wave_range': (1900, 2500), 
+        'w_set': 'K2166', 'wave_range': (2300, 2400), 
+        #'w_set': 'K2166', 'wave_range': (1900, 2500), 
 
         'file_target': './data/Luhman_16A_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
@@ -55,19 +55,19 @@ free_params = {
     #'log_res_K2166': [(4,5.2), r'$\log\ R_\mathrm{K}$'], 
 
     # Uncertainty scaling
-    'log_a': [(-0.7,0.25), r'$\log\ a_\mathrm{K}$'], 
-    'log_l': [(-3,-1), r'$\log\ l_\mathrm{K}$'], 
+    #'log_a': [(-0.7,0.25), r'$\log\ a_\mathrm{K}$'], 
+    #'log_l': [(-3,-1), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
-    'R_p': [(0.7,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,5.5), r'$\log\ g$'], 
+    'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
     #'lat_band': [(0,90), r'$\lambda_\mathrm{band,1}$'], 
     #'lat_band_upper': [(0,90), r'$\lambda_\mathrm{band,2}$'], 
     #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{band}$'], 
 
     # Velocities
-    'vsini': [(20,30), r'$v\ \sin\ i$'], 
+    'vsini': [(10,30), r'$v\ \sin\ i$'], 
     'rv': [(16,22), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
@@ -77,33 +77,35 @@ free_params = {
     #'cloud_slope': [(-10,10), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    #'C/O': [(0.15,1), r'C/O'], 
-    #'Fe/H': [(-1,1), r'[Fe/H]'], 
+    'C/O': [(0.15,1), r'C/O'], 
+    'Fe/H': [(-1,1), r'[Fe/H]'], 
     #'log_P_quench_CO_CH4': [(-5,3), r'$\log\ P_\mathrm{quench}(\mathrm{C})$'], 
     #'log_P_quench_N2_NH3': [(-5,2), r'$\log\ P_\mathrm{quench}(\mathrm{N})$'], 
-    #'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
-    #'log_O18_16_ratio': [(-10,0), r'$\log\ \mathrm{^{18}O/^{16}O}$'], 
+    'log_C13_12_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
+    'log_O18_16_ratio': [(-10,0), r'$\log\ \mathrm{^{18}O/^{16}O}$'], 
     #'log_O17_16_ratio': [(-10,0), r'$\log\ \mathrm{^{17}C/^{16}O}$'], 
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'], 
     #'log_HCl': [(-12,-2), r'$\log\ \mathrm{HCl}$'], 
 
-    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
-    'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'], 
+    #'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    #'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    #'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'], 
     #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'], 
 
-    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
+    #'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
     #'log_H2(17)O': [(-12,-2), r'$\log\ \mathrm{H_2^{17}O}$'], 
     #'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
     #'log_HDO': [(-12,-2), r'$\log\ \mathrm{HDO}$'], 
 
-    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
+    #'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
     #'log_13CH4': [(-12,-2), r'$\log\ \mathrm{^{13}CH_4}$'], 
 
-    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
-    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
+    #'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
+    #'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'], 
     #'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}$'], 
     #'log_CO2': [(-12,-2), r'$\log\ \mathrm{CO_2}$'], 
+
+    'log_Kzz_chem': [(6,15), r'$\log\ K_{zz}$'], 
 
     # PT profile
     'dlnT_dlnP_0': [(0.12, 0.4), r'$\nabla_{T,0}$'], 
@@ -143,9 +145,9 @@ rotation_mode = 'integrate'
 # Chemistry parameters
 ####################################################################################
 
-chem_mode  = 'free'
+#chem_mode  = 'free'
 #chem_mode  = 'SONORAchem'
-#chem_mode  = 'eqchem'
+chem_mode  = 'eqchem'
 
 #import pyfastchem
 #fastchem_path = os.path.dirname(pyfastchem.__file__)
@@ -204,7 +206,8 @@ species_to_plot_CCF = species_to_plot_VMR
 # Covariance parameters
 ####################################################################################
 
-cov_mode = 'GP'
+#cov_mode = 'GP'
+cov_mode = None
 
 cov_kwargs = dict(
     trunc_dist   = 3, 
@@ -254,4 +257,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 100
-n_iter_before_update = 200
+n_iter_before_update = 100
