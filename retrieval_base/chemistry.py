@@ -47,6 +47,7 @@ class Chemistry:
         'CrH':       ('CrH_main_iso',             'Cr1H1',    51.9961 + 1.00784,          (0,0,1)), 
         'NaH':       ('NaH_main_iso',             'H1Na1',    22.989769 + 1.00784,        (0,0,1)), 
         'TiH':       ('TiH_main_iso',             'H1Ti1',    47.867 + 1.00784,           (0,0,1)), 
+        'ScH':       ('ScH_main_iso',             'H1Sc1',    44.955912 + 1.00784,        (0,0,1)), 
 
         '46TiO':     ('TiO_46_Exomol_McKemmish',  None,       45.952 + 15.999,            (0,1,0)), 
         '47TiO':     ('TiO_47_Exomol_McKemmish',  None,       46.951 + 15.999,            (0,1,0)), 
@@ -107,6 +108,7 @@ class Chemistry:
         'CrH': ('C15', r'CrH'), 
         'NaH': ('C16', r'NaH'), 
         'TiH': ('C17', r'TiH'), 
+        'ScH': ('C18', r'ScH'), 
 
         '46TiO': ('C11', r'$^{46}$TiO'), 
         '47TiO': ('C12', r'$^{47}$TiO'), 
@@ -167,6 +169,7 @@ class Chemistry:
         'CrH': False, 
         'NaH': False, 
         'TiH': False, 
+        'ScH': False, 
 
         '46TiO': False, 
         '47TiO': False, 
