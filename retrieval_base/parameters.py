@@ -316,7 +316,7 @@ class Parameters:
 
             # Loop over all possible species
             self.VMR_species = {}
-            for species_i in Chemistry.species_info.keys():
+            for species_i in Chemistry.species_info.index:
 
                 # If multiple VMRs are given
                 for j in range(3):

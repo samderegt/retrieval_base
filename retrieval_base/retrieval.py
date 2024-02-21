@@ -609,7 +609,7 @@ class Retrieval:
         '''
 
         # Assess the species' contribution
-        for species_i in self.Chem.species_info.keys():
+        for species_i in self.Chem.species_info.index:
 
             line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
             if line_species_i not in self.Chem.line_species:

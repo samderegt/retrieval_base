@@ -1,4 +1,9 @@
 import numpy as np
+import pandas as pd
+
+import pathlib
+directory_path = pathlib.Path(__file__).parent.resolve()
+
 from scipy.interpolate import make_interp_spline
 import petitRADTRANS.nat_cst as nc
 
@@ -15,197 +20,8 @@ def get_Chemistry_class(line_species, pressure, mode, **kwargs):
 
 class Chemistry:
 
-    # Dictionary with info per molecular/atomic species
-    # (pRT_name, pyfc_name, mass, number of (C,O,H) atoms)
-    species_info = {
-        '12CO':      ('CO_main_iso',              'C1O1',     12.011 + 15.999,            (1,1,0)), 
-       #'12CO':      ('CO_high',                  'C1O1',     12.011 + 15.999,            (1,1,0)), 
-        '13CO':      ('CO_36',                    None,       13.003355 + 15.999,         (1,1,0)), 
-       #'13CO':      ('CO_36_high',               None,       13.003355 + 15.999,         (1,1,0)), 
-        'C18O':      ('CO_28',                    None,       12.011 + 17.9991610,        (1,1,0)), 
-        'C17O':      ('CO_27',                    None,       12.011 + 16.999131,         (1,1,0)), 
-  
-        'H2O':       ('H2O_pokazatel_main_iso',   'H2O1',     2*1.00784 + 15.999,         (0,1,2)), 
-        'H2(18)O':   ('H2O_181',                  None,       2*1.00784 + 17.9991610,     (0,1,2)), 
-        'H2(17)O':   ('H2O_171',                  None,       2*1.00784 + 16.999131,      (0,1,2)), 
-        'HDO':       ('HDO_voronin',              None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
-
-        'OH':        ('OH_main_iso',              'H1O1',     15.999 + 1.00784,           (0,1,1)), 
-        'CH':        ('CH_main_iso',              'C1H1',     12.011 + 1.00784,           (1,0,1)), 
-        'CN':        ('CN_main_iso',              'C1N1',     12.011 + 14.0067,           (1,0,0)), 
-  
-        'CH4':       ('CH4_hargreaves_main_iso',  'C1H4',     12.011 + 4*1.00784,         (1,0,4)), 
-       #'13CH4':     ('CH4_31111_hargreaves',     None,       13.003355 + 4*1.00784,      (1,0,4)), 
-        '13CH4':     ('13CH4_hargreaves',         None,       13.003355 + 4*1.00784,      (1,0,4)), 
-  
-        'NH3':       ('NH3_coles_main_iso',       'H3N1',     14.0067 + 3*1.00784,        (0,0,3)), 
-        'HCN':       ('HCN_main_iso',             'C1H1N1_1', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
-       #'H2S':       ('H2S_main_iso',             'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-       #'H2S':       ('H2S_Sid_main_iso',         'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'H2S':       ('H2S_ExoMol_main_iso',      'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'FeH':       ('FeH_main_iso',             'Fe1H1',    55.845 + 1.00784,           (0,0,1)), 
-        'CrH':       ('CrH_main_iso',             'Cr1H1',    51.9961 + 1.00784,          (0,0,1)), 
-        'NaH':       ('NaH_main_iso',             'H1Na1',    22.989769 + 1.00784,        (0,0,1)), 
-        'TiH':       ('TiH_main_iso',             'H1Ti1',    47.867 + 1.00784,           (0,0,1)), 
-        'ScH':       ('ScH_main_iso',             'H1Sc1',    44.955912 + 1.00784,        (0,0,1)), 
-        'CaH':       ('CaH_main_iso',             'Ca1H1',    40.078 + 1.00784,           (0,0,1)), 
-
-        '46TiO':     ('TiO_46_Exomol_McKemmish',  None,       45.952 + 15.999,            (0,1,0)), 
-        '47TiO':     ('TiO_47_Exomol_McKemmish',  None,       46.951 + 15.999,            (0,1,0)), 
-        '48TiO':     ('TiO_48_Exomol_McKemmish',  'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
-        '49TiO':     ('TiO_49_Exomol_McKemmish',  None,       48.947 + 15.999,            (0,1,0)), 
-        '50TiO':     ('TiO_50_Exomol_McKemmish',  None,       49.944 + 15.999,            (0,1,0)), 
-        'TiO':       ('TiO_48_Exomol_McKemmish',  'O1Ti1',    47.947 + 15.999,            (0,1,0)), 
- 
-        'VO':        ('VO_ExoMol_McKemmish',      'O1V1',     50.9415 + 15.999,           (0,1,0)), 
-        'AlO':       ('AlO_main_iso',             'Al1O1',    26.981539 + 15.999,         (0,1,0)), 
-        'MgO':       ('MgO_Sid_main_iso',         'Mg1O1',    24.305 + 15.999,            (0,1,0)), 
-        'CO2':       ('CO2_main_iso',             'C1O2',     12.011 + 2*15.999,          (1,2,0)),
-     
-        'HF':        ('HF_main_iso',              'F1H1',     1.00784 + 18.998403,        (0,0,1)), 
-        'HCl':       ('HCl_main_iso',             'Cl1H1',    1.00784 + 35.453,           (0,0,1)), 
-          
-        'H2':        ('H2',                       'H2',       2*1.00784,                  (0,0,2)), 
-       #'HD':        ('H2_12',                    None,       1.00784 + 2.014,            (0,0,2)), 
-
-        'K':         ('K',                        'K',        39.0983,                    (0,0,0)), 
-        'Knearwing': ('Knearwing',                'K',        39.0983,                    (0,0,0)), 
-        'KshiftHe':  ('KshiftHe',                 'K',        39.0983,                    (0,0,0)), 
-        'KshiftH2':  ('KshiftH2',                 'K',        39.0983,                    (0,0,0)), 
-        'Na':        ('Na_allard',                'Na',       22.989769,                  (0,0,0)), 
-        'Ti':        ('Ti',                       'Ti',       47.867,                     (0,0,0)), 
-        'V':         ('V',                        'V',        50.9415,                    (0,0,0)), 
-        'Fe':        ('Fe',                       'Fe',       55.845,                     (0,0,0)), 
-        'Ca':        ('Ca',                       'Ca',       40.078,                     (0,0,0)), 
-        'Al':        ('Al',                       'Al',       26.981539,                  (0,0,0)), 
-        'Mg':        ('Mg',                       'Mg',       24.305,                     (0,0,0)), 
-        'Mn':        ('Mn',                       'Mn',       54.938044,                  (0,0,0)), 
-        'Cr':        ('Cr',                       'Cr',       51.9961,                    (0,0,0)), 
-        'He':        ('He',                       'He',       4.002602,                   (0,0,0)), 
-        }
-
-    species_plot_info = {
-        '12CO': ('C2', r'$^{12}$CO'), 
-        '13CO': ('chocolate', r'$^{13}$CO'), 
-        'C18O': ('C6', r'C$^{18}$O'), 
-        'C17O': ('C7', r'C$^{17}$O'), 
-
-        'H2O': ('C3', r'H$_2$O'), 
-        'H2(18)O': ('C7', r'H$_2^{18}$O'), 
-        'H2(17)O': ('C7', r'H$_2^{17}$O'), 
-        'HDO': ('b', r'HDO'), 
-
-        'OH': ('b', r'OH'), 
-        'CH': ('b', r'CH'), 
-        'CN': ('b', r'CN'), 
-
-        'CH4': ('C4', r'CH$_4$'), 
-        '13CH4': ('purple', r'$^{13}$CH$_4$'), 
-        
-        'NH3': ('C8', r'NH$_3$'), 
-        'HCN': ('C10', r'HCN'), 
-        'H2S': ('C11', r'H$_2$S'), 
-        'FeH': ('C12', r'FeH'), 
-        'CrH': ('C15', r'CrH'), 
-        'NaH': ('C16', r'NaH'), 
-        'TiH': ('C17', r'TiH'), 
-        'ScH': ('C18', r'ScH'), 
-        'CaH': ('C19', r'ScH'), 
-
-        '46TiO': ('C11', r'$^{46}$TiO'), 
-        '47TiO': ('C12', r'$^{47}$TiO'), 
-        '48TiO': ('C13', r'$^{48}$TiO'), 
-        '49TiO': ('C14', r'$^{49}$TiO'), 
-        '50TiO': ('C15', r'$^{50}$TiO'), 
-        'TiO': ('C13', r'TiO'), 
-        'VO': ('C15', r'VO'), 
-        'AlO': ('C14', r'AlO'), 
-        'MgO': ('C15', r'MgO'), 
-        'CO2': ('C9', r'CO$_2$'),
-
-        'HF': ('C14', r'HF'), 
-        'HCl': ('C15', r'HCl'), 
-        
-        #'H2': ('C16', r'H$_2$'), 
-        'HD': ('C17', r'HD'), 
-
-        'K': ('C18', r'K'), 
-        'Knearwing': ('C18', r'K'), 
-        'KshiftHe': ('C18', r'K'), 
-        'KshiftH2': ('C18', r'K'), 
-        'Na': ('C19', r'Na'), 
-        'Ti': ('C20', r'Ti'), 
-        'V':  ('C26', r'V'), 
-        'Fe': ('C21', r'Fe'), 
-        'Ca': ('C22', r'Ca'), 
-        'Al': ('C23', r'Al'), 
-        'Mg': ('C24', r'Mg'), 
-        'Mn': ('C25', r'Mn'), 
-        'Cr': ('C25', r'Cr'), 
-        #'He': ('C22', r'He'), 
-        }
-
-    # Neglect certain species to find respective contribution
-    neglect_species = {
-        '12CO': False, 
-        '13CO': False, 
-        'C18O': False, 
-        'C17O': False, 
-        
-        'H2O': False, 
-        'H2(18)O': False, 
-        'H2(17)O': False, 
-        'HDO': False, 
-
-        'OH': False, 
-        'CH': False, 
-        'CN': False, 
-
-        'CH4': False, 
-        '13CH4': False, 
-        
-        'NH3': False, 
-        'HCN': False, 
-        'H2S': False, 
-        'FeH': False, 
-        'CrH': False, 
-        'NaH': False, 
-        'TiH': False, 
-        'ScH': False, 
-        'CaH': False, 
-
-        '46TiO': False, 
-        '47TiO': False, 
-        '48TiO': False, 
-        '49TiO': False, 
-        '50TiO': False, 
-        'TiO': False, 
-        'VO': False, 
-        'AlO': False, 
-        'MgO': False, 
-        'CO2': False, 
-
-        'HF': False, 
-        'HCl': False, 
-
-        #'H2': False, 
-        'HD': False, 
-
-        'K': False, 
-        'Knearwing': False, 
-        'KshiftHe': False, 
-        'KshiftH2': False, 
-        'Na': False, 
-        'Ti': False, 
-        'V': False, 
-        'Fe': False, 
-        'Ca': False, 
-        'Al': False, 
-        'Mg': False, 
-        'Mn': False, 
-        'Cr': False, 
-        #'He': False, 
-        }
+    species_info = pd.read_csv(directory_path/'species_info.csv', index_col=0)
+    neglect_species = {key_i: False for key_i in species_info.index}
 
     def __init__(self, line_species, pressure):
 
@@ -239,26 +55,23 @@ class Chemistry:
     def read_species_info(cls, species, info_key):
         
         if info_key == 'pRT_name':
-            return cls.species_info[species][0]
+            return cls.species_info.loc[species,info_key]
         if info_key == 'pyfc_name':
-            return cls.species_info[species][1]
+            return cls.species_info.loc[species,'Hill_notation']
         
         if info_key == 'mass':
-            return cls.species_info[species][2]
+            return cls.species_info.loc[species,info_key]
         
         if info_key == 'COH':
-            return cls.species_info[species][3]
-        if info_key == 'C':
-            return cls.species_info[species][3][0]
-        if info_key == 'O':
-            return cls.species_info[species][3][1]
-        if info_key == 'H':
-            return cls.species_info[species][3][2]
+            return list(cls.species_info.loc[species,['C','O','H']])
+        
+        if info_key in ['C','O','H']:
+            return cls.species_info.loc[species,info_key]
 
         if info_key == 'c' or info_key == 'color':
-            return cls.species_plot_info[species][0]
+            return cls.species_info.loc[species,'color']
         if info_key == 'label':
-            return cls.species_plot_info[species][1]
+            return cls.species_info.loc[species,'mathtext_name']
 
 class FreeChemistry(Chemistry):
 
@@ -282,7 +95,7 @@ class FreeChemistry(Chemistry):
 
         C, O, H = 0, 0, 0
 
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
             COH_i  = self.read_species_info(species_i, 'COH')
@@ -449,7 +262,7 @@ class EqChemistry(Chemistry):
         self.mass_fractions['He'] = pm_mass_fractions['He']
 
         # Convert the free-chemistry VMRs to mass fractions
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
 
@@ -545,7 +358,7 @@ class EqChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -674,7 +487,7 @@ class FastChemistry(Chemistry):
     def get_pyfc_indices(self, FASTCHEM_UNKNOWN_SPECIES):
 
         self.pyfc_indices = []
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             pyfc_species_i = self.read_species_info(species_i, 'pyfc_name')
@@ -745,7 +558,7 @@ class FastChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -1009,7 +822,7 @@ class SONORAChemistry(Chemistry):
         self.interp_func = {
             'MMW': func(all_MMW)
             }
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             if (line_species_i not in self.line_species) and \
@@ -1034,7 +847,7 @@ class SONORAChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -1111,7 +924,7 @@ class SONORAChemistry(Chemistry):
         self.mass_fractions['He'] = VMRs['He']
 
         # Convert from VMRs to mass fractions
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
 
