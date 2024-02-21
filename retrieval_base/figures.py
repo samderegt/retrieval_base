@@ -571,7 +571,7 @@ def fig_VMR(ax_VMR,
 
     MMW = Chem.mass_fractions['MMW']
 
-    for species_i in Chem.species_info.keys():
+    for species_i in Chem.species_info.index:
         
         if species_i not in species_to_plot:
             continue
@@ -935,7 +935,7 @@ def fig_species_contribution(d_spec,
         label='Complete'
         )
         
-    for species_h in Chem.species_info.keys():
+    for species_h in Chem.species_info.index:
         
         if species_h not in species_to_plot:
             continue
