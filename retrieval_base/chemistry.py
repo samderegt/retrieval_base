@@ -1,4 +1,9 @@
 import numpy as np
+import pandas as pd
+
+import pathlib
+directory_path = pathlib.Path(__file__).parent.resolve()
+
 from scipy.interpolate import make_interp_spline
 import petitRADTRANS.nat_cst as nc
 
@@ -15,143 +20,8 @@ def get_Chemistry_class(line_species, pressure, mode, **kwargs):
 
 class Chemistry:
 
-    # Dictionary with info per molecular/atomic species
-    # (pRT_name, pyfc_name, mass, number of (C,O,H) atoms
-    species_info = {
-        '12CO':    ('CO_main_iso',             'C1O1',     12.011 + 15.999,            (1,1,0)), 
-       #'12CO':    ('CO_high',                 'C1O1',     12.011 + 15.999,            (1,1,0)), 
-        '13CO':    ('CO_36',                   None,       13.003355 + 15.999,         (1,1,0)), 
-       #'13CO':    ('CO_36_high',              None,       13.003355 + 15.999,         (1,1,0)), 
-        'C18O':    ('CO_28',                   None,       12.011 + 17.9991610,        (1,1,0)), 
-        'C17O':    ('CO_27',                   None,       12.011 + 16.999131,         (1,1,0)), 
-  
-        'H2O':     ('H2O_pokazatel_main_iso',  'H2O1',     2*1.00784 + 15.999,         (0,1,2)), 
-        'H2(18)O': ('H2O_181',                 None,       2*1.00784 + 17.9991610,     (0,1,2)), 
-        'H2(17)O': ('H2O_171',                 None,       2*1.00784 + 16.999131,      (0,1,2)), 
-        'HDO':     ('HDO_voronin',             None,       1.00784 + 2.014 + 15.999,   (0,1,2)), 
-  
-        'CH4':     ('CH4_hargreaves_main_iso', 'C1H4',     12.011 + 4*1.00784,         (1,0,4)), 
-       #'13CH4':   ('CH4_31111_hargreaves',    None,       13.003355 + 4*1.00784,      (1,0,4)), 
-        '13CH4':   ('13CH4_hargreaves',        None,       13.003355 + 4*1.00784,      (1,0,4)), 
-  
-        'NH3':     ('NH3_coles_main_iso',      'H3N1',     14.0067 + 3*1.00784,        (0,0,3)), 
-        'HCN':     ('HCN_main_iso',            'C1H1N1_1', 1.00784 + 12.011 + 14.0067, (1,0,1)), 
-       #'H2S':     ('H2S_main_iso',            'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'H2S':     ('H2S_ExoMol_main_iso',     'H2S1',     2*1.00784 + 32.065,         (0,0,2)), 
-        'FeH':     ('FeH_main_iso',            'Fe1H1',    55.845 + 1.00784,           (0,0,1)), 
-        'CrH':     ('CrH_main_iso',            'Cr1H1',    51.9961 + 1.00784,          (0,0,1)), 
-        'NaH':     ('NaH_main_iso',            'H1Na1',    22.989769 + 1.00784,        (0,0,1)), 
-        'TiH':     ('TiH_main_iso',            'H1Ti1',    47.867 + 1.00784,           (0,0,1)), 
-
-        'TiO':     ('TiO_48_Exomol_McKemmish', 'O1Ti1',    47.867 + 15.999,            (0,1,0)), 
-        'VO':      ('VO_ExoMol_McKemmish',     'O1V1',     50.9415 + 15.999,           (0,1,0)), 
-        'AlO':     ('AlO_main_iso',            'Al1O1',    26.981539 + 15.999,         (0,1,0)), 
-        'CO2':     ('CO2_main_iso',            'C1O2',     12.011 + 2*15.999,          (1,2,0)),
-    
-        'HF':      ('HF_main_iso',             'F1H1',     1.00784 + 18.998403,        (0,0,1)), 
-        'HCl':     ('HCl_main_iso',            'Cl1H1',    1.00784 + 35.453,           (0,0,1)), 
-        
-        'H2':      ('H2',                      'H2',       2*1.00784,                  (0,0,2)), 
-       #'HD':      ('H2_12',                   None,       1.00784 + 2.014,            (0,0,2)), 
-
-        'K':       ('K',                       'K',        39.0983,                    (0,0,0)), 
-        #'K':       ('K_asymmetric',            'K',        39.0983,                    (0,0,0)), 
-        #'K':       ('K_asymmetric_nearwing',   'K',        39.0983,                    (0,0,0)), 
-        'Na':      ('Na_allard',               'Na',       22.989769,                  (0,0,0)), 
-        'Ti':      ('Ti',                      'Ti',       47.867,                     (0,0,0)), 
-        'Fe':      ('Fe',                      'Fe',       55.845,                     (0,0,0)), 
-        'Ca':      ('Ca',                      'Ca',       40.078,                     (0,0,0)), 
-        'Al':      ('Al',                      'Al',       26.981539,                  (0,0,0)), 
-        'Mg':      ('Mg',                      'Mg',       24.305,                     (0,0,0)), 
-        #'Mn':      ('Mn',                      'Mn',       54.938044,                  (0,0,0)), 
-        'Cr':      ('Cr',                      'Cr',       51.9961,                    (0,0,0)), 
-        'He':      ('He',                      'He',       4.002602,                   (0,0,0)), 
-        }
-
-    species_plot_info = {
-        '12CO': ('C2', r'$^{12}$CO'), 
-        '13CO': ('chocolate', r'$^{13}$CO'), 
-        'C18O': ('C6', r'C$^{18}$O'), 
-        'C17O': ('C7', r'C$^{17}$O'), 
-
-        'H2O': ('C3', r'H$_2$O'), 
-        'H2(18)O': ('C7', r'H$_2^{18}$O'), 
-        'H2(17)O': ('C7', r'H$_2^{17}$O'), 
-        'HDO': ('b', r'HDO'), 
-
-        'CH4': ('C4', r'CH$_4$'), 
-        '13CH4': ('purple', r'$^{13}$CH$_4$'), 
-        
-        'NH3': ('C8', r'NH$_3$'), 
-        'HCN': ('C10', r'HCN'), 
-        'H2S': ('C11', r'H$_2$S'), 
-        'FeH': ('C12', r'FeH'), 
-        'CrH': ('C15', r'CrH'), 
-        'NaH': ('C16', r'NaH'), 
-
-        'TiO': ('C13', r'TiO'), 
-        'VO': ('C15', r'VO'), 
-        'AlO': ('C14', r'AlO'), 
-        'CO2': ('C9', r'CO$_2$'),
-
-        'HF': ('C14', r'HF'), 
-        'HCl': ('C15', r'HCl'), 
-        
-        #'H2': ('C16', r'H$_2$'), 
-        'HD': ('C17', r'HD'), 
-
-        'K': ('C18', r'K'), 
-        'Na': ('C19', r'Na'), 
-        'Ti': ('C20', r'Ti'), 
-        'Fe': ('C21', r'Fe'), 
-        'Ca': ('C22', r'Ca'), 
-        'Al': ('C23', r'Al'), 
-        'Mg': ('C24', r'Mg'), 
-        #'He': ('C22', r'He'), 
-        }
-
-    # Neglect certain species to find respective contribution
-    neglect_species = {
-        '12CO': False, 
-        '13CO': False, 
-        'C18O': False, 
-        'C17O': False, 
-        
-        'H2O': False, 
-        'H2(18)O': False, 
-        'H2(17)O': False, 
-        'HDO': False, 
-
-        'CH4': False, 
-        '13CH4': False, 
-        
-        'NH3': False, 
-        'HCN': False, 
-        'H2S': False, 
-        'FeH': False, 
-        'CrH': False, 
-        'NaH': False, 
-
-        'TiO': False, 
-        'VO': False, 
-        'AlO': False, 
-        'CO2': False, 
-
-        'HF': False, 
-        'HCl': False, 
-
-        #'H2': False, 
-        'HD': False, 
-
-        'K': False, 
-        'Na': False, 
-        'Ti': False, 
-        'Fe': False, 
-        'Ca': False, 
-        'Al': False, 
-        'Mg': False, 
-        #'He': False, 
-        }
+    species_info = pd.read_csv(directory_path/'species_info.csv', index_col=0)
+    neglect_species = {key_i: False for key_i in species_info.index}
 
     def __init__(self, line_species, pressure):
 
@@ -185,26 +55,23 @@ class Chemistry:
     def read_species_info(cls, species, info_key):
         
         if info_key == 'pRT_name':
-            return cls.species_info[species][0]
+            return cls.species_info.loc[species,info_key]
         if info_key == 'pyfc_name':
-            return cls.species_info[species][1]
+            return cls.species_info.loc[species,'Hill_notation']
         
         if info_key == 'mass':
-            return cls.species_info[species][2]
+            return cls.species_info.loc[species,info_key]
         
         if info_key == 'COH':
-            return cls.species_info[species][3]
-        if info_key == 'C':
-            return cls.species_info[species][3][0]
-        if info_key == 'O':
-            return cls.species_info[species][3][1]
-        if info_key == 'H':
-            return cls.species_info[species][3][2]
+            return list(cls.species_info.loc[species,['C','O','H']])
+        
+        if info_key in ['C','O','H']:
+            return cls.species_info.loc[species,info_key]
 
         if info_key == 'c' or info_key == 'color':
-            return cls.species_plot_info[species][0]
+            return cls.species_info.loc[species,'color']
         if info_key == 'label':
-            return cls.species_plot_info[species][1]
+            return cls.species_info.loc[species,'mathtext_name']
 
 class FreeChemistry(Chemistry):
 
@@ -228,7 +95,7 @@ class FreeChemistry(Chemistry):
 
         C, O, H = 0, 0, 0
 
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
             COH_i  = self.read_species_info(species_i, 'COH')
@@ -395,7 +262,7 @@ class EqChemistry(Chemistry):
         self.mass_fractions['He'] = pm_mass_fractions['He']
 
         # Convert the free-chemistry VMRs to mass fractions
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
 
@@ -410,6 +277,80 @@ class EqChemistry(Chemistry):
             VMR_i = 10**params.get(f'log_{species_i}')
             self.mass_fractions[line_species_i] = VMR_i * mass_i / self.mass_fractions['MMW']
 
+    def get_P_quench(self, params, alpha=1):
+
+        # Metallicity
+        met = 10**self.FeH
+
+        # Scale height at each layer
+        MMW = self.mass_fractions['MMW']
+        H = nc.kB*self.temperature / (MMW*nc.amu*10**params['log_g'])
+
+        # Mixing length/time-scales
+        L = alpha * H
+        t_mix = L**2 / params['Kzz_chem']
+
+        self.P_quench = {
+            'P_quench_CO_CH4': None, 
+            'P_quench_N2_NH3': None, 
+            'P_quench_HCN': None, 
+            'P_quench_CO2': None, 
+            }
+        self.quench_setup = {
+            'P_quench_CO_CH4': [
+                '12CO', '13CO', 'C18O', 'C17O', 
+                'CH4', '13CH4', 
+                'H2O', 'H2(18)O', 'H2(17)O', 'HDO',
+                ], 
+            'P_quench_N2_NH3': ['N2', 'NH3'], 
+            'P_quench_HCN': ['HCN'], 
+            'P_quench_CO2': ['CO2'], 
+        }
+
+        # Loop from bottom to top of atmosphere
+        idx = np.argsort(self.pressure)[::-1]
+        for t_mix_i, P_i, T_i in zip(t_mix[idx], self.pressure[idx], self.temperature[idx]):
+
+            if T_i < 500:
+                # Avoid exponent overflow
+                continue
+
+            if None not in self.P_quench.values():
+                # All quench pressures assigned
+                break
+
+            # Zahnle & Marley (2014)
+            if self.P_quench.get('P_quench_CO_CH4') is None:
+                # Chemical timescale of CO-CH4
+                t_CO_CH4_q1 = 1.5e-6 * P_i**(-1) * met**(-0.7) * np.exp(42000/T_i)
+                t_CO_CH4_q2 = 40 * P_i**(-2) * np.exp(25000/T_i)
+                t_CO_CH4 = (1/t_CO_CH4_q1 + 1/t_CO_CH4_q2)**(-1)
+
+                if t_mix_i < t_CO_CH4:
+                    # Mixing is more efficient than chemical reactions
+                    self.P_quench['P_quench_CO_CH4'] = P_i
+        
+            if self.P_quench.get('P_quench_N2_NH3') is None:
+                # Chemical timescale of NH3-N2
+                t_NH3 = 1.0e-7 * P_i**(-1) * np.exp(52000/T_i)
+
+                if t_mix_i < t_NH3:
+                    self.P_quench['P_quench_N2_NH3'] = P_i
+
+            if self.P_quench.get('P_quench_HCN') is None:
+                # Chemical timescale of HCN-NH3-N2
+                t_HCN = 1.5e-4 * P_i**(-1) * met**(-0.7) * np.exp(36000/T_i)
+
+                if t_mix_i < t_HCN:
+                    self.P_quench['P_quench_HCN'] = P_i
+
+            if self.P_quench.get('P_quench_CO2') is None:
+                # Chemical timescale of HCN-NH3-N2
+                t_CO2 = 1.0e-10 * P_i**(-0.5) * np.exp(38000/T_i)
+
+                if t_mix_i < t_CO2:
+                    self.P_quench['P_quench_CO2'] = P_i
+
     def quench_chemistry(self, quench_key='P_quench'):
 
         # Layers to be replaced by a constant abundance
@@ -417,7 +358,7 @@ class EqChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -441,31 +382,30 @@ class EqChemistry(Chemistry):
         self.CO  = params.get('C/O')
         self.FeH = params.get('Fe/H')
 
-        self.C13_12_ratio = params.get('C13_12_ratio')
-        self.O18_16_ratio = params.get('O18_16_ratio')
-        self.O17_16_ratio = params.get('O17_16_ratio')
-
-        if self.C13_12_ratio is None:
-            self.C13_12_ratio = 0
-        if self.O18_16_ratio is None:
-            self.O18_16_ratio = 0
-        if self.O17_16_ratio is None:
-            self.O17_16_ratio = 0
+        self.C13_12_ratio = params.get('C13_12_ratio', 0)
+        self.O18_16_ratio = params.get('O18_16_ratio', 0)
+        self.O17_16_ratio = params.get('O17_16_ratio', 0)
 
         self.temperature = temperature
 
         # Retrieve the mass fractions
         self.get_pRT_mass_fractions(params)
 
-        self.unquenched_mass_fractions = self.mass_fractions.copy()
         self.P_quench = {}
+        if params.get('log_Kzz_chem') is not None:
+            # Get quenching pressures from mixing
+            self.get_P_quench(params)
+
+        self.unquenched_mass_fractions = self.mass_fractions.copy()
         for quench_key, species_to_quench in self.quench_setup.items():
 
-            if params.get(quench_key) is None:
-                continue
+            if self.P_quench.get(quench_key) is None:
+                # Quench pressure is set as free parameter
 
-            # Add to all quenching points
-            self.P_quench[quench_key] = params.get(quench_key)
+                if params.get(quench_key) is None:
+                    continue
+                # Add to all quenching points
+                self.P_quench[quench_key] = params.get(quench_key)
 
             # Quench this chemical network
             self.quench_chemistry(quench_key)
@@ -547,7 +487,7 @@ class FastChemistry(Chemistry):
     def get_pyfc_indices(self, FASTCHEM_UNKNOWN_SPECIES):
 
         self.pyfc_indices = []
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             pyfc_species_i = self.read_species_info(species_i, 'pyfc_name')
@@ -618,7 +558,7 @@ class FastChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -882,7 +822,7 @@ class SONORAChemistry(Chemistry):
         self.interp_func = {
             'MMW': func(all_MMW)
             }
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             if (line_species_i not in self.line_species) and \
@@ -907,7 +847,7 @@ class SONORAChemistry(Chemistry):
 
         for species_i in self.quench_setup[quench_key]:
 
-            if self.species_info.get(species_i) is None:
+            if species_i not in self.species_info.index:
                 continue
 
             line_species_i = self.read_species_info(species_i, 'pRT_name')
@@ -984,7 +924,7 @@ class SONORAChemistry(Chemistry):
         self.mass_fractions['He'] = VMRs['He']
 
         # Convert from VMRs to mass fractions
-        for species_i in self.species_info.keys():
+        for species_i in self.species_info.index:
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
 

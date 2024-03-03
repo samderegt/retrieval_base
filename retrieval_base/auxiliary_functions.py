@@ -145,6 +145,12 @@ def CCF(d_spec,
         
         for j in range(d_spec.n_dets):
 
+            # Select only the pixels within this order
+            mask_ij = d_spec.mask_isfinite[i,j,:]
+
+            if not mask_ij.any():
+                continue
+
             if m_wave_pRT_grid is None:
                 m_wave_i = m_spec.wave[i,j]
                 m_flux_i = m_spec.flux[i,j]
@@ -155,9 +161,6 @@ def CCF(d_spec,
                     m_flux_i[np.isfinite(m_flux_i)], 
                     bounds_error=False, fill_value=np.nan
                     )
-                    
-            # Select only the pixels within this order
-            mask_ij = d_spec.mask_isfinite[i,j,:]
 
             d_wave_ij = d_spec.wave[i,j,mask_ij]
             d_flux_ij = d_spec.flux[i,j,mask_ij]
