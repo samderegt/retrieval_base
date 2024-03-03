@@ -299,11 +299,9 @@ class pRT_model:
             if self.apply_high_pass_filter:
                 # High-pass filter the model spectrum
                 m_spec_i.high_pass_filter(
-                    removal_mode='divide', 
-                    filter_mode='gaussian', 
-                    sigma=300, 
                     replace_flux_err=True
                     )
+                m_spec_i.flux = m_spec_i.flux[0]
 
             wave[i,:,:] = m_spec_i.wave
             flux[i,:,:] = m_spec_i.flux

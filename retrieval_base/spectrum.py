@@ -63,10 +63,14 @@ class Spectrum:
     
     def high_pass_filter(self, removal_mode='divide', filter_mode='gaussian', sigma=300, replace_flux_err=False):
 
+        if self.flux.ndim < 3:
+            self.flux = self.flux[None,:]
+            self.mask_isfinite = self.mask_isfinite[None,:]
+
         # Prepare an array of low-frequency structure
         low_pass_flux = np.ones_like(self.flux) * np.nan
 
-        for i in range(self.n_orders):
+        for i in range(self.flux.shape[0]):
             for j in range(self.n_dets):
 
                 # Apply high-pass filter to each detector separately
@@ -102,7 +106,7 @@ class Spectrum:
             self.flux = high_pass_flux
             self.err = high_pass_err
 
-            self.high_pass = True
+            self.high_pass_filtered = True
 
         return high_pass_flux, high_pass_err
 

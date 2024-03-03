@@ -3,20 +3,14 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 04:00:00
+#SBATCH -t 07:00:00
 #SBATCH -p genoa
-#SBATCH -n 65
+#SBATCH -n 72
 #SBATCH --mem=336G
 
-#SBATCH --job-name=chem_eq_log_Kzz_4
+#SBATCH --job-name=high_pass
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
-
-echo "Current working directory:"
-pwd
-
-echo "HOME directory:"
-echo $HOME
 
 # Loading modules
 module load 2022
@@ -37,16 +31,15 @@ export pRT_input_data_path=$HOME/retrieval_venv/pRT_input_data
 echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
-# --- chem-eq, log Kzz ---------------------------------------------------------------
 # Replace the config file and run pre-processing
-#sed -i 's/import config_DENIS as conf/import config_DENIS_chem_eq_log_Kzz as conf/g' retrieval.py
-#python retrieval.py --pre_processing
+sed -i 's/import config_DENIS as conf/import config_DENIS_high_pass as conf/g' retrieval.py
+python retrieval.py --pre_processing
 
 # Run the retrieval and evaluation
 mpiexec -np $SLURM_NTASKS python retrieval.py --retrieval
 python retrieval.py --evaluation
 
 # Revert to original config file
-sed -i 's/import config_DENIS_chem_eq_log_Kzz as conf/import config_DENIS as conf/g' retrieval.py
+sed -i 's/import config_DENIS_high_pass as conf/import config_DENIS as conf/g' retrieval.py
 
 echo "Done"

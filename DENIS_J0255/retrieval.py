@@ -111,9 +111,6 @@ def pre_processing():
     if conf.apply_high_pass_filter:
         # Apply high-pass filter
         d_spec.high_pass_filter(
-            removal_mode='divide', 
-            filter_mode='gaussian', 
-            sigma=300, 
             replace_flux_err=True
             )
 
@@ -380,17 +377,26 @@ class Retrieval:
         self.CB.return_PT_mf = True
 
         # Objects to store the envelopes in
-        self.Chem.mass_fractions_envelopes = {}
-        for line_species_i in self.Chem.line_species:
-            self.Chem.mass_fractions_envelopes[line_species_i] = []
+        import petitRADTRANS.poor_mans_nonequ_chem as pm
+
+        self.Chem.unquenched_mass_fractions_posterior = {}
+        self.Chem.mass_fractions_posterior = {
+            line_species_i: [] for line_species_i in self.Chem.line_species
+            }
+        self.Chem.mass_fractions_posterior['MMW'] = []
         
+        self.Chem.P_quench_posterior = {
+            'P_quench_CO_CH4': [], 'P_quench_NH3': [], 
+            'P_quench_HCN': [], 'P_quench_CO2': [], 
+            }
+
         self.Chem.CO_posterior  = []
         self.Chem.FeH_posterior = []
 
-        self.PT.temperature_envelopes = []
+        self.PT.temperature_posterior = []
 
         # Sample envelopes from the posterior
-        for params_i in posterior:
+        for i, params_i in enumerate(posterior):
 
             for j, key_j in enumerate(self.Param.param_keys):
                 # Update the Parameters instance
@@ -410,30 +416,62 @@ class Retrieval:
 
             # Store the temperatures and mass fractions
             temperature_i, mass_fractions_i = returned
-            self.PT.temperature_envelopes.append(temperature_i)
+            self.PT.temperature_posterior.append(temperature_i)
+
             # Loop over the line species
             for line_species_i in self.Chem.line_species:
-                self.Chem.mass_fractions_envelopes[line_species_i].append(
+                self.Chem.mass_fractions_posterior[line_species_i].append(
                     mass_fractions_i[line_species_i]
                     )
+            self.Chem.mass_fractions_posterior['MMW'].append(mass_fractions_i['MMW'])
 
+            pm_mass_fractions_i = pm.interpol_abundances(
+                self.Chem.CO*np.ones(self.Chem.n_atm_layers), 
+                self.Chem.FeH*np.ones(self.Chem.n_atm_layers), 
+                self.Chem.temperature, 
+                self.Chem.pressure
+                )
+            for species_i, mf_i in pm_mass_fractions_i.items():
+                if i == 0:
+                    self.Chem.unquenched_mass_fractions_posterior[species_i] = [mf_i]
+                else:
+                    self.Chem.unquenched_mass_fractions_posterior[species_i].append(mf_i)
+                    
             # Store the C/O ratio and Fe/H
             self.Chem.CO_posterior.append(self.Chem.CO)
             self.Chem.FeH_posterior.append(self.Chem.FeH)
 
+            for quench_i in ['P_quench_CO_CH4', 'P_quench_NH3', 'P_quench_HCN', 'P_quench_CO2']:
+                P_quench_i = getattr(self.Chem, quench_i, None)
+                if P_quench_i is None:
+                    continue
+                self.Chem.P_quench_posterior[quench_i].append(P_quench_i)
+
+        for quench_i in ['P_quench_CO_CH4', 'P_quench_NH3', 'P_quench_HCN', 'P_quench_CO2']:
+            self.Chem.P_quench_posterior[quench_i] = \
+                np.array(self.Chem.P_quench_posterior[quench_i])
+
         # Convert profiles to 1, 2, 3-sigma equivalent and median
         q = [0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
              0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
-             ]            
+             ]
+
+        self.PT.temperature_posterior = \
+            np.array(self.PT.temperature_posterior)
+        for line_species_i, mf_i in self.Chem.mass_fractions_posterior.items():
+            self.Chem.mass_fractions_posterior[line_species_i] = np.array(mf_i)
+        
+        for species_i, mf_i in self.Chem.unquenched_mass_fractions_posterior.items():
+            self.Chem.unquenched_mass_fractions_posterior[species_i] = np.array(mf_i)
 
         # Retain the pressure-axis
         self.PT.temperature_envelopes = af.quantiles(
-            np.array(self.PT.temperature_envelopes), q=q, axis=0
+            self.PT.temperature_posterior, q=q, axis=0
             )
-        for line_species_i in self.Chem.line_species:
-            self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
-                np.array(self.Chem.mass_fractions_envelopes[line_species_i]), q=q, axis=0
-                )
+        self.Chem.mass_fractions_envelopes = {
+            line_species_i: af.quantiles(mf_i, q=q, axis=0) \
+            for line_species_i, mf_i in self.Chem.mass_fractions_posterior.items()
+            }
         
         self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
         self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)

@@ -1,12 +1,12 @@
 import numpy as np
 
-file_params = 'config_DENIS_chem_eq_Pquench.py'
+file_params = 'config_DENIS_high_pass.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'DENIS_J0255_chem_eq_Pquench_all_2'
+prefix = 'DENIS_J0255_high_pass'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 file_target = './data/DENIS_J0255.dat'
@@ -74,22 +74,13 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
-    'C/O': [(0,1), r'C/O'], 
-    'Fe/H': [(-1.5,1.5), r'[Fe/H]'], 
-    #'log_P_quench': [(-6,2), r'$\log\ P_\mathrm{quench}$'], 
-    'log_P_quench_CO_CH4': [(-6,2), r'$\log\ P_\mathrm{quench}(\mathrm{CO-CH4})$'], 
-    'log_P_quench_NH3': [(-6,2), r'$\log\ P_\mathrm{quench}(\mathrm{NH3})$'], 
-    'log_P_quench_HCN': [(-6,2), r'$\log\ P_\mathrm{quench}(\mathrm{HCN})$'], 
-    'log_P_quench_CO2': [(-6,2), r'$\log\ P_\mathrm{quench}(\mathrm{CO2})$'], 
-    'log_C_ratio': [(-10,0), r'$\log\ \mathrm{^{13}C/^{12}C}$'], 
-
-    #'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
-    #'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
-    #'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
-    #'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
-    #'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-    #'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
-    #'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
+    'log_12CO': [(-10,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    'log_H2O': [(-10,-2), r'$\log\ \mathrm{H_{2}O}$'], 
+    'log_CH4': [(-10,-2), r'$\log\ \mathrm{CH_{4}}$'], 
+    'log_NH3': [(-10,-2), r'$\log\ \mathrm{NH_{3}}$'], 
+    'log_13CO': [(-10,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_CO2': [(-10,-2), r'$\log\ \mathrm{CO_2}$'], 
+    'log_HCN': [(-10,-2), r'$\log\ \mathrm{HCN}$'], 
 
     # PT profile
     'log_gamma': [(-4,4), r'$\log\ \gamma$'], 
@@ -117,7 +108,6 @@ constant_params = {
     'd_log_P_23': 0.5, 
     'd_log_P_34': 0.75, 
     'd_log_P_45': 1, 
-
 }
 
 # Log-likelihood penalty
@@ -147,7 +137,7 @@ cholesky_mode = 'banded'
 #prepare_for_covariance = False
 prepare_for_covariance = True
 
-apply_high_pass_filter = False
+apply_high_pass_filter = True
 
 ####################################################################################
 # Multinest parameters

@@ -200,15 +200,49 @@ class EqChemistry(Chemistry):
             for species_i in species_to_quench:
                 # Own implementation of quenching, using interpolation
                 mass_fraction_i = pm_mass_fractions[species_i]
-                mass_fraction_i[mask_quenched] = np.interp(P_quench, 
-                                                        xp=self.pressure, 
-                                                        fp=mass_fraction_i
-                                                        )
+                mass_fraction_i[mask_quenched] = 10**np.interp(
+                    np.log10(P_quench), xp=np.log10(self.pressure), 
+                    fp=np.log10(mass_fraction_i)
+                    )
+                #mass_fraction_i[mask_quenched] = np.interp(P_quench, 
+                #                                        xp=self.pressure, 
+                #                                        fp=mass_fraction_i
+                #                                        )
                 pm_mass_fractions[species_i] = mass_fraction_i
 
         return pm_mass_fractions
     
     def get_quench_pressure(self, pm_mass_fractions, alpha=1):
+
+        def interp_P_quench(t_mix, t_chem, P):
+
+            chem_mix_ratio = t_chem / t_mix
+            ratio_increase = np.diff(chem_mix_ratio, append=True) > 0
+            if not ratio_increase.any():
+                return None
+
+            indices = np.arange(len(t_chem))[ratio_increase]
+
+            for i, idx_i in enumerate(indices):
+                if i == 0:
+                    idx_low = idx_i
+                elif idx_i != idx_high+1:
+                    break
+                idx_high = idx_i
+
+            if idx_low == idx_high:
+                return P[idx_low]
+            
+            xp = np.log10(chem_mix_ratio[idx_low:idx_high+1])
+            fp = np.log10(P[idx_low:idx_high+1])
+
+            P_quench = 10**np.interp(
+                0, xp=xp, fp=fp, left=np.nan, right=np.nan
+                )
+            
+            if np.isfinite(P_quench):
+                return P_quench
+            return None
 
         # Metallicity
         met = 10**self.FeH
@@ -221,17 +255,46 @@ class EqChemistry(Chemistry):
         L = alpha * H
         t_mix = L**2 / (10**self.log_Kzz)
 
+        # --- Zahnle & Marley (2014) ------------------------
+        mask_T = (self.temperature > 500) & (self.temperature < 5000)
+        P = self.pressure[mask_T][::-1]
+        T = self.temperature[mask_T][::-1]
+        t_mix = t_mix[mask_T][::-1]
+        
+        # Chemical timescale of CO-CH4
+        t_CO_CH4_q1 = 1.5e-6 * P**(-1) * met**(-0.7) * np.exp(42000/T)
+        t_CO_CH4_q2 = 40 * P**(-2) * np.exp(25000/T)
+        t_CO_CH4 = (1/t_CO_CH4_q1 + 1/t_CO_CH4_q2)**(-1)
+
+        self.P_quench_CO_CH4 = interp_P_quench(t_mix, t_CO_CH4, P)
+
+        # Chemical timescale of NH3-N2
+        t_NH3 = 1.0e-7 * P**(-1) * np.exp(52000/T)
+        
+        self.P_quench_NH3 = interp_P_quench(t_mix, t_NH3, P)
+
+        # Chemical timescale of HCN-NH3-N2
+        t_HCN = 1.5e-4 * P**(-1) * met**(-0.7) * np.exp(36000/T)
+
+        self.P_quench_HCN = interp_P_quench(t_mix, t_HCN, P)
+
+        # Chemical timescale of HCN-NH3-N2
+        t_CO2 = 1.0e-10 * P**(-0.5) * np.exp(38000/T)
+
+        self.P_quench_CO2 = interp_P_quench(t_mix, t_CO2, P)
+        
+        '''
         self.P_quench_CO_CH4 = None
         self.P_quench_NH3 = None
         self.P_quench_HCN = None
         self.P_quench_CO2 = None
         for t_mix_i, P_i, T_i in zip(t_mix[::-1], self.pressure[::-1], self.temperature[::-1]):
 
-            if T_i < 700:
+            if T_i < 500:
                 continue
             
             if (self.P_quench_CO_CH4 is not None) and (self.P_quench_NH3 is not None) \
-                and (self.P_quench_HCN is not None):
+                and (self.P_quench_HCN is not None) and (self.P_quench_CO2 is not None):
                 break
 
             # Zahnle & Marley (2014)
@@ -264,7 +327,8 @@ class EqChemistry(Chemistry):
                 t_CO2 = 1.0e-10 * P_i**(-0.5) * np.exp(38000/T_i)
 
                 if t_mix_i < t_CO2:
-                    self.P_quench_CO2 = P_i                
+                    self.P_quench_CO2 = P_i
+        '''
 
     def __call__(self, params, temperature):
 
