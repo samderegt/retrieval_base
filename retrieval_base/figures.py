@@ -388,9 +388,6 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, w_set=''):
 
 def fig_PT(PT, 
            pRT_atm, 
-           #integrated_contr_em=None, 
-           #integrated_contr_em_per_order=None, 
-           #integrated_opa_cloud=None, 
            ax_PT=None, 
            envelope_colors=None, 
            posterior_color='C0', 
@@ -476,29 +473,48 @@ def fig_PT(PT,
     ax_PT.set_ylim(PT.pressure.min(), PT.pressure.max())
     ax_PT.invert_yaxis()
 
+    ax_contr = ax_PT.twiny()
+    ax_opa_cloud = ax_PT.twiny()
+
     for w_set in pRT_atm.keys():
-        integrated_contr_em = pRT_atm[w_set].int_contr_em
-        integrated_contr_em_per_order = None
-        integrated_opa_cloud = pRT_atm[w_set].int_opa_cloud
+        int_contr_em = pRT_atm[w_set].int_contr_em
+        int_contr_em_per_order = None
+        int_opa_cloud = pRT_atm[w_set].int_opa_cloud
 
         # Add the integrated emission contribution function
-        ax_contr = ax_PT.twiny()
-        fig_contr_em(
+        ax_contr = fig_contr_em(
             ax_contr, 
-            integrated_contr_em, 
-            integrated_contr_em_per_order, 
+            int_contr_em, 
+            int_contr_em_per_order, 
             PT.pressure, 
             bestfit_color=contr_em_color[w_set]
             )
         
-        if (integrated_opa_cloud == 0).all():
+        if hasattr(pRT_atm[w_set], 'int_contr_em_cloudy'):
+            fig_contr_em(
+                ax_contr, 
+                pRT_atm[w_set].int_contr_em_cloudy, 
+                None, 
+                PT.pressure, 
+                bestfit_color=contr_em_color[w_set]
+                )
+            # Add the integrated cloud opacity
+            fig_opa_cloud(
+                ax_opa_cloud, 
+                pRT_atm[w_set].int_opa_cloud_cloudy, 
+                PT.pressure, 
+                xlim=(1e2, 1e-8), 
+                color=opa_cloud_color[w_set]
+                )    
+            continue
+        
+        if (int_opa_cloud == 0).all():
             continue
         
         # Add the integrated cloud opacity
-        ax_opa_cloud = ax_PT.twiny()
         fig_opa_cloud(
             ax_opa_cloud, 
-            integrated_opa_cloud, 
+            int_opa_cloud, 
             PT.pressure, 
             xlim=(1e2, 1e-8), 
             color=opa_cloud_color[w_set]
@@ -511,29 +527,29 @@ def fig_PT(PT,
     else:
         return ax_PT
 
-def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, pressure, bestfit_color='C1'):
+def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestfit_color='C1'):
     
-    if integrated_contr_em_per_order is not None:
+    if int_contr_em_per_order is not None:
         
-        if len(integrated_contr_em_per_order) != 1:        
+        if len(int_contr_em_per_order) != 1:        
             # Plot the emission contribution functions per order
             #cmap_per_order = mpl.cm.get_cmap('coolwarm')
             cmap_per_order = mpl.colors.LinearSegmentedColormap.from_list(
                 'cmap_per_order', colors=['b', 'r']
                 )
             
-            for i in range(len(integrated_contr_em_per_order)):
-                color_i = cmap_per_order(i/(len(integrated_contr_em_per_order)-1))
+            for i in range(len(int_contr_em_per_order)):
+                color_i = cmap_per_order(i/(len(int_contr_em_per_order)-1))
                 ax_contr.plot(
-                    integrated_contr_em_per_order[i], pressure, 
+                    int_contr_em_per_order[i], pressure, 
                     c=color_i, alpha=0.5, lw=1, 
                     )
 
     ax_contr.plot(
-        integrated_contr_em, pressure, 
+        int_contr_em, pressure, 
         c=bestfit_color, ls='--', alpha=0.7
         )
-    ax_contr.set(xlim=(0, 1.1*np.nanmax(integrated_contr_em)))
+    ax_contr.set(xlim=(0, 1.1*np.nanmax(int_contr_em)))
 
     ax_contr.tick_params(
         axis='x', which='both', top=False, labeltop=False
@@ -541,10 +557,10 @@ def fig_contr_em(ax_contr, integrated_contr_em, integrated_contr_em_per_order, p
 
     return ax_contr
 
-def fig_opa_cloud(ax_opa_cloud, integrated_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey'):
+def fig_opa_cloud(ax_opa_cloud, int_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey'):
 
     ax_opa_cloud.plot(
-        integrated_opa_cloud, pressure, c=color, lw=1, ls=':', alpha=0.5
+        int_opa_cloud, pressure, c=color, lw=1, ls=':', alpha=0.5
         )
     
     # Set the color of the upper axis-spine

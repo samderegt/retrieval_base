@@ -172,7 +172,10 @@ class FreeChemistry(Chemistry):
 
         #log_CH_solar = 8.43 - 12 # Asplund et al. (2009)
         log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
-        self.FeH = np.log10(C/H) - log_CH_solar
+        if (C == 0).any():
+            self.FeH = 0
+        else:
+            self.FeH = np.log10(C/H) - log_CH_solar
         self.CH  = self.FeH
 
         self.CO = np.mean(self.CO)

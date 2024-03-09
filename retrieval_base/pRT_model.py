@@ -77,6 +77,7 @@ class pRT_model:
         else:
             self.do_scat_emis = True
 
+        #self.do_scat_emis = True
         self.cloud_mode = cloud_mode
 
         self.rv_max = np.array(list(rv_range))
@@ -163,14 +164,14 @@ class pRT_model:
         '''
 
         # Update certain attributes
-        self.mass_fractions = mass_fractions
+        self.mass_fractions = mass_fractions.copy()
         self.temperature    = temperature
         self.params = params
 
         if self.params.get('res') is not None:
             self.d_resolution = self.params['res']
         if self.params.get(f'res_{self.w_set}') is not None:
-            self.d_resolution = self.params[f'res_{self.w_set}']
+            self.d_resolution = self.params[f'res_{self.w_set}']           
 
         # Add clouds if requested
         self.add_clouds()
@@ -179,6 +180,40 @@ class pRT_model:
         m_spec = self.get_model_spectrum(
             get_contr=get_contr, get_full_spectrum=get_full_spectrum
             )
+
+        self.cloud_fraction = self.params.get('cloud_fraction')
+        if self.cloud_fraction is not None:
+            
+            # Make a copy of the cloudy column's attributes
+            flux_pRT_grid_cloudy               = self.flux_pRT_grid.copy()
+            self.int_contr_em_per_order_cloudy = self.int_contr_em_per_order.copy()
+            self.int_contr_em_cloudy           = self.int_contr_em.copy()
+            self.int_opa_cloud_cloudy          = self.int_opa_cloud.copy()
+
+            # Compute a model spectrum clear column
+            self.give_absorption_opacity = None
+            m_spec_clear = self.get_model_spectrum(
+                get_contr=get_contr, 
+                get_full_spectrum=get_full_spectrum
+                )
+            
+            # Make a copy of the clear column's attributes
+            self.int_contr_em_per_order_clear = self.int_contr_em_per_order.copy()
+            self.int_contr_em_clear           = self.int_contr_em.copy()
+            self.int_opa_cloud_clear          = self.int_opa_cloud.copy()
+
+            # Revert the object to the cloudy column
+            self.add_clouds()
+
+            # Combine the clear and cloudy columns
+            m_spec.flux = self.cloud_fraction * m_spec.flux + \
+                (1-self.cloud_fraction) * m_spec_clear.flux
+            
+            self.flux_pRT_grid = [
+                self.cloud_fraction * f_cloudy_i + (1-self.cloud_fraction) * f_clear_i \
+                for f_clear_i, f_cloudy_i in zip(self.flux_pRT_grid, flux_pRT_grid_cloudy)
+                ]
+
         return m_spec
 
     def add_clouds(self):
