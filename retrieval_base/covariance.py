@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
-def get_Covariance_class(err, mode=None, **kwargs):
+def get_Covariance_class(err, **kwargs):
 
-    if mode == 'GP':
+    if kwargs.get('cov_mode') == 'GP':
         # Use a GaussianProcesses instance
         return GaussianProcesses(err, **kwargs)
     
@@ -26,6 +26,9 @@ class Covariance:
         # Reset the covariance matrix
         self.cov_reset()
 
+        if params.get(f'beta_{w_set}') is None:
+            return
+        
         if params[f'beta_{w_set}'][order,det] != 1:
             self.add_data_err_scaling(
                 params[f'beta_{w_set}'][order,det]

@@ -339,7 +339,9 @@ class DataSpectrum(Spectrum):
 
         # Set to None by default
         self.separation = None
-        self.err_eff, self.flux_eff = None, None
+        #self.err_eff, self.flux_eff = None, None
+        self.err_eff = np.array([[None]*self.n_dets]*self.n_orders)
+        self.flux_eff = np.array([[None]*self.n_dets]*self.n_orders)
 
     def load_spectrum_excalibuhr(self, file_target, file_wave=None):
 

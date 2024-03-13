@@ -19,7 +19,7 @@ class LogLikelihood:
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
         
-    def __call__(self, m_spec, Cov, is_first_w_set=False, ln_L_penalty=0, evaluation=False):
+    def __call__(self, m_spec, Cov, is_first_m_set=False, ln_L_penalty=0, evaluation=False):
         '''
         Evaluate the total log-likelihood given the model spectrum and parameters.
 
@@ -84,7 +84,7 @@ class LogLikelihood:
                 ln_L_ij = -(N_ij/2*np.log(2*np.pi) + 1/2*Cov[i,j].logdet)
 
                 # Without linear scaling of detectors
-                if self.scale_flux and (not (i==0 and j==0) or not is_first_w_set):
+                if self.scale_flux and (not (i==0 and j==0) or not is_first_m_set):
                     # Only scale the flux relative to the first order/detector
 
                     # Scale the model flux to minimize the chi-squared error

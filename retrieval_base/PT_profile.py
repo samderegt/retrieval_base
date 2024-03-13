@@ -4,19 +4,22 @@ from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
-def get_PT_profile_class(pressure, mode, **kwargs):
+def get_PT_profile_class(pressure, PT_mode='free_gradient', **kwargs):
 
-    if mode == 'free':
+    if PT_mode == 'free':
         return PT_profile_free(pressure, **kwargs)
     
-    if mode == 'Molliere':
+    if PT_mode == 'Molliere':
         return PT_profile_Molliere(pressure, **kwargs)
     
-    if mode == 'free_gradient':
+    if PT_mode == 'free_gradient':
         return PT_profile_free_gradient(pressure, **kwargs)
     
-    if mode == 'grid':
+    if PT_mode == 'grid':
         return PT_profile_SONORA(pressure, **kwargs)
+    
+    if PT_mode == 'static':
+        return PT_profile(pressure, **kwargs)
 
 class PT_profile():
 
@@ -24,6 +27,14 @@ class PT_profile():
         
         self.pressure = pressure
         self.temperature_envelopes = None
+
+    def __call__(self, params):
+
+        self.temperature = params.get('temperature')
+        if self.temperature is not None:
+            return self.temperature
+        
+        return -np.inf
 
 class PT_profile_SONORA(PT_profile):
 

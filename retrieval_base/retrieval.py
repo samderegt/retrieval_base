@@ -17,14 +17,14 @@ from .parameters import Parameters
 from .pRT_model import pRT_model
 from .log_likelihood import LogLikelihood
 from .PT_profile import get_PT_profile_class
-from .chemistry import get_Chemistry_class
+from .chemistry import get_Chemistry_class, Chemistry
 from .covariance import get_Covariance_class
 from .callback import CallBack
 
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-def pre_processing(conf, conf_data):
+def pre_processing(conf, conf_data, m_set):
 
     # Set up the output directories
     af.create_output_dir(conf.prefix, conf.file_params)
@@ -171,26 +171,48 @@ def pre_processing(conf, conf_data):
 
     # --- Set up a pRT model --------------------------------------------
 
+    rv_range = conf.free_params.get('rv')
+    if rv_range is None:
+        rv_range = conf.free_params[m_set].get('rv')
+    rv_range = rv_range[0]
+
+    vsini_range = conf.free_params.get('vsini')
+    if vsini_range is None:
+        vsini_range = conf.free_params[m_set].get('vsini')
+    vsini_range = vsini_range[0]
+
+    line_species = conf.chem_kwargs.get('line_species')
+    if line_species is None:
+        line_species = conf.chem_kwargs[m_set].get('line_species')
+
+    cloud_species = conf.cloud_kwargs.get('cloud_species')
+    if (cloud_species is None) and (conf.cloud_kwargs.get(m_set) is not None):
+        cloud_species = conf.cloud_kwargs[m_set].get('cloud_species')
+
+    cloud_mode = conf.cloud_kwargs.get('cloud_mode')
+    if (cloud_mode is None) and (conf.cloud_kwargs.get(m_set) is not None):
+        conf.cloud_kwargs[m_set].get('cloud_mode')
+
     # Create the Radtrans objects
     pRT_atm = pRT_model(
-        line_species=conf.line_species, 
+        line_species=line_species, 
         d_spec=d_spec, 
         mode='lbl', 
         lbl_opacity_sampling=conf_data['lbl_opacity_sampling'], 
-        cloud_species=conf.cloud_species, 
-        cloud_mode=conf.cloud_mode, 
+        cloud_species=cloud_species, 
+        cloud_mode=cloud_mode, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
         log_P_range=conf_data.get('log_P_range'), 
         n_atm_layers=conf_data.get('n_atm_layers'), 
-        rv_range=conf.free_params['rv'][0], 
-        vsini_range=conf.free_params['vsini'][0], 
+        rv_range=rv_range, 
+        vsini_range=vsini_range, 
         rotation_mode=conf.rotation_mode, 
         inclination=conf.constant_params.get('inclination', 0)
         )
 
     # Save as pickle
-    af.pickle_save(conf.prefix+f'data/pRT_atm_{d_spec.w_set}.pkl', pRT_atm)
+    af.pickle_save(conf.prefix+f'data/pRT_atm_{m_set}.pkl', pRT_atm)
 
 class Retrieval:
 
@@ -199,113 +221,117 @@ class Retrieval:
         self.conf = conf
         self.evaluation = evaluation
 
+        self.sum_m_spec = self.conf.sum_m_spec
+
         self.d_spec  = {}
         self.pRT_atm = {}
-        param_wlen_settings = {}
-        for w_set in conf.config_data.keys():
+        self.Cov     = {}
+        self.LogLike = {}
+        self.PT      = {}
+        self.Chem    = {}
+        
+        self.model_settings = {}
+
+        for m_set in conf.config_data.keys():
 
             # Load the DataSpectrum and pRT_model classes
-            self.d_spec[w_set]  = af.pickle_load(self.conf.prefix+f'data/d_spec_{w_set}.pkl')
-            self.pRT_atm[w_set] = af.pickle_load(self.conf.prefix+f'data/pRT_atm_{w_set}.pkl')
+            w_set = conf.config_data[m_set]['w_set']
+            self.d_spec[m_set]  = af.pickle_load(self.conf.prefix+f'data/d_spec_{w_set}.pkl')
+            self.pRT_atm[m_set] = af.pickle_load(self.conf.prefix+f'data/pRT_atm_{m_set}.pkl')
 
-            param_wlen_settings[w_set] = [self.d_spec[w_set].n_orders, self.d_spec[w_set].n_dets]
+            self.model_settings[m_set] = [self.d_spec[m_set].n_orders, self.d_spec[m_set].n_dets]
 
         # Create a Parameters instance
         self.Param = Parameters(
             free_params=self.conf.free_params, 
             constant_params=self.conf.constant_params, 
-            PT_mode=self.conf.PT_mode, 
-            n_T_knots=self.conf.PT_kwargs['n_T_knots'], 
-            enforce_PT_corr=self.conf.PT_kwargs['enforce_PT_corr'], 
-            chem_mode=self.conf.chem_mode, 
-            cloud_mode=self.conf.cloud_mode, 
-            cov_mode=self.conf.cov_mode, 
-            wlen_settings=param_wlen_settings, 
+            model_settings=self.model_settings, 
+
+            PT_kwargs=self.conf.PT_kwargs, 
+            chem_kwargs=self.conf.chem_kwargs, 
+            cov_kwargs=self.conf.cov_kwargs, 
+            cloud_kwargs=self.conf.cloud_kwargs, 
             )
         
-        self.Cov     = {}
-        self.LogLike = {}
-        for w_set in conf.config_data.keys():
-            
-            # Update the cloud/chemistry-mode
-            #self.pRT_atm[w_set].cloud_mode = self.Param.cloud_mode
+        PT_kwargs, chem_kwargs, cov_kwargs, cloud_kwargs = \
+            self.Param.get_sorted_kwargs()
+        
+        for m_set, d_spec_i in self.d_spec.items():
 
-            self.Cov[w_set] = np.empty(
-                (self.d_spec[w_set].n_orders, self.d_spec[w_set].n_dets), dtype=object
+            self.Cov[m_set] = np.empty(
+                (d_spec_i.n_orders, d_spec_i.n_dets), dtype=object
                 )
-            for i in range(self.d_spec[w_set].n_orders):
-                for j in range(self.d_spec[w_set].n_dets):
+            for i in range(d_spec_i.n_orders):
+                for j in range(d_spec_i.n_dets):
                     
                     # Select only the finite pixels
-                    mask_ij = self.d_spec[w_set].mask_isfinite[i,j]
-
+                    mask_ij = d_spec_i.mask_isfinite[i,j]
                     if not mask_ij.any():
                         continue
 
-                    self.Cov[w_set][i,j] = get_Covariance_class(
-                        self.d_spec[w_set].err[i,j,mask_ij], 
-                        self.Param.cov_mode, 
-                        separation=self.d_spec[w_set].separation[i,j], 
-                        err_eff=self.d_spec[w_set].err_eff[i,j], 
-                        flux_eff=self.d_spec[w_set].flux_eff[i,j], 
-                        **self.conf.cov_kwargs
+                    self.Cov[m_set][i,j] = get_Covariance_class(
+                        d_spec_i.err[i,j,mask_ij], 
+                        separation=d_spec_i.separation[i,j], 
+                        err_eff=d_spec_i.err_eff[i,j], 
+                        flux_eff=d_spec_i.flux_eff[i,j], 
+                        **cov_kwargs[m_set]
                         )
 
-            del self.d_spec[w_set].separation, 
-            del self.d_spec[w_set].err_eff, 
-            del self.d_spec[w_set].flux_eff
-            del self.d_spec[w_set].err
+            del d_spec_i.separation
+            del d_spec_i.err_eff
+            del d_spec_i.flux_eff
+            del d_spec_i.err
 
-            self.LogLike[w_set] = LogLikelihood(
-                self.d_spec[w_set], 
+            self.LogLike[m_set] = LogLikelihood(
+                d_spec_i, 
                 n_params=self.Param.n_params, 
                 scale_flux=self.conf.scale_flux, 
                 scale_err=self.conf.scale_err, 
                 )
 
-        self.PT = get_PT_profile_class(
-            self.pRT_atm[w_set].pressure, 
-            self.Param.PT_mode, 
-            **self.conf.PT_kwargs, 
-            )
-        self.Chem = get_Chemistry_class(
-            self.pRT_atm[w_set].line_species, 
-            self.pRT_atm[w_set].pressure, 
-            self.Param.chem_mode, 
-            **self.conf.chem_kwargs, 
-            )
+            self.PT[m_set] = get_PT_profile_class(
+                self.pRT_atm[m_set].pressure, 
+                **PT_kwargs[m_set], 
+                )
+            self.Chem[m_set] = get_Chemistry_class(
+                self.pRT_atm[m_set].pressure, 
+                **chem_kwargs[m_set], 
+                )
         
         self.CB = CallBack(
             d_spec=self.d_spec, 
             evaluation=self.evaluation, 
-            n_samples_to_use=2000, 
             prefix=self.conf.prefix, 
-            posterior_color='C0', 
-            bestfit_color='C1', 
             species_to_plot_VMR=self.conf.species_to_plot_VMR, 
             species_to_plot_CCF=self.conf.species_to_plot_CCF, 
+            model_settings=self.model_settings, 
             )
+        
+        if self.sum_m_spec:
+            # Only a single LogLike + Cov object necessary
+            self.LogLike = self.LogLike[m_set]
+            self.Cov     = self.Cov[m_set]
 
         if (rank == 0) and self.evaluation:
             self.pRT_atm_broad = {}
-            for w_set in conf.config_data.keys():
+            for m_set in conf.config_data.keys():
                 
-                if os.path.exists(self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl'):
+                if os.path.exists(self.conf.prefix+f'data/pRT_atm_broad_{m_set}.pkl'):
 
                     # Load the pRT model
-                    self.pRT_atm_broad[w_set] = af.pickle_load(
-                        self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl'
+                    self.pRT_atm_broad[m_set] = af.pickle_load(
+                        self.conf.prefix+f'data/pRT_atm_broad_{m_set}.pkl'
                         )
                     continue
 
                 # Create a wider pRT model during evaluation
-                self.pRT_atm_broad[w_set] = copy.deepcopy(self.pRT_atm[w_set])
-                self.pRT_atm_broad[w_set].get_atmospheres(CB_active=True)
+                self.pRT_atm_broad[m_set] = copy.deepcopy(self.pRT_atm[m_set])
+                self.pRT_atm_broad[m_set].get_atmospheres(CB_active=True)
 
                 # Save for convenience
                 af.pickle_save(
-                    self.conf.prefix+f'data/pRT_atm_broad_{w_set}.pkl', 
-                    self.pRT_atm_broad[w_set]
+                    self.conf.prefix+f'data/pRT_atm_broad_{m_set}.pkl', 
+                    self.pRT_atm_broad[m_set]
                     )
 
         # Set to None initially, changed during evaluation
@@ -313,98 +339,159 @@ class Retrieval:
         self.pRT_atm_species = None
         self.LogLike_species = None
 
+    def get_PT_mf(self, m_set, Param_i):
+
+        # Retrieve the temperatures
+        try:
+            temperature = self.PT[m_set](Param_i.params)
+        except:
+            temperature = -np.inf
+            return temperature
+
+        if temperature.min() < 0:
+            # Negative temperatures are rejected
+            return -np.inf
+        
+        if (temperature.min() < 150) and (Param_i.chem_mode=='fastchem'):
+            # Temperatures too low for reasonable FastChem convergence
+            return -np.inf
+
+        # Retrieve the chemical abundances
+        if Param_i.chem_mode == 'free':
+            mass_fractions = self.Chem[m_set](Param_i.VMR_species, Param_i.params)
+        elif Param_i.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
+            mass_fractions = self.Chem[m_set](Param_i.params, temperature)
+
+        if not isinstance(mass_fractions, dict):
+            # Non-H2 abundances added up to > 1
+            return -np.inf
+        
+        return temperature, mass_fractions
+        
     def PMN_lnL_func(self, cube=None, ndim=None, nparams=None):
 
         time_A = time.time()
 
         # Param.params dictionary is already updated
-
-        if self.Param.params.get('temperature') is not None:
-            # Read the constant temperatures
-            temperature = self.Param.params.get('temperature')
-            self.PT.temperature = temperature
         
-        else:
-            # Retrieve the temperatures
-            try:
-                temperature = self.PT(self.Param.params)
-            except:
-                # Something went wrong with interpolating
-                temperature = self.PT(self.Param.params)
-                return -np.inf
-
-        if (temperature.min() < 150) and (self.Param.chem_mode=='fastchem'):
-            # Temperatures too low for reasonable FastChem convergence
-            return -np.inf
-        
-        if temperature.min() < 0:
-            # Negative temperatures are rejected
-            return -np.inf
-
-        # Retrieve the ln L penalty (=0 by default)
-        ln_L_penalty = 0
-        if hasattr(self.PT, 'ln_L_penalty'):
-            ln_L_penalty = self.PT.ln_L_penalty
-
-        # Retrieve the chemical abundances
-        if self.Param.chem_mode == 'free':
-            mass_fractions = self.Chem(self.Param.VMR_species, self.Param.params)
-        elif self.Param.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
-            mass_fractions = self.Chem(self.Param.params, temperature)
-
-        if not isinstance(mass_fractions, dict):
-            # Non-H2 abundances added up to > 1
-            return -np.inf
-
-        if self.CB.return_PT_mf:
-            # Return temperatures and mass fractions during evaluation
-            return (temperature, mass_fractions)
-
+        ln_L = 0
         self.m_spec = {}
-        ln_L = ln_L_penalty
-        for h, w_set in enumerate(list(self.conf.config_data.keys())):
+
+        pRT_atm_to_use = self.pRT_atm
+        if self.evaluation:
+            # Retrieve the model spectrum, with the wider pRT model
+            pRT_atm_to_use = self.pRT_atm_broad
             
-            pRT_atm_to_use = self.pRT_atm[w_set]
-            if self.evaluation:
-                # Retrieve the model spectrum, with the wider pRT model
-                pRT_atm_to_use = self.pRT_atm_broad[w_set]
-        
+        for i, (m_set, Param_i) in enumerate(self.Param.Params_m_set.items()):
+
+            returned = self.get_PT_mf(m_set, Param_i)
+            if isinstance(returned, float):
+                # PT profile or mass fractions failed
+                return -np.inf
+            
+            temperature, mass_fractions = returned
+
             # Retrieve the model spectrum
-            self.m_spec[w_set] = pRT_atm_to_use(
+            self.m_spec[m_set] = pRT_atm_to_use[m_set](
                 mass_fractions, 
                 temperature, 
-                self.Param.params, 
+                Param_i.params, 
                 get_contr=self.CB.active, 
                 get_full_spectrum=self.evaluation, 
                 )
-        
-            if (self.m_spec[w_set].flux <= 0).any() or \
-                (~np.isfinite(self.m_spec[w_set].flux)).any():
+            
+            if (self.m_spec[m_set].flux <= 0).any() or (~np.isfinite(self.m_spec[m_set].flux)).any():
                 # Something is wrong in the spectrum
                 return -np.inf
 
-            for i in range(self.d_spec[w_set].n_orders):
-                for j in range(self.d_spec[w_set].n_dets):
+            # Update the covariance matrix
+            for i in range(self.d_spec[m_set].n_orders):
+                for j in range(self.d_spec[m_set].n_dets):
 
-                    if not self.d_spec[w_set].mask_isfinite[i,j].any():
+                    if not self.d_spec[m_set].mask_isfinite[i,j].any():
                         continue
 
-                    # Update the covariance matrix
-                    self.Cov[w_set][i,j](
-                        self.Param.params, w_set, 
-                        order=i, det=j, 
-                        **self.conf.cov_kwargs, 
-                        )
+                    if self.sum_m_spec:
+                        self.Cov[i,j](
+                            Param_i.params, m_set, order=i, det=j, 
+                            **self.conf.cov_kwargs, 
+                            )
+                    else:
+                        self.Cov[m_set][i,j](
+                            Param_i.params, m_set, order=i, det=j, 
+                            **self.conf.cov_kwargs, 
+                            )
+                    
+            if i == 0:
+                # Retrieve the ln L penalty (=0 by default)
+                ln_L_penalty = getattr(self.PT[m_set], 'ln_L_penalty', 0)
+                ln_L += ln_L_penalty
+                    
+            if self.sum_m_spec:
+                # Spectra need to be combined at this point
+                continue
+
+            # Compute log-likelihood separate for each model-setting
 
             # Retrieve the log-likelihood
-            ln_L += self.LogLike[w_set](
-                self.m_spec[w_set], 
-                self.Cov[w_set], 
-                is_first_w_set=(h==0), 
-                #ln_L_penalty=ln_L_penalty, 
+            ln_L += self.LogLike[m_set](
+                self.m_spec[m_set], 
+                self.Cov[m_set], 
+                is_first_m_set=(i==0), 
                 evaluation=self.evaluation, 
                 )
-        
+
+        if self.sum_m_spec:
+
+            # Two model spectra
+            m_set_1, m_set_2 = list(pRT_atm_to_use.keys())
+
+            #m_spec_combined, m_spec_2 = list(self.m_spec.values())
+            #pRT_atm_combined, pRT_atm_2 = list(pRT_atm_to_use.values())
+
+            cloud_fraction = Param_i.params.get('cloud_fraction')
+
+            if cloud_fraction is None:
+                # Equal contributions (binary)
+                f1 = 1
+                f2 = 1
+            else:
+                # Patchy clouds
+                f1 = cloud_fraction
+                f2 = (1 - cloud_fraction)
+
+            self.m_spec[m_set_1].flux = \
+                f1*self.m_spec[m_set_1].flux + f2*self.m_spec[m_set_2].flux
+
+            pRT_atm_to_use[m_set_1].flux_pRT_grid = [
+                f1*pRT_atm_to_use[m_set_1].flux_pRT_grid[i] + \
+                f2*pRT_atm_to_use[m_set_2].flux_pRT_grid[i] \
+                for i in range(len(pRT_atm_to_use[m_set_1].flux_pRT_grid))
+            ]
+            
+            pRT_atm_to_use[m_set_1].int_contr_em_per_order_cloudy = \
+                pRT_atm_to_use[m_set_1].int_contr_em_per_order.copy()
+            pRT_atm_to_use[m_set_1].int_contr_em_per_order_clear = \
+                pRT_atm_to_use[m_set_2].int_contr_em_per_order.copy()
+            
+            pRT_atm_to_use[m_set_1].int_contr_em_cloudy = \
+                pRT_atm_to_use[m_set_1].int_contr_em.copy()
+            pRT_atm_to_use[m_set_1].int_contr_em_clear = \
+                pRT_atm_to_use[m_set_2].int_contr_em.copy()
+            
+            pRT_atm_to_use[m_set_1].int_opa_cloud_cloudy = \
+                pRT_atm_to_use[m_set_1].int_opa_cloud.copy()
+            pRT_atm_to_use[m_set_1].int_opa_cloud_clear = \
+                pRT_atm_to_use[m_set_2].int_opa_cloud.copy()
+
+            # Retrieve the log-likelihood
+            ln_L += self.LogLike(
+                self.m_spec[m_set_1], 
+                self.Cov, 
+                is_first_m_set=True, 
+                evaluation=self.evaluation, 
+                )
+
         time_B = time.time()
         self.CB.elapsed_times.append(time_B-time_A)
 
@@ -461,43 +548,28 @@ class Retrieval:
 
         return flat_all_returned
 
-    def get_PT_mf_envelopes(self, posterior):
+    def get_PT_mf_envelopes(self, posterior, m_set):
 
         # Return the PT profile and mass fractions
-        self.CB.return_PT_mf = True
+        #self.CB.return_PT_mf = {m_set: True for m_set in self.model_settings.keys()}
 
         # Objects to store the envelopes in
-        self.Chem.mass_fractions_posterior = {}
-        self.Chem.unquenched_mass_fractions_posterior = {}
+        self.Chem[m_set].mass_fractions_posterior = {}
+        self.Chem[m_set].unquenched_mass_fractions_posterior = {}
 
-        self.Chem.CO_posterior  = []
-        self.Chem.FeH_posterior = []
+        self.Chem[m_set].CO_posterior  = []
+        self.Chem[m_set].FeH_posterior = []
 
-        self.PT.temperature_envelopes = []
-                    
+        #self.PT.temperature_envelopes = []
+
         def func(params_i):
 
-            for j, key_j in enumerate(self.Param.param_keys):
-                # Update the Parameters instance
-                self.Param.params[key_j] = params_i[j]
-
-                if key_j.startswith('log_'):
-                    self.Param.params = self.Param.log_to_linear(self.Param.params, key_j)
-
-                if key_j.startswith('invgamma_'):
-                    self.Param.params[key_j.replace('invgamma_', '')] = self.Param.params[key_j]
-
-                if key_j.startswith('gaussian_'):
-                    self.Param.params[key_j.replace('gaussian_', '')] = self.Param.params[key_j]
-
-            # Update the parameters
-            self.Param.read_PT_params(cube=None)
-            self.Param.read_uncertainty_params()
-            self.Param.read_chemistry_params()
-            self.Param.read_cloud_params()
+            self.Param.apply_prior = False
+            self.Param(params_i)
+            self.Param.apply_prior = True
 
             # Class instances with best-fitting parameters
-            returned = self.PMN_lnL_func()
+            returned = self.get_PT_mf(m_set, self.Param.Params_m_set[m_set])
             
             if isinstance(returned, float):
                 # PT profile or mass fractions failed
@@ -506,11 +578,17 @@ class Retrieval:
             # Store the temperatures and mass fractions
             temperature_i, mass_fractions_i = returned
             unquenched_mass_fractions_i = None
-            if hasattr(self.Chem, 'unquenched_mass_fractions'):
-                unquenched_mass_fractions_i = self.Chem.unquenched_mass_fractions
+            if hasattr(self.Chem[m_set], 'unquenched_mass_fractions'):
+                unquenched_mass_fractions_i = self.Chem[m_set].unquenched_mass_fractions
 
             # Return the temperature, mass fractions, unquenched, C/O ratio and Fe/H
-            return temperature_i, mass_fractions_i, unquenched_mass_fractions_i, self.Chem.CO, self.Chem.FeH
+            return (
+                temperature_i, 
+                mass_fractions_i, 
+                unquenched_mass_fractions_i, 
+                self.Chem[m_set].CO, 
+                self.Chem[m_set].FeH
+                )
         
         # Compute the mass fractions posterior in parallel
         returned = self.parallel_for_loop(func, posterior)
@@ -518,40 +596,42 @@ class Retrieval:
         if returned is None:
             return
         
-        self.PT.temperature_posterior, \
+        self.PT[m_set].temperature_posterior, \
         mass_fractions_posterior, \
         unquenched_mass_fractions_posterior, \
-        self.Chem.CO_posterior, \
-        self.Chem.FeH_posterior \
+        self.Chem[m_set].CO_posterior, \
+        self.Chem[m_set].FeH_posterior \
             = returned
         
-        self.PT.temperature_posterior = np.array(self.PT.temperature_posterior)
-        self.Chem.CO_posterior  = np.array(self.Chem.CO_posterior)
-        self.Chem.FeH_posterior = np.array(self.Chem.FeH_posterior)
+        self.PT[m_set].temperature_posterior = np.array(self.PT[m_set].temperature_posterior)
+        self.Chem[m_set].CO_posterior  = np.array(self.Chem[m_set].CO_posterior)
+        self.Chem[m_set].FeH_posterior = np.array(self.Chem[m_set].FeH_posterior)
 
         # Create the lists to store mass fractions per line species
         for line_species_i in mass_fractions_posterior[0].keys():
 
-            self.Chem.mass_fractions_posterior[line_species_i] = []
+            self.Chem[m_set].mass_fractions_posterior[line_species_i] = []
 
             if unquenched_mass_fractions_posterior[0] is None:
                 continue
-            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = []
+            self.Chem[m_set].unquenched_mass_fractions_posterior[line_species_i] = []
 
         # Store the mass fractions posterior in the correct order
-        for mf_i, unquenched_mf_i in zip(mass_fractions_posterior, unquenched_mass_fractions_posterior):
+        for mf_i, unquenched_mf_i in zip(
+            mass_fractions_posterior, unquenched_mass_fractions_posterior
+            ):
             
             # Loop over the line species
             for line_species_i in mf_i.keys():
 
-                self.Chem.mass_fractions_posterior[line_species_i].append(
+                self.Chem[m_set].mass_fractions_posterior[line_species_i].append(
                     mf_i[line_species_i]
                     )
 
                 if unquenched_mf_i is None:
                     continue
                 # Store the unquenched mass fractions
-                self.Chem.unquenched_mass_fractions_posterior[line_species_i].append(
+                self.Chem[m_set].unquenched_mass_fractions_posterior[line_species_i].append(
                     unquenched_mf_i[line_species_i]
                     )
 
@@ -561,91 +641,69 @@ class Retrieval:
              ]            
 
         # Retain the pressure-axis
-        self.PT.temperature_envelopes = af.quantiles(
-            self.PT.temperature_posterior, q=q, axis=0
+        self.PT[m_set].temperature_envelopes = af.quantiles(
+            self.PT[m_set].temperature_posterior, q=q, axis=0
             )
 
-        self.Chem.mass_fractions_envelopes = {}
-        self.Chem.unquenched_mass_fractions_envelopes = {}
+        self.Chem[m_set].mass_fractions_envelopes = {}
+        self.Chem[m_set].unquenched_mass_fractions_envelopes = {}
 
-        for line_species_i in self.Chem.mass_fractions.keys():
+        for line_species_i in self.Chem[m_set].mass_fractions.keys():
 
-            self.Chem.mass_fractions_posterior[line_species_i] = \
-                np.array(self.Chem.mass_fractions_posterior[line_species_i])
+            self.Chem[m_set].mass_fractions_posterior[line_species_i] = \
+                np.array(self.Chem[m_set].mass_fractions_posterior[line_species_i])
 
-            self.Chem.mass_fractions_envelopes[line_species_i] = af.quantiles(
-                self.Chem.mass_fractions_posterior[line_species_i], q=q, axis=0
+            self.Chem[m_set].mass_fractions_envelopes[line_species_i] = af.quantiles(
+                self.Chem[m_set].mass_fractions_posterior[line_species_i], q=q, axis=0
                 )
             
             if unquenched_mass_fractions_posterior[0] is None:
                 continue
 
         # Store the unquenched mass fractions
-        for line_species_i in self.Chem.unquenched_mass_fractions_posterior.keys():
-            self.Chem.unquenched_mass_fractions_posterior[line_species_i] = \
-                np.array(self.Chem.unquenched_mass_fractions_posterior[line_species_i])
+        for line_species_i in self.Chem[m_set].unquenched_mass_fractions_posterior.keys():
+            self.Chem[m_set].unquenched_mass_fractions_posterior[line_species_i] = \
+                np.array(self.Chem[m_set].unquenched_mass_fractions_posterior[line_species_i])
 
-            self.Chem.unquenched_mass_fractions_envelopes[line_species_i] = af.quantiles(
-                self.Chem.unquenched_mass_fractions_posterior[line_species_i], q=q, axis=0
+            self.Chem[m_set].unquenched_mass_fractions_envelopes[line_species_i] = af.quantiles(
+                self.Chem[m_set].unquenched_mass_fractions_posterior[line_species_i], q=q, axis=0
                 )
 
-        self.CB.return_PT_mf = False
+        #self.CB.return_PT_mf = False
 
     def get_species_contribution(self):
 
-        #self.m_spec_species, self.pRT_atm_species = {}, {}
-
-        self.m_spec_species = dict.fromkeys(self.d_spec.keys(), {})
+        self.m_spec_species  = dict.fromkeys(self.d_spec.keys(), {})
         self.pRT_atm_species = dict.fromkeys(self.d_spec.keys(), {})
-        '''
-        # Ignore all species
-        for species_j, (line_species_j, _, _) in self.Chem.species_info.items():
-            if line_species_j in self.Chem.line_species:
-                self.Chem.neglect_species[species_j] = True
-        # Create the spectrum and evaluate lnL
-        self.PMN_lnL_func()
-        m_spec_continuum = np.copy(self.m_spec.flux)
-        pRT_atm_continuum = self.pRT_atm_broad.flux_pRT_grid.copy()
-        '''
 
         # Assess the species' contribution
-        for species_i in self.Chem.species_info.index:
+        for species_i in Chemistry.species_info.index:
 
-            line_species_i = self.Chem.read_species_info(species_i, 'pRT_name')
-            if line_species_i not in self.Chem.line_species:
-                continue
+            line_species_i = Chemistry.read_species_info(species_i, 'pRT_name')
 
-            '''
-            # Ignore all other species
-            self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, True)
-            self.Chem.neglect_species[species_i] = False
-            
-            # Create the spectrum and evaluate lnL
-            self.PMN_lnL_func()
+            for m_set in self.Chem.keys():
+                
+                if (line_species_i not in self.Chem[m_set].line_species):
+                    continue
 
-            flux_only = np.copy(self.m_spec.flux)
-            self.pRT_atm_broad.flux_pRT_grid_only = [
-                self.pRT_atm_broad.flux_pRT_grid[i].copy() \
-                for i in range(self.d_spec.n_orders)
-                ]
-            
-            for species_j in self.Chem.species_info:
-                self.Chem.neglect_species[species_j] = False
-            '''
-            # Ignore one species at a time
-            self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, False)
-            self.Chem.neglect_species[species_i] = True
+                # Ignore one species at a time
+                self.Chem[m_set].neglect_species = \
+                    dict.fromkeys(self.Chem[m_set].neglect_species, False)
+                self.Chem[m_set].neglect_species[species_i] = True
 
             # Create the spectrum and evaluate lnL
             self.PMN_lnL_func()
 
-            #self.m_spec.flux_only = flux_only
-            for w_set in self.d_spec.keys():
-                self.m_spec_species[w_set][species_i]  = copy.deepcopy(self.m_spec[w_set])
-                self.pRT_atm_species[w_set][species_i] = copy.deepcopy(self.pRT_atm_broad[w_set])
+            for m_set in self.Chem.keys():
+                self.m_spec_species[m_set][species_i] = \
+                    copy.deepcopy(self.m_spec[m_set])
+                self.pRT_atm_species[m_set][species_i] = \
+                    copy.deepcopy(self.pRT_atm_broad[m_set])
 
-        # Include all species again
-        self.Chem.neglect_species = dict.fromkeys(self.Chem.neglect_species, False)
+        for m_set in self.Chem.keys():
+            # Include all species again
+            self.Chem[m_set].neglect_species = \
+                dict.fromkeys(self.Chem[m_set].neglect_species, False)
 
     def get_all_spectra(self, posterior, save_spectra=False):
 
@@ -776,13 +834,14 @@ class Retrieval:
             bestfit_params = np.array(stats['modes'][0]['maximum a posterior'])
 
             # Get the PT and mass-fraction envelopes
-            self.get_PT_mf_envelopes(posterior)
+            for m_set in self.model_settings.keys():
+                self.get_PT_mf_envelopes(posterior, m_set=m_set)
             
             # Get the model flux envelope
             #flux_envelope = self.get_all_spectra(posterior, save_spectra=False)
 
         else:
-
+            
             # Read the parameters of the best-fitting model
             bestfit_params = posterior[np.argmax(posterior[:,-2]),:-2]
 
@@ -791,23 +850,13 @@ class Retrieval:
 
         if rank != 0:
             return
-
-        # Evaluate the model with best-fitting parameters
-        for i, key_i in enumerate(self.Param.param_keys):
-            # Update the Parameters instance
-            self.Param.params[key_i] = bestfit_params[i]
         
-            if key_i.startswith('log_'):
-                self.Param.params = self.Param.log_to_linear(self.Param.params, key_i)
-
-            if key_i.startswith('invgamma_'):
-                self.Param.params[key_i.replace('invgamma_', '')] = self.Param.params[key_i]
-
-        # Update the parameters
-        self.Param.read_PT_params(cube=None)
-        self.Param.read_uncertainty_params()
-        self.Param.read_chemistry_params()
-        self.Param.read_cloud_params()
+        # Evaluate the model with best-fitting parameters
+        self.Param.apply_prior = False
+        if (bestfit_params < 1).all() and (bestfit_params > 0).all():
+            self.Param.apply_prior = True
+        self.Param(bestfit_params)
+        self.Param.apply_prior = True
 
         if self.evaluation:
             # Get each species' contribution to the spectrum
@@ -817,21 +866,26 @@ class Retrieval:
         self.PMN_lnL_func()
         self.CB.active = False
 
-        for w_set in self.conf.config_data.keys():
-            self.m_spec[w_set].flux_envelope = None
+        for m_set in self.conf.config_data.keys():
+            self.m_spec[m_set].flux_envelope = None
 
         pRT_atm_to_use = self.pRT_atm
         if self.evaluation:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
-            #self.m_spec.flux_envelope = flux_envelope
 
         # Call the CallBack class and make summarizing figures
         self.CB(
-            self.Param, self.LogLike, self.Cov, self.PT, self.Chem, 
-            self.m_spec, pRT_atm_to_use, posterior, 
+            self.Param, 
+            self.LogLike, 
+            self.Cov, 
+            self.PT, 
+            self.Chem, 
+            self.m_spec, 
+            pRT_atm_to_use, 
+            posterior, 
             m_spec_species=self.m_spec_species, 
-            pRT_atm_species=self.pRT_atm_species
+            pRT_atm_species=self.pRT_atm_species, 
             )
 
     def PMN_run(self):
@@ -847,7 +901,8 @@ class Retrieval:
             Prior=self.Param, 
             n_dims=self.Param.n_params, 
             outputfiles_basename=self.conf.prefix, 
-            resume=True, 
+            #resume=True, 
+            resume=False, 
             verbose=True, 
             const_efficiency_mode=self.conf.const_efficiency_mode, 
             sampling_efficiency=self.conf.sampling_efficiency, 
@@ -856,70 +911,3 @@ class Retrieval:
             dump_callback=self.PMN_callback_func, 
             n_iter_before_update=self.conf.n_iter_before_update, 
             )
-
-    def synthetic_spectrum(self):
-        
-        # Update the parameters
-        synthetic_params = np.array([
-                0.8, # R_p
-                #5.5, # log_g
-                #5.0, # log_g
-                5.25, # log_g
-                0.65, # epsilon_limb
-
-                #-3.3, # log_12CO
-                #-3.6, # log_H2O
-                #-6.2, # log_CH4
-                #-6.3, # log_NH3
-                #-2.0, # log_C_ratio
-                -3.3, # log_12CO
-                -3.6, # log_H2O
-                -4.9, # log_CH4
-                -6.0, # log_NH3
-                -5.5, # log_13CO
-
-                41.0, # vsini
-                22.5, # rv
-
-                #1300, # T_eff
-                1400, # T_eff
-        ])
-
-        # Evaluate the model with best-fitting parameters
-        for i, key_i in enumerate(self.Param.param_keys):
-            # Update the Parameters instance
-            self.Param.params[key_i] = synthetic_params[i]
-
-        # Update the parameters
-        self.Param.read_PT_params(cube=None)
-        self.Param.read_uncertainty_params()
-        self.Param.read_chemistry_params()
-        self.Param.read_cloud_params()
-
-        # Create the synthetic spectrum
-        self.PMN_lnL_func(cube=None, ndim=None, nparams=None)
-
-        # Save the PT profile
-        np.savetxt(self.conf.prefix+'data/SONORA_temperature.dat', self.PT.temperature)
-        np.savetxt(self.conf.prefix+'data/SONORA_RCB.dat', np.array([self.PT.RCB]))
-        
-        # Insert the NaNs from the observed spectrum
-        self.m_spec.flux[~self.d_spec.mask_isfinite] = np.nan
-
-        # Add noise to the synthetic spectrum
-        self.m_spec.flux = np.random.normal(self.m_spec.flux, self.d_spec.err)
-
-        # Replace the observed spectrum with the synthetic spectrum
-        self.d_spec.flux = self.m_spec.flux.copy()
-
-        # Plot the pre-processed spectrum
-        figs.fig_spec_to_fit(self.d_spec, prefix=self.conf.prefix)
-
-        # Save the synthetic spectrum
-        np.save(self.conf.prefix+'data/d_spec_wave.npy', self.d_spec.wave)
-        np.save(self.conf.prefix+'data/d_spec_flux.npy', self.d_spec.flux)
-        np.save(self.conf.prefix+'data/d_spec_err.npy', self.d_spec.err)
-        np.save(self.conf.prefix+'data/d_spec_transm.npy', self.d_spec.transm)
-
-        # Save as pickle
-        af.pickle_save(self.conf.prefix+'data/d_spec.pkl', self.d_spec)

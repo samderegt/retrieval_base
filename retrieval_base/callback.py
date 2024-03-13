@@ -24,11 +24,13 @@ class CallBack:
                  bestfit_color='C1', 
                  species_to_plot_VMR=['12CO', 'H2O', '13CO', 'CH4', 'NH3', 'C18O'], 
                  species_to_plot_CCF=['12CO', 'H2O', '13CO', 'CH4'], 
+                 model_settings={}, 
                  ):
         
         self.elapsed_times = []
         self.active = False
-        self.return_PT_mf = False
+
+        self.return_PT_mf = {m_set: False for m_set in model_settings.keys()}
 
         self.evaluation = evaluation
         self.cb_count = 0
@@ -92,20 +94,24 @@ class CallBack:
         self.elapsed_times.clear()
 
         # Create the labels
-        self.param_labels = np.array(list(self.Param.param_mathtext.values()))
+        self.param_labels = self.Param.param_mathtext
 
         chi_squared_tot, n_dof = 0, 0
-        for w_set in self.LogLike.keys():
-            print(f'\n--- {w_set} -------------------------')
-            print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
-                self.LogLike[w_set].chi_squared_red, self.LogLike[w_set].chi_squared, self.LogLike[w_set].n_dof
-                ))
-            
-            chi_squared_tot += self.LogLike[w_set].chi_squared
-            #n_dof += self.LogLike[w_set].n_dof
-            n_dof += self.d_spec[w_set].mask_isfinite.sum()
+        if not isinstance(self.LogLike, dict):
+            chi_squared_tot += self.LogLike.chi_squared
+            n_dof += self.LogLike.n_dof
 
-        n_dof -= self.LogLike[w_set].n_params
+        else:
+            for m_set, LogLike_i in self.LogLike.items():
+                print(f'\n--- {m_set} -------------------------')
+                print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
+                    LogLike_i.chi_squared_red, LogLike_i.chi_squared, LogLike_i.n_dof
+                    ))
+                
+                chi_squared_tot += LogLike_i.chi_squared
+                n_dof += self.d_spec[m_set].mask_isfinite.sum()
+
+            n_dof -= LogLike_i.n_params
 
         print(f'\n--- Total -------------------------')
         print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
@@ -115,22 +121,27 @@ class CallBack:
         # Read the best-fitting free parameters
         self.bestfit_params = []
         print('\nBest-fitting free parameters:')
-        for key_i in self.Param.param_keys:
-            if isinstance(self.Param.params[key_i], np.ndarray):
-                print('{} = {:.2f}'.format(key_i, self.Param.params[key_i].flatten()[0]))
-                self.bestfit_params.append(self.Param.params[key_i].flatten()[0])
-            else:
-                print('{} = {:.2f}'.format(key_i, self.Param.params[key_i]))
-                self.bestfit_params.append(self.Param.params[key_i])
+        for i, key_i in enumerate(self.Param.param_keys):
+            print('{} = {:.2f}'.format(key_i, self.Param.cube[i]))
+            self.bestfit_params.append(self.Param.cube[i])
 
-        for w_set in self.LogLike.keys():
-            print(f'\n--- {w_set} -------------------------')
-            if self.LogLike[w_set].scale_flux:
+        if not isinstance(self.LogLike, dict):
+            print(f'\n-------------------------------------')
+            if self.LogLike.scale_flux:
                 print('\nOptimal flux-scaling parameters:')
-                print(self.LogLike[w_set].f.round(2))
-            if self.LogLike[w_set].scale_err:
+                print(self.LogLike.f.round(2))
+            if self.LogLike.scale_err:
                 print('\nOptimal uncertainty-scaling parameters:')
-                print(self.LogLike[w_set].beta.round(2))
+                print(self.LogLike.beta.round(2))
+        else:
+            for m_set, LogLike_i in self.LogLike.items():
+                print(f'\n--- {m_set} -------------------------')
+                if LogLike_i.scale_flux:
+                    print('\nOptimal flux-scaling parameters:')
+                    print(LogLike_i.f.round(2))
+                if LogLike_i.scale_err:
+                    print('\nOptimal uncertainty-scaling parameters:')
+                    print(LogLike_i.beta.round(2))
         
         self.bestfit_params = np.array(self.bestfit_params)
         
@@ -152,48 +163,62 @@ class CallBack:
         # Make a summary figure
         self.fig_summary()
 
-        if self.evaluation:
+        if not self.evaluation:
+            # Remove attributes from memory
+            del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
+
+            time_B = time.time()
+            print('\nPlotting took {:.0f} seconds\n'.format(time_B-time_A))
+
+            return
             
-            for w_set in self.d_spec.keys():
+        for m_set in self.d_spec.keys():
 
-                # Plot the CCFs + spectra of species' contributions
-                figs.fig_species_contribution(
-                    d_spec=self.d_spec[w_set], 
-                    m_spec=self.m_spec[w_set], 
-                    m_spec_species=self.m_spec_species[w_set], 
-                    pRT_atm=self.pRT_atm[w_set], 
-                    pRT_atm_species=self.pRT_atm_species[w_set], 
-                    Chem=self.Chem, 
-                    LogLike=self.LogLike[w_set], 
-                    Cov=self.Cov[w_set], 
-                    species_to_plot=self.species_to_plot_CCF, 
-                    prefix=self.prefix, 
-                    w_set=w_set, 
-                    )
-            
-                # Plot the auto-correlation of the residuals
-                figs.fig_residual_ACF(
-                    d_spec=self.d_spec[w_set], 
-                    m_spec=self.m_spec[w_set], 
-                    LogLike=self.LogLike[w_set], 
-                    Cov=self.Cov[w_set], 
-                    bestfit_color=self.bestfit_color, 
-                    prefix=self.prefix, 
-                    w_set=w_set, 
-                    )
+            if isinstance(self.LogLike, dict):
+                LogLike_i = self.LogLike[m_set]
+                Cov_i     = self.Cov[m_set]
+            else:
+                LogLike_i = self.LogLike
+                Cov_i     = self.Cov
 
-                # Plot the covariance matrices
-                all_cov = figs.fig_cov(
-                    LogLike=self.LogLike[w_set], 
-                    Cov=self.Cov[w_set], 
-                    d_spec=self.d_spec[w_set], 
-                    cmap=self.envelope_cmap, 
-                    prefix=self.prefix, 
-                    w_set=w_set, 
-                    )
+            # Plot the CCFs + spectra of species' contributions
+            figs.fig_species_contribution(
+                d_spec=self.d_spec[m_set], 
+                m_spec=self.m_spec[m_set], 
+                m_spec_species=self.m_spec_species[m_set], 
+                pRT_atm=self.pRT_atm[m_set], 
+                pRT_atm_species=self.pRT_atm_species[m_set], 
+                Chem=self.Chem[m_set], 
+                LogLike=LogLike_i, 
+                Cov=Cov_i, 
+                species_to_plot=self.species_to_plot_CCF, 
+                prefix=self.prefix, 
+                m_set=m_set, 
+                )
+        
+            # Plot the auto-correlation of the residuals
+            figs.fig_residual_ACF(
+                d_spec=self.d_spec[m_set], 
+                m_spec=self.m_spec[m_set], 
+                LogLike=LogLike_i, 
+                Cov=Cov_i, 
+                bestfit_color=self.bestfit_color, 
+                prefix=self.prefix, 
+                m_set=m_set, 
+                )
 
-            # Plot the abundances in a corner-plot
-            self.fig_abundances_corner()
+            # Plot the covariance matrices
+            all_cov = figs.fig_cov(
+                LogLike=LogLike_i, 
+                Cov=Cov_i, 
+                d_spec=self.d_spec[m_set], 
+                cmap=self.envelope_cmap, 
+                prefix=self.prefix, 
+                m_set=m_set, 
+                )
+
+        # Plot the abundances in a corner-plot
+        #self.fig_abundances_corner()
 
         # Remove attributes from memory
         del self.Param, self.LogLike, self.PT, self.Chem, self.m_spec, self.pRT_atm, self.posterior
@@ -205,61 +230,69 @@ class CallBack:
         
         # Save the best-fitting parameters
         params_to_save = {}
-        for key_i, val_i in self.Param.params.items():
-            if isinstance(val_i, np.ndarray):
-                val_i = val_i.tolist()
-            params_to_save[key_i] = val_i
+        for m_set, Param_i in self.Param.Params_m_set.items():
+            params_to_save[m_set] = {}
+            for key_i, val_i in Param_i.params.items():
+                if isinstance(val_i, np.ndarray):
+                    val_i = val_i.tolist()
+                params_to_save[m_set][key_i] = val_i
 
         dict_to_save = {
             'params': params_to_save, 
-            #'f': self.LogLike.f.tolist(), 
-            #'beta': self.LogLike.beta.tolist(), 
-            'temperature': self.PT.temperature.tolist(), 
-            'pressure': self.PT.pressure.tolist(), 
         }
-        for w_set in self.LogLike.keys():
-            dict_to_save[f'f_{w_set}'] = self.LogLike[w_set].f.tolist()
-            dict_to_save[f'beta_{w_set}'] = self.LogLike[w_set].beta.tolist()
+        for m_set, PT_i in self.PT.items():
+            dict_to_save[m_set] = {
+                'temperature': PT_i.temperature.tolist(), 
+                'pressure': PT_i.pressure.tolist(), 
+                }
+        if isinstance(self.LogLike, dict):
+            for m_set, LogLike_i in self.LogLike.items():
+                dict_to_save[m_set]['f']    = LogLike_i.f.tolist()
+                dict_to_save[m_set]['beta'] = LogLike_i.beta.tolist()
+        else:
+            dict_to_save['f']    = self.LogLike.f.tolist()
+            dict_to_save['beta'] = self.LogLike.beta.tolist()
 
         with open(self.prefix+'data/bestfit.json', 'w') as fp:
             json.dump(dict_to_save, fp, indent=4)
 
         # Save some of the objects
-        af.pickle_save(self.prefix+'data/bestfit_PT.pkl', self.PT)
+        for m_set in self.PT.keys():
+            af.pickle_save(self.prefix+f'data/bestfit_PT_{m_set}.pkl', self.PT[m_set])
 
-        Chem_to_save = copy.copy(self.Chem)
-        if hasattr(Chem_to_save, 'fastchem'):
-            del Chem_to_save.fastchem
-        if hasattr(Chem_to_save, 'output'):
-            del Chem_to_save.output
-        if hasattr(Chem_to_save, 'input'):
-            del Chem_to_save.input
-        af.pickle_save(self.prefix+'data/bestfit_Chem.pkl', Chem_to_save)
+            Chem_to_save = copy.copy(self.Chem[m_set])
+            if hasattr(Chem_to_save, 'fastchem'):
+                del Chem_to_save.fastchem
+            if hasattr(Chem_to_save, 'output'):
+                del Chem_to_save.output
+            if hasattr(Chem_to_save, 'input'):
+                del Chem_to_save.input
+            af.pickle_save(self.prefix+f'data/bestfit_Chem_{m_set}.pkl', Chem_to_save)
 
-        for w_set in self.LogLike.keys():
-            af.pickle_save(self.prefix+f'data/bestfit_m_spec_{w_set}.pkl', self.m_spec[w_set])
-
-            # Save the best-fitting log-likelihood
-            LogLike_to_save = copy.deepcopy(self.LogLike[w_set])
-            del LogLike_to_save.d_spec
-            af.pickle_save(self.prefix+f'data/bestfit_LogLike_{w_set}.pkl', LogLike_to_save)
-
-            # Save the best-fitting covariance matrix
-            af.pickle_save(self.prefix+f'data/bestfit_Cov_{w_set}.pkl', self.Cov[w_set])
+            af.pickle_save(self.prefix+f'data/bestfit_m_spec_{m_set}.pkl', self.m_spec[m_set])
 
             # Save the contribution functions and cloud opacities
             np.save(
-                self.prefix+f'data/bestfit_int_contr_em_{w_set}.npy', 
-                self.pRT_atm[w_set].int_contr_em
+                self.prefix+f'data/bestfit_int_contr_em_{m_set}.npy', 
+                self.pRT_atm[m_set].int_contr_em
                 )
             np.save(
-                self.prefix+f'data/bestfit_int_contr_em_per_order_{w_set}.npy', 
-                self.pRT_atm[w_set].int_contr_em_per_order
+                self.prefix+f'data/bestfit_int_contr_em_per_order_{m_set}.npy', 
+                self.pRT_atm[m_set].int_contr_em_per_order
                 )
             np.save(
-                self.prefix+f'data/bestfit_int_opa_cloud_{w_set}.npy', 
-                self.pRT_atm[w_set].int_opa_cloud
+                self.prefix+f'data/bestfit_int_opa_cloud_{m_set}.npy', 
+                self.pRT_atm[m_set].int_opa_cloud
                 )
+
+            if isinstance(self.LogLike, dict):
+                # Save the best-fitting log-likelihood
+                LogLike_to_save = copy.deepcopy(self.LogLike[m_set])
+                del LogLike_to_save.d_spec
+                af.pickle_save(self.prefix+f'data/bestfit_LogLike_{m_set}.pkl', LogLike_to_save)
+
+                # Save the best-fitting covariance matrix
+                af.pickle_save(self.prefix+f'data/bestfit_Cov_{m_set}.pkl', self.Cov[m_set])
 
     def fig_abundances_corner(self):
 
@@ -449,35 +482,48 @@ class CallBack:
 
         fig, ax = self.fig_corner()
 
-        n_w_set = len(self.d_spec)
+        if isinstance(self.LogLike, dict):
+            # Different wavelength-settings, show multiple panels
+            n_m_set = len(self.d_spec)
+        else:
+            # Same wavelength-setting
+            n_m_set = 1
         l, b, w, h = [0.4,0.70,0.57,0.25]
 
-        ax_spec, ax_res = [], []        
-        #ax_res_dims, ax_spec_dims = [], []
-        for i, w_set in enumerate(list(self.d_spec.keys())):
-            ax_res_dim_i  = [l, b+i*(h+0.03)/(n_w_set), w, 0.97*h/(5*n_w_set)]
-            ax_spec_dim_i = [l, ax_res_dim_i[1]+ax_res_dim_i[3], w, 4*0.97*h/(5*n_w_set)]
+        ax_spec, ax_res = [], []
+        for i in range(n_m_set):
+            ax_res_dim_i  = [l, b+i*(h+0.03)/(n_m_set), w, 0.97*h/(5*n_m_set)]
+            ax_spec_dim_i = [l, ax_res_dim_i[1]+ax_res_dim_i[3], w, 4*0.97*h/(5*n_m_set)]
 
-            #ax_res_dims.append(ax_res_dim_i)
-            #ax_spec_dims.append(ax_spec_dim_i)
             ax_spec.append(fig.add_axes(ax_spec_dim_i))
             ax_res.append(fig.add_axes(ax_res_dim_i))
 
         ax_spec = np.array(ax_spec)[::-1]
         ax_res  = np.array(ax_res)[::-1]
-        for i, w_set in enumerate(list(self.d_spec.keys())):
+        for i, (m_set, d_spec_i) in enumerate(self.d_spec.items()):
+            if isinstance(self.LogLike, dict):
+                LogLike_i = self.LogLike[m_set]
+                Cov_i = self.Cov[m_set]
+            else:
+                LogLike_i = self.LogLike
+                Cov_i = self.Cov
+
             # Plot the best-fitting spectrum
             ax_spec[i], ax_res[i] = figs.fig_bestfit_model(
-                d_spec=self.d_spec[w_set], 
-                m_spec=self.m_spec[w_set], 
-                LogLike=self.LogLike[w_set], 
-                Cov=self.Cov[w_set], 
+                d_spec=d_spec_i, 
+                m_spec=self.m_spec[m_set], 
+                LogLike=LogLike_i, 
+                Cov=Cov_i, 
                 bestfit_color=self.bestfit_color, 
                 ax_spec=ax_spec[i], 
                 ax_res=ax_res[i], 
                 prefix=self.prefix, 
                 xlabel=['Wavelength (nm)', None][i]
                 )
+            
+            if n_m_set == 1:
+                del LogLike_i, Cov_i
+                break
 
         ax_VMR = fig.add_axes([0.65,0.43,0.1,0.22])
         l, b, w, h = ax_VMR.get_position().bounds
@@ -485,20 +531,19 @@ class CallBack:
         #ax_contr = ax_PT.twiny()
 
         # Plot the VMR per species
-        ax_VMR = figs.fig_VMR(
-            ax_VMR=ax_VMR, 
-            Chem=self.Chem, 
-            species_to_plot=self.species_to_plot_VMR, 
-            pressure=self.PT.pressure, 
-            )
+        for i, m_set in enumerate(self.Chem.keys()):
+            ax_VMR = figs.fig_VMR(
+                ax_VMR=ax_VMR, 
+                Chem=self.Chem[m_set], 
+                species_to_plot=self.species_to_plot_VMR, 
+                pressure=self.PT[m_set].pressure, 
+                ls=['-', '--'][i]
+                )
 
         # Plot the best-fitting PT profile
         ax_PT = figs.fig_PT(
             PT=self.PT, 
             pRT_atm=self.pRT_atm, 
-            #integrated_contr_em=self.pRT_atm.int_contr_em, 
-            #integrated_contr_em_per_order=self.pRT_atm.int_contr_em_per_order, 
-            #integrated_opa_cloud=self.pRT_atm.int_opa_cloud, 
             ax_PT=ax_PT, 
             envelope_colors=self.envelope_colors, 
             posterior_color=self.posterior_color, 
@@ -534,16 +579,26 @@ class CallBack:
             fig.savefig(self.prefix+f'plots/live_summary_{self.cb_count}.png', dpi=100)
         plt.close(fig)
 
-        for w_set in self.d_spec.keys():
+        for m_set in self.d_spec.keys():
+            if isinstance(self.LogLike, dict):
+                LogLike_i = self.LogLike[m_set]
+                Cov_i = self.Cov[m_set]
+            else:
+                LogLike_i = self.LogLike
+                Cov_i = self.Cov                
+
             # Plot the best-fit spectrum in subplots
             figs.fig_bestfit_model(
-                d_spec=self.d_spec[w_set], 
-                m_spec=self.m_spec[w_set], 
-                LogLike=self.LogLike[w_set], 
-                Cov=self.Cov[w_set], 
+                d_spec=self.d_spec[m_set], 
+                m_spec=self.m_spec[m_set], 
+                LogLike=LogLike_i, 
+                Cov=Cov_i, 
                 bestfit_color=self.bestfit_color, 
                 ax_spec=None, 
                 ax_res=None, 
                 prefix=self.prefix, 
-                w_set=w_set
+                m_set=m_set
                 )
+
+            if n_m_set == 1:
+                break

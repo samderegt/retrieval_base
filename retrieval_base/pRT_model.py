@@ -122,7 +122,7 @@ class pRT_model:
                 wlen_bords_micron=wave_range_i, 
                 mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
-                do_scat_emis=self.do_scat_emis
+                do_scat_emis=False
                 )
 
             # Set up the atmospheric layers
@@ -181,6 +181,7 @@ class pRT_model:
             get_contr=get_contr, get_full_spectrum=get_full_spectrum
             )
 
+        '''
         self.cloud_fraction = self.params.get('cloud_fraction')
         if self.cloud_fraction is not None:
             
@@ -213,6 +214,7 @@ class pRT_model:
                 self.cloud_fraction * f_cloudy_i + (1-self.cloud_fraction) * f_clear_i \
                 for f_clear_i, f_cloudy_i in zip(self.flux_pRT_grid, flux_pRT_grid_cloudy)
                 ]
+        '''
 
         return m_spec
 

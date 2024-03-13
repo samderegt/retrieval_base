@@ -7,15 +7,15 @@ directory_path = pathlib.Path(__file__).parent.resolve()
 from scipy.interpolate import make_interp_spline
 import petitRADTRANS.nat_cst as nc
 
-def get_Chemistry_class(line_species, pressure, mode, **kwargs):
+def get_Chemistry_class(pressure, line_species, chem_mode='free', **kwargs):
 
-    if mode == 'free':
+    if chem_mode == 'free':
         return FreeChemistry(line_species, pressure, **kwargs)
-    if mode == 'eqchem':
+    if chem_mode == 'eqchem':
         return EqChemistry(line_species, pressure, **kwargs)
-    if mode == 'fastchem':
+    if chem_mode == 'fastchem':
         return FastChemistry(line_species, pressure, **kwargs)
-    if mode == 'SONORAchem':
+    if chem_mode == 'SONORAchem':
         return SONORAChemistry(line_species, pressure, **kwargs)
 
 class Chemistry:

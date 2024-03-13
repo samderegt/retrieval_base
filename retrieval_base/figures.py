@@ -173,7 +173,7 @@ def fig_bestfit_model(
         ax_spec=None, 
         ax_res=None, 
         prefix=None, 
-        w_set=''
+        m_set=''
         ):
 
     if (ax_spec is None) and (ax_res is None):
@@ -298,12 +298,12 @@ def fig_bestfit_model(
     ax_res.set(xlabel=xlabel, ylabel='Res.')
 
     if is_new_fig and (prefix is not None):
-        plt.savefig(prefix+f'plots/bestfit_spec_{w_set}.pdf')
+        plt.savefig(prefix+f'plots/bestfit_spec_{m_set}.pdf')
         plt.close(fig)
     else:
         return ax_spec, ax_res
 
-def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, w_set=''):
+def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, m_set=''):
 
     all_cov = np.zeros(
         (d_spec.n_orders, d_spec.n_dets, 
@@ -381,7 +381,7 @@ def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, w_set=''):
     ax[d_spec.n_orders//2,0].set(ylabel='Wavelength (nm)')
 
     if prefix is not None:
-        plt.savefig(prefix+f'plots/cov_matrices_{w_set}.pdf')
+        plt.savefig(prefix+f'plots/cov_matrices_{m_set}.pdf')
         plt.close(fig)
 
     return all_cov
@@ -395,10 +395,7 @@ def fig_PT(PT,
            ylabel=r'$P\ \mathrm{(bar)}$', 
            yticks=np.logspace(-6, 3, 10), 
            xlim=(1,3500), 
-           show_ln_L_penalty=False, 
            prefix=None, 
-           contr_em_color={'J1226':'b', 'K2166':'r'}, 
-           opa_cloud_color={'J1226':'b', 'K2166':'r'}, 
            ):
     
     if ax_PT is None:
@@ -413,112 +410,73 @@ def fig_PT(PT,
     else:
         is_new_fig = False
 
-    if PT.temperature_envelopes is not None:
-        # Plot the PT confidence envelopes
-        for i in range(3):
-            ax_PT.fill_betweenx(
-                y=PT.pressure, x1=PT.temperature_envelopes[i], 
-                x2=PT.temperature_envelopes[-i-1], 
-                color=envelope_colors[i+1], ec='none', 
-                )
-
-        # Plot the median PT
-        ax_PT.plot(
-            PT.temperature_envelopes[3], PT.pressure, 
-            c=posterior_color, lw=1
-        )
-    
-    # Plot the best-fitting PT profile and median
-    if show_ln_L_penalty:
-        label = r'$\ln\ \mathrm{L\ penalty}=' + \
-                '{:.0f}'.format(np.sign(PT.ln_L_penalty)*10) + '^{' + \
-                '{:.2f}'.format(np.log10(np.abs(PT.ln_L_penalty))) + '}$'
-    else:
-        label = None
-    
-    ax_PT.plot(
-        PT.temperature, PT.pressure, c=bestfit_color, lw=1, label=label
-        )
-    from retrieval_base.PT_profile import PT_profile_free_gradient
-    if hasattr(PT, 'T_knots') and not isinstance(PT, PT_profile_free_gradient):
-        ax_PT.plot(
-            PT.T_knots, PT.P_knots, c=bestfit_color, ls='', marker='o', markersize=3
-            )
-
-    if show_ln_L_penalty:
-        ax_PT.legend(
-            loc='upper right', handlelength=0.5, 
-            handletextpad=0.5, framealpha=0.7
-            )
-
-    try:
-        SONORA_temperature = np.loadtxt(prefix+'data/SONORA_temperature.dat')
-        SONORA_RCB = np.loadtxt(prefix+'data/SONORA_RCB.dat').flatten()[0]
-        
-        ax_PT.plot(SONORA_temperature, PT.pressure, c='k', lw=1)
-        ax_PT.plot(
-            np.interp(SONORA_RCB, xp=PT.pressure, fp=SONORA_temperature), 
-            SONORA_RCB, 'ko'
-            )
-    except:
-        pass
-
-    if PT.pressure.max() > 1e2:
-        xlim = (1, 4500)
-        
-    ax_PT.set(
-        xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 
-        ylabel=ylabel, yscale='log', yticks=yticks
-        )
-    ax_PT.set_ylim(PT.pressure.min(), PT.pressure.max())
-    ax_PT.invert_yaxis()
-
-    ax_contr = ax_PT.twiny()
+    ax_contr     = ax_PT.twiny()
     ax_opa_cloud = ax_PT.twiny()
 
-    for w_set in pRT_atm.keys():
-        int_contr_em = pRT_atm[w_set].int_contr_em
-        int_contr_em_per_order = None
-        int_opa_cloud = pRT_atm[w_set].int_opa_cloud
+    max_int_contr_em = -np.inf
+    for i, (m_set, PT_i) in enumerate(PT.items()):
+        
+        ls = ['-', '--'][i]
 
-        # Add the integrated emission contribution function
-        ax_contr = fig_contr_em(
-            ax_contr, 
-            int_contr_em, 
-            int_contr_em_per_order, 
-            PT.pressure, 
-            bestfit_color=contr_em_color[w_set]
+        if PT_i.temperature_envelopes is not None:
+            # Plot the PT confidence envelopes and median profile
+            for i in range(3):
+                ax_PT.fill_betweenx(
+                    y=PT_i.pressure, x1=PT_i.temperature_envelopes[i], 
+                    x2=PT_i.temperature_envelopes[-i-1], 
+                    fc=envelope_colors[i+1], ec='none', alpha=0.7
+                    )
+            ax_PT.plot(
+                PT_i.temperature_envelopes[3], PT_i.pressure, 
+                c=posterior_color, lw=1, ls=ls
+                )
+        
+        # Plot the best-fitting PT profile
+        ax_PT.plot(
+            PT_i.temperature, PT_i.pressure, c=bestfit_color, lw=1, ls=ls
             )
         
-        if hasattr(pRT_atm[w_set], 'int_contr_em_cloudy'):
-            fig_contr_em(
-                ax_contr, 
-                pRT_atm[w_set].int_contr_em_cloudy, 
-                None, 
-                PT.pressure, 
-                bestfit_color=contr_em_color[w_set]
-                )
-            # Add the integrated cloud opacity
-            fig_opa_cloud(
-                ax_opa_cloud, 
-                pRT_atm[w_set].int_opa_cloud_cloudy, 
-                PT.pressure, 
-                xlim=(1e2, 1e-8), 
-                color=opa_cloud_color[w_set]
-                )    
-            continue
+        # Axis-settings
+        if hasattr(PT_i, 'P_knots'):
+            for P_i in PT_i.P_knots:
+                ax_PT.axhline(P_i, xmin=0, xmax=0.03, c='k', lw=0.3)
         
+        ax_contr = fig_contr_em(
+            ax_contr, 
+            int_contr_em=pRT_atm[m_set].int_contr_em, 
+            int_contr_em_per_order=None, 
+            pressure=PT_i.pressure, 
+            bestfit_color=bestfit_color, 
+            ls=ls
+            )
+
+        max_int_contr_em = max([max_int_contr_em, pRT_atm[m_set].int_contr_em.max()])
+        
+        int_opa_cloud = pRT_atm[m_set].int_opa_cloud
         if (int_opa_cloud == 0).all():
             continue
         
-        # Add the integrated cloud opacity
         fig_opa_cloud(
             ax_opa_cloud, 
             int_opa_cloud, 
-            PT.pressure, 
+            pressure=PT_i.pressure, 
             xlim=(1e2, 1e-8), 
-            color=opa_cloud_color[w_set]
+            color='grey', 
+            ls=ls
             )
+    
+    # Axis-settings
+    if PT_i.pressure.max() > 1e2:
+        xlim = (1, 4500)
+
+    ax_PT.set(
+        xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 
+        ylabel=ylabel, yscale='log', yticks=yticks, 
+        ylim=(PT_i.pressure.min(), PT_i.pressure.max())
+        )
+    ax_PT.invert_yaxis()
+
+    ax_contr.set(xlim=(0, 1.1*max_int_contr_em))
     
     # Save or return the axis
     if is_new_fig and (prefix is not None):
@@ -527,7 +485,7 @@ def fig_PT(PT,
     else:
         return ax_PT
 
-def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestfit_color='C1'):
+def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestfit_color='C1', ls='-'):
     
     if int_contr_em_per_order is not None:
         
@@ -547,7 +505,7 @@ def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestf
 
     ax_contr.plot(
         int_contr_em, pressure, 
-        c=bestfit_color, ls='--', alpha=0.7
+        c=bestfit_color, ls=ls, alpha=0.7
         )
     ax_contr.set(xlim=(0, 1.1*np.nanmax(int_contr_em)))
 
@@ -557,10 +515,10 @@ def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestf
 
     return ax_contr
 
-def fig_opa_cloud(ax_opa_cloud, int_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey'):
+def fig_opa_cloud(ax_opa_cloud, int_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey', ls='-'):
 
     ax_opa_cloud.plot(
-        int_opa_cloud, pressure, c=color, lw=1, ls=':', alpha=0.5
+        int_opa_cloud, pressure, c=color, lw=1, ls=ls, alpha=0.5
         )
     
     # Set the color of the upper axis-spine
@@ -583,6 +541,7 @@ def fig_VMR(ax_VMR,
             ylabel=r'$P\ \mathrm{(bar)}$', 
             yticks=np.logspace(-6, 3, 10), 
             xlim=(1e-12, 1e-2), 
+            ls='-'
             ):
 
     MMW = Chem.mass_fractions['MMW']
@@ -631,8 +590,9 @@ def fig_VMR(ax_VMR,
                 )
 
         # Plot volume-mixing ratio as function of pressure
-        ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i)
+        ax_VMR.plot(VMR_i, pressure, c=color_i, lw=1, label=label_i, ls=ls)
 
+        '''
         if not hasattr(Chem, 'P_quench'):
             continue
 
@@ -660,8 +620,9 @@ def fig_VMR(ax_VMR,
 
             # Plot volume-mixing ratio as function of pressure
             ax_VMR.plot(
-                unquenched_VMR_i, pressure, c=color_i, lw=1, ls='--', alpha=0.8
+                unquenched_VMR_i, pressure, c=color_i, lw=1, ls=':', alpha=0.8
                 )
+        '''
 
     ax_VMR.legend(
         loc='upper left', ncol=2, handlelength=0.5, 
@@ -743,7 +704,7 @@ def fig_residual_ACF(d_spec,
                      rv=np.arange(-500,500+1e-6,1), 
                      bestfit_color='C1', 
                      prefix=None, 
-                     w_set=''
+                     m_set=''
                      ):
 
     # Create a spectrum residual object
@@ -832,7 +793,7 @@ def fig_residual_ACF(d_spec,
     ax[-1,1].set(xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$')
 
     if prefix is not None:
-        fig.savefig(prefix+f'plots/auto_correlation_residuals_{w_set}.pdf')
+        fig.savefig(prefix+f'plots/auto_correlation_residuals_{m_set}.pdf')
 
     #plt.show()
     plt.close(fig)
@@ -920,7 +881,7 @@ def fig_species_contribution(d_spec,
                              rv_to_exclude=(-100,100), 
                              bin_size=25, 
                              prefix=None, 
-                             w_set='', 
+                             m_set='', 
                              ):
 
     if not os.path.exists(prefix+'plots/species'):
@@ -1048,5 +1009,5 @@ def fig_species_contribution(d_spec,
     ax_CCF[len(species_to_plot)//2].set(ylabel='S/N')
 
     if prefix is not None:
-        fig_CCF.savefig(prefix+f'plots/species/CCF_{w_set}.pdf')
+        fig_CCF.savefig(prefix+f'plots/species/CCF_{m_set}.pdf')
     plt.close(fig_CCF)
