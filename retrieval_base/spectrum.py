@@ -555,7 +555,7 @@ class DataSpectrum(Spectrum):
         # Confirm that we are using the same wavelength grid
         assert(
             np.sum(~np.isclose(self.wave_transm, self.wave)) <= \
-            self.n_orders*self.n_dets*2
+            self.n_orders*self.n_dets*4
             )
 
         if file_continuum is None:

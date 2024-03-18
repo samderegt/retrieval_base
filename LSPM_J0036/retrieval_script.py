@@ -1,7 +1,7 @@
 import argparse
 from retrieval_base.retrieval import pre_processing, Retrieval
 
-import config_J_new_2models as conf
+import config as conf
 
 if __name__ == '__main__':
 

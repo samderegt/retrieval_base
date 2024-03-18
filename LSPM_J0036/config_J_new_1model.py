@@ -1,22 +1,22 @@
 import numpy as np
 
-file_params = 'config_J_new.py'
+file_params = 'config_J_new_1model.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'test_8'
+prefix = 'test_9'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
 config_data = dict(
     J1226_cloudy = {
         'w_set': 'J1226', # Wavelength setting
-        #'wave_range': (1115, 1325), 
+        'wave_range': (1115, 1360), 
         #'wave_range': (1316.5, 1325), # Range to fit, doesn't have to be full spectrum
-        'wave_range': (1296, 1325), 
+        #'wave_range': (1296, 1325), 
 
         #'wave_to_mask': np.array([[1168, 1179]]), #mask K I lines 
 

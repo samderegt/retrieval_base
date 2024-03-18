@@ -1,4 +1,4 @@
-name,pRT_name,Hill_notation,mass,color,mathtext_name,C,O,H,N,S
+name,pRT_name,Hill_notation,mass,color,mathtext_name,C,O,H,N,S.
 12CO,CO_main_iso,C1O1,28.009999999999998,C2,$^{12}$CO,1,1,0,0,0
 13CO,CO_36,,29.002355,chocolate,$^{13}$CO,1,1,0,0,0
 C18O,CO_28,,30.010161,C6,C$^{18}$O,1,1,0,0,0
@@ -21,6 +21,7 @@ NaH,NaH_main_iso,H1Na1,23.997609,C16,NaH,0,0,1,0,0
 TiH,TiH_main_iso,H1Ti1,48.87484,C17,TiH,0,0,1,0,0
 ScH,ScH_main_iso,H1Sc1,45.963752,C18,ScH,0,0,1,0,0
 CaH,CaH_main_iso,Ca1H1,41.085840000000005,C19,ScH,0,0,1,0,0
+AlH,AlH_main_iso,Al1H1,27.989379,C20,AlH,0,0,1,0,0
 46TiO,TiO_46_Exomol_McKemmish,,61.951,C11,$^{46}$TiO,0,1,0,0,0
 47TiO,TiO_47_Exomol_McKemmish,,62.95,C12,$^{47}$TiO,0,1,0,0,0
 48TiO,TiO_48_Exomol_McKemmish,O1Ti1,63.946000000000005,C13,$^{48}$TiO,0,1,0,0,0

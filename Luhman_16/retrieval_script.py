@@ -1,7 +1,7 @@
 import argparse
 from retrieval_base.retrieval import pre_processing, Retrieval
 
-import config_fiducial_K_A as conf
+import config as conf
 
 if __name__ == '__main__':
 
