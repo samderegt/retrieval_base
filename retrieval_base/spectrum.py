@@ -365,7 +365,7 @@ class DataSpectrum(Spectrum):
 
         # Load in (other) corrected wavelengths
         if file_wave is not None:
-            wave, _, _ = np.loadtxt(file_wave).T
+            wave, *_ = np.loadtxt(file_wave).T
 
         
         wave_bins = np.zeros_like(wave.flatten())
@@ -516,7 +516,8 @@ class DataSpectrum(Spectrum):
                     # Arithmetic mean of the squared flux-errors
                     err_ij  = self.err[i,j,mask_ij]
                     #self.err_eff[i,j] = np.sqrt(1/2*(err_ij[None,:]**2 + err_ij[:,None]**2))
-                    self.err_eff[i,j] = np.mean(err_ij)
+                    #self.err_eff[i,j] = np.mean(err_ij)
+                    self.err_eff[i,j] = np.median(err_ij)
 
                     #flux_ij  = self.flux[i,j,mask_ij]
                     #self.err_eff[i,j] = np.std(flux_ij)
@@ -534,6 +535,15 @@ class DataSpectrum(Spectrum):
                 self.flux[idx_low : idx_low + n_edge_pixels]   = np.nan
                 self.flux[idx_high - n_edge_pixels : idx_high] = np.nan
 
+                # Check if outer pixels are offset significantly
+                # and replace with 2nd, or 2nd-to-last pixel
+                # (masked in flux, only affects model+figures)
+                diff_wave_ij = np.abs(np.diff(self.wave[idx_low:idx_high]))
+                if diff_wave_ij[0] > 3*np.nanmean(diff_wave_ij):
+                    self.wave[idx_low] = self.wave[idx_low+1]
+                if diff_wave_ij[-1] > 3*np.nanmean(diff_wave_ij):
+                    self.wave[idx_high-1] = self.wave[idx_high-2]
+
         # Update the isfinite mask
         self.update_isfinite_mask()
 
@@ -543,7 +553,10 @@ class DataSpectrum(Spectrum):
         self.wave_transm, self.transm = np.loadtxt(file_transm).T
 
         # Confirm that we are using the same wavelength grid
-        assert(np.nansum(self.wave_transm-self.wave) == 0.0)
+        assert(
+            np.sum(~np.isclose(self.wave_transm, self.wave)) <= \
+            self.n_orders*self.n_dets*2
+            )
 
         if file_continuum is None:
             return

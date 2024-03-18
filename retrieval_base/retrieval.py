@@ -58,7 +58,7 @@ def pre_processing(conf, conf_data, m_set):
         mjd=conf_data['mjd_std'], 
         pwv=conf_data['pwv'], 
         file_target=conf_data['file_std'], 
-        file_wave=conf_data['file_std'], 
+        file_wave=conf_data['file_wave'], 
         slit=conf_data['slit'], 
         wave_range=conf_data['wave_range'], 
         w_set=conf_data['w_set'], 
@@ -405,20 +405,20 @@ class Retrieval:
                 return -np.inf
 
             # Update the covariance matrix
-            for i in range(self.d_spec[m_set].n_orders):
-                for j in range(self.d_spec[m_set].n_dets):
+            for j in range(self.d_spec[m_set].n_orders):
+                for k in range(self.d_spec[m_set].n_dets):
 
-                    if not self.d_spec[m_set].mask_isfinite[i,j].any():
+                    if not self.d_spec[m_set].mask_isfinite[j,k].any():
                         continue
 
                     if self.sum_m_spec:
-                        self.Cov[i,j](
-                            Param_i.params, m_set, order=i, det=j, 
+                        self.Cov[j,k](
+                            Param_i.params, m_set, order=j, det=k, 
                             **self.conf.cov_kwargs, 
                             )
                     else:
-                        self.Cov[m_set][i,j](
-                            Param_i.params, m_set, order=i, det=j, 
+                        self.Cov[m_set][j,k](
+                            Param_i.params, m_set, order=j, det=k, 
                             **self.conf.cov_kwargs, 
                             )
                     

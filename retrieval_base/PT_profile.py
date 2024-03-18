@@ -9,9 +9,6 @@ def get_PT_profile_class(pressure, PT_mode='free_gradient', **kwargs):
     if PT_mode == 'free':
         return PT_profile_free(pressure, **kwargs)
     
-    if PT_mode == 'Molliere':
-        return PT_profile_Molliere(pressure, **kwargs)
-    
     if PT_mode == 'free_gradient':
         return PT_profile_free_gradient(pressure, **kwargs)
     
@@ -265,11 +262,11 @@ class PT_profile_free_gradient(PT_profile):
         super().__init__(pressure)
 
         self.flipped_ln_pressure = np.log(self.pressure)[::-1]
+
         self.PT_interp_mode = PT_interp_mode
 
     def __call__(self, params):
 
-        self.T_knots = params['T_knots']
         self.P_knots = params['P_knots']
 
         # Perform interpolation over dlnT/dlnP gradients
@@ -279,198 +276,60 @@ class PT_profile_free_gradient(PT_profile):
             )
         dlnT_dlnP_array = interp_func(np.log10(self.pressure))[::-1]
 
-        # Compute the temperatures based on the gradient
-        self.temperature = [params['T_0'], ]
-        for i in range(len(self.pressure)-1):
+        # Compute the temperatures relative to a base pressure
+        P_base = params.get('P_phot', self.pressure.max())
+        T_base = params.get('T_phot', params.get('T_0'))
 
-            ln_P_i1 = self.flipped_ln_pressure[i+1]
-            ln_P_i  = self.flipped_ln_pressure[i]
+        mask_above = (self.pressure[::-1] <= P_base)
+        mask_below = (self.pressure[::-1] > P_base)
+
+        ln_P_above      = self.flipped_ln_pressure[mask_above]
+        dlnT_dlnP_above = dlnT_dlnP_array[mask_above]
+        T_above = [T_base, ]
+        for i, ln_P_up_i in enumerate(ln_P_above):
+
+            if i == 0:
+                # Use base knot initially
+                ln_P_low_i = np.log(P_base)
+                ln_T_low_i = np.log(T_base)
+            else:
+                # Use previous layer
+                ln_P_low_i = ln_P_above[i-1]
+                ln_T_low_i = np.log(T_above[-1])
+
+            # Compute the temperatures based on the gradient
+            ln_T_up_i = ln_T_low_i + (ln_P_up_i - ln_P_low_i)*dlnT_dlnP_above[i]
+            T_above.append(np.exp(ln_T_up_i))
+
+        self.temperature = np.array(T_above)[1:] # Remove the base knot
+
+        if mask_below.any():
             
-            T_i1 = np.exp(
-                np.log(self.temperature[-1]) + \
-                (ln_P_i1 - ln_P_i) * dlnT_dlnP_array[i]
-                )
-            self.temperature.append(T_i1)
-
-        self.temperature = np.array(self.temperature)[::-1]
-
-        return self.temperature
-        
-class PT_profile_Molliere(PT_profile):
-
-    def __init__(self, pressure, conv_adiabat=True, **kwargs):
-
-        # Give arguments to the parent class
-        super().__init__(pressure)
-
-        # Go from bar to cgs
-        self.pressure_cgs = self.pressure * 1e6
-
-        self.conv_adiabat = conv_adiabat
-
-    def pressure_tau(self, tau):
-        
-        # Return the pressure at a given optical depth, in cgs
-        return tau**(1/self.alpha) * self.P_phot
-
-    def photosphere(self):
-        # Middle altitudes
-
-        # Calculate the optical depth
-        self.tau = (self.pressure_cgs/self.P_phot)**self.alpha
-
-        # Eddington temperature at middle altitudes
-        self.T_photo = (3/4 * self.T_int**4 * (2/3 + self.tau))**(1/4)
-
-    def troposphere(self):
-        # Low altitudes
-
-        if self.conv_adiabat and ((self.CO is None) or (self.FeH is None)):
-            # conv_adiabat requires equilibrium chemistry to compute 
-            # adiabatic gradient, use Eddington approximation instead
-            self.conv_adiabat = False
-
-        if self.conv_adiabat:
-            # Enforce convective adiabat at low altitudes
-
-            # Retrieve the adiabatic temperature gradient
-            nabla_ad = pm.interpol_abundances(CO*np.ones_like(self.T_photo), 
-                                              FeH*np.ones_like(self.T_photo), 
-                                              self.T_photo, self.pressure
-                                              )['nabla_ad']
-
-            # Calculate the current radiative temperature gradient
-            nabla_rad_temporary = np.diff(np.log(self.T_photo)) / np.diff(np.log(self.pressure_cgs))
-
-            # Extend the array to the same length as pressure structure
-            nabla_rad = np.ones_like(self.T_photo)
-            nabla_rad[[0,-1]] = nabla_rad_temporary[[0,-1]] # Edges are the same
-            nabla_rad[1:-1] = (nabla_rad_temporary[1:] + nabla_rad_temporary[:-1]) / 2 # Interpolate
-
-            # Mask where atmosphere is convectively (Schwarzschild)-unstable
-            mask_unstable = (nabla_rad > nabla_ad)
-
-            for i in range(10):
+            # Compute the temperatures below the photospheric knot
+            ln_P_below      = self.flipped_ln_pressure[mask_below][::-1]
+            dlnT_dlnP_below = dlnT_dlnP_array[mask_below][::-1]
+            T_below = [T_base, ]
+            for i, ln_P_low_i in enumerate(ln_P_below):
 
                 if i == 0:
-                    # Initially, use the eddington approximation
-                    T_to_use = self.T_photo.copy()
+                    # Use base knot initially
+                    ln_P_up_i = np.log(P_base)
+                    ln_T_up_i = np.log(T_base)
                 else:
-                    T_to_use = self.T_tropo.copy()
+                    # Use previous layer
+                    ln_P_up_i = ln_P_below[i-1]
+                    ln_T_up_i = np.log(T_below[-1])
 
-                # Retrieve the adiabatic temperature gradient
-                nabla_ad = pm.interpol_abundances(CO*np.ones_like(T_to_use), 
-                                                  FeH*np.ones_like(T_to_use), 
-                                                  T_to_use, self.pressure
-                                                  )['nabla_ad']
-                
-                # Calculate the average adiabatic temperature gradient between the layers
-                nabla_ad_mean = nabla_ad
-                nabla_ad_mean[1:] = (nabla_ad[1:] + nabla_ad[-1]) / 2
+                # Compute the temperatures based on the gradient
+                ln_T_low_i = ln_T_up_i - (ln_P_up_i - ln_P_low_i)*dlnT_dlnP_below[i]
+                T_below.append(np.exp(ln_T_low_i))
 
-                # What are the increments in temperature due to convection
-                log_T_new = nabla_ad_mean[mask_unstable] * np.mean(np.diff(np.log(self.pressure_cgs)))
+            T_below = np.array(T_below)[1:] # Remove the base knot
 
-                # What is the last radiative temperature
-                log_T_start = np.log(T_to_use[~mask_unstable][-1])
+            # Flip the below-array and combine with the above-layers
+            self.temperature = np.concatenate((T_below[::-1], self.temperature))
 
-                # Integrate and translate to temperature from log(T)
-                T_new = np.exp(np.cumsum(log_T_new) + log_T_start)
-
-                # Combine upper radiative and lower convective part into an array
-                self.T_tropo = T_to_use.copy()
-                self.T_tropo[mask_unstable] = T_new
-
-                if np.max(np.abs(T_to_use - self.T_tropo) / T_to_use) < 0.01:
-                    break
-        
-        else:
-            # Otherwise, use Eddington approximation at low altitudes
-            self.T_tropo = self.T_photo
-
-    def high_altitudes(self):
-        # High altitudes, add the 3 point PT description above tau=0.1
-        
-        # Uppermost pressure of the Eddington radiative structure
-        P_bottom_spline = self.pressure_tau(0.1)
-
-        # Apply two iterations of spline interpolation to smooth out transition
-        for i in range(2):
-
-            if i == 0:
-                num = 4
-            else:
-                num = 7
-                    
-            # Create the pressure coordinates for the spline support nodes at low pressure
-            P_support_low = np.logspace(np.log10(self.pressure_cgs[0]),
-                                        np.log10(P_bottom_spline),
-                                        num=num
-                                        )
-
-            # Create the pressure coordinates for the spline support nodes at high pressure,
-            # the corresponding temperatures for these nodes will be taken from the 
-            # radiative + convective solution
-            if i == 0:
-                P_support_high = 10**np.arange(np.log10(P_bottom_spline), 
-                                               np.log10(self.pressure_cgs[-1]),
-                                               np.diff(np.log10(P_support_low))[0]
-                                               )
-            else:
-                # Use equal number of support points at low altitude
-                P_support_high = np.logspace(np.log10(P_bottom_spline), 
-                                             np.log10(self.pressure_cgs[-1]),
-                                             num=min([num, 7])
-                                             )
-
-            # Combine into one support node array, only adding the P_bottom_spline point once
-            P_support = np.concatenate((P_support_low, P_support_high[1:]))
-
-            # Define the temperature values at the node points
-            T_support = np.zeros_like(P_support)
-
-            if i == 0:
-                # Define an interpolation function
-                interp_func_T_tropo = interp1d(self.pressure_cgs, self.tropo)
-
-                # Temperature at pressures below P_bottom_spline (free parameters)
-                T_support[:len(self.T_knots_init)] = self.T_knots_init
-
-            else:
-                # Define an interpolation function
-                interp_func_temperature = interp1d(self.pressure_cgs, self.temperature)
-
-                # Temperature at pressures below P_bottom_spline
-                T_support[:len(P_support_low)-1] = interp_func_temperature(P_support[:len(P_support_low)-1])
-
-            # Temperature at pressures at or above P_bottom_spline (from the radiative-convective solution)
-            T_support[-len(P_support_high):] = interp_func_T_tropo(P_support[-len(P_support_high):])
-
-            # Make the temperature spline interpolation
-            knots, coeffs, deg = splrep(np.log10(P_support), T_support)
-            self.temperature = splev(np.log10(self.pressure_cgs), (knots, coeffs, deg), der=0)
-    
-            if i == 0:
-                # Go from cgs to bar
-                self.P_knots = P_support/1e6
-                self.T_knots = T_support
-
-    def __call__(self, params):
-
-        # Update the parameters
-        # Convert from bar to cgs
-        self.P_phot = params['P_phot'] * 1e6
-
-        self.T_knots_init = params['T_knots']
-        self.T_int = params['T_int']
-        self.alpha = params['alpha']
-
-        self.CO  = params['C/O']
-        self.FeH = params['Fe/H']
-
-        # Calculate for each segment of the atmosphere
-        self.photosphere()
-        self.troposphere()
-        self.high_altitudes()
+        # Flip temperatures so high-altitude is at first indices
+        self.temperature = self.temperature[::-1]
 
         return self.temperature

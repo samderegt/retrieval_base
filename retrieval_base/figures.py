@@ -215,11 +215,13 @@ def fig_bestfit_model(
             ax[i*3+2].remove()
 
             # Use a different xlim for the separate figures
-            xlim = (d_spec.wave[i,:].min()-0.5, 
-                    d_spec.wave[i,:].max()+0.5)
+            mask_i = d_spec.mask_isfinite[i]
+            xlim = (d_spec.wave[i][mask_i].min()-0.5, 
+                    d_spec.wave[i][mask_i].max()+0.5)
         else:
-            xlim = (d_spec.wave.min()-0.5, 
-                    d_spec.wave.max()+0.5)
+            mask_isfinite = d_spec.mask_isfinite
+            xlim = (d_spec.wave[mask_isfinite].min()-0.5, 
+                    d_spec.wave[mask_isfinite].max()+0.5)
 
         ax_spec.set(xlim=xlim, xticks=[], ylim=ylim_spec)
         ax_res.set(xlim=xlim, ylim=ylim_res)
@@ -259,14 +261,15 @@ def fig_bestfit_model(
 
                 if m_spec.flux_envelope is not None:
                     ax_res.plot(
-                        d_spec.wave[i,j], m_spec.flux_envelope[3,i,j] - LogLike.f[i,j]*m_spec.flux[i,j], 
+                        d_spec.wave[i,j], 
+                        m_spec.flux_envelope[3,i,j] - LogLike.f[i,j]*m_spec.flux[i,j], 
                         c='C0', lw=1
                         )
 
                 # Show the mean error
                 mean_err_ij = np.mean(Cov[i,j].err)
                 ax_res.errorbar(
-                    d_spec.wave[i,j].min()-0.2, 0, yerr=1*mean_err_ij, 
+                    d_spec.wave[i,j][mask_ij].min()-0.2, 0, yerr=1*mean_err_ij, 
                     fmt='none', lw=1, ecolor='k', capsize=2, color='k', 
                     label=r'$\langle\sigma_{ij}\rangle$'
                     )
@@ -281,7 +284,7 @@ def fig_bestfit_model(
                 mean_scaled_err_ij = np.mean(np.diag(np.sqrt(cov)))
 
                 ax_res.errorbar(
-                    d_spec.wave[i,j].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
+                    d_spec.wave[i,j][mask_ij].min()-0.4, 0, yerr=1*mean_scaled_err_ij, 
                     fmt='none', lw=1, ecolor=bestfit_color, capsize=2, color=bestfit_color, 
                     #label=r'$\beta_{ij}\langle\sigma_{ij}\rangle$'
                     label=r'$\beta_{ij}\cdot\langle\mathrm{diag}(\sqrt{\Sigma_{ij}})\rangle$'
@@ -466,9 +469,6 @@ def fig_PT(PT,
             )
     
     # Axis-settings
-    if PT_i.pressure.max() > 1e2:
-        xlim = (1, 4500)
-
     ax_PT.set(
         xlabel=r'$T\ \mathrm{(K)}$', xlim=xlim, 
         ylabel=ylabel, yscale='log', yticks=yticks, 
@@ -978,14 +978,16 @@ def fig_species_contribution(d_spec,
                 
                 for j in range(d_spec.n_dets):
 
+                    mask_ij = d_spec.mask_isfinite[i,j]
+
                     label = r'$d-m_\mathrm{w/o\ ' + label_h.replace('$', '') + r'}$'
                     ax[i].plot(
-                        d_spec.wave[i,j], d_res[i,j], 
+                        d_spec.wave[i,j][mask_ij], d_res[i,j][mask_ij], 
                         c='k', lw=0.5, label=label
                         )
 
                     ax[i].plot(
-                        d_spec.wave[i,j], m_res[i,j], c=color_h, lw=1, 
+                        d_spec.wave[i,j][mask_ij], m_res[i,j][mask_ij], c=color_h, lw=1, 
                         label=r'$m_\mathrm{only\ '+label_h.replace('$', '')+r'}$'
                         )
 
@@ -994,7 +996,11 @@ def fig_species_contribution(d_spec,
                             loc='upper right', ncol=2, fontsize=10, handlelength=1, 
                             framealpha=0.7, handletextpad=0.3, columnspacing=0.8
                             )
-                ax[i].set(ylim=ylim)
+                ax[i].set(
+                    ylim=ylim, 
+                    xlim=(d_spec.wave[i,d_spec.mask_isfinite[i]].min()-0.5, 
+                          d_spec.wave[i,d_spec.mask_isfinite[i]].max()+0.5)
+                    )
 
             if prefix is not None:
                 fig.savefig(prefix+f'plots/species/{species_h}_spec.pdf')

@@ -14,7 +14,7 @@ CH4,CH4_hargreaves_main_iso,C1H4,16.04236,C4,CH$_4$,1,0,4,0,0
 13CH4,13CH4_hargreaves,,17.034715000000002,purple,$^{13}$CH$_4$,1,0,4,0,0
 NH3,NH3_coles_main_iso,H3N1,17.03022,C8,NH$_3$,0,0,3,1,0
 HCN,HCN_main_iso,C1H1N1_1,27.02554,C10,HCN,1,0,1,1,0
-H2S,H2S_ExoMol_main_iso,H2S1,34.08068,C11,H$_2$S,0,0,2,0,1
+H2S,H2S_Sid_main_iso,H2S1,34.08068,C11,H$_2$S,0,0,2,0,1
 FeH,FeH_main_iso,Fe1H1,56.85284,C12,FeH,0,0,1,0,0
 CrH,CrH_main_iso,Cr1H1,53.00394,C15,CrH,0,0,1,0,0
 NaH,NaH_main_iso,H1Na1,23.997609,C16,NaH,0,0,1,0,0

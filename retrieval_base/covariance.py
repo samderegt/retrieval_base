@@ -160,44 +160,24 @@ class GaussianProcesses(Covariance):
 
         # Reset the covariance matrix
         self.cov_reset()
+        
+        beta = params.get('beta', params.get(f'beta_{w_set}'))
+        a = params.get('a', params.get(f'a_{w_set}'))
+        l = params.get('l', params.get(f'l_{w_set}'))
 
-        if params[f'beta_{w_set}'][order,det] != 1:
+        if beta is not None:
             self.add_data_err_scaling(
                 params[f'beta_{w_set}'][order,det]
                 )
-
-        if params[f'a_{w_set}'][order,det] != 0:
+        
+        if (a is not None) and (l is not None):
+            # Add a radial-basis function kernel
             self.add_RBF_kernel(
-                a=params[f'a_{w_set}'][order,det], 
-                l=params[f'l_{w_set}'][order,det], 
+                a=a[order,det], 
+                l=l[order,det], 
                 array=self.err_eff, 
                 **kwargs
                 )
-            
-        if params[f'a_f_{w_set}'][order,det] != 0:
-            self.add_RBF_kernel(
-                a=params[f'a_f_{w_set}'][order,det], 
-                l=params[f'l_f_{w_set}'][order,det], 
-                array=self.flux_eff, 
-                **kwargs
-                )
-
-        '''
-        RBF_kwargs = ['a', 'l']
-        if all([kwargs.get(key) is not None for key in RBF_kwargs]):
-            # Add a radial-basis function kernel
-            self.add_RBF_kernel(array=self.err_eff, **kwargs)
-
-        RBF_f_kwargs = ['a_f', 'l_f']
-        if all([kwargs.get(key) is not None for key in RBF_f_kwargs]):
-            if kwargs.get('a_f') == 0:
-                return
-            
-            kwargs['a'] = kwargs.get('a_f')
-            kwargs['l'] = kwargs.get('l_f')
-            # Add a radial-basis function kernel
-            self.add_RBF_kernel(array=self.flux_eff, **kwargs)
-        '''
 
     def cov_reset(self):
 
