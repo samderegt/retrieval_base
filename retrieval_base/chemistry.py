@@ -135,6 +135,10 @@ class FreeChemistry(Chemistry):
 
                 # Convert VMR to mass fraction using molecular mass number
                 self.mass_fractions[line_species_i] = mass_i * VMR_i
+                if species_i in ['H2lines']:
+                    # Ignore H2 when computing total VMR
+                    continue
+
                 VMR_wo_H2 += VMR_i
 
                 # Record C, O, and H bearing species for C/O and metallicity
