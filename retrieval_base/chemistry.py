@@ -136,7 +136,7 @@ class FreeChemistry(Chemistry):
                 # Convert VMR to mass fraction using molecular mass number
                 self.mass_fractions[line_species_i] = mass_i * VMR_i
                 if species_i in ['H2lines']:
-                    # Ignore H2 when computing total VMR
+                    # Ignore H2lines when computing total VMR
                     continue
 
                 VMR_wo_H2 += VMR_i
@@ -160,7 +160,10 @@ class FreeChemistry(Chemistry):
 
         # Compute the mean molecular weight from all species
         MMW = 0
-        for mass_i in self.mass_fractions.values():
+        for line_species_i, mass_i in self.mass_fractions.items():
+            if line_species_i in ['H2_main_iso']:
+                # Ignore H2lines when computing MMW
+                continue
             MMW += mass_i
         MMW *= np.ones(self.n_atm_layers)
 
