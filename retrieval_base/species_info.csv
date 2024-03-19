@@ -35,6 +35,7 @@ CO2,CO2_main_iso,C1O2,44.009,C9,CO$_2$,1,2,0,0,0
 HF,HF_main_iso,F1H1,20.006243,C14,HF,0,0,1,0,0
 HCl,HCl_main_iso,Cl1H1,36.460840000000005,C15,HCl,0,0,1,0,0
 H2,H2,H2,2.01568,C0,H$_2$,0,0,2,0,0
+H2lines,H2_main_iso,H2,2.01568,C0,H$_2$,0,0,2,0,0
 K,K,K,39.0983,C18,K,0,0,0,0,0
 Knearwing,Knearwing,K,39.0983,C18,K,0,0,0,0,0
 KshiftHe,KshiftHe,K,39.0983,C18,K,0,0,0,0,0
