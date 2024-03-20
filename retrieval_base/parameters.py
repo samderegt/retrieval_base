@@ -167,6 +167,9 @@ class Parameters:
         else:
             self.cube_copy = np.array(cube[:ndim])
 
+        if (cube < 0).any() or (cube > 1).any():
+            return -np.inf
+
         # Loop over all parameters
         for i, key_i in enumerate(self.param_keys):
 

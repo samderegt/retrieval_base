@@ -142,7 +142,8 @@ def pre_processing():
         cloud_species=conf.cloud_species, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
-        log_P_range=(-6,2), 
+        #log_P_range=(-6,2), 
+        log_P_range=(-3,2.5), 
         n_atm_layers=50, 
         )
 
@@ -428,8 +429,8 @@ class Retrieval:
             pm_mass_fractions_i = pm.interpol_abundances(
                 self.Chem.CO*np.ones(self.Chem.n_atm_layers), 
                 self.Chem.FeH*np.ones(self.Chem.n_atm_layers), 
-                self.Chem.temperature, 
-                self.Chem.pressure
+                self.PT.temperature, 
+                self.PT.pressure
                 )
             for species_i, mf_i in pm_mass_fractions_i.items():
                 if i == 0:
@@ -694,6 +695,41 @@ class Retrieval:
             dump_callback=self.PMN_callback_func, 
             n_iter_before_update=conf.n_iter_before_update, 
             )
+    
+    def emcee_lnL_func(self, cube):
+    
+        res = self.Param(cube)
+        if res != -np.inf:
+            res = 0.0
+        else:
+            return -np.inf
+        
+        lnL = self.PMN_lnL_func()
+        return res + lnL
+    
+    def emcee_run(self):
+
+        from schwimmbad import MPIPool
+        import emcee
+
+        nwalkers = 500
+        nsteps = 1000
+        initial = 0.5 + 1e-4*np.random.randn(nwalkers, self.Param.n_params)
+
+        filename = "tutorial.h5"
+        backend = emcee.backends.HDFBackend(filename)
+        backend.reset(nwalkers, self.Param.n_params)
+
+        with MPIPool() as pool:
+            if not pool.is_master():
+                pool.wait()
+                sys.exit(0)
+
+            sampler = emcee.EnsembleSampler(
+                nwalkers, self.Param.n_params, 
+                self.emcee_lnL_func, pool=pool, backend=backend
+                )
+            sampler.run_mcmc(initial, nsteps, progress=True)
 
     def synthetic_spectrum(self):
         
