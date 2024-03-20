@@ -812,19 +812,22 @@ def plot_ax_CCF(ax,
                 label=None
                 ):
 
+    m_flux_pRT_grid = pRT_atm.flux_pRT_grid.copy()
+    m_flux_wo_species_pRT_grid = None
+
     if pRT_atm_wo_species is not None:
-        #pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid_only.copy()
-        pRT_atm_wo_species_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid.copy()
-    else:
-        pRT_atm_wo_species_flux_pRT_grid = None
+        if hasattr(pRT_atm_wo_species, 'flux_pRT_grid_only'):
+            m_flux_pRT_grid = pRT_atm_wo_species.flux_pRT_grid_only.copy()
+        else:
+            m_flux_wo_species_pRT_grid = pRT_atm_wo_species.flux_pRT_grid.copy()
 
     rv, CCF, d_ACF, m_ACF = af.CCF(
         d_spec=d_spec, 
         m_spec=m_spec, 
         m_wave_pRT_grid=pRT_atm.wave_pRT_grid.copy(), 
-        m_flux_pRT_grid=pRT_atm.flux_pRT_grid.copy(), 
+        m_flux_pRT_grid=m_flux_pRT_grid, 
         m_spec_wo_species=m_spec_wo_species, 
-        m_flux_wo_species_pRT_grid=pRT_atm_wo_species_flux_pRT_grid, 
+        m_flux_wo_species_pRT_grid=m_flux_wo_species_pRT_grid, 
         LogLike=LogLike, 
         Cov=Cov, 
         rv=rv, 
@@ -935,8 +938,10 @@ def fig_species_contribution(d_spec,
             d_res -= low_pass_d_res
 
             # Residual between complete model and model w/o species_i
-            m_res = m_spec.flux - m_spec_h.flux
-            #m_res = m_spec_h.flux_only
+            if hasattr(m_spec_h, 'flux_only'):
+                m_res = m_spec_h.flux_only
+            else:
+                m_res = m_spec.flux - m_spec_h.flux
 
             low_pass_m_res = np.nan * np.ones_like(m_res)
             low_pass_m_res[d_spec.mask_isfinite] = gaussian_filter1d(m_res[d_spec.mask_isfinite], sigma=300)

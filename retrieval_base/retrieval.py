@@ -682,7 +682,6 @@ class Retrieval:
             line_species_i = Chemistry.read_species_info(species_i, 'pRT_name')
 
             for m_set in self.Chem.keys():
-                
                 if (line_species_i not in self.Chem[m_set].line_species):
                     continue
 
@@ -700,6 +699,24 @@ class Retrieval:
                 self.pRT_atm_species[m_set][species_i] = \
                     copy.deepcopy(self.pRT_atm_broad[m_set])
 
+            # Turn all but species_i off
+            for m_set in self.Chem.keys():
+                if (line_species_i not in self.Chem[m_set].line_species):
+                    continue
+
+                self.Chem[m_set].neglect_species = \
+                    dict.fromkeys(self.Chem[m_set].neglect_species, True)
+                self.Chem[m_set].neglect_species[species_i] = False
+
+            # Create the spectrum and evaluate lnL
+            self.PMN_lnL_func()
+
+            for m_set in self.Chem.keys():
+                self.m_spec_species[m_set][species_i].flux_only = \
+                    self.m_spec[m_set].flux.copy()
+                self.pRT_atm_species[m_set][species_i].flux_pRT_grid_only = \
+                    self.pRT_atm_broad[m_set].flux_pRT_grid.copy()
+                
         for m_set in self.Chem.keys():
             # Include all species again
             self.Chem[m_set].neglect_species = \

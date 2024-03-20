@@ -135,8 +135,8 @@ def CCF(d_spec,
 
             if m_flux_wo_species_pRT_grid is not None:
                 # Perform the cross-correlation on the residuals
-                m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
-                #m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
+                #m_flux_i -= m_flux_wo_species_pRT_grid[i].copy()
+                m_flux_i = m_flux_wo_species_pRT_grid[i].copy()
 
             # Function to interpolate the model spectrum
             m_interp_func = interp1d(
@@ -207,10 +207,10 @@ def CCF(d_spec,
                 if apply_high_pass_filter:
                     # Apply high-pass filter
                     d_flux_ij_shifted -= gaussian_filter1d(
-                        d_flux_ij_shifted, sigma=300, mode='reflect'
+                        d_flux_ij_shifted, sigma=200, mode='reflect'
                         )
                     m_flux_ij_shifted -= gaussian_filter1d(
-                        m_flux_ij_shifted, sigma=300, mode='reflect'
+                        m_flux_ij_shifted, sigma=200, mode='reflect'
                         )
 
                 # Compute the cross-correlation coefficients, weighted 
