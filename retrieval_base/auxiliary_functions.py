@@ -167,7 +167,7 @@ def CCF(d_spec,
 
             if LogLike is not None:
                 # Scale the data instead of the models
-                d_flux_ij /= LogLike.f[i,j]
+                d_flux_ij /= LogLike.phi[i,j]
             
             if Cov is not None:
                 # Use the covariance matrix to weigh 
@@ -233,9 +233,9 @@ def CCF(d_spec,
 
             # Scale the correlation coefficients
             if LogLike is not None:
-                CCF[i,j,:]   *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-                m_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
-                d_ACF[i,j,:] *= LogLike.f[i,j]/LogLike.beta[i,j]**2
+                CCF[i,j,:]   *= LogLike.phi[i,j]/LogLike.s2[i,j]
+                m_ACF[i,j,:] *= LogLike.phi[i,j]/LogLike.s2[i,j]
+                d_ACF[i,j,:] *= LogLike.phi[i,j]/LogLike.s2[i,j]
 
     return rv, CCF, d_ACF, m_ACF
 

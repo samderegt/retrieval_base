@@ -432,14 +432,10 @@ class Retrieval:
                 continue
 
             # Compute log-likelihood separate for each model-setting
+            M = self.m_spec[m_set].flux[:,:,None,:]
 
             # Retrieve the log-likelihood
-            ln_L += self.LogLike[m_set](
-                self.m_spec[m_set], 
-                self.Cov[m_set], 
-                is_first_m_set=(i==0), 
-                evaluation=self.evaluation, 
-                )
+            ln_L += self.LogLike[m_set](M, self.Cov[m_set])
 
         if self.sum_m_spec:
 

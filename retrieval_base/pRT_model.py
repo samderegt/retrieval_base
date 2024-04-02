@@ -358,7 +358,7 @@ class pRT_model:
 
             # Convert to observation by scaling with planetary radius
             flux_i *= (
-                (self.params['R_p']*nc.r_jup_mean) / \
+                (self.params.get('R_p', 1)*nc.r_jup_mean) / \
                 (1e3/self.params['parallax']*nc.pc)
                 )**2
             

@@ -98,20 +98,18 @@ class CallBack:
 
         chi_squared_tot, n_dof = 0, 0
         if not isinstance(self.LogLike, dict):
-            chi_squared_tot += self.LogLike.chi_squared
-            n_dof += self.LogLike.n_dof
+            chi_squared_tot += self.LogLike.chi2_0
+            n_dof += self.LogLike.N_d
 
         else:
             for m_set, LogLike_i in self.LogLike.items():
                 print(f'\n--- {m_set} -------------------------')
                 print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
-                    LogLike_i.chi_squared_red, LogLike_i.chi_squared, LogLike_i.n_dof
+                    LogLike_i.chi2_0_red, LogLike_i.chi2_0, LogLike_i.N_d
                     ))
                 
-                chi_squared_tot += LogLike_i.chi_squared
+                chi_squared_tot += LogLike_i.chi2_0
                 n_dof += self.d_spec[m_set].mask_isfinite.sum()
-
-            n_dof -= LogLike_i.n_params
 
         print(f'\n--- Total -------------------------')
         print('Reduced chi-squared (w/o uncertainty-model) = {:.2f}\n(chi-squared={:.2f}, n_dof={:.0f})'.format(
@@ -129,19 +127,23 @@ class CallBack:
             print(f'\n-------------------------------------')
             if self.LogLike.scale_flux:
                 print('\nOptimal flux-scaling parameters:')
-                print(self.LogLike.f.round(2))
+                print(self.LogLike.phi[:,:,0].round(2))
+                print('R_p (R_Jup):')
+                print(np.sqrt(self.LogLike.phi[:,:,0]).round(2))
             if self.LogLike.scale_err:
                 print('\nOptimal uncertainty-scaling parameters:')
-                print(self.LogLike.beta.round(2))
+                print(self.LogLike.s2.round(2))
         else:
             for m_set, LogLike_i in self.LogLike.items():
                 print(f'\n--- {m_set} -------------------------')
                 if LogLike_i.scale_flux:
                     print('\nOptimal flux-scaling parameters:')
-                    print(LogLike_i.f.round(2))
+                    print(LogLike_i.phi[:,:,0].round(2))
+                    print('R_p (R_Jup):')
+                    print(np.sqrt(LogLike_i.phi[:,:,0]).round(2))
                 if LogLike_i.scale_err:
                     print('\nOptimal uncertainty-scaling parameters:')
-                    print(LogLike_i.beta.round(2))
+                    print(LogLike_i.s2.round(2))
         
         self.bestfit_params = np.array(self.bestfit_params)
         
@@ -247,11 +249,11 @@ class CallBack:
                 }
         if isinstance(self.LogLike, dict):
             for m_set, LogLike_i in self.LogLike.items():
-                dict_to_save[m_set]['f']    = LogLike_i.f.tolist()
-                dict_to_save[m_set]['beta'] = LogLike_i.beta.tolist()
+                dict_to_save[m_set]['phi'] = LogLike_i.phi.tolist()
+                dict_to_save[m_set]['s2']  = LogLike_i.s2.tolist()
         else:
-            dict_to_save['f']    = self.LogLike.f.tolist()
-            dict_to_save['beta'] = self.LogLike.beta.tolist()
+            dict_to_save['phi'] = self.LogLike.phi.tolist()
+            dict_to_save['s2']  = self.LogLike.s2.tolist()
 
         with open(self.prefix+'data/bestfit.json', 'w') as fp:
             json.dump(dict_to_save, fp, indent=4)

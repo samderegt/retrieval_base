@@ -62,6 +62,7 @@ class Covariance:
 
         # Calculate the log of the determinant
         self.logdet = np.sum(np.log(self.cov))
+        return self.logdet
 
     def solve(self, b):
         '''
@@ -93,28 +94,50 @@ class Covariance:
 
 class GaussianProcesses(Covariance):
 
-    def get_banded(cls, array, max_value=None):
+    def get_banded(cls, array, max_value=None, pad_value=0, n_pixels=2048):
 
         # Make banded covariance matrix
         banded_array = []
 
-        for i in range(len(array)):
-            # Retrieve the i-th diagonal
-            diag_i = np.diag(array, k=i)
+        for k in range(n_pixels):
 
-            if (diag_i == 0).all() and (i != 0):
+            if array.dtype == object:
+                # Array consists of order-detector pairs
+                n_orders, n_dets = array.shape
+
+                diag_k = []
+                for i in range(n_orders):
+                    for j in range(n_dets):
+
+                        # Retrieve the k-th diagonal
+                        diag_ijk = np.diag(array[i,j], k=k)
+
+                        # Pad the diagonals to the same sizes
+                        diag_ijk = np.concatenate((diag_ijk, pad_value*np.ones(k)))
+                        
+                        # Append to diagonals of other order/detectors
+                        diag_k.append(diag_ijk)
+
+                diag_k = np.concatenate(diag_k)
+
+            else:
+                # Retrieve the k-th diagonal
+                diag_k = np.diag(array, k=k)
+
+                # Pad the diagonals to the same sizes
+                diag_k = np.concatenate((diag_k, pad_value*np.ones(k)))
+
+            if (diag_k == 0).all() and (k != 0):
                 # There are no more non-zero diagonals coming
                 break
             
             if max_value is not None:
-                if (diag_i > max_value).all():
+                if (diag_k > max_value).all():
                     break
 
             # Only store the non-zero diagonals
             # Pad the diagonals to the same sizes
-            banded_array.append(
-                np.concatenate((diag_i, np.zeros(i)))
-                )
+            banded_array.append(diag_k)
         
         # Convert to array for scipy
         banded_array = np.asarray(banded_array)
@@ -143,20 +166,21 @@ class GaussianProcesses(Covariance):
 
         # Convert to banded matrices
         self.separation = self.get_banded(
-            self.separation, max_value=max_separation
+            self.separation, max_value=max_separation, pad_value=1000, 
             )
+        """
         if isinstance(self.err_eff, np.ndarray):
             self.err_eff = self.get_banded(self.err_eff)
             self.err_eff = self.err_eff[:self.separation.shape[0]]
-
         if isinstance(self.flux_eff, np.ndarray):
             self.flux_eff = self.get_banded(self.flux_eff)
             self.flux_eff = self.flux_eff[:self.separation.shape[0]]
+        """
 
         # Give arguments to the parent class
         super().__init__(err)
 
-    def __call__(self, params, w_set, order, det, **kwargs):
+    def __call__(self, params, w_set, order=0, det=0, **kwargs):
 
         # Reset the covariance matrix
         self.cov_reset()
@@ -273,11 +297,12 @@ class GaussianProcesses(Covariance):
         '''
 
         self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
+        return self.logdet
 
     def solve(self, b):
         '''
         Solve the system cov*x = b, for x (x = cov^{-1}*b). 
-        Employs a sparse or banded Cholesky decomposition.
+        Employs a banded Cholesky decomposition.
 
         Input
         -----
