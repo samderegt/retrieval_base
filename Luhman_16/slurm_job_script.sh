@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 01:00:00
+#SBATCH -t 08:00:00
 #SBATCH -p genoa
-#SBATCH --ntasks=160
+#SBATCH --ntasks=120
 #SBATCH --mem=336G
 
-#SBATCH --job-name=Luhman_16B_no_bands
+#SBATCH --job-name=Luhman_16B_eq_band
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 

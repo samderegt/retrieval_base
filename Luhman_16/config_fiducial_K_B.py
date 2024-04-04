@@ -7,16 +7,16 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'no_bands_K_B_ret_3'
+prefix = 'eq_band_K_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
 config_data = dict(
     K2166_A = {
         'w_set': 'K2166', # Wavelength setting
-        #'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
+        'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
         #'wave_range': (2130, 2300), 
-        'wave_range': (2300, 2400), 
+        #'wave_range': (2300, 2400), 
 
         # Data filenames
         'file_target': './data/Luhman_16B_K.dat', 
@@ -82,6 +82,10 @@ free_params = {
     # Velocities #km/s
     'vsini': [(10,30), r'$v\ \sin\ i$'], 
     'rv': [(10,30), r'$v_\mathrm{rad}$'], 
+
+    # Surface brightness
+    'lat_band': [(0,90), r'$\lambda_\mathrm{b}$'], 
+    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -204,5 +208,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
-n_iter_before_update = 200
+n_live_points = 400
+n_iter_before_update = 400

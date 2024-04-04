@@ -47,12 +47,22 @@ class IntRotationProfile:
         self.n_c     = n_c
         self.n_theta = n_theta
 
+        # Define the grid with a fine spacing
+        self.get_coords(sampling_factor=10)
+        self.lat_grid_fine = self.lat_grid.copy()
+        self.lon_grid_fine = self.lon_grid.copy()
+
+        # Define the grid with the regular spacing
         self.get_coords()
 
-    def get_coords(self):
+    def get_coords(self, sampling_factor=1):
+
+        # Compute coordinates on a finer grid?
+        n_c     = self.n_c * int(sampling_factor)
+        n_theta = self.n_theta * int(sampling_factor)
 
         # Equidistant grid in angular distance
-        self.dc = (np.pi/2) / self.n_c
+        self.dc = (np.pi/2) / n_c
         self.unique_c = np.arange(self.dc/2, np.pi/2, self.dc)
 
         self.unique_mu = np.cos(self.unique_c)
@@ -73,7 +83,7 @@ class IntRotationProfile:
             c_i = self.unique_c[i]
 
             # Reduce number of angular segments close to centre
-            n_theta_r_i = int(self.n_theta*r_i)
+            n_theta_r_i = int(n_theta*r_i)
                 
             # Projected area
             area_ij = 2*np.pi / n_theta_r_i
