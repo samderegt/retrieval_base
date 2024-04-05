@@ -203,6 +203,8 @@ class IntRotationProfile:
         if f_grid is None:
             f_grid = self.get_f_grid(params)
 
+        #f_grid = np.ones_like(self.r_grid)
+
         integrated_f_grid = np.sum(f_grid * self.area_per_segment)
         if get_scaling:
             self.f_grid = np.ones_like(f_grid) * np.nan
@@ -239,6 +241,7 @@ class IntRotationProfile:
         
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening
-            self.f_grid /= np.nanmax(self.f_grid)
+            #self.f_grid /= np.nanmax(self.f_grid)
+            pass
             
         return wave, flux_rot_broad
