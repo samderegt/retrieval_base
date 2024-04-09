@@ -86,7 +86,7 @@ def plot_map(ax, attr, Rot, cax=None, **kwargs):
             ax=ax, cax=cax, orientation='vertical'
             )
 
-def set_axis(ax, Rot, sep_spine_lw=5):
+def set_axis(ax, Rot, sep_spine_lw=None, grid=True):
 
     ax.grid(False)
     ax.set_xticks([])
@@ -96,8 +96,12 @@ def set_axis(ax, Rot, sep_spine_lw=5):
     inc   = np.rad2deg(Rot.inc)
     lon_0 = np.rad2deg(Rot.lon_0)
 
-    # Plot the spherical grid
-    plot_grid(ax, inclination=inc, lon_0=lon_0, c='k', alpha=1, lw=0.4)
+    if grid:
+        # Plot the spherical grid
+        plot_grid(ax, inclination=inc, lon_0=lon_0, c='k', alpha=1, lw=0.4)
+
+    if sep_spine_lw is None:
+        return
 
     for key_i in ['start', 'end']:
         # Make the spine a separating white line
