@@ -7,16 +7,17 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'eq_band_K_B_ret_1'
+prefix = 'no_bands_K_B_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
 config_data = dict(
-    K2166_A = {
+    K2166_cloudy = {
         'w_set': 'K2166', # Wavelength setting
-        'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
-        #'wave_range': (2130, 2300), 
-        #'wave_range': (2300, 2400), 
+        #'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
+        #'wave_range': (2130, 2400), 
+        #'wave_range': (2130, 2200), 
+        'wave_range': (2040, 2500), 
 
         # Data filenames
         'file_target': './data/Luhman_16B_K.dat', 
@@ -56,6 +57,7 @@ config_data = dict(
         'n_atm_layers': 50, 
         }, 
 )
+#config_data['K2166_clear'] = config_data['K2166_cloudy'].copy()
 
 # Magnitudes used for flux-calibration
 magnitudes = {
@@ -75,7 +77,7 @@ free_params = {
     'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    #'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.1,2.0), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
@@ -84,13 +86,21 @@ free_params = {
     'rv': [(10,30), r'$v_\mathrm{rad}$'], 
 
     # Surface brightness
-    'lat_band': [(0,90), r'$\lambda_\mathrm{b}$'], 
-    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
+    #'lat_band': [(0,90), r'$\phi_\mathrm{b}$'], 
+    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
     'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+
+    # Parameters specific to model-settings
+    #'K2166_cloudy': {
+    #    # Cloud properties
+    #    'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    #    'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
+    #    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    #    }, 
 
     # Chemistry
     'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
@@ -123,6 +133,9 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
+    #'K2166_cloudy': {'eq_band': True, 'above_eq_band': False}, 
+    #'K2166_clear': {'above_eq_band': True, 'eq_band': False}, 
+
     # PT profile
     'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
 }
@@ -131,14 +144,17 @@ constant_params = {
 #
 ####################################################################################
 
+#sum_m_spec = True
 sum_m_spec = False
 
-scale_flux = True
+scale_flux = False
 scale_err  = True
-apply_high_pass_filter = False
+apply_high_pass_filter = True
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
+    'cloud_mode': 'gray'
+    #'K2166_cloudy': {'cloud_mode': 'gray'}, 
+    #'K2166_clear': {'cloud_mode': None}, 
 }
 
 rotation_mode = 'integrate' # 'convolve'
@@ -165,6 +181,7 @@ chem_kwargs = {
 }
 
 species_to_plot_VMR = [
+    #'H2O', 'CH4', 'NH3', 'H2S', 
     'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'NH3', 'H2S', 'HF', #'Ca', 
     #'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
@@ -208,5 +225,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 400
-n_iter_before_update = 400
+n_live_points = 200
+n_iter_before_update = 200

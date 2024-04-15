@@ -109,27 +109,17 @@ class FreeChemistry(Chemistry):
                     # Single value given: constant, vertical profile
                     VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
 
-                if self.VMRs.get(f'{species_i}_0') is not None:
-                    # Multiple values given, use spline interpolation
-
-                    # Define the spline knots in pressure-space
-                    if params.get(f'log_P_{species_i}') is not None:
-                        log_P_knots = np.array([
-                            np.log10(self.pressure).min(), params[f'log_P_{species_i}'], 
-                            np.log10(self.pressure).max()
-                            ])
-                    else:
-                        log_P_knots = np.linspace(
-                            np.log10(self.pressure).min(), 
-                            np.log10(self.pressure).max(), num=3
-                            )
-                    
-                    # Define the abundances at the knots
-                    VMR_knots = np.array([self.VMRs[f'{species_i}_{j}'] for j in range(3)])[::-1]
-                    
-                    # Use a k-th order spline to vary the abundance profile
-                    spl = make_interp_spline(log_P_knots, np.log10(VMR_knots), k=self.spline_order)
-                    VMR_i = 10**spl(np.log10(self.pressure))
+                VMR_TOA_i = params.get(f'{species_i}_TOA')
+                P_i = params.get(f'{species_i}_P')
+                if (VMR_TOA_i is not None) and (P_i is not None):
+                    # Top-of-atmosphere abundance given
+                    mask_TOA = (self.pressure < P_i)
+                    # Linear interpolation towards TOA
+                    VMR_i[mask_TOA] = 10**np.interp(
+                        x=np.log10(self.pressure[mask_TOA]), 
+                        xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
+                        fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
+                    )
 
                 self.VMRs[species_i] = VMR_i
 

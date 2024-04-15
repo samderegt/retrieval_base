@@ -60,7 +60,8 @@ class pRT_model:
         self.d_wave          = d_spec.wave
         self.d_mask_isfinite = d_spec.mask_isfinite
         self.d_resolution    = d_spec.resolution
-        self.apply_high_pass_filter = d_spec.high_pass_filtered
+        #self.apply_high_pass_filter = d_spec.high_pass_filtered
+        self.apply_high_pass_filter = False
         self.w_set = d_spec.w_set
 
         self.line_species = line_species
@@ -382,15 +383,11 @@ class pRT_model:
 
             # Rebin onto the data's wavelength grid
             m_spec_i.rebin(d_wave=self.d_wave[i,:], replace_wave_flux=True)
+            #m_spec_i.mask_isfinite = self.d_mask_isfinite
 
             if self.apply_high_pass_filter:
                 # High-pass filter the model spectrum
-                m_spec_i.high_pass_filter(
-                    removal_mode='divide', 
-                    filter_mode='gaussian', 
-                    sigma=300, 
-                    replace_flux_err=True
-                    )
+                m_spec_i.high_pass_filter(replace_flux_err=True)
 
             wave[i,:,:] = m_spec_i.wave
             flux[i,:,:] = m_spec_i.flux

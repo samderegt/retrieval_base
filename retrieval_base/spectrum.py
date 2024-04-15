@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter1d, gaussian_filter, generic_filter
+from scipy.signal import savgol_filter
 from scipy.interpolate import interp1d
-from scipy.sparse import triu
 
 import pickle
 import os
@@ -83,7 +83,17 @@ class Spectrum:
         
         return wave_shifted
     
-    def high_pass_filter(self, removal_mode='divide', filter_mode='gaussian', sigma=300, replace_flux_err=False):
+    def high_pass_filter(
+            self, 
+            #removal_mode='divide', 
+            removal_mode='subtract', 
+            #filter_mode='gaussian', 
+            filter_mode='savgol', 
+            replace_flux_err=False, 
+            #sigma=300, 
+            sigma=301, 
+            polyorder=2
+            ):
 
         # Prepare an array of low-frequency structure
         low_pass_flux = np.ones_like(self.flux) * np.nan
@@ -98,11 +108,15 @@ class Spectrum:
 
                     if filter_mode == 'gaussian':
                         # Find low-frequency structure
-                        low_pass_flux[i,j,mask_ij] = gaussian_filter1d(flux_ij, sigma=sigma, mode='reflect')
-
+                        low_pass_flux[i,j,mask_ij] = gaussian_filter1d(
+                            flux_ij, sigma=sigma, mode='reflect'
+                            )
                     elif filter_mode == 'savgol':
-                        # TODO: savgol filter
-                        pass
+                        # Savitzky-Golay filter
+                        low_pass_flux[i,j,mask_ij] = savgol_filter(
+                            flux_ij, window_length=sigma, polyorder=polyorder, 
+                            mode='nearest', 
+                            )
 
         if removal_mode == 'divide':
             # Divide out the low-frequency structure

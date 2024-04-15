@@ -161,20 +161,27 @@ class IntRotationProfile:
                 # Change the flux between some latitudes
                 lat_band_upper = np.deg2rad(params.get('lat_band_upper', 90))
                 
-                mask_band = (np.abs(self.lat_grid) > lat_band)
+                mask_above_band = (np.abs(self.lat_grid) > lat_band)
                 if lat_band_upper > lat_band:
                     # Dark band at latitudes above equator
-                    mask_band = mask_band & (np.abs(self.lat_grid) < lat_band_upper)
+                    mask_above_band = mask_above_band & (np.abs(self.lat_grid) < lat_band_upper)
                 else:
                     # Flip the bands, i.e. dark band on equator
-                    mask_band = mask_band | (np.abs(self.lat_grid) < lat_band_upper)
+                    mask_above_band = mask_above_band | (np.abs(self.lat_grid) < lat_band_upper)
 
-                if epsilon_band < 0:
-                    # Dark band on equator
-                    f_grid[~mask_band] *= (1 - np.abs(epsilon_band))
+                if params.get('eq_band'):
+                    # Cloudy atmosphere on equator
+                    f_grid[mask_above_band] *= 0
+                elif params.get('above_eq_band'):
+                    # Clear atmosphere above equatorial band
+                    f_grid[~mask_above_band] *= 0
                 else:
-                    # Bright band on equator
-                    f_grid[mask_band] *= (1 - epsilon_band)
+                    if epsilon_band < 0:
+                        # Dark band on equator
+                        f_grid[~mask_above_band] *= (1 - np.abs(epsilon_band))
+                    else:
+                        # Bright band on equator
+                        f_grid[mask_above_band] *= (1 - epsilon_band)
 
         if params.get('lat_band_low') is not None:
             # Add a band at some latitude
@@ -204,6 +211,9 @@ class IntRotationProfile:
             f_grid = self.get_f_grid(params)
 
         #f_grid = np.ones_like(self.r_grid)
+
+        if (f_grid == 0).all():
+            return wave, 0*wave
 
         integrated_f_grid = np.sum(f_grid * self.area_per_segment)
         if get_scaling:
@@ -237,7 +247,7 @@ class IntRotationProfile:
                 self.f_grid[i] = np.nansum(f_i*flux_shifted_i / integrated_f_grid)
         
         # Normalize to account for any over/under-estimation of total flux
-        flux_rot_broad *= self.disk_area_tot / integrated_f_grid
+        #flux_rot_broad *= self.disk_area_tot / integrated_f_grid
         
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening

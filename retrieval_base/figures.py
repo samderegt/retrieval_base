@@ -197,12 +197,11 @@ def fig_bestfit_model(
         ylabel_spec = r'$F_\lambda$ (high-pass filtered)'
 
     # Use the same ylim, also for multiple axes
-    ylim_spec = (np.nanmean(d_spec.flux)-4*np.nanstd(d_spec.flux), 
-                 np.nanmean(d_spec.flux)+4*np.nanstd(d_spec.flux)
-                )
-    ylim_res = (1/3*(ylim_spec[0]-np.nanmean(d_spec.flux)), 
-                1/3*(ylim_spec[1]-np.nanmean(d_spec.flux))
-                )
+    ylim_spec = (np.nanpercentile(d_spec.flux, 0.1)*0.9, np.nanpercentile(d_spec.flux, 99.9)*1.1)
+    if ylim_spec[0] < 0:
+        ylim_spec = (np.nanpercentile(d_spec.flux, 0.1)*1.2, np.nanpercentile(d_spec.flux, 99.9)*1.2)
+
+    ylim_res = (-1/3*(ylim_spec[1]-ylim_spec[0])/2, 1/3*(ylim_spec[1]-ylim_spec[0])/2)
 
     for i in range(d_spec.n_orders):
 

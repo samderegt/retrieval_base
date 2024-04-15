@@ -139,12 +139,8 @@ def pre_processing(conf, conf_data, m_set):
 
     if conf.apply_high_pass_filter:
         # Apply high-pass filter
-        d_spec.high_pass_filter(
-            removal_mode='divide', 
-            filter_mode='gaussian', 
-            sigma=300, 
-            replace_flux_err=True
-            )
+        d_spec.high_pass_filter(replace_flux_err=True)
+        d_spec.high_pass_filtered = True
 
     # Prepare the wavelength separation and average squared error arrays
     d_spec.prepare_for_covariance(
@@ -172,13 +168,17 @@ def pre_processing(conf, conf_data, m_set):
     # --- Set up a pRT model --------------------------------------------
 
     rv_range = conf.free_params.get('rv')
-    if rv_range is None:
+    if (rv_range is None) and (conf.free_params.get(m_set) is not None):
         rv_range = conf.free_params[m_set].get('rv')
+    if rv_range is None:
+        rv_range = [(-50,50)]
     rv_range = rv_range[0]
 
     vsini_range = conf.free_params.get('vsini')
-    if vsini_range is None:
+    if (vsini_range is None) and (conf.free_params.get(m_set) is not None):
         vsini_range = conf.free_params[m_set].get('vsini')
+    if vsini_range is None:
+        vsini_range = [(0,50)]
     vsini_range = vsini_range[0]
 
     line_species = conf.chem_kwargs.get('line_species')
@@ -431,6 +431,11 @@ class Retrieval:
                 # Spectra need to be combined at this point
                 continue
 
+            if self.d_spec[m_set].high_pass_filtered:
+                # Apply high-pass filter after combining model-settings
+                self.m_spec[m_set].mask_isfinite = self.d_spec[m_set].mask_isfinite
+                self.m_spec[m_set].high_pass_filter(replace_flux_err=True)
+
             # Compute log-likelihood separate for each model-setting
             M = self.m_spec[m_set].flux[:,:,None,:]
 
@@ -455,9 +460,14 @@ class Retrieval:
                 # Patchy clouds
                 f1 = cloud_fraction
                 f2 = (1 - cloud_fraction)
-
+                
             self.m_spec[m_set_1].flux = \
                 f1*self.m_spec[m_set_1].flux + f2*self.m_spec[m_set_2].flux
+
+            if self.d_spec[m_set_1].high_pass_filtered:
+                # Apply high-pass filter after combining model-settings
+                self.m_spec[m_set_1].mask_isfinite = self.d_spec[m_set_1].mask_isfinite
+                self.m_spec[m_set_1].high_pass_filter(replace_flux_err=True)
 
             pRT_atm_to_use[m_set_1].flux_pRT_grid = [
                 f1*pRT_atm_to_use[m_set_1].flux_pRT_grid[i] + \
@@ -480,13 +490,11 @@ class Retrieval:
             pRT_atm_to_use[m_set_1].int_opa_cloud_clear = \
                 pRT_atm_to_use[m_set_2].int_opa_cloud.copy()
 
+            # Reshape the model
+            M = self.m_spec[m_set_1].flux[:,:,None,:]
+
             # Retrieve the log-likelihood
-            ln_L += self.LogLike(
-                self.m_spec[m_set_1], 
-                self.Cov, 
-                is_first_m_set=True, 
-                evaluation=self.evaluation, 
-                )
+            ln_L += self.LogLike(M, self.Cov)
 
         time_B = time.time()
         self.CB.elapsed_times.append(time_B-time_A)
@@ -914,8 +922,8 @@ class Retrieval:
             Prior=self.Param, 
             n_dims=self.Param.n_params, 
             outputfiles_basename=self.conf.prefix, 
-            #resume=True, 
-            resume=False, 
+            resume=True, 
+            #resume=False, 
             verbose=True, 
             const_efficiency_mode=self.conf.const_efficiency_mode, 
             sampling_efficiency=self.conf.sampling_efficiency, 
