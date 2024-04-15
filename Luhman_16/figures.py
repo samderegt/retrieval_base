@@ -134,6 +134,11 @@ def label_cb_axis(cax, ticks, val_range, label, annotate_kwargs):
     theta_max = np.max(cax.get_xlim())
 
     val_frac = (ticks - val_range[0]) / np.abs(val_range[1]-val_range[0])
+    mask_valid_frac = (val_frac>=0) & (val_frac<=1)
+
+    val_frac = val_frac[mask_valid_frac]
+    ticks    = ticks[mask_valid_frac]
+
     ticks_theta = (theta_max-theta_min)*val_frac + theta_min
 
     cax.set_xticks(ticks_theta)
@@ -182,3 +187,18 @@ def rescale_and_center(
     if x_offset != 0:
         x_offset += w_ref
     ax.set_position([l+delta_xy[0]+x_offset, b+delta_xy[1]+y_offset, w, h])
+
+def plot_multicolor_line(ax, x, y, z, vmin, vmax, cmap='viridis', **kwargs):
+    
+    points = np.array([x, y]).T[:,None,:]
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    
+    # Create a continuous norm to map from data points to colors
+    norm = plt.Normalize(vmin=vmin, vmax=vmax)
+    lc = mpl.collections.LineCollection(
+        segments, cmap=cmap, norm=norm, capstyle='round', **kwargs
+        )
+    
+    # Set the values used for colormapping
+    lc.set_array(z)
+    line = ax.add_collection(lc)
