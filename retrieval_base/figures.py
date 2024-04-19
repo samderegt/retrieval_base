@@ -560,6 +560,8 @@ def fig_VMR(ax_VMR,
         mass_i  = Chem.read_species_info(species_i, info_key='mass')
         color_i = Chem.read_species_info(species_i, info_key='color')
         label_i = Chem.read_species_info(species_i, info_key='label')
+        if ls == '--':
+            label_i = None
 
         # Convert the mass fraction to a VMR
         mass_fraction_i = Chem.mass_fractions[line_species_i]

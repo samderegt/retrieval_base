@@ -295,6 +295,15 @@ class CallBack:
 
                 # Save the best-fitting covariance matrix
                 af.pickle_save(self.prefix+f'data/bestfit_Cov_{m_set}.pkl', self.Cov[m_set])
+            
+            else:
+                # Save the best-fitting log-likelihood
+                LogLike_to_save = copy.deepcopy(self.LogLike)
+                del LogLike_to_save.d_spec
+                af.pickle_save(self.prefix+f'data/bestfit_LogLike.pkl', LogLike_to_save)
+
+                # Save the best-fitting covariance matrix
+                af.pickle_save(self.prefix+f'data/bestfit_Cov.pkl', self.Cov)
 
     def fig_abundances_corner(self):
 

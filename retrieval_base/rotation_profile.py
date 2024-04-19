@@ -47,11 +47,6 @@ class IntRotationProfile:
         self.n_c     = n_c
         self.n_theta = n_theta
 
-        # Define the grid with a fine spacing
-        self.get_coords(sampling_factor=10)
-        self.lat_grid_fine = self.lat_grid.copy()
-        self.lon_grid_fine = self.lon_grid.copy()
-
         # Define the grid with the regular spacing
         self.get_coords()
 
@@ -132,6 +127,7 @@ class IntRotationProfile:
     def get_f_grid(self, params):
         
         f_grid = np.ones_like(self.r_grid)
+        included_segments = np.ones_like(self.r_grid, dtype=bool)
 
         if params.get('epsilon_limb') is not None:
             # Linear limb-darkening for integrated flux
@@ -148,47 +144,55 @@ class IntRotationProfile:
         if params.get('lat_band') is not None:
             # Add a band at some latitude
             lat_band = np.deg2rad(params.get('lat_band'))
-
-            sigma_band   = np.deg2rad(params.get('sigma_band', 0))
             epsilon_band = params.get('epsilon_band', 1)
 
-            if sigma_band != 0:
-                # Band with a Gaussian profile
-                f_grid *= (
-                    1 - epsilon_band * np.exp(-(self.lat_grid-lat_band)**2/(2*sigma_band**2))
-                    )
+            # Change the flux between some latitudes
+            mask_band = (np.abs(self.lat_grid) < lat_band)
+
+            if epsilon_band < 0:
+                # Dark band on equator
+                f_grid[mask_band] *= (1 - np.abs(epsilon_band))
             else:
-                # Change the flux between some latitudes
-                lat_band_upper = np.deg2rad(params.get('lat_band_upper', 90))
-                
-                mask_above_band = (np.abs(self.lat_grid) > lat_band)
-                if lat_band_upper > lat_band:
-                    # Dark band at latitudes above equator
-                    mask_above_band = mask_above_band & (np.abs(self.lat_grid) < lat_band_upper)
-                else:
-                    # Flip the bands, i.e. dark band on equator
-                    mask_above_band = mask_above_band | (np.abs(self.lat_grid) < lat_band_upper)
+                # Bright band on equator
+                f_grid[~mask_band] *= (1 - epsilon_band)
 
-                if params.get('eq_band'):
-                    # Cloudy atmosphere on equator
-                    f_grid[mask_above_band] *= 0
-                elif params.get('above_eq_band'):
-                    # Clear atmosphere above equatorial band
-                    f_grid[~mask_above_band] *= 0
-                else:
-                    if epsilon_band < 0:
-                        # Dark band on equator
-                        f_grid[~mask_above_band] *= (1 - np.abs(epsilon_band))
-                    else:
-                        # Bright band on equator
-                        f_grid[mask_above_band] *= (1 - epsilon_band)
+        if (params.get('lon_band') is not None) and \
+            (params.get('lon_band_width') is not None):
+            # Add a band at some longitude with a certain width
+            lon_band       = np.deg2rad(params.get('lon_band'))
+            lon_band_width = np.deg2rad(params.get('lon_band_width'))
 
-        if params.get('lat_band_low') is not None:
-            # Add a band at some latitude
-            lat_band = np.deg2rad(params.get('lat_band'))
-            epsilon_band = params.get('epsilon_band', 1)
+            lon_band_upper = lon_band + lon_band_width/2
+            lon_band_lower = lon_band - lon_band_width/2
 
-        return f_grid
+            if (lon_band_lower > -np.pi) and (lon_band_upper < np.pi):
+                mask_band = (self.lon_grid >= lon_band_lower) & \
+                    (self.lon_grid <= lon_band_upper)
+            elif lon_band_upper > np.pi:
+                mask_band = (self.lon_grid >= lon_band_lower) | \
+                    (self.lon_grid <= lon_band_upper-2*np.pi)
+            elif lon_band_lower < -np.pi:
+                mask_band = (self.lon_grid >= lon_band_lower+2*np.pi) | \
+                    (self.lon_grid <= lon_band_upper)
+
+        if (params.get('lon_spot') is not None) and (params.get('lat_spot') is not None):
+            # Add a circular spot
+            lon_spot = np.deg2rad(params.get('lon_spot'))
+            lat_spot = np.deg2rad(params.get('lat_spot'))
+            radius_spot = np.deg2rad(params.get('radius_spot'))
+
+            mask_band = (
+                (self.lon_grid - lon_spot)**2 + (self.lat_grid - lat_spot)**2 <= radius_spot**2
+            )
+
+        if params.get('is_within_band'):
+            included_segments[mask_band]  = True
+            included_segments[~mask_band] = False
+        if params.get('is_outside_band'):
+            included_segments[mask_band]  = False
+            included_segments[~mask_band] = True
+
+        return f_grid, included_segments
 
     def __call__(self, wave, flux, params, f_grid=None, get_scaling=False, **kwargs):
 
@@ -208,7 +212,7 @@ class IntRotationProfile:
         
         # Flux-scaling grid
         if f_grid is None:
-            f_grid = self.get_f_grid(params)
+            f_grid, included_segments = self.get_f_grid(params)
 
         #f_grid = np.ones_like(self.r_grid)
 
@@ -222,6 +226,9 @@ class IntRotationProfile:
         # Store global flux, integrated over incidence angles
         flux_rot_broad = np.zeros(flux.shape[-1])
         for i, v_i in enumerate(self.v_grid):
+
+            if not included_segments[i]:
+                continue
 
             idx_mu_i = self.idx_mu[i]
             if flux.ndim > 1:
@@ -247,8 +254,8 @@ class IntRotationProfile:
                 self.f_grid[i] = np.nansum(f_i*flux_shifted_i / integrated_f_grid)
         
         # Normalize to account for any over/under-estimation of total flux
-        #flux_rot_broad *= self.disk_area_tot / integrated_f_grid
-        
+        flux_rot_broad *= self.disk_area_tot / integrated_f_grid
+
         if get_scaling:
             # Integrate over wavelengths to store limb-darkening
             #self.f_grid /= np.nanmax(self.f_grid)
