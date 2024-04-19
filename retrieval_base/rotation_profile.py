@@ -181,9 +181,12 @@ class IntRotationProfile:
             lat_spot = np.deg2rad(params.get('lat_spot'))
             radius_spot = np.deg2rad(params.get('radius_spot'))
 
-            mask_band = (
-                (self.lon_grid - lon_spot)**2 + (self.lat_grid - lat_spot)**2 <= radius_spot**2
-            )
+            # Haversine formula
+            distance_from_spot = 2 * np.arcsin((1/2*(
+                1 - np.cos(self.lat_grid - lat_spot) + \
+                np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
+                ))**(1/2))
+            mask_band = (distance_from_spot <= radius_spot)
 
         if params.get('is_within_band'):
             included_segments[mask_band]  = True
