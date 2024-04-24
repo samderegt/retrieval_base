@@ -124,22 +124,22 @@ class IntRotationProfile:
         for unique_i, unique_mu_i in enumerate(self.unique_mu):
             self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
 
-    def get_f_grid(self, params):
+    def get_brightness(self, params, N_spot_max=5):
         
-        f_grid = np.ones_like(self.r_grid)
-        included_segments = np.ones_like(self.r_grid, dtype=bool)
+        self.brightness        = np.ones_like(self.r_grid)
+        self.included_segments = np.ones_like(self.r_grid, dtype=bool)
 
         if params.get('epsilon_limb') is not None:
             # Linear limb-darkening for integrated flux
             epsilon_limb = params.get('epsilon_limb')
-            f_grid *= (
+            self.brightness *= (
                 1 - epsilon_limb + epsilon_limb*np.sqrt(1-self.r_grid**2)
                 )
 
         if params.get('epsilon_lat') is not None:
             # Latitude-darkening
             epsilon_lat = params.get('epsilon_lat')
-            f_grid *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
+            self.brightness *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
         if params.get('lat_band') is not None:
             # Add a band at some latitude
@@ -147,14 +147,14 @@ class IntRotationProfile:
             epsilon_band = params.get('epsilon_band', 1)
 
             # Change the flux between some latitudes
-            mask_band = (np.abs(self.lat_grid) < lat_band)
+            mask_patch = (np.abs(self.lat_grid) < lat_band)
 
             if epsilon_band < 0:
                 # Dark band on equator
-                f_grid[mask_band] *= (1 - np.abs(epsilon_band))
+                self.brightness[mask_patch] *= (1 - np.abs(epsilon_band))
             else:
                 # Bright band on equator
-                f_grid[~mask_band] *= (1 - epsilon_band)
+                self.brightness[~mask_patch] *= (1 - epsilon_band)
 
         if (params.get('lon_band') is not None) and \
             (params.get('lon_band_width') is not None):
@@ -166,38 +166,60 @@ class IntRotationProfile:
             lon_band_lower = lon_band - lon_band_width/2
 
             if (lon_band_lower > -np.pi) and (lon_band_upper < np.pi):
-                mask_band = (self.lon_grid >= lon_band_lower) & \
+                mask_patch = (self.lon_grid >= lon_band_lower) & \
                     (self.lon_grid <= lon_band_upper)
             elif lon_band_upper > np.pi:
-                mask_band = (self.lon_grid >= lon_band_lower) | \
+                mask_patch = (self.lon_grid >= lon_band_lower) | \
                     (self.lon_grid <= lon_band_upper-2*np.pi)
             elif lon_band_lower < -np.pi:
-                mask_band = (self.lon_grid >= lon_band_lower+2*np.pi) | \
+                mask_patch = (self.lon_grid >= lon_band_lower+2*np.pi) | \
                     (self.lon_grid <= lon_band_upper)
 
-        if (params.get('lon_spot') is not None) and (params.get('lat_spot') is not None):
+        # Loop over multiple spots
+        for i in range(N_spot_max):
+
+            lon_spot = params.get(f'lon_spot_{i}')
+            lat_spot = params.get(f'lat_spot_{i}')
+            radius_spot  = params.get(f'radius_spot_{i}')
+            epsilon_spot = params.get(f'epsilon_spot_{i}')
+
+            if (lon_spot is None) and (lat_spot is None) and (radius_spot is None) and (i == 0):
+                # Revert to a single spot
+                lon_spot = params.get('lon_spot')
+                lat_spot = params.get('lat_spot')
+                radius_spot  = params.get('radius_spot')
+                epsilon_spot = params.get('epsilon_spot')
+
+            if (lon_spot is None) or (lat_spot is None) or (radius_spot is None):
+                # No spot found in params-dictionary, break loop
+                break
+            
             # Add a circular spot
-            lon_spot = np.deg2rad(params.get('lon_spot'))
-            lat_spot = np.deg2rad(params.get('lat_spot'))
-            radius_spot = np.deg2rad(params.get('radius_spot'))
+            lon_spot = np.deg2rad(lon_spot)
+            lat_spot = np.deg2rad(lat_spot)
+            radius_spot = np.deg2rad(radius_spot)
 
             # Haversine formula
             distance_from_spot = 2 * np.arcsin((1/2*(
                 1 - np.cos(self.lat_grid - lat_spot) + \
                 np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
                 ))**(1/2))
-            mask_band = (distance_from_spot <= radius_spot)
+            mask_patch = (distance_from_spot <= radius_spot)
 
-        if params.get('is_within_band'):
-            included_segments[mask_band]  = True
-            included_segments[~mask_band] = False
-        if params.get('is_outside_band'):
-            included_segments[mask_band]  = False
-            included_segments[~mask_band] = True
+            if epsilon_spot is not None:
+                self.brightness[mask_patch] *= epsilon_spot
 
-        return f_grid, included_segments
+        if params.get('is_within_band') or params.get('is_within_patch'):
+            self.included_segments[mask_patch]  = True
+            self.included_segments[~mask_patch] = False
+        if params.get('is_outside_band') or params.get('is_outside_patch'):
+            self.included_segments[mask_patch]  = False
+            self.included_segments[~mask_patch] = True
 
-    def __call__(self, wave, flux, params, f_grid=None, get_scaling=False, **kwargs):
+        # Integrate the brightness map
+        self.int_brightness = np.sum(self.brightness * self.area_per_segment)
+
+    def __call__(self, wave, flux, params, get_scaling=False, **kwargs):
 
         # Compute velocity-grid
         vsini = params.get('vsini', 0)
@@ -214,23 +236,20 @@ class IntRotationProfile:
                 )
         
         # Flux-scaling grid
-        if f_grid is None:
-            f_grid, included_segments = self.get_f_grid(params)
+        self.get_brightness(params)
 
-        #f_grid = np.ones_like(self.r_grid)
-
-        if (f_grid == 0).all():
+        if (self.brightness == 0).all():
             return wave, 0*wave
 
-        integrated_f_grid = np.sum(f_grid * self.area_per_segment)
         if get_scaling:
-            self.f_grid = np.ones_like(f_grid) * np.nan
+            # Store the integrated flux
+            self.int_flux = np.ones_like(self.brightness) * np.nan
 
         # Store global flux, integrated over incidence angles
         flux_rot_broad = np.zeros(flux.shape[-1])
         for i, v_i in enumerate(self.v_grid):
 
-            if not included_segments[i]:
+            if not self.included_segments[i]:
                 continue
 
             idx_mu_i = self.idx_mu[i]
@@ -246,22 +265,23 @@ class IntRotationProfile:
                 )
 
             # Scale by (limb)-darkening and angular area
-            f_i    = f_grid[i]
+            f_i    = self.brightness[i]
             area_i = self.area_per_segment[i]
             
             # Add to the global spectrum
             flux_rot_broad += f_i * area_i * flux_shifted_i
 
             if get_scaling:
-                # Store the flux-scaling of this segment
-                self.f_grid[i] = np.nansum(f_i*flux_shifted_i / integrated_f_grid)
+                # Integrate over wavelengths, store integrated flux of this segment
+                mask_isnan = np.isnan(flux_shifted_i)
+                self.int_flux[i] = \
+                    np.trapz((flux_shifted_i*wave)[~mask_isnan], wave[~mask_isnan]) / \
+                    np.trapz(wave[~mask_isnan], wave[~mask_isnan])
+                
+                # Apply brightness map
+                self.int_flux[i] *= f_i / self.int_brightness
         
         # Normalize to account for any over/under-estimation of total flux
-        flux_rot_broad *= self.disk_area_tot / integrated_f_grid
-
-        if get_scaling:
-            # Integrate over wavelengths to store limb-darkening
-            #self.f_grid /= np.nanmax(self.f_grid)
-            pass
+        flux_rot_broad *= self.disk_area_tot / self.int_brightness
             
         return wave, flux_rot_broad

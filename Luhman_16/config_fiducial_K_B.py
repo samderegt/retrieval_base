@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'no_bands_K_B_ret_5'
+prefix = 'spot_eq_band_K_B_ret_10'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
@@ -57,7 +57,7 @@ config_data = dict(
         'n_atm_layers': 50, 
         }, 
 )
-#config_data['K2166_clear'] = config_data['K2166_cloudy'].copy()
+#config_data['K2166_spot'] = config_data['K2166_cloudy'].copy()
 
 # Magnitudes used for flux-calibration
 magnitudes = {
@@ -73,21 +73,31 @@ magnitudes = {
 free_params = {
 
     # Covariance parameters
-    'log_a': [(-0.7,0.3), r'$\log\ a$'], 
-    'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
+    'log_a': [(-0.3,0.2), r'$\log\ a$'], 
+    'log_l': [(-2.5,-1.2), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.1,2.0), r'$R_\mathrm{p}$'], 
+    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4,6.0), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(10,30), r'$v_\mathrm{rad}$'], 
+    'vsini': [(20,30), r'$v\ \sin\ i$'], 
+    'rv': [(15,25), r'$v_\mathrm{rad}$'], 
 
     # Surface brightness
-    #'lat_band': [(0,90), r'$\phi_\mathrm{b}$'], 
-    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
+    'lat_band': [(0,90), r'$\phi_\mathrm{b}$'], 
+    'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
+
+    'lon_spot_0': [(-90,90), r'$\lambda_\mathrm{s,0}$'], 
+    'lat_spot_0': [(-30,90), r'$\phi_\mathrm{s,0}$'], 
+    'radius_spot_0': [(5,30), r'$\sigma_\mathrm{s,0}$'], 
+    'epsilon_spot_0': [(0,2), r'$\epsilon_\mathrm{s,0}$'], 
+
+    #'lon_spot_1': [(-90,90), r'$\lambda_\mathrm{s,1}$'], 
+    #'lat_spot_1': [(-90,90), r'$\phi_\mathrm{s,1}$'], 
+    #'radius_spot_1': [(0,30), r'$\sigma_\mathrm{s,1}$'], 
+    #'epsilon_spot_1': [(0,20), r'$\epsilon_\mathrm{s,1}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
@@ -95,11 +105,15 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Parameters specific to model-settings
+    #'K2166_spot': {
+    #    # Chemistry
+    #    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}_\mathrm{s}$'],
+    #    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}_\mathrm{s}$'],
+    #    }, 
     #'K2166_cloudy': {
-    #    # Cloud properties
-    #    'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #    'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    #    # Chemistry
+    #    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
+    #    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
     #    }, 
 
     # Chemistry
@@ -109,20 +123,21 @@ free_params = {
     'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'],
     'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'],
     'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'],
+    'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'],
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'],
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'],
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'],
     #'log_Ca': [(-12,-2), r'$\log\ \mathrm{Ca}$'],
 
-    # PT profile    
+    # PT profile
     'dlnT_dlnP_0': [(0.0,0.4), r'$\nabla_{T,0}$'], 
     'dlnT_dlnP_1': [(0.0,0.4), r'$\nabla_{T,1}$'], 
     'dlnT_dlnP_2': [(0.0,0.4), r'$\nabla_{T,2}$'], 
     'dlnT_dlnP_3': [(-0.1,0.4), r'$\nabla_{T,3}$'], 
     'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
 
-    'T_phot': [(200,3000), r'$T_\mathrm{phot}$'], 
-    'log_P_phot': [(-3,1), r'$\log\ P_\mathrm{phot}$'], 
+    'T_phot': [(700,2000), r'$T_\mathrm{phot}$'], 
+    'log_P_phot': [(-1,1), r'$\log\ P_\mathrm{phot}$'], 
     'd_log_P_phot+1': [(0.5,2), r'$\log\ P_\mathrm{up}$'], 
     'd_log_P_phot-1': [(0.5,2), r'$\log\ P_\mathrm{low}$'], 
 }
@@ -133,8 +148,8 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
-    #'K2166_cloudy': {'eq_band': True, 'above_eq_band': False}, 
-    #'K2166_clear': {'above_eq_band': True, 'eq_band': False}, 
+    #'K2166_cloudy': {'is_within_band': False, 'is_outside_band': True}, 
+    #'K2166_spot': {'is_within_band': True, 'is_outside_band': False}, 
 
     # PT profile
     'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
@@ -168,11 +183,12 @@ chem_kwargs = {
 
     'line_species': [
         'H2O_pokazatel_main_iso', 
-        'H2O_181', 
+        'H2O_181_HotWat78', #'H2O_181', 
         'CH4_hargreaves_main_iso', 
         'CO_main_iso', 
         'CO_36', 
         'CO_28', 
+        'CO_27', 
         'NH3_coles_main_iso', 
         'H2S_Sid_main_iso', 
         'HF_main_iso', 
@@ -182,7 +198,7 @@ chem_kwargs = {
 
 species_to_plot_VMR = [
     #'H2O', 'CH4', 'NH3', 'H2S', 
-    'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'NH3', 'H2S', 'HF', #'Ca', 
+    'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'C17O', 'NH3', 'H2S', 'HF', #'Ca', 
     #'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
