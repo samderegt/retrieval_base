@@ -178,35 +178,71 @@ class IntRotationProfile:
         # Loop over multiple spots
         for i in range(N_spot_max):
 
-            lon_spot = params.get(f'lon_spot_{i}')
-            lat_spot = params.get(f'lat_spot_{i}')
-            radius_spot  = params.get(f'radius_spot_{i}')
             epsilon_spot = params.get(f'epsilon_spot_{i}')
 
-            if (lon_spot is None) and (lat_spot is None) and (radius_spot is None) and (i == 0):
+            lon_spot = params.get(f'lon_spot_{i}')
+            lat_spot = params.get(f'lat_spot_{i}')
+            
+            radius_spot  = params.get(f'radius_spot_{i}') # Circular spot
+            a_spot       = params.get(f'a_spot_{i}') # Semi-major axis of ellipse
+            b_spot       = params.get(f'b_spot_{i}') # Semi-minor axis of ellipse
+
+            no_size = np.all([s_i is None for s_i in [radius_spot,a_spot,b_spot]])
+
+            if (lon_spot is None) and (lat_spot is None) and no_size and (i == 0):
                 # Revert to a single spot
-                lon_spot = params.get('lon_spot')
-                lat_spot = params.get('lat_spot')
-                radius_spot  = params.get('radius_spot')
                 epsilon_spot = params.get('epsilon_spot')
 
-            if (lon_spot is None) or (lat_spot is None) or (radius_spot is None):
+                lon_spot = params.get('lon_spot')
+                lat_spot = params.get('lat_spot')
+
+                radius_spot  = params.get('radius_spot') # Circle
+                a_spot       = params.get(f'a_spot') # Ellipse
+                b_spot       = params.get(f'b_spot')
+
+            no_size = np.all([s_i is None for s_i in [radius_spot,a_spot,b_spot]])
+
+            if (lon_spot is None) or (lat_spot is None) or no_size:
                 # No spot found in params-dictionary, break loop
                 break
             
-            # Add a circular spot
             lon_spot = np.deg2rad(lon_spot)
             lat_spot = np.deg2rad(lat_spot)
-            radius_spot = np.deg2rad(radius_spot)
 
-            # Haversine formula
-            distance_from_spot = 2 * np.arcsin((1/2*(
-                1 - np.cos(self.lat_grid - lat_spot) + \
-                np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
-                ))**(1/2))
-            mask_patch = (distance_from_spot <= radius_spot)
+            is_circle = (radius_spot is not None)
+
+            if is_circle:
+                # Add a circular spot
+                radius_spot = np.deg2rad(radius_spot)
+
+                # Haversine formula
+                distance_from_spot = 2 * np.arcsin((1/2*(
+                    1 - np.cos(self.lat_grid - lat_spot) + \
+                    np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
+                    ))**(1/2))
+                mask_patch = (distance_from_spot <= radius_spot)
+            else:
+                # Add an elliptical spot
+                a_spot = np.deg2rad(a_spot)
+                b_spot = np.deg2rad(b_spot)
+
+                # Use simple Cartesian? coordinates, results in changing
+                # spot-size with changing latitude
+                distance_lon = np.abs(self.lon_grid - lon_spot)
+                # Make longitude-distance continuous
+                mask_invalid = (distance_lon > np.pi)
+                distance_lon[mask_invalid] = np.pi - distance_lon[mask_invalid] % np.pi
+
+                # Latitude-distance
+                distance_lat = np.abs(self.lat_grid - lat_spot)
+
+                # Ellipse equation
+                mask_patch = (
+                    (distance_lon/a_spot)**2 + (distance_lat/b_spot)**2 <= 1
+                    )
 
             if epsilon_spot is not None:
+                # Scale the brightness
                 self.brightness[mask_patch] *= epsilon_spot
 
         if params.get('is_within_band') or params.get('is_within_patch'):

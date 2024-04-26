@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'spot_eq_band_K_B_ret_10'
+prefix = 'spot_eq_band_K_B_ret_12'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
@@ -57,7 +57,7 @@ config_data = dict(
         'n_atm_layers': 50, 
         }, 
 )
-#config_data['K2166_spot'] = config_data['K2166_cloudy'].copy()
+config_data['K2166_spot'] = config_data['K2166_cloudy'].copy()
 
 # Magnitudes used for flux-calibration
 magnitudes = {
@@ -91,8 +91,10 @@ free_params = {
 
     'lon_spot_0': [(-90,90), r'$\lambda_\mathrm{s,0}$'], 
     'lat_spot_0': [(-30,90), r'$\phi_\mathrm{s,0}$'], 
-    'radius_spot_0': [(5,30), r'$\sigma_\mathrm{s,0}$'], 
-    'epsilon_spot_0': [(0,2), r'$\epsilon_\mathrm{s,0}$'], 
+    #'radius_spot_0': [(5,30), r'$\sigma_\mathrm{s,0}$'], 
+    'a_spot_0': [(0,60), r'$a_\mathrm{s,0}$'], 
+    'b_spot_0': [(0,60), r'$b_\mathrm{s,0}$'], 
+    'epsilon_spot_0': [(0,5), r'$\epsilon_\mathrm{s,0}$'], 
 
     #'lon_spot_1': [(-90,90), r'$\lambda_\mathrm{s,1}$'], 
     #'lat_spot_1': [(-90,90), r'$\phi_\mathrm{s,1}$'], 
@@ -105,25 +107,28 @@ free_params = {
     'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
 
     # Parameters specific to model-settings
-    #'K2166_spot': {
-    #    # Chemistry
-    #    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}_\mathrm{s}$'],
-    #    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}_\mathrm{s}$'],
-    #    }, 
-    #'K2166_cloudy': {
-    #    # Chemistry
-    #    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
-    #    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
-    #    }, 
+    'K2166_spot': {
+        # Chemistry
+        'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}_\mathrm{s}$'],
+        'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}_\mathrm{s}$'],
+        'log_HCN': [(-12,-2), r'$\log\ \mathrm{HCN}_\mathrm{s}$'],
+        'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}_\mathrm{s}$'],
+        }, 
+    'K2166_cloudy': {
+        # Chemistry
+        'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
+        'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
+        'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'],
+        }, 
 
     # Chemistry
-    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
+    #'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
     'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
-    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'],
+    #'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
+    #'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'],
     'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'],
     'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'],
+    #'log_C17O': [(-12,-2), r'$\log\ \mathrm{C^{17}O}$'],
     'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'],
     'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'],
     'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'],
@@ -148,8 +153,8 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
-    #'K2166_cloudy': {'is_within_band': False, 'is_outside_band': True}, 
-    #'K2166_spot': {'is_within_band': True, 'is_outside_band': False}, 
+    'K2166_cloudy': {'is_within_patch': False, 'is_outside_patch': True}, 
+    'K2166_spot': {'is_within_patch': True, 'is_outside_patch': False}, 
 
     # PT profile
     'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
@@ -159,8 +164,8 @@ constant_params = {
 #
 ####################################################################################
 
-#sum_m_spec = True
-sum_m_spec = False
+sum_m_spec = True
+#sum_m_spec = False
 
 scale_flux = False
 scale_err  = True
@@ -181,24 +186,43 @@ rotation_mode = 'integrate' # 'convolve'
 chem_kwargs = {
     'chem_mode': 'free', #'SONORAchem' #'eqchem'
 
-    'line_species': [
-        'H2O_pokazatel_main_iso', 
-        'H2O_181_HotWat78', #'H2O_181', 
-        'CH4_hargreaves_main_iso', 
-        'CO_main_iso', 
-        'CO_36', 
-        'CO_28', 
-        'CO_27', 
-        'NH3_coles_main_iso', 
-        'H2S_Sid_main_iso', 
-        'HF_main_iso', 
-        #'Ca', 
-    ], 
+    'K2166_spot': {
+        'line_species': [
+            'H2O_pokazatel_main_iso', 
+            'H2O_181_HotWat78', #'H2O_181', 
+            'CH4_hargreaves_main_iso', 
+            'CO_main_iso', 
+            'HCN_main_iso', 
+            'CO_36', 
+            'CO_28', 
+            #'CO_27', 
+            'NH3_coles_main_iso', 
+            'H2S_Sid_main_iso', 
+            'HF_main_iso', 
+            #'Ca', 
+        ], 
+    }, 
+    'K2166_cloudy': {
+        'line_species': [
+            'H2O_pokazatel_main_iso', 
+            'H2O_181_HotWat78', #'H2O_181', 
+            'CH4_hargreaves_main_iso', 
+            'CO_main_iso', 
+            'CO_36', 
+            'CO_28', 
+            #'CO_27', 
+            'NH3_coles_main_iso', 
+            'H2S_Sid_main_iso', 
+            'HF_main_iso', 
+            #'Ca', 
+        ], 
+    }, 
 }
 
 species_to_plot_VMR = [
     #'H2O', 'CH4', 'NH3', 'H2S', 
-    'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'C17O', 'NH3', 'H2S', 'HF', #'Ca', 
+    #'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'C17O', 'NH3', 'H2S', 'HF', #'Ca', 
+    'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'HCN', 'NH3', 'H2S', 'HF', 
     #'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
