@@ -298,10 +298,10 @@ class IntRotationProfile:
                 mu_i = self.mu_grid[i]
                 idx_mu_i = (self.unique_mu_included == mu_i)
                 
-                flux_i = flux[idx_mu_i]
+                flux_i = flux[idx_mu_i][0]
             else:
                 flux_i = flux
-
+            
             # Apply Doppler-shift
             wave_shifted_i = wave * (1 + v_i/(nc.c*1e-5))
             flux_shifted_i = np.interp(

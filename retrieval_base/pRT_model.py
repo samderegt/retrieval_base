@@ -289,7 +289,7 @@ class pRT_model:
                 if i == 0:
                     # Update the brightness map
                     self.Rot.get_brightness(params=self.params)
-
+                
                 # Only compute for the angles in the patch
                 atm_i.mu = self.Rot.unique_mu_included
                 # Equal weights... not a proper Gaussian quadrature integration
