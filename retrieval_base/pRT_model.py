@@ -129,12 +129,6 @@ class pRT_model:
             # Set up the atmospheric layers
             atm_i.setup_opa_structure(self.pressure)
 
-            if self.rotation_mode == 'integrate':
-                # Modify the incidence angles
-                atm_i.mu = self.Rot.unique_mu
-                # Equal weights... not a proper Gaussian quadrature integration
-                atm_i.w_gauss_mu = self.Rot.unique_w_gauss_mu
-
             self.atm.append(atm_i)
 
     def __call__(self, 
@@ -181,41 +175,6 @@ class pRT_model:
         m_spec = self.get_model_spectrum(
             get_contr=get_contr, get_full_spectrum=get_full_spectrum
             )
-
-        '''
-        self.cloud_fraction = self.params.get('cloud_fraction')
-        if self.cloud_fraction is not None:
-            
-            # Make a copy of the cloudy column's attributes
-            flux_pRT_grid_cloudy               = self.flux_pRT_grid.copy()
-            self.int_contr_em_per_order_cloudy = self.int_contr_em_per_order.copy()
-            self.int_contr_em_cloudy           = self.int_contr_em.copy()
-            self.int_opa_cloud_cloudy          = self.int_opa_cloud.copy()
-
-            # Compute a model spectrum clear column
-            self.give_absorption_opacity = None
-            m_spec_clear = self.get_model_spectrum(
-                get_contr=get_contr, 
-                get_full_spectrum=get_full_spectrum
-                )
-            
-            # Make a copy of the clear column's attributes
-            self.int_contr_em_per_order_clear = self.int_contr_em_per_order.copy()
-            self.int_contr_em_clear           = self.int_contr_em.copy()
-            self.int_opa_cloud_clear          = self.int_opa_cloud.copy()
-
-            # Revert the object to the cloudy column
-            self.add_clouds()
-
-            # Combine the clear and cloudy columns
-            m_spec.flux = self.cloud_fraction * m_spec.flux + \
-                (1-self.cloud_fraction) * m_spec_clear.flux
-            
-            self.flux_pRT_grid = [
-                self.cloud_fraction * f_cloudy_i + (1-self.cloud_fraction) * f_clear_i \
-                for f_clear_i, f_cloudy_i in zip(self.flux_pRT_grid, flux_pRT_grid_cloudy)
-                ]
-        '''
 
         return m_spec
 
@@ -323,11 +282,23 @@ class pRT_model:
             give_absorption_opacity = self.give_absorption_opacity, 
             contribution = get_contr, 
             )
-        if self.rotation_mode == 'integrate':
-            calc_flux_kwargs['return_per_mu'] = True
-
+        
         for i, atm_i in enumerate(self.atm):
-            
+
+            if self.rotation_mode == 'integrate':
+                if i == 0:
+                    # Update the brightness map
+                    self.Rot.get_brightness(params=self.params)
+
+                # Only compute for the angles in the patch
+                atm_i.mu = self.Rot.unique_mu_included
+                # Equal weights... not a proper Gaussian quadrature integration
+                atm_i.w_gauss_mu = np.ones_like(self.Rot.unique_mu_included) / \
+                    len(self.Rot.unique_mu_included)
+
+                # Return the intensities per incidence angle
+                calc_flux_kwargs['return_per_mu'] = True
+
             # Compute the emission spectrum
             atm_i.calc_flux(**calc_flux_kwargs)
 

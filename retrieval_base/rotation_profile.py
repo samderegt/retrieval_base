@@ -120,7 +120,7 @@ class IntRotationProfile:
                                 y * np.sin(self.c_grid)*np.sin(self.inc)
             )
         
-        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)        
+        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)
         for unique_i, unique_mu_i in enumerate(self.unique_mu):
             self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
 
@@ -197,8 +197,8 @@ class IntRotationProfile:
                 lat_spot = params.get('lat_spot')
 
                 radius_spot  = params.get('radius_spot') # Circle
-                a_spot       = params.get(f'a_spot') # Ellipse
-                b_spot       = params.get(f'b_spot')
+                a_spot       = params.get('a_spot') # Ellipse
+                b_spot       = params.get('b_spot')
 
             no_size = np.all([s_i is None for s_i in [radius_spot,a_spot,b_spot]])
 
@@ -252,6 +252,11 @@ class IntRotationProfile:
             self.included_segments[mask_patch]  = False
             self.included_segments[~mask_patch] = True
 
+        # Update the incidence angles included in this patch
+        self.unique_mu_included = np.unique(
+            self.mu_grid[self.included_segments]
+            )
+
         # Integrate the brightness map
         self.int_brightness = np.sum(self.brightness * self.area_per_segment)
 
@@ -272,7 +277,7 @@ class IntRotationProfile:
                 )
         
         # Flux-scaling grid
-        self.get_brightness(params)
+        #self.get_brightness(params)
 
         if (self.brightness == 0).all():
             return wave, 0*wave
@@ -288,8 +293,11 @@ class IntRotationProfile:
             if not self.included_segments[i]:
                 continue
 
-            idx_mu_i = self.idx_mu[i]
             if flux.ndim > 1:
+                # Select the correct intensity
+                mu_i = self.mu_grid[i]
+                idx_mu_i = (self.unique_mu_included == mu_i)
+                
                 flux_i = flux[idx_mu_i]
             else:
                 flux_i = flux
