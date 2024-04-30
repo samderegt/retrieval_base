@@ -143,18 +143,23 @@ class LogLikelihood:
         phi_ij : 
             Optimal linear scaling factor.
         '''
+
+        if (m_flux_ij.ndim==2) and (m_flux_ij.shape[-1]==1):
+            m_flux_ij = m_flux_ij[:,0]
                 
         # Left-hand side
         lhs = np.dot(m_flux_ij.T, cov_ij.solve(m_flux_ij))
         # Right-hand side
         rhs = np.dot(m_flux_ij.T, cov_ij.solve(d_flux_ij))
-        
+
         # Return the scaled model flux
-        if isinstance(rhs, np.ndarray):
+        if (m_flux_ij.ndim==2):
+            # TODO: Apply prior on linear scaling factors
+            # from scipy.optimize import lsq_linear
             phi_ij = np.linalg.lstsq(lhs, rhs, rcond=None)[0]
         else:
             phi_ij = rhs / lhs
-                
+        
         return np.dot(m_flux_ij, phi_ij), phi_ij
 
     def get_err_scaling(self, chi_squared_ij_scaled, N_ij):

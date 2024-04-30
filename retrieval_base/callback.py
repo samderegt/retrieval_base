@@ -183,6 +183,9 @@ class CallBack:
                 LogLike_i = self.LogLike
                 Cov_i     = self.Cov
 
+            if self.m_spec[m_set] is None:
+                continue
+
             # Plot the CCFs + spectra of species' contributions
             figs.fig_species_contribution(
                 d_spec=self.d_spec[m_set], 
@@ -518,6 +521,10 @@ class CallBack:
             else:
                 LogLike_i = self.LogLike
                 Cov_i = self.Cov
+
+            if self.m_spec[m_set] is None:
+                del LogLike_i, Cov_i
+                continue
 
             # Plot the best-fitting spectrum
             ax_spec[i], ax_res[i] = figs.fig_bestfit_model(

@@ -208,7 +208,8 @@ def pre_processing(conf, conf_data, m_set):
         rv_range=rv_range, 
         vsini_range=vsini_range, 
         rotation_mode=conf.rotation_mode, 
-        inclination=conf.constant_params.get('inclination', 0)
+        inclination=conf.constant_params.get('inclination', 0), 
+        sum_m_spec=conf.sum_m_spec
         )
 
     # Save as pickle
@@ -384,11 +385,17 @@ class Retrieval:
             
         for i, (m_set, Param_i) in enumerate(self.Param.Params_m_set.items()):
 
+            # Retrieve the PT profile and abundances
             returned = self.get_PT_mf(m_set, Param_i)
             if isinstance(returned, float):
                 # PT profile or mass fractions failed
                 return -np.inf
-            
+    
+            if i == 0:
+                # Retrieve the ln L penalty (=0 by default)
+                ln_L_penalty = getattr(self.PT[m_set], 'ln_L_penalty', 0)
+                ln_L += ln_L_penalty
+
             temperature, mass_fractions = returned
 
             # Retrieve the model spectrum
@@ -399,10 +406,6 @@ class Retrieval:
                 get_contr=self.CB.active, 
                 get_full_spectrum=self.evaluation, 
                 )
-            
-            if (self.m_spec[m_set].flux <= 0).any() or (~np.isfinite(self.m_spec[m_set].flux)).any():
-                # Something is wrong in the spectrum
-                return -np.inf
 
             # Update the covariance matrix
             for j in range(self.d_spec[m_set].n_orders):
@@ -421,20 +424,10 @@ class Retrieval:
                             Param_i.params, m_set, order=j, det=k, 
                             **self.conf.cov_kwargs, 
                             )
-                    
-            if i == 0:
-                # Retrieve the ln L penalty (=0 by default)
-                ln_L_penalty = getattr(self.PT[m_set], 'ln_L_penalty', 0)
-                ln_L += ln_L_penalty
-                    
+            
             if self.sum_m_spec:
                 # Spectra need to be combined at this point
                 continue
-
-            if self.d_spec[m_set].high_pass_filtered:
-                # Apply high-pass filter after combining model-settings
-                self.m_spec[m_set].mask_isfinite = self.d_spec[m_set].mask_isfinite
-                self.m_spec[m_set].high_pass_filter(replace_flux_err=True)
 
             # Compute log-likelihood separate for each model-setting
             M = self.m_spec[m_set].flux[:,:,None,:]
@@ -443,52 +436,29 @@ class Retrieval:
             ln_L += self.LogLike[m_set](M, self.Cov[m_set])
 
         if self.sum_m_spec:
-
-            # Two model spectra
-            m_set_1, m_set_2 = list(pRT_atm_to_use.keys())
-
-            #m_spec_combined, m_spec_2 = list(self.m_spec.values())
-            #pRT_atm_combined, pRT_atm_2 = list(pRT_atm_to_use.values())
-
-            cloud_fraction = Param_i.params.get('cloud_fraction')
-
-            if cloud_fraction is None:
-                # Equal contributions (binary)
-                f1 = 1
-                f2 = 1
-            else:
-                # Patchy clouds
-                f1 = cloud_fraction
-                f2 = (1 - cloud_fraction)
-                
-            self.m_spec[m_set_1].flux = \
-                f1*self.m_spec[m_set_1].flux + f2*self.m_spec[m_set_2].flux
-
-            if self.d_spec[m_set_1].high_pass_filtered:
-                # Apply high-pass filter after combining model-settings
-                self.m_spec[m_set_1].mask_isfinite = self.d_spec[m_set_1].mask_isfinite
-                self.m_spec[m_set_1].high_pass_filter(replace_flux_err=True)
-
-            pRT_atm_to_use[m_set_1].flux_pRT_grid = [
-                f1*pRT_atm_to_use[m_set_1].flux_pRT_grid[i] + \
-                f2*pRT_atm_to_use[m_set_2].flux_pRT_grid[i] \
-                for i in range(len(pRT_atm_to_use[m_set_1].flux_pRT_grid))
-            ]
             
-            pRT_atm_to_use[m_set_1].int_contr_em_per_order_cloudy = \
-                pRT_atm_to_use[m_set_1].int_contr_em_per_order.copy()
-            pRT_atm_to_use[m_set_1].int_contr_em_per_order_clear = \
-                pRT_atm_to_use[m_set_2].int_contr_em_per_order.copy()
-            
-            pRT_atm_to_use[m_set_1].int_contr_em_cloudy = \
-                pRT_atm_to_use[m_set_1].int_contr_em.copy()
-            pRT_atm_to_use[m_set_1].int_contr_em_clear = \
-                pRT_atm_to_use[m_set_2].int_contr_em.copy()
-            
-            pRT_atm_to_use[m_set_1].int_opa_cloud_cloudy = \
-                pRT_atm_to_use[m_set_1].int_opa_cloud.copy()
-            pRT_atm_to_use[m_set_1].int_opa_cloud_clear = \
-                pRT_atm_to_use[m_set_2].int_opa_cloud.copy()
+            # Separate the model settings
+            m_set_1, *other_m_set = pRT_atm_to_use.keys()
+
+            # Collect the pRT model wavelengths and fluxes
+            other_pRT_wave, other_pRT_flux = [], []
+            for m_set in other_m_set:
+                other_pRT_wave.append(
+                    pRT_atm_to_use[m_set].pRT_wave
+                )
+                other_pRT_flux.append(
+                    pRT_atm_to_use[m_set].pRT_flux
+                )
+                # Clear up some memory
+                del pRT_atm_to_use[m_set].pRT_wave, pRT_atm_to_use[m_set].pRT_flux
+
+            # Sum the different model settings
+            self.m_spec[m_set_1] = pRT_atm_to_use[m_set_1].combine_models(
+                other_pRT_wave=other_pRT_wave, 
+                other_pRT_flux=other_pRT_flux, 
+                get_contr=self.CB.active, 
+                get_full_spectrum=self.evaluation, 
+                )
 
             # Reshape the model
             M = self.m_spec[m_set_1].flux[:,:,None,:]
@@ -698,10 +668,10 @@ class Retrieval:
             self.PMN_lnL_func()
 
             for m_set in self.Chem.keys():
-                self.m_spec_species[m_set][species_i] = \
-                    copy.deepcopy(self.m_spec[m_set])
-                self.pRT_atm_species[m_set][species_i] = \
-                    copy.deepcopy(self.pRT_atm_broad[m_set])
+                if self.m_spec[m_set] is None:
+                    continue
+                self.m_spec_species[m_set][species_i]  = copy.deepcopy(self.m_spec[m_set])
+                self.pRT_atm_species[m_set][species_i] = copy.deepcopy(self.pRT_atm_broad[m_set])
 
             # Turn all but species_i off
             for m_set in self.Chem.keys():
@@ -716,6 +686,10 @@ class Retrieval:
             self.PMN_lnL_func()
 
             for m_set in self.Chem.keys():
+                if self.m_spec_species[m_set][species_i] is None:
+                    continue
+                if self.m_spec[m_set] is None:
+                    continue
                 self.m_spec_species[m_set][species_i].flux_only = \
                     self.m_spec[m_set].flux.copy()
                 self.pRT_atm_species[m_set][species_i].flux_pRT_grid_only = \
@@ -888,6 +862,8 @@ class Retrieval:
         self.CB.active = False
 
         for m_set in self.conf.config_data.keys():
+            if self.m_spec[m_set] is None:
+                continue
             self.m_spec[m_set].flux_envelope = None
 
         pRT_atm_to_use = self.pRT_atm
@@ -912,7 +888,6 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory on start-up
-        #time.sleep(1.5*rank*len(self.d_spec))
         time.sleep(0.2*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval

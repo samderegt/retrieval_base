@@ -23,6 +23,7 @@ class pRT_model:
                  vsini_range=(10,30), 
                  rotation_mode='convolve', 
                  inclination=0, 
+                 sum_m_spec=False, 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -55,13 +56,15 @@ class pRT_model:
         # Create instance of RotationProfile
         self.rotation_mode = rotation_mode
         self.Rot = get_Rotation_class(mode=self.rotation_mode, inc=inclination)
+        
+        # Instrumental broadening should be applied after summing spectra
+        self.sum_m_spec = sum_m_spec
 
         # Read in attributes of the observed spectrum
         self.d_wave          = d_spec.wave
         self.d_mask_isfinite = d_spec.mask_isfinite
         self.d_resolution    = d_spec.resolution
-        #self.apply_high_pass_filter = d_spec.high_pass_filtered
-        self.apply_high_pass_filter = False
+        self.apply_high_pass_filter = d_spec.high_pass_filtered
         self.w_set = d_spec.w_set
 
         self.line_species = line_species
@@ -259,18 +262,17 @@ class pRT_model:
             Instance of the ModelSpectrum class
         '''
 
-        # Loop over all orders
-        wave = np.ones_like(self.d_wave) * np.nan
-        flux = np.ones_like(self.d_wave) * np.nan
-        
         self.int_contr_em  = np.zeros_like(self.pressure)
         self.int_opa_cloud = np.zeros_like(self.pressure)
-
         self.int_contr_em_per_order = np.zeros((self.d_wave.shape[0], len(self.pressure)))
+        
+        # Convert to arrays
+        self.CCF, self.m_ACF = np.array([]), np.array([])
 
-        self.CCF, self.m_ACF = [], []
-        self.wave_pRT_grid, self.flux_pRT_grid = [], []
+        # List to store the preliminary model
+        self.pRT_wave, self.pRT_flux = [], []
 
+        # pRT settings
         calc_flux_kwargs = dict(
             temp    = self.temperature, 
             abunds  = self.mass_fractions, 
@@ -282,7 +284,8 @@ class pRT_model:
             give_absorption_opacity = self.give_absorption_opacity, 
             contribution = get_contr, 
             )
-        
+
+        # Loop over all orders        
         for i, atm_i in enumerate(self.atm):
 
             if self.rotation_mode == 'integrate':
@@ -290,6 +293,11 @@ class pRT_model:
                     # Update the brightness map
                     self.Rot.get_brightness(params=self.params)
                 
+                if len(self.Rot.unique_mu_included) == 0:
+                    self.pRT_wave.append(np.zeros_like(atm_i.freq))
+                    self.pRT_flux.append(np.zeros_like(atm_i.freq))
+                    continue
+
                 # Only compute for the angles in the patch
                 atm_i.mu = self.Rot.unique_mu_included
                 # Equal weights... not a proper Gaussian quadrature integration
@@ -333,7 +341,64 @@ class pRT_model:
                 (self.params.get('R_p', 1)*nc.r_jup_mean) / \
                 (1e3/self.params['parallax']*nc.pc)
                 )**2
+
+            # Store the model spectrum to be summed or broadened later
+            self.pRT_wave.append(wave_i)
+            self.pRT_flux.append(flux_i)
+
+        m_spec = None
+        if not self.sum_m_spec:
+            # Single model spectrum can be instrumentally broadened
+            m_spec = self.combine_models(
+                get_contr=get_contr, get_full_spectrum=get_full_spectrum, 
+                )
+        
+        return m_spec
+    
+    def combine_models(
+            self, other_pRT_wave=None, other_pRT_flux=None, get_contr=False, get_full_spectrum=False
+            ):
+
+        wave = np.ones_like(self.d_wave) * np.nan
+        flux = np.ones_like(self.d_wave) * np.nan
+
+        self.wave_pRT_grid, self.flux_pRT_grid = [], []
+
+        if isinstance(other_pRT_flux, (tuple, list)):
+
+            cloud_fraction = self.params.get('cloud_fraction')
+            if cloud_fraction is None:
+                # Equal contributions (i.e. binary atmospheres)
+                f = np.ones(len(other_pRT_flux))
+            else:
+                # Patchy clouds (only works for 2 models)
+                f = np.array([(1-cloud_fraction)])
+
+                # Loop over orders
+                self.pRT_flux = [pRT_flux_i*cloud_fraction for pRT_flux_i in self.pRT_flux]
+
+            # Loop over model-settings
+            for f_m_set, pRT_wave_m_set, pRT_flux_m_set in zip(f, other_pRT_wave, other_pRT_flux):
+                
+                # Loop over orders
+                for i in range(len(self.pRT_flux)):
+
+                    if (pRT_flux_m_set[i] != 0).any():
+                        continue
+
+                    # Interpolate onto the wavelengths of 1st model
+                    pRT_flux_m_set_i = np.interp(
+                        self.pRT_wave[i], xp=pRT_wave_m_set[i], fp=pRT_flux_m_set[i]
+                        )    
+                    # Combine the spectra
+                    self.pRT_flux[i] += f_m_set*pRT_flux_m_set_i
             
+            # Clear up some memory
+            del other_pRT_wave, other_pRT_flux
+
+        # Loop over orders
+        for i, (wave_i, flux_i) in enumerate(zip(self.pRT_wave, self.pRT_flux)):
+
             # Create a ModelSpectrum instance
             m_spec_i = ModelSpectrum(
                 wave=wave_i, flux=flux_i, 
@@ -354,20 +419,15 @@ class pRT_model:
 
             # Rebin onto the data's wavelength grid
             m_spec_i.rebin(d_wave=self.d_wave[i,:], replace_wave_flux=True)
-            #m_spec_i.mask_isfinite = self.d_mask_isfinite
 
-            if self.apply_high_pass_filter:
-                # High-pass filter the model spectrum
-                m_spec_i.high_pass_filter(replace_flux_err=True)
-
+            # Store the instrumentally-broadened and rebinned model
             wave[i,:,:] = m_spec_i.wave
             flux[i,:,:] = m_spec_i.flux
-            
-            if get_contr:
 
+            if get_contr:
                 # Integrate the emission contribution function and cloud opacity
-                self.get_integrated_contr_em_and_opa_cloud(
-                    atm_i, m_wave_i=wave_i, 
+                self.get_contr_em_and_opa_cloud(
+                    self.atm[i], m_wave_i=wave_i, 
                     d_wave_i=self.d_wave[i,:], 
                     d_mask_i=self.d_mask_isfinite[i], 
                     m_spec_i=m_spec_i, 
@@ -376,31 +436,27 @@ class pRT_model:
 
         # Create a new ModelSpectrum instance with all orders
         m_spec = ModelSpectrum(
-            wave=wave, 
-            flux=flux, 
+            wave=wave, flux=flux, 
             lbl_opacity_sampling=self.lbl_opacity_sampling, 
             multiple_orders=True, 
             high_pass_filtered=self.apply_high_pass_filter, 
             )
+        
+        # Adopt the pixel masking
+        m_spec.mask_isfinite = self.d_mask_isfinite
 
-        # Convert to arrays
-        self.CCF, self.m_ACF = np.array(self.CCF), np.array(self.m_ACF)
-        #self.wave_pRT_grid = np.array(self.wave_pRT_grid)
-        #self.flux_pRT_grid = np.array(self.flux_pRT_grid)
+        if self.apply_high_pass_filter:
+            # High-pass filter the model spectrum
+            m_spec.high_pass_filter(replace_flux_err=True)
 
-        # Save memory, same attributes in DataSpectrum
+        # Clear up some memory, same attributes in DataSpectrum
         del m_spec.wave, m_spec.mask_isfinite
 
         return m_spec
 
-    def get_integrated_contr_em_and_opa_cloud(self, 
-                                              atm_i, 
-                                              m_wave_i, 
-                                              d_wave_i, 
-                                              d_mask_i, 
-                                              m_spec_i, 
-                                              order
-                                              ):
+    def get_contr_em_and_opa_cloud(
+            self, atm_i, m_wave_i, d_wave_i, d_mask_i, m_spec_i, order
+            ):
         
         # Get the emission contribution function
         contr_em_i = atm_i.contr_em
