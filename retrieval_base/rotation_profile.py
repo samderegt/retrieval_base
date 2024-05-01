@@ -245,10 +245,10 @@ class IntRotationProfile:
                 # Scale the brightness
                 self.brightness[mask_patch] *= epsilon_spot
 
-        if params.get('is_within_band') or params.get('is_within_patch'):
+        if params.get('is_within_patch'):
             self.included_segments[mask_patch]  = True
             self.included_segments[~mask_patch] = False
-        if params.get('is_outside_band') or params.get('is_outside_patch'):
+        if params.get('is_outside_patch'):
             self.included_segments[mask_patch]  = False
             self.included_segments[~mask_patch] = True
 

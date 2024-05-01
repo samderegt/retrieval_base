@@ -264,7 +264,8 @@ class pRT_model:
 
         self.int_contr_em  = np.zeros_like(self.pressure)
         self.int_opa_cloud = np.zeros_like(self.pressure)
-        self.int_contr_em_per_order = np.zeros((self.d_wave.shape[0], len(self.pressure)))
+        self.int_contr_em_per_order = \
+            np.zeros((self.d_wave.shape[0], len(self.pressure)))
         
         # Convert to arrays
         self.CCF, self.m_ACF = np.array([]), np.array([])
@@ -356,7 +357,8 @@ class pRT_model:
         return m_spec
     
     def combine_models(
-            self, other_pRT_wave=None, other_pRT_flux=None, get_contr=False, get_full_spectrum=False
+            self, other_pRT_wave=None, other_pRT_flux=None, 
+            get_contr=False, get_full_spectrum=False
             ):
 
         wave = np.ones_like(self.d_wave) * np.nan
@@ -375,21 +377,27 @@ class pRT_model:
                 f = np.array([(1-cloud_fraction)])
 
                 # Loop over orders
-                self.pRT_flux = [pRT_flux_i*cloud_fraction for pRT_flux_i in self.pRT_flux]
+                self.pRT_flux = [
+                    pRT_flux_i*cloud_fraction for pRT_flux_i in self.pRT_flux
+                    ]
 
             # Loop over model-settings
-            for f_m_set, pRT_wave_m_set, pRT_flux_m_set in zip(f, other_pRT_wave, other_pRT_flux):
+            for f_m_set, pRT_wave_m_set, pRT_flux_m_set in \
+                zip(f, other_pRT_wave, other_pRT_flux):
                 
                 # Loop over orders
                 for i in range(len(self.pRT_flux)):
 
-                    if (pRT_flux_m_set[i] != 0).any():
+                    if (pRT_flux_m_set[i] == 0).all():
                         continue
 
                     # Interpolate onto the wavelengths of 1st model
+                    mask = np.isfinite(pRT_flux_m_set[i])
                     pRT_flux_m_set_i = np.interp(
-                        self.pRT_wave[i], xp=pRT_wave_m_set[i], fp=pRT_flux_m_set[i]
-                        )    
+                        self.pRT_wave[i], 
+                        xp=pRT_wave_m_set[i][mask], fp=pRT_flux_m_set[i][mask], 
+                        left=np.nan, right=np.nan
+                        )
                     # Combine the spectra
                     self.pRT_flux[i] += f_m_set*pRT_flux_m_set_i
             
