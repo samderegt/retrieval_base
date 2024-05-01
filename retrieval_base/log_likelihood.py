@@ -60,6 +60,10 @@ class LogLikelihood:
                 d_flux_ij = self.d_flux[i,j,mask_ij]
                 M_ij = M[i,j,:,mask_ij]
 
+                if (M_ij.shape[-1] == 1):
+                    # Only a planet model is included
+                    M_ij = M_ij[:,0]
+
                 if Cov[i,j].is_matrix:
                     # Retrieve a Cholesky decomposition
                     Cov[i,j].get_cholesky()
@@ -144,9 +148,6 @@ class LogLikelihood:
             Optimal linear scaling factor.
         '''
 
-        if (m_flux_ij.ndim==2) and (m_flux_ij.shape[-1]==1):
-            m_flux_ij = m_flux_ij[:,0]
-                
         # Left-hand side
         lhs = np.dot(m_flux_ij.T, cov_ij.solve(m_flux_ij))
         # Right-hand side
