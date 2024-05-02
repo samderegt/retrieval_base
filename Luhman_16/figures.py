@@ -66,7 +66,7 @@ def plot_map(ax, attr, Rot, cax=None, **kwargs):
 
         r_i = np.array([
             np.sin(Rot.unique_c[i] - (np.pi/2)/Rot.n_c/2), 
-            np.sin(Rot.unique_c[i] + (np.pi/2)/Rot.n_c/2)*2, 
+            np.sin(Rot.unique_c[i] + (np.pi/2)/Rot.n_c/2*2), 
             ])
 
         zz_shape = (len(r_i)-1,len(th_i)-1)
@@ -114,19 +114,27 @@ def set_axis(ax, Rot, sep_spine_lw=None, grid=True):
     ax.axvline(ax.get_xlim()[0], lw=sep_spine_lw+0.8*2, c='k')
     ax.axvline(ax.get_xlim()[1], lw=sep_spine_lw+0.8*2, c='k')
 
-def set_cb_axis(cax, theta_lim, cmap, r_origin=-14):
+def set_cb_axis(cax, theta_lim, cmap, N=256, r_origin=-14):
 
-    norm = mpl.colors.Normalize(*theta_lim)
-    cb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation='horizontal')
-    cb.outline.set_visible(False)
+    Z = np.linspace(0,1+1e-6,N).reshape(-1,1).T
+    gradient_kwargs = dict(
+        cmap=cmap, vmin=0, vmax=1, shading='auto', zorder=-1, edgecolors='face', lw=1e-6
+        )
+    print(Z.shape)
+    X = np.linspace(theta_lim[0],theta_lim[1],N)
+    
+    Y = np.array([np.zeros(N),np.ones(N)])
+
+    Z = np.array([Z[0],Z[0]])
+    X = np.array([X,X])
+
+    cax.pcolormesh(X, Y, Z, transform=cax.get_xaxis_transform(), **gradient_kwargs)
 
     cax.spines['polar'].set_visible(True)
-    cax.set_rlim(0,1)
+    cax.set(xlim=theta_lim, ylim=(0,1), yticks=[])
     cax.set_rorigin(r_origin)
     cax.tick_params(top=True, bottom=False)
     cax.grid(False)
-
-    return cb
 
 def label_cb_axis(cax, ticks, val_range, label, annotate_kwargs):
 
