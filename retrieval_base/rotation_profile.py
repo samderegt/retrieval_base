@@ -148,13 +148,7 @@ class IntRotationProfile:
 
             # Change the flux between some latitudes
             mask_patch = (np.abs(self.lat_grid) < lat_band)
-
-            if epsilon_band < 0:
-                # Dark band on equator
-                self.brightness[mask_patch] *= (1 - np.abs(epsilon_band))
-            else:
-                # Bright band on equator
-                self.brightness[~mask_patch] *= (1 - epsilon_band)
+            self.brightness[mask_patch] *= epsilon_band
 
         if (params.get('lon_band') is not None) and \
             (params.get('lon_band_width') is not None):
