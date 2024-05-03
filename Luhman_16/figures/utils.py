@@ -15,6 +15,11 @@ def get_cmap(colors=['#4A0C0C','#fff0e6']):
     cmap.set_bad('w'); cmap.set_over('w'); cmap.set_under('k')
     return cmap
 
+def get_color(
+        idx, colors=['#580062','#006909','#c12d2d','#5588D0','#e1a722']
+        ):
+    return colors[idx]
+
 def high_pass_filter(flux):
     # Apply Savitzky-Golay filter to remove broad structure
     from scipy.signal import savgol_filter
@@ -34,11 +39,14 @@ def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
 
 class RetrievalResults:
     
-    def __init__(self, prefix, m_set='K2166_cloudy', w_set='K2166'):
+    def __init__(self, prefix, m_set='K2166_cloudy', w_set='K2166', low_memory=True):
 
         self.prefix = prefix
         self.m_set  = m_set
         self.w_set  = w_set
+
+        # Remove attributes after running functions
+        self.low_memory = low_memory
 
         self.n_params = self.load_object('LogLike').N_params
             
@@ -74,8 +82,8 @@ class RetrievalResults:
         _p = np.real(np.exp(W((-1.0/(_B*np.exp(1))),-1)))
         _sigma = np.sqrt(2)*erfcinv(_p)
 
-        print('Current vs. given: lnB={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
-        print('Given vs. current: lnB={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
+        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
+        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
         return B, sigma
 
     def load_object(self, name, bestfit_prefix=True):
@@ -157,6 +165,9 @@ class RetrievalResults:
         # Rotation model
         Rot = copy.copy(pRT_atm.Rot)
 
+        if self.low_memory:
+            del self.Chem, self.PT
+
         return wave_pRT_grid, flux_pRT_grid, Rot
     
     def add_patch_to_Rot(self, Rot, Rot_spot):
@@ -228,6 +239,9 @@ class RetrievalResults:
                     )
         
         CCF_SNR = convert_CCF_to_SNR(rv, CCF.sum(axis=(1,2)), **kwargs)
+
+        if self.low_memory:
+            del self.d_spec, self.Cov, self.LogLike
 
         return rv, CCF, CCF_SNR
 
@@ -523,11 +537,28 @@ class CrossCorrPlot:
 
     def configure_ax(
             self, xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$', 
-            ylabel=None, xlim=(-120,120), ylim=(-6,6)
+            ylabel=None, xlim=(-120,120), ylim=(-6,6), plot_axvline=True
             ):
 
         self.ax.set(xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim)
         
-        self.ax.axvline(0, ymin=0, ymax=1, c='k', lw=0.8, zorder=-1)
         self.ax.spines[['right','top']].set_visible(False)
+        self.ax.set_facecolor('none')
+
+        if plot_axvline:
+            self.ax.axvline(0, ymin=0, ymax=1, c='k', lw=0.8, zorder=-1)
+
+    def add_xtick_at_vsini(self, length=0.08, return_ticks=False, **kwargs):
         
+        ylim = self.ax.get_ylim()
+        h = np.abs(ylim[1] - ylim[0])
+        
+        y = np.array([ylim[0]-h*length/2, ylim[0]+h*length/2])
+        if (self.ax.spines['bottom'].get_position() == 'zero'):
+            y = np.array([0-h*length/2, 0+h*length/2])
+
+        if return_ticks:
+            return y
+        
+        self.ax.plot([-self.vsini]*2, y, c='k', clip_on=False, **kwargs)
+        self.ax.plot([+self.vsini]*2, y, c='k', clip_on=False, **kwargs)
