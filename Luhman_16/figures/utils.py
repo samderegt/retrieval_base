@@ -10,6 +10,11 @@ import petitRADTRANS.nat_cst as nc
 from tqdm import tqdm
 import copy
 
+def get_cmap(colors=['#4A0C0C','#fff0e6']):
+    cmap = mpl.colors.LinearSegmentedColormap.from_list('cmap', colors)
+    cmap.set_bad('w'); cmap.set_over('w'); cmap.set_under('k')
+    return cmap
+
 def high_pass_filter(flux):
     # Apply Savitzky-Golay filter to remove broad structure
     from scipy.signal import savgol_filter
@@ -26,7 +31,6 @@ def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
     std_CCF  = np.std(CCF[rv_mask])
 
     return (CCF - mean_CCF) / std_CCF
-
 
 class RetrievalResults:
     
@@ -449,45 +453,81 @@ class SpherePlot:
         ax.set_position(
             [l+xy_offset[0], b+xy_offset[1], w, h]
             )
+        
+class CrossCorrPlot:
+    
+    def __init__(self, fig, ax, cmap='RdBu_r', vsini=0):
 
-"""
-def read_results(prefix, n_params, m_set='K2166_cloudy', w_set='K2166'):
+        self.fig = fig
+        self.ax  = ax
 
-    # Set-up analyzer object
-    analyzer = pymultinest.Analyzer(
-        n_params=n_params, 
-        outputfiles_basename=prefix
-        )
-    stats = analyzer.get_stats()
-    ln_Z = stats['nested importance sampling global log-evidence']
+        self.cmap = cmap
+        self.vsini = vsini
 
-    # Load the equally-weighted posterior distribution
-    posterior = analyzer.get_equal_weighted_posterior()
-    posterior = posterior[:,:-1]
+    def colorbar(self, h=0.03):
 
-    # Read the parameters of the best-fitting model
-    bestfit = np.array(stats['modes'][0]['maximum a posterior'])
+        ylim = self.ax.get_ylim()
 
-    PT = af.pickle_load(prefix+f'data/bestfit_PT_{m_set}.pkl')
-    Chem = af.pickle_load(prefix+f'data/bestfit_Chem_{m_set}.pkl')
+        # Plot a colorbar at the bottom of the axis
+        Z = np.linspace(0,1+1e-6,50).reshape(-1,1).T
+        self.ax.imshow(
+            Z, extent=[-self.vsini,self.vsini,0,h], origin='lower', 
+            aspect='auto', transform=self.ax.get_xaxis_transform(), 
+            zorder=-2, cmap=self.cmap, vmin=0, vmax=1, 
+            )
+        
+        self.ax.set(ylim=ylim)
+        
+    def multicolor(self, rv, CCF, lw, **kwargs):
 
-    m_spec = af.pickle_load(prefix+f'data/bestfit_m_spec_{m_set}.pkl')
-    d_spec = af.pickle_load(prefix+f'data/d_spec_{w_set}.pkl')
+        points = np.array([rv, CCF]).T[:,None,:]
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        
+        # Create a continuous norm to map from data points to colors
+        norm = plt.Normalize(vmin=-self.vsini, vmax=self.vsini)
+        lc = mpl.collections.LineCollection(
+            segments, norm=norm, cmap=self.cmap, capstyle='round', lw=lw
+            )
+        
+        # Set the values used for colormapping
+        lc.set_array(rv)
+        self.ax.add_collection(lc)
 
-    try:
-        LogLike = af.pickle_load(prefix+f'data/bestfit_LogLike_{m_set}.pkl')
-        Cov = af.pickle_load(prefix+f'data/bestfit_Cov_{m_set}.pkl')
-    except FileNotFoundError:
-        LogLike = af.pickle_load(prefix+f'data/bestfit_LogLike.pkl')
-        Cov = af.pickle_load(prefix+f'data/bestfit_Cov.pkl')
+    def plot(
+            self, rv, CCF, CCF_other=None, plot_colorbar=False, plot_multicolor=True, **kwargs
+            ):
 
-    int_contr_em           = np.load(prefix+f'data/bestfit_int_contr_em_{m_set}.npy')
-    int_contr_em_per_order = np.load(prefix+f'data/bestfit_int_contr_em_per_order_{m_set}.npy')
-    int_opa_cloud          = np.load(prefix+f'data/bestfit_int_opa_cloud_{m_set}.npy')
+        self.ax.plot(rv, CCF, **kwargs)
 
-    f = open(prefix+'data/bestfit.json')
-    bestfit_params = json.load(f)
-    f.close()
+        new_kwargs = kwargs.copy()
 
-    return ln_Z, posterior, bestfit, PT, Chem, int_contr_em, int_contr_em_per_order, int_opa_cloud, m_spec, d_spec, LogLike, Cov, bestfit_params
-"""
+        if plot_multicolor:
+            # Plot a multi-colored line
+            rv_mask = (np.abs(rv) < self.vsini)
+            new_kwargs['lw'] = kwargs['lw']*4/3
+            self.ax.plot(
+                rv[rv_mask], CCF[rv_mask], solid_capstyle='round', **new_kwargs
+                )
+            
+            new_kwargs['lw'] = kwargs['lw']*1.7/3           
+            self.multicolor(rv[rv_mask], CCF[rv_mask], **new_kwargs)
+
+        if CCF_other is not None:
+            new_kwargs['lw']    = kwargs['lw']*1/2
+            new_kwargs['alpha'] = 0.3
+            self.ax.plot(rv, CCF_other, **new_kwargs, zorder=-1)
+
+        if plot_colorbar:
+            # Colorbar at the bottom of the axis
+            self.colorbar()
+
+    def configure_ax(
+            self, xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$', 
+            ylabel=None, xlim=(-120,120), ylim=(-6,6)
+            ):
+
+        self.ax.set(xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim)
+        
+        self.ax.axvline(0, ymin=0, ymax=1, c='k', lw=0.8, zorder=-1)
+        self.ax.spines[['right','top']].set_visible(False)
+        
