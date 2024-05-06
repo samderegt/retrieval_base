@@ -56,7 +56,8 @@ class RetrievalResults:
             n_params=self.n_params, outputfiles_basename=prefix
             )
         stats = analyzer.get_stats()
-        self.ln_Z = stats['nested importance sampling global log-evidence']
+        #self.ln_Z = stats['nested importance sampling global log-evidence']
+        self.ln_Z = stats['nested sampling global log-evidence']
 
         # Read the parameters of the best-fitting model
         self.bestfit_values = np.array(stats['modes'][0]['maximum a posterior'])
@@ -365,7 +366,8 @@ class SpherePlot:
         if label is not None:
             # Add a label to the axis
             self.cax.annotate(
-                label, xy=(0.5,3.5*scale), xycoords=self.cax.get_yaxis_transform(), 
+                label, xy=(0.5,3.8*scale), #xy=(0.5,3.5*scale), 
+                xycoords=self.cax.get_yaxis_transform(), 
                 ha='center', va='center'
                 )
             

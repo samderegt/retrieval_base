@@ -5,6 +5,7 @@ ATMO_2020_models/
 */data/
 */retrieval_outputs/
 */plots/
+*/*/plots/
 */logs/
 
 transm_curves.pk
