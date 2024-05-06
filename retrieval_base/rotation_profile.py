@@ -24,7 +24,7 @@ class ConvRotationProfile:
         epsilon_limb = params.get('epsilon_limb', 0)
         vsini = params.get('vsini', 0)
 
-        if vsini == 0:
+        if (vsini == 0) or (epsilon_limb == 0):
             return wave_even, flux_even
 
         # Rotational broadening of the model spectrum

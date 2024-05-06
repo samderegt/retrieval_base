@@ -2,10 +2,10 @@
 
 # Number of mpi-processes to start, 
 # check that this number is un-occupied with htop
-export NTASKS=85
+export NTASKS=80
 
 # Settings you want to use
-config_file=config
+config_file=config_LSPM
 
 echo "Number of tasks $NTASKS"
 echo "Starting Python script"
@@ -28,7 +28,7 @@ sed -i "s/import ${config_file} as conf/import config as conf/g" retrieval_scrip
 echo "Done"
 
 # To save the terminal output, run this script as:
-# sh lem_job_script.sh >& logs/some_name.out &
+# nohup sh lem_job_script.sh >& logs/some_name.out &
 
 # Terminal output can be checked via e.g.:
 # tail -200 logs/some_name.out

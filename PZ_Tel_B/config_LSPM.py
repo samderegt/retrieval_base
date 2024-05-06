@@ -1,13 +1,13 @@
 import numpy as np
 
-file_params = 'config.py' # A copy of this file is made
+file_params = 'config_LSPM.py' # A copy of this file is made
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'ret_1'
+prefix = 'LSPM_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
@@ -18,30 +18,30 @@ config_data = dict(
         'wave_range': (2300, 2400), 
 
         # Data filenames
-        'file_target': './data/Luhman_16B_K.dat', 
-        'file_std': './data/Luhman_16_std_K.dat', 
-        #'file_wave': './data/Luhman_16_std_K.dat', # Use std-observation wlen-solution
-        'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', # Use molecfit wlen-solution
+        'file_target': './data/LSPM_J0036_K.dat', 
+        'file_std': './data/LSPM_J0036_std_K.dat', 
+        #'file_wave': './data/LSPM_J0036_std_K.dat', # Use std-observation wlen-solution
+        'file_wave': './data/LSPM_J0036_std_K_molecfit_transm.dat', # Use molecfit wlen-solution
     
         # Telluric transmission
         'file_skycalc_transm': './data/skycalc_transm_K2166.dat', 
-        'file_molecfit_transm': './data/Luhman_16B_K_molecfit_transm.dat', 
-        'file_std_molecfit_transm': './data/Luhman_16_std_K_molecfit_transm.dat', 
-        'file_std_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat', # Continuum fit by molecfit
+        'file_molecfit_transm': './data/LSPM_J0036_K_molecfit_transm.dat', 
+        'file_std_molecfit_transm': './data/LSPM_J0036_std_K_molecfit_transm.dat', 
+        'file_std_molecfit_continuum': './data/LSPM_J0036_std_K_molecfit_continuum.dat', # Continuum fit by molecfit
 
         'filter_2MASS': '2MASS/2MASS.Ks', # Magnitude used for flux-calibration
         
-        'pwv': 1.5, # Precipitable water vapour
+        'pwv': 2.5, # Precipitable water vapour
 
         # Telescope-pointing, used for barycentric velocity-correction
-        'ra': 162.297895, 'dec': -53.31703, 'mjd': 59946.32563173, 
-        'ra_std': 161.739683, 'dec_std': -56.75788, 'mjd_std': 59946.31615474, 
+        'ra': 9.073374, 'dec': 18.35260, 'mjd': 59888.11823169,
+        'ra_std': 9.196928, 'dec_std': 15.23084, 'mjd_std': 59888.07684836, 
 
         # Some info on standard-observation
-        'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
+        'T_std': 19000, 'log_g_std': 2.3, 'rv_std': -8.00, 'vsini_std': 40, 
         
         # Slit-width, sets model resolution
-        'slit': 'w_0.4', 
+        'slit': 'w_0.2', 
 
         # Down-sample opacities for faster radiative transfer
         'lbl_opacity_sampling': 3, 
@@ -58,8 +58,8 @@ config_data = dict(
 
 # Magnitudes used for flux-calibration
 magnitudes = {
-    '2MASS/2MASS.J': (11.22, 0.04), # Burgasser et al. (2013)
-    '2MASS/2MASS.Ks': (9.73, 0.09), 
+    '2MASS/2MASS.J': (12.466, 0.027), # Cutri et al. (2003)
+    '2MASS/2MASS.Ks': (11.058, 0.021), 
 }
 
 ####################################################################################
@@ -74,18 +74,20 @@ free_params = {
     #'log_l': [(-2.5,-1.2), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    #'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.,6.), r'$\log\ g$'], 
-    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(20.,30.), r'$v\ \sin\ i$'], 
-    'rv': [(15.,25.), r'$v_\mathrm{rad}$'], 
+    'rv': [(5.,35.), r'$v_\mathrm{rad}$'], 
+    
+    # Rotation profile
+    'vsini': [(20.,50.), r'$v\ \sin\ i$'], 
+    'epsilon_limb': [(0.,1.), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10.,5.), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-5.,3.), r'$\log\ P_{\mathrm{cl},0}$'], 
-    'f_sed_gray': [(0.,20.), r'$f_\mathrm{sed}$'], 
+    #'log_opa_base_gray': [(-10.,5.), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    #'log_P_base_gray': [(-5.,3.), r'$\log\ P_{\mathrm{cl},0}$'], 
+    #'f_sed_gray': [(0.,20.), r'$f_\mathrm{sed}$'], 
 
     # Chemistry
     'log_H2O':     [(-12.,-2.), r'$\log\ \mathrm{H_2O}$'],
@@ -126,12 +128,15 @@ constant_params = {
 
 sum_m_spec = False
 
-scale_flux = False
+#scale_flux = False
+scale_flux = True
 scale_err  = True
-apply_high_pass_filter = True
+#apply_high_pass_filter = True
+apply_high_pass_filter = False
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
+    #'cloud_mode': 'gray', 
+    'cloud_mode': None, 
 }
 
 rotation_mode = 'convolve'
@@ -200,5 +205,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
+n_live_points = 50
 n_iter_before_update = 100
