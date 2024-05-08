@@ -291,12 +291,11 @@ class pRT_model:
 
             if self.rotation_mode == 'integrate':
                 if i == 0:
-                    if self.params.get('inclination', 0) != self.Rot.inc:
+                    new_inc = self.params.get('inclination', 0)
+                    if new_inc != np.rad2deg(self.Rot.inc):
                         # Update the inclination and lat/lon-coords
-                        self.Rot.inc = self.params.get('inclination', 0)
+                        self.Rot.inc = np.deg2rad(new_inc)
                         self.Rot.get_latlon()
-
-                        print(self.Rot.inc)
 
                     # Update the brightness map
                     self.Rot.get_brightness(params=self.params)

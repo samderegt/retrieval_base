@@ -119,6 +119,11 @@ class IntRotationProfile:
         self.get_latlon()
 
     def get_latlon(self):
+
+        if not hasattr(self, 'x_grid'):
+            # 2D cartesian coordinates
+            self.x_grid = self.r_grid * np.sin(self.theta_grid)
+            self.y_grid = self.r_grid * np.cos(self.theta_grid)
         
         # Latitudes + longitudes
         self.lat_grid = np.arcsin(
