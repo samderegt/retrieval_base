@@ -105,24 +105,31 @@ class IntRotationProfile:
         self.area_per_segment = np.array(self.area_per_segment)
         self.disk_area_tot    = np.sum(self.area_per_segment)
 
-        # 2D cartesian coordinates
-        x = self.r_grid * np.sin(self.theta_grid)
-        y = self.r_grid * np.cos(self.theta_grid)
         self.c_grid = np.arccos(self.mu_grid) # Angular distance
+        
+        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)
+        for unique_i, unique_mu_i in enumerate(self.unique_mu):
+            self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
 
+        # 2D cartesian coordinates
+        self.x_grid = self.r_grid * np.sin(self.theta_grid)
+        self.y_grid = self.r_grid * np.cos(self.theta_grid)
+
+        # Get the latitude and longitude coordinates
+        self.get_latlon()
+
+    def get_latlon(self):
+        
         # Latitudes + longitudes
         self.lat_grid = np.arcsin(
             np.cos(self.c_grid)*np.sin(self.inc) + \
             np.cos(self.theta_grid)*np.sin(self.c_grid)*np.cos(self.inc)
             )
         self.lon_grid = self.lon_0 + np.arctan2(
-            x*np.sin(self.c_grid), self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
-                                y * np.sin(self.c_grid)*np.sin(self.inc)
+            self.x_grid*np.sin(self.c_grid), 
+            self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
+                self.y_grid * np.sin(self.c_grid)*np.sin(self.inc)
             )
-        
-        self.idx_mu = np.zeros_like(self.mu_grid, dtype=int)
-        for unique_i, unique_mu_i in enumerate(self.unique_mu):
-            self.idx_mu[(self.mu_grid==unique_mu_i)] = unique_i
 
     def get_brightness(self, params, N_spot_max=5):
         
@@ -170,6 +177,31 @@ class IntRotationProfile:
             elif lon_band_lower < -np.pi:
                 mask_patch = (self.lon_grid >= lon_band_lower+2*np.pi) | \
                     (self.lon_grid <= lon_band_upper)
+
+        if (params.get('r_spot') is not None) and \
+            (params.get('theta_spot') is not None):
+
+            # Add a spot in polar/Cartesian coordinates
+            r_spot      = params.get('r_spot')
+            theta_spot  = np.deg2rad(params.get('theta_spot'))
+            radius_spot = params.get('radius_spot')
+
+            epsilon_spot = params.get('epsilon_spot')
+
+            # Ensure that entire spot is on the disk
+            r_spot = (1 - radius_spot) * r_spot
+
+            # Cartesian coordinates
+            x_spot = r_spot * np.sin(theta_spot)
+            y_spot = r_spot * np.cos(theta_spot)
+
+            distance_from_spot = (
+                (self.x_grid - x_spot)**2 + (self.y_grid - y_spot)**2
+                )**(1/2)
+            mask_patch = (distance_from_spot <= radius_spot)
+
+            # Change the flux at the spot
+            self.brightness[mask_patch] *= epsilon_spot
 
         # Loop over multiple spots
         for i in range(N_spot_max):
