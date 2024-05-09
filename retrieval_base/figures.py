@@ -419,7 +419,7 @@ def fig_PT(PT,
     max_int_contr_em = -np.inf
     for i, (m_set, PT_i) in enumerate(PT.items()):
         
-        ls = ['-', '--'][i]
+        ls = ['-', '--', ':'][i]
 
         if PT_i.temperature_envelopes is not None:
             # Plot the PT confidence envelopes and median profile

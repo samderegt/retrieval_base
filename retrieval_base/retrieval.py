@@ -434,7 +434,7 @@ class Retrieval:
 
             # Retrieve the log-likelihood
             ln_L += self.LogLike[m_set](M, self.Cov[m_set])
-
+        
         if self.sum_m_spec:
             
             # Separate the model settings
@@ -888,7 +888,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory on start-up
-        time.sleep(0.2*rank*len(self.d_spec))
+        time.sleep(0.1*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval
         #pymultinest.solve(

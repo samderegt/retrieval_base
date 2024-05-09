@@ -135,8 +135,113 @@ class IntRotationProfile:
             self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
                 self.y_grid * np.sin(self.c_grid)*np.sin(self.inc)
             )
+        
+    def _add_latitudinal_band(self, params):
 
-    def get_brightness(self, params, N_spot_max=5):
+        lat_band_0   = np.deg2rad(params.get('lat_band_0', 0))
+        lat_band     = np.deg2rad(params.get('lat_band'))
+        epsilon_band = params.get('epsilon_band', 1)
+
+        # Add a band at some latitude
+        mask_band = (self.lat_grid < lat_band_0 + lat_band) & \
+            (self.lat_grid > lat_band_0 - lat_band)
+    
+        if epsilon_band < 0:
+            epsilon_band = 1 + epsilon_band
+
+        # Change the flux between some latitudes
+        self.brightness[mask_band] *= epsilon_band
+
+        if params.get('is_in_band'):
+            # Ignore segments outside of band
+            self.included_segments[~mask_band] = False
+        if params.get('is_not_in_band'):
+            # Ignore segments inside band 
+            self.included_segments[mask_band] = False
+
+    def _add_projected_spot(self, params):
+
+        # Add a spot in polar/Cartesian coordinates
+        r_spot      = params.get('r_spot')
+        theta_spot  = np.deg2rad(params.get('theta_spot'))
+        radius_spot = params.get('radius_spot')
+
+        epsilon_spot = params.get('epsilon_spot', 1)
+
+        # Ensure that entire spot is on the disk
+        r_spot = (1 - radius_spot) * r_spot
+
+        # Cartesian coordinates
+        x_spot = r_spot * np.sin(theta_spot)
+        y_spot = r_spot * np.cos(theta_spot)
+
+        distance_from_spot = (
+            (self.x_grid - x_spot)**2 + (self.y_grid - y_spot)**2
+            )**(1/2)
+        mask_spot = (distance_from_spot <= radius_spot)
+
+        # Change the flux at the spot
+        self.brightness[mask_spot] *= epsilon_spot
+
+        if params.get('is_in_spot') or params.get('is_within_patch'):
+            # Ignore segments outside of spot
+            self.included_segments[mask_spot]  = True
+            self.included_segments[~mask_spot] = False
+        if params.get('is_not_in_spot') or params.get('is_outside_patch'):
+            # Ignore segments inside spot
+            self.included_segments[mask_spot] = False
+
+    def _add_latlon_spot(self, params):
+        
+        # Revert to a single spot
+        epsilon_spot = params.get('epsilon_spot', 1)
+
+        lat_spot = np.deg2rad(params.get('lat_spot'))
+        lon_spot = np.deg2rad(params.get('lon_spot'))
+
+        if params.get('radius_spot') is not None:
+            # Add a circular spot
+            radius_spot = np.deg2rad(radius_spot)
+
+            # Haversine formula
+            distance_from_spot = 2 * np.arcsin((1/2*(
+                1 - np.cos(self.lat_grid - lat_spot) + \
+                np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
+                ))**(1/2))
+            mask_spot = (distance_from_spot <= radius_spot)
+
+        else:
+            # Add an elliptical spot
+            a_spot = np.deg2rad(params.get('a_spot'))
+            b_spot = np.deg2rad(params.get('b_spot'))
+
+            # Use simple Cartesian? coordinates, results in changing
+            # spot-size with changing latitude
+            distance_lon = np.abs(self.lon_grid - lon_spot)
+            # Make longitude-distance continuous
+            mask_invalid = (distance_lon > np.pi)
+            distance_lon[mask_invalid] = np.pi - distance_lon[mask_invalid] % np.pi
+
+            # Latitude-distance
+            distance_lat = np.abs(self.lat_grid - lat_spot)
+
+            # Ellipse equation
+            mask_spot = (
+                (distance_lon/a_spot)**2 + (distance_lat/b_spot)**2 <= 1
+                )
+
+        # Scale the brightness
+        self.brightness[mask_spot] *= epsilon_spot
+
+        if params.get('is_in_spot') or params.get('is_within_patch'):
+            # Ignore segments outside of spot
+            self.included_segments[mask_spot]  = True
+            self.included_segments[~mask_spot] = False
+        if params.get('is_not_in_spot') or params.get('is_outside_patch'):
+            # Ignore segments inside spot
+            self.included_segments[mask_spot] = False
+
+    def get_brightness(self, params):
         
         self.brightness        = np.ones_like(self.r_grid)
         self.included_segments = np.ones_like(self.r_grid, dtype=bool)
@@ -155,135 +260,15 @@ class IntRotationProfile:
 
         if params.get('lat_band') is not None:
             # Add a band at some latitude
-            lat_band = np.deg2rad(params.get('lat_band'))
-            epsilon_band = params.get('epsilon_band', 1)
-
-            # Change the flux between some latitudes
-            mask_patch = (np.abs(self.lat_grid) < lat_band)
-            if epsilon_band < 0:
-                epsilon_band = 1 + epsilon_band
-            self.brightness[mask_patch] *= epsilon_band
-
-        if (params.get('lon_band') is not None) and \
-            (params.get('lon_band_width') is not None):
-            # Add a band at some longitude with a certain width
-            lon_band       = np.deg2rad(params.get('lon_band'))
-            lon_band_width = np.deg2rad(params.get('lon_band_width'))
-
-            lon_band_upper = lon_band + lon_band_width/2
-            lon_band_lower = lon_band - lon_band_width/2
-
-            if (lon_band_lower > -np.pi) and (lon_band_upper < np.pi):
-                mask_patch = (self.lon_grid >= lon_band_lower) & \
-                    (self.lon_grid <= lon_band_upper)
-            elif lon_band_upper > np.pi:
-                mask_patch = (self.lon_grid >= lon_band_lower) | \
-                    (self.lon_grid <= lon_band_upper-2*np.pi)
-            elif lon_band_lower < -np.pi:
-                mask_patch = (self.lon_grid >= lon_band_lower+2*np.pi) | \
-                    (self.lon_grid <= lon_band_upper)
-
-        if (params.get('r_spot') is not None) and \
-            (params.get('theta_spot') is not None):
-
-            # Add a spot in polar/Cartesian coordinates
-            r_spot      = params.get('r_spot')
-            theta_spot  = np.deg2rad(params.get('theta_spot'))
-            radius_spot = params.get('radius_spot')
-
-            epsilon_spot = params.get('epsilon_spot')
-
-            # Ensure that entire spot is on the disk
-            r_spot = (1 - radius_spot) * r_spot
-
-            # Cartesian coordinates
-            x_spot = r_spot * np.sin(theta_spot)
-            y_spot = r_spot * np.cos(theta_spot)
-
-            distance_from_spot = (
-                (self.x_grid - x_spot)**2 + (self.y_grid - y_spot)**2
-                )**(1/2)
-            mask_patch = (distance_from_spot <= radius_spot)
-
-            # Change the flux at the spot
-            self.brightness[mask_patch] *= epsilon_spot
-
-        # Loop over multiple spots
-        for i in range(N_spot_max):
-
-            epsilon_spot = params.get(f'epsilon_spot_{i}')
-
-            lon_spot = params.get(f'lon_spot_{i}')
-            lat_spot = params.get(f'lat_spot_{i}')
+            self._add_latitudinal_band(params)
             
-            radius_spot  = params.get(f'radius_spot_{i}') # Circular spot
-            a_spot       = params.get(f'a_spot_{i}') # Semi-major axis of ellipse
-            b_spot       = params.get(f'b_spot_{i}') # Semi-minor axis of ellipse
+        if (params.get('r_spot') is not None) and (params.get('theta_spot') is not None):
+            # Add a spot in the projected coordinates
+            self._add_projected_spot(params)
 
-            no_size = np.all([s_i is None for s_i in [radius_spot,a_spot,b_spot]])
-
-            if (lon_spot is None) and (lat_spot is None) and no_size and (i == 0):
-                # Revert to a single spot
-                epsilon_spot = params.get('epsilon_spot')
-
-                lon_spot = params.get('lon_spot')
-                lat_spot = params.get('lat_spot')
-
-                radius_spot  = params.get('radius_spot') # Circle
-                a_spot       = params.get('a_spot') # Ellipse
-                b_spot       = params.get('b_spot')
-
-            no_size = np.all([s_i is None for s_i in [radius_spot,a_spot,b_spot]])
-
-            if (lon_spot is None) or (lat_spot is None) or no_size:
-                # No spot found in params-dictionary, break loop
-                break
-            
-            lon_spot = np.deg2rad(lon_spot)
-            lat_spot = np.deg2rad(lat_spot)
-
-            is_circle = (radius_spot is not None)
-
-            if is_circle:
-                # Add a circular spot
-                radius_spot = np.deg2rad(radius_spot)
-
-                # Haversine formula
-                distance_from_spot = 2 * np.arcsin((1/2*(
-                    1 - np.cos(self.lat_grid - lat_spot) + \
-                    np.cos(lat_spot)*np.cos(self.lat_grid)*(1-np.cos(self.lon_grid-lon_spot))
-                    ))**(1/2))
-                mask_patch = (distance_from_spot <= radius_spot)
-            else:
-                # Add an elliptical spot
-                a_spot = np.deg2rad(a_spot)
-                b_spot = np.deg2rad(b_spot)
-
-                # Use simple Cartesian? coordinates, results in changing
-                # spot-size with changing latitude
-                distance_lon = np.abs(self.lon_grid - lon_spot)
-                # Make longitude-distance continuous
-                mask_invalid = (distance_lon > np.pi)
-                distance_lon[mask_invalid] = np.pi - distance_lon[mask_invalid] % np.pi
-
-                # Latitude-distance
-                distance_lat = np.abs(self.lat_grid - lat_spot)
-
-                # Ellipse equation
-                mask_patch = (
-                    (distance_lon/a_spot)**2 + (distance_lat/b_spot)**2 <= 1
-                    )
-
-            if epsilon_spot is not None:
-                # Scale the brightness
-                self.brightness[mask_patch] *= epsilon_spot
-
-        if params.get('is_within_patch'):
-            self.included_segments[mask_patch]  = True
-            self.included_segments[~mask_patch] = False
-        if params.get('is_outside_patch'):
-            self.included_segments[mask_patch]  = False
-            self.included_segments[~mask_patch] = True
+        if (params.get('lat_spot') is not None) and (params.get('lon_spot') is not None):
+            # Add a spot in the latitude/longitude coordinates
+            self._add_latlon_spot(params)
 
         # Update the incidence angles included in this patch
         self.unique_mu_included = np.unique(

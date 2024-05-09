@@ -55,7 +55,9 @@ class pRT_model:
 
         # Create instance of RotationProfile
         self.rotation_mode = rotation_mode
-        self.Rot = get_Rotation_class(mode=self.rotation_mode, inc=inclination)
+        self.Rot = get_Rotation_class(
+            mode=self.rotation_mode, inc=inclination
+            )
         
         # Instrumental broadening should be applied after summing spectra
         self.sum_m_spec = sum_m_spec
@@ -169,7 +171,7 @@ class pRT_model:
         if self.params.get('res') is not None:
             self.d_resolution = self.params['res']
         if self.params.get(f'res_{self.w_set}') is not None:
-            self.d_resolution = self.params[f'res_{self.w_set}']           
+            self.d_resolution = self.params[f'res_{self.w_set}']
 
         # Add clouds if requested
         self.add_clouds()
@@ -396,6 +398,9 @@ class pRT_model:
 
                     if (pRT_flux_m_set[i] == 0).all():
                         continue
+                    if (self.pRT_wave[i] == 0).all():
+                        # First model-setting had no incidence angles
+                        self.pRT_wave[i] = pRT_wave_m_set[i]
 
                     # Interpolate onto the wavelengths of 1st model
                     mask = np.isfinite(pRT_flux_m_set[i])

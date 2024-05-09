@@ -536,7 +536,7 @@ class CallBack:
                 ax_spec=ax_spec[i], 
                 ax_res=ax_res[i], 
                 prefix=self.prefix, 
-                xlabel=['Wavelength (nm)', None][i]
+                xlabel=['Wavelength (nm)', None, None][i]
                 )
             
             if n_m_set == 1:
@@ -555,7 +555,7 @@ class CallBack:
                 Chem=self.Chem[m_set], 
                 species_to_plot=self.species_to_plot_VMR, 
                 pressure=self.PT[m_set].pressure, 
-                ls=['-', '--'][i]
+                ls=['-', '--', ':'][i]
                 )
 
         # Plot the best-fitting PT profile
