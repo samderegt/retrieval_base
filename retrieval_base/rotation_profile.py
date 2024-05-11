@@ -159,14 +159,14 @@ class IntRotationProfile:
             # Ignore segments inside band 
             self.included_segments[mask_band] = False
 
-    def _add_projected_spot(self, params):
+    def _add_projected_spot(self, params, spot_suffix=''):
 
         # Add a spot in polar/Cartesian coordinates
-        r_spot      = params.get('r_spot')
-        theta_spot  = np.deg2rad(params.get('theta_spot'))
-        radius_spot = params.get('radius_spot')
+        r_spot      = params.get(f'r_spot{spot_suffix}')
+        theta_spot  = np.deg2rad(params.get(f'theta_spot{spot_suffix}'))
+        radius_spot = params.get(f'radius_spot{spot_suffix}')
 
-        epsilon_spot = params.get('epsilon_spot', 1)
+        epsilon_spot = params.get(f'epsilon_spot{spot_suffix}', 1)
 
         # Ensure that entire spot is on the disk
         r_spot = (1 - radius_spot) * r_spot
@@ -183,23 +183,23 @@ class IntRotationProfile:
         # Change the flux at the spot
         self.brightness[mask_spot] *= epsilon_spot
 
-        if params.get('is_in_spot') or params.get('is_within_patch'):
+        if params.get(f'is_in_spot{spot_suffix}') or params.get('is_within_patch'):
             # Ignore segments outside of spot
             self.included_segments[mask_spot]  = True
             self.included_segments[~mask_spot] = False
-        if params.get('is_not_in_spot') or params.get('is_outside_patch'):
+        if params.get(f'is_not_in_spot{spot_suffix}') or params.get('is_outside_patch'):
             # Ignore segments inside spot
             self.included_segments[mask_spot] = False
 
-    def _add_latlon_spot(self, params):
+    def _add_latlon_spot(self, params, spot_suffix=''):
         
         # Revert to a single spot
-        epsilon_spot = params.get('epsilon_spot', 1)
+        epsilon_spot = params.get(f'epsilon_spot{spot_suffix}', 1)
 
-        lat_spot = np.deg2rad(params.get('lat_spot'))
-        lon_spot = np.deg2rad(params.get('lon_spot'))
+        lat_spot = np.deg2rad(params.get(f'lat_spot{spot_suffix}'))
+        lon_spot = np.deg2rad(params.get(f'lon_spot{spot_suffix}'))
 
-        if params.get('radius_spot') is not None:
+        if params.get(f'radius_spot{spot_suffix}') is not None:
             # Add a circular spot
             radius_spot = np.deg2rad(radius_spot)
 
@@ -212,8 +212,8 @@ class IntRotationProfile:
 
         else:
             # Add an elliptical spot
-            a_spot = np.deg2rad(params.get('a_spot'))
-            b_spot = np.deg2rad(params.get('b_spot'))
+            a_spot = np.deg2rad(params.get(f'a_spot{spot_suffix}'))
+            b_spot = np.deg2rad(params.get(f'b_spot{spot_suffix}'))
 
             # Use simple Cartesian? coordinates, results in changing
             # spot-size with changing latitude
@@ -233,15 +233,15 @@ class IntRotationProfile:
         # Scale the brightness
         self.brightness[mask_spot] *= epsilon_spot
 
-        if params.get('is_in_spot') or params.get('is_within_patch'):
+        if params.get(f'is_in_spot{spot_suffix}') or params.get('is_within_patch'):
             # Ignore segments outside of spot
             self.included_segments[mask_spot]  = True
             self.included_segments[~mask_spot] = False
-        if params.get('is_not_in_spot') or params.get('is_outside_patch'):
+        if params.get(f'is_not_in_spot{spot_suffix}') or params.get('is_outside_patch'):
             # Ignore segments inside spot
             self.included_segments[mask_spot] = False
 
-    def get_brightness(self, params):
+    def get_brightness(self, params, N_spot_max=5):
         
         self.brightness        = np.ones_like(self.r_grid)
         self.included_segments = np.ones_like(self.r_grid, dtype=bool)
@@ -269,6 +269,21 @@ class IntRotationProfile:
         if (params.get('lat_spot') is not None) and (params.get('lon_spot') is not None):
             # Add a spot in the latitude/longitude coordinates
             self._add_latlon_spot(params)
+
+        for spot_idx in range(N_spot_max):
+            
+            # Add multiple spots
+            spot_suffix = f'_{spot_idx}'
+            
+            if (params.get(f'r_spot{spot_suffix}') is not None) and \
+                (params.get(f'theta_spot{spot_suffix}') is not None):
+                # Add a spot in the projected coordinates
+                self._add_projected_spot(params, spot_suffix=spot_suffix)
+
+            if (params.get(f'lat_spot{spot_suffix}') is not None) and \
+                (params.get(f'lon_spot{spot_suffix}') is not None):
+                # Add a spot in the latitude/longitude coordinates
+                self._add_latlon_spot(params, spot_suffix=spot_suffix)
 
         # Update the incidence angles included in this patch
         self.unique_mu_included = np.unique(
