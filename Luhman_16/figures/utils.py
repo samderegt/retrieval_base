@@ -20,13 +20,44 @@ def get_color(
         ):
     return colors[idx]
 
+class high_pass_filter:
+
+    def __init__(self, window_length=301, polyorder=2, mode='nearest', axis=-1):
+
+        self.kwargs = dict(
+            window_length=window_length, 
+            polyorder=polyorder, 
+            mode=mode, axis=axis
+        )
+    
+    def __call__(self, flux):
+
+        mask_isfinite = np.isfinite(flux)
+        lp_flux = np.nan * flux.copy()
+        
+        # Apply Savitzky-Golay filter to remove broad structure
+        from scipy.signal import savgol_filter
+        lp_flux[mask_isfinite] = savgol_filter(
+            flux[mask_isfinite], **self.kwargs
+        )
+        
+        return flux - lp_flux
+
+'''
 def high_pass_filter(flux):
+    
+    mask_isfinite = np.isfinite(flux)
+    lp_flux = np.nan * flux.copy()
+    
     # Apply Savitzky-Golay filter to remove broad structure
     from scipy.signal import savgol_filter
-    lp_flux = savgol_filter(
-        flux, window_length=301, polyorder=2, mode='nearest'
+    lp_flux[mask_isfinite] = savgol_filter(
+        flux[mask_isfinite], window_length=301, 
+        polyorder=2, mode='nearest', axis=-1
         )
+    
     return flux - lp_flux
+'''
 
 def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
     # Convert the cross-correlation function to a S/N function
@@ -181,7 +212,9 @@ class RetrievalResults:
             self, wave_local, flux_local, flux_global, 
             rv=np.arange(-300,300+1e-6,0.5), 
             subtract_global=False, 
-            high_pass={'m_res': high_pass_filter}, 
+            on_d_res=True, 
+            high_pass={'m_res': high_pass_filter()}, 
+            orders_to_include=None, 
             **kwargs
             ):
 
@@ -189,14 +222,19 @@ class RetrievalResults:
         self.load_objects_as_attr(['Cov', 'LogLike'])
         self.d_spec = self.load_object('d_spec', bestfit_prefix=False)
 
+        # Barycentric velocity (already corrected for)
+        self.vtell = self.d_spec.v_bary - self.bestfit_params[self.m_set]['rv']
+
         # Cross-correlation
         CCF = np.nan * np.ones(
             (len(rv), self.d_spec.n_orders, self.d_spec.n_dets)
             )
     
         d_wave = np.copy(self.d_spec.wave)
-        # Residual wrt the combined model
-        d_res = np.copy(self.d_spec.flux) - np.copy(self.LogLike.m_flux_phi)
+        d_res  = np.copy(self.d_spec.flux)
+        if on_d_res:
+            # Residual wrt the combined model
+            d_res -= np.copy(self.LogLike.m_flux_phi)
 
         if high_pass.get('d_res') is not None:
             # Apply a high-pass filter
@@ -238,8 +276,13 @@ class RetrievalResults:
                         m_res_local_jk[mask_jk], 
                         1/self.LogLike.s2[j,k] * self.Cov[j,k].solve(d_res[j,k,mask_jk])
                     )
-        
-        CCF_SNR = convert_CCF_to_SNR(rv, CCF.sum(axis=(1,2)), **kwargs)
+
+        if orders_to_include is None:
+            CCF_sum = CCF.sum(axis=(1,2))
+        else:
+            CCF_sum = CCF[:,orders_to_include,:].sum(axis=(1,2))
+
+        CCF_SNR = convert_CCF_to_SNR(rv, CCF_sum, **kwargs)
 
         if self.low_memory:
             del self.d_spec, self.Cov, self.LogLike
@@ -285,7 +328,7 @@ class SpherePlot:
         self.ax  = ax
         self.cax = cax
 
-    def plot_map(self, attr, cmap=None, **kwargs):
+    def plot_map(self, attr, cmap=None, theta_grid_kwargs=None, r_grid_kwargs=None, **kwargs):
 
         z = getattr(self.Rot, attr)
         if kwargs.get('vmin') is None:
@@ -313,6 +356,12 @@ class SpherePlot:
             cntr = self.ax.pcolormesh(
                 np.pi/2-tt, rr, zz, shading='auto', cmap=cmap, **kwargs
                 )
+            
+            if theta_grid_kwargs is not None:
+                for th_j in th_i:
+                    self.ax.plot([np.pi/2-th_j]*2, r_i, **theta_grid_kwargs)
+            if r_grid_kwargs is not None:
+                self.ax.plot(np.pi/2-th_i, [r_i[0]]*len(th_i), **r_grid_kwargs)
             
     def configure_cax(
             self, label=None, xlim=None, xticks=None, vmin=0, vmax=1, 
@@ -371,7 +420,9 @@ class SpherePlot:
                 ha='center', va='center'
                 )
             
-    def configure_ax(self, xlim=None, sep_spine_lw=5, plot_grid=True, grid_lw=0.4):
+    def configure_ax(
+            self, xlim=None, sep_spine_lw=5, plot_grid=True, grid_lw=0.4, grid_color='k'
+            ):
 
         self.ax.grid(False)
         self.ax.set(xticks=[], yticks=[], ylim=(0,1))
@@ -385,7 +436,7 @@ class SpherePlot:
             self.grid(
                 inc=np.rad2deg(self.Rot.inc), 
                 lon_0=np.rad2deg(self.Rot.lon_0), 
-                c='k', lw=grid_lw, 
+                c=grid_color, lw=grid_lw, 
                 )
         
         if sep_spine_lw is None:
@@ -472,13 +523,14 @@ class SpherePlot:
         
 class CrossCorrPlot:
     
-    def __init__(self, fig, ax, cmap='RdBu_r', vsini=0):
+    def __init__(self, fig, ax, cmap='RdBu_r', vsini=0, vtell=0):
 
         self.fig = fig
         self.ax  = ax
 
         self.cmap = cmap
         self.vsini = vsini
+        self.vtell = vtell
 
     def colorbar(self, h=0.03):
 
@@ -562,5 +614,16 @@ class CrossCorrPlot:
         if return_ticks:
             return y
         
-        self.ax.plot([-self.vsini]*2, y, c='k', clip_on=False, **kwargs)
-        self.ax.plot([+self.vsini]*2, y, c='k', clip_on=False, **kwargs)
+        self.ax.plot([-self.vsini]*2, y, clip_on=False, **kwargs)
+        self.ax.plot([+self.vsini]*2, y, clip_on=False, **kwargs)
+
+    def add_xtick_at_vtell(self, length=0.08, **kwargs):
+
+        ylim = self.ax.get_ylim()
+        h = np.abs(ylim[1] - ylim[0])
+        
+        y = np.array([ylim[0]-h*length/2, ylim[0]+h*length/2])
+        if (self.ax.spines['bottom'].get_position() == 'zero'):
+            y = np.array([0-h*length/2, 0+h*length/2])
+        
+        self.ax.plot([self.vtell]*2, y, clip_on=False, **kwargs)
