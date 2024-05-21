@@ -43,22 +43,6 @@ class high_pass_filter:
         
         return flux - lp_flux
 
-'''
-def high_pass_filter(flux):
-    
-    mask_isfinite = np.isfinite(flux)
-    lp_flux = np.nan * flux.copy()
-    
-    # Apply Savitzky-Golay filter to remove broad structure
-    from scipy.signal import savgol_filter
-    lp_flux[mask_isfinite] = savgol_filter(
-        flux[mask_isfinite], window_length=301, 
-        polyorder=2, mode='nearest', axis=-1
-        )
-    
-    return flux - lp_flux
-'''
-
 def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
     # Convert the cross-correlation function to a S/N function
     rv_mask = np.abs(rv) > rv_sep
@@ -79,7 +63,7 @@ class RetrievalResults:
         # Remove attributes after running functions
         self.low_memory = low_memory
 
-        self.n_params = self.load_object('LogLike').N_params
+        self.n_params = self._load_object('LogLike').N_params
             
         import pymultinest
         # Set-up analyzer object
@@ -98,27 +82,7 @@ class RetrievalResults:
         with open(self.prefix+'data/bestfit.json') as f:
             self.bestfit_params = json.load(f)['params']
 
-    def compare_evidence(self, ln_Z_other):
-        '''Convert log-evidences of two models to a sigma confidence level'''
-
-        from scipy.special import lambertw as W
-        from scipy.special import erfcinv
-
-        ln_B = self.ln_Z - ln_Z_other
-        B = np.exp(ln_B)
-        p = np.real(np.exp(W((-1.0/(B*np.exp(1))),-1)))
-        sigma = np.sqrt(2)*erfcinv(p)
-
-        _ln_B = ln_Z_other - self.ln_Z
-        _B = np.exp(_ln_B)
-        _p = np.real(np.exp(W((-1.0/(_B*np.exp(1))),-1)))
-        _sigma = np.sqrt(2)*erfcinv(_p)
-
-        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
-        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
-        return B, sigma
-
-    def load_object(self, name, bestfit_prefix=True):
+    def _load_object(self, name, bestfit_prefix=True):
 
         setting = self.m_set
         if name == 'd_spec':
@@ -140,7 +104,7 @@ class RetrievalResults:
         if name in ['LogLike', 'Cov']:
             return af.pickle_load(self.prefix+f'data/bestfit_{name}.pkl')
         
-    def load_objects_as_attr(self, names):
+    def _load_objects_as_attr(self, names):
 
         if isinstance(names, str):
             names = [names]
@@ -148,13 +112,33 @@ class RetrievalResults:
         for name in names:
             if hasattr(self, name):
                 continue
-            setattr(self, name, self.load_object(name))
+            setattr(self, name, self._load_object(name))
+
+    def compare_evidence(self, ln_Z_other):
+        '''Convert log-evidences of two models to a sigma confidence level'''
+
+        from scipy.special import lambertw as W
+        from scipy.special import erfcinv
+
+        ln_B = self.ln_Z - ln_Z_other
+        B = np.exp(ln_B)
+        p = np.real(np.exp(W((-1.0/(B*np.exp(1))),-1)))
+        sigma = np.sqrt(2)*erfcinv(p)
+
+        _ln_B = ln_Z_other - self.ln_Z
+        _B = np.exp(_ln_B)
+        _p = np.real(np.exp(W((-1.0/(_B*np.exp(1))),-1)))
+        _sigma = np.sqrt(2)*erfcinv(_p)
+
+        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
+        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
+        return B, sigma
     
     def get_model_spec(self, is_local=False, m_set=None, line_species=None):
         
         # Load the necessary objects
-        self.load_objects_as_attr(['Chem', 'PT'])
-        pRT_atm = self.load_object('pRT_atm_broad', bestfit_prefix=False)
+        self._load_objects_as_attr(['Chem', 'PT'])
+        pRT_atm = self._load_object('pRT_atm_broad', bestfit_prefix=False)
 
         # Change the parameters for a local, un-broadened model
         if m_set is None:
@@ -219,8 +203,8 @@ class RetrievalResults:
             ):
 
         # Load the necessary objects
-        self.load_objects_as_attr(['Cov', 'LogLike'])
-        self.d_spec = self.load_object('d_spec', bestfit_prefix=False)
+        self._load_objects_as_attr(['Cov', 'LogLike'])
+        self.d_spec = self._load_object('d_spec', bestfit_prefix=False)
 
         # Barycentric velocity (already corrected for)
         self.vtell = self.d_spec.v_bary - self.bestfit_params[self.m_set]['rv']
