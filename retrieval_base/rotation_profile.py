@@ -150,7 +150,10 @@ class IntRotationProfile:
             epsilon_band = 1 + epsilon_band
 
         # Change the flux between some latitudes
-        self.brightness[mask_band] *= epsilon_band
+        if self.relative_scaling:
+            self.brightness[mask_band] *= epsilon_band
+        else:
+            self.brightness[mask_band] = epsilon_band
 
         if params.get('is_in_band'):
             # Ignore segments outside of band
@@ -181,7 +184,10 @@ class IntRotationProfile:
         mask_spot = (distance_from_spot <= radius_spot)
 
         # Change the flux at the spot
-        self.brightness[mask_spot] *= epsilon_spot
+        if self.relative_scaling:
+            self.brightness[mask_spot] *= epsilon_spot
+        else:
+            self.brightness[mask_spot] = epsilon_spot
 
         if params.get(f'is_in_spot{spot_suffix}') or params.get('is_within_patch'):
             # Ignore segments outside of spot
@@ -231,7 +237,10 @@ class IntRotationProfile:
                 )
 
         # Scale the brightness
-        self.brightness[mask_spot] *= epsilon_spot
+        if self.relative_scaling:
+            self.brightness[mask_spot] *= epsilon_spot
+        else:
+            self.brightness[mask_spot] = epsilon_spot
 
         if params.get(f'is_in_spot{spot_suffix}') or params.get('is_within_patch'):
             # Ignore segments outside of spot
@@ -242,6 +251,8 @@ class IntRotationProfile:
             self.included_segments[mask_spot] = False
 
     def get_brightness(self, params, N_spot_max=5):
+
+        self.relative_scaling  = params.get('relative_scaling', True)
         
         self.brightness        = np.ones_like(self.r_grid)
         self.included_segments = np.ones_like(self.r_grid, dtype=bool)
