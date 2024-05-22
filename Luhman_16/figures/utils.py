@@ -134,6 +134,13 @@ class RetrievalResults:
         print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
         return B, sigma
     
+    def get_Rot(self, pRT_atm=None):
+
+        if pRT_atm is None:
+            pRT_atm = self._load_object('pRT_atm_broad', bestfit_prefix=False)
+        
+        return copy.copy(pRT_atm.Rot)
+    
     def get_model_spec(self, is_local=False, m_set=None, line_species=None):
         
         # Load the necessary objects
@@ -178,13 +185,67 @@ class RetrievalResults:
         wave_pRT_grid = copy.copy(pRT_atm.wave_pRT_grid)
         flux_pRT_grid = copy.copy(pRT_atm.flux_pRT_grid)
 
-        # Rotation model
-        Rot = copy.copy(pRT_atm.Rot)
-
         if self.low_memory:
             del self.Chem, self.PT
 
-        return wave_pRT_grid, flux_pRT_grid, Rot
+        return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm) # Rotation model
+    
+    def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16)):
+
+        k_B = 1.3807e-16    # cm^2 g s^-2 K^-1
+        c   = 2.99792458e10 # cm s^-1
+        
+        amu = 1.66054e-24   # g
+        mass *= amu
+        
+        # Load the necessary objects
+        if not hasattr(self, 'd_spec'):
+            self.d_spec = self._load_object('d_spec', bestfit_prefix=False)
+
+        profile_wave_cen = np.nanmean(self.d_spec.wave)
+        delta_wave       = profile_wave_cen / m_res # Use model resolution get wlen-spacing
+        profile_wave     = profile_wave_cen + np.arange(-1, 1+1e-6, delta_wave)
+
+        # In wavenumber (cm^-1)
+        profile_wn_cen = 1e7 / profile_wave_cen
+        profile_wn     = 1e7 / profile_wave
+
+        # Broadening parameters
+        gamma_G = np.sqrt((2*k_B*T)/mass) * profile_wn_cen/c
+        gamma_L = 0.06 # Made up
+
+        # Use a Voigt profile
+        from scipy.special import wofz as Faddeeva
+
+        u = (profile_wn - profile_wn_cen) / gamma_G
+        a = gamma_L / gamma_G
+
+        profile_flux = Faddeeva(u + 1j*a).real
+        profile_flux = 1 - profile_flux/np.max(profile_flux) # Normalise
+
+        # Rotational broadening
+        Rot = self.get_Rot()
+        Rot.get_brightness(params=self.bestfit_params[self.m_set])
+        _, profile_flux_broad = Rot(
+            wave=profile_wave, flux=profile_flux, 
+            params=self.bestfit_params[self.m_set]
+            )
+        profile_flux_broad /= np.pi # Normalise
+
+        # Instrumental broadening
+        profile_flux = self.d_spec.instr_broadening(
+            wave=profile_wave, flux=profile_flux, 
+            out_res=self.d_spec.resolution, in_res=m_res
+            )
+        profile_flux_broad = self.d_spec.instr_broadening(
+            wave=profile_wave, flux=profile_flux_broad, 
+            out_res=self.d_spec.resolution, in_res=m_res
+            )
+        
+        if self.low_memory:
+            del self.d_spec
+
+        return profile_wave, profile_flux, profile_flux_broad
     
     def add_patch_to_Rot(self, Rot, Rot_spot):
 
