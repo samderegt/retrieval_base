@@ -43,22 +43,6 @@ class high_pass_filter:
         
         return flux - lp_flux
 
-'''
-def high_pass_filter(flux):
-    
-    mask_isfinite = np.isfinite(flux)
-    lp_flux = np.nan * flux.copy()
-    
-    # Apply Savitzky-Golay filter to remove broad structure
-    from scipy.signal import savgol_filter
-    lp_flux[mask_isfinite] = savgol_filter(
-        flux[mask_isfinite], window_length=301, 
-        polyorder=2, mode='nearest', axis=-1
-        )
-    
-    return flux - lp_flux
-'''
-
 def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
     # Convert the cross-correlation function to a S/N function
     rv_mask = np.abs(rv) > rv_sep
@@ -79,7 +63,7 @@ class RetrievalResults:
         # Remove attributes after running functions
         self.low_memory = low_memory
 
-        self.n_params = self.load_object('LogLike').N_params
+        self.n_params = self._load_object('LogLike').N_params
             
         import pymultinest
         # Set-up analyzer object
@@ -98,27 +82,7 @@ class RetrievalResults:
         with open(self.prefix+'data/bestfit.json') as f:
             self.bestfit_params = json.load(f)['params']
 
-    def compare_evidence(self, ln_Z_other):
-        '''Convert log-evidences of two models to a sigma confidence level'''
-
-        from scipy.special import lambertw as W
-        from scipy.special import erfcinv
-
-        ln_B = self.ln_Z - ln_Z_other
-        B = np.exp(ln_B)
-        p = np.real(np.exp(W((-1.0/(B*np.exp(1))),-1)))
-        sigma = np.sqrt(2)*erfcinv(p)
-
-        _ln_B = ln_Z_other - self.ln_Z
-        _B = np.exp(_ln_B)
-        _p = np.real(np.exp(W((-1.0/(_B*np.exp(1))),-1)))
-        _sigma = np.sqrt(2)*erfcinv(_p)
-
-        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
-        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
-        return B, sigma
-
-    def load_object(self, name, bestfit_prefix=True):
+    def _load_object(self, name, bestfit_prefix=True):
 
         setting = self.m_set
         if name == 'd_spec':
@@ -140,7 +104,7 @@ class RetrievalResults:
         if name in ['LogLike', 'Cov']:
             return af.pickle_load(self.prefix+f'data/bestfit_{name}.pkl')
         
-    def load_objects_as_attr(self, names):
+    def _load_objects_as_attr(self, names):
 
         if isinstance(names, str):
             names = [names]
@@ -148,13 +112,40 @@ class RetrievalResults:
         for name in names:
             if hasattr(self, name):
                 continue
-            setattr(self, name, self.load_object(name))
+            setattr(self, name, self._load_object(name))
+
+    def compare_evidence(self, ln_Z_other):
+        '''Convert log-evidences of two models to a sigma confidence level'''
+
+        from scipy.special import lambertw as W
+        from scipy.special import erfcinv
+
+        ln_B = self.ln_Z - ln_Z_other
+        B = np.exp(ln_B)
+        p = np.real(np.exp(W((-1.0/(B*np.exp(1))),-1)))
+        sigma = np.sqrt(2)*erfcinv(p)
+
+        _ln_B = ln_Z_other - self.ln_Z
+        _B = np.exp(_ln_B)
+        _p = np.real(np.exp(W((-1.0/(_B*np.exp(1))),-1)))
+        _sigma = np.sqrt(2)*erfcinv(_p)
+
+        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
+        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
+        return B, sigma
+    
+    def get_Rot(self, pRT_atm=None):
+
+        if pRT_atm is None:
+            pRT_atm = self._load_object('pRT_atm_broad', bestfit_prefix=False)
+        
+        return copy.copy(pRT_atm.Rot)
     
     def get_model_spec(self, is_local=False, m_set=None, line_species=None):
         
         # Load the necessary objects
-        self.load_objects_as_attr(['Chem', 'PT'])
-        pRT_atm = self.load_object('pRT_atm_broad', bestfit_prefix=False)
+        self._load_objects_as_attr(['Chem', 'PT'])
+        pRT_atm = self._load_object('pRT_atm_broad', bestfit_prefix=False)
 
         # Change the parameters for a local, un-broadened model
         if m_set is None:
@@ -194,13 +185,67 @@ class RetrievalResults:
         wave_pRT_grid = copy.copy(pRT_atm.wave_pRT_grid)
         flux_pRT_grid = copy.copy(pRT_atm.flux_pRT_grid)
 
-        # Rotation model
-        Rot = copy.copy(pRT_atm.Rot)
-
         if self.low_memory:
             del self.Chem, self.PT
 
-        return wave_pRT_grid, flux_pRT_grid, Rot
+        return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm) # Rotation model
+    
+    def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16)):
+
+        k_B = 1.3807e-16    # cm^2 g s^-2 K^-1
+        c   = 2.99792458e10 # cm s^-1
+        
+        amu = 1.66054e-24   # g
+        mass *= amu
+        
+        # Load the necessary objects
+        if not hasattr(self, 'd_spec'):
+            self.d_spec = self._load_object('d_spec', bestfit_prefix=False)
+
+        profile_wave_cen = np.nanmean(self.d_spec.wave)
+        delta_wave       = profile_wave_cen / m_res # Use model resolution get wlen-spacing
+        profile_wave     = profile_wave_cen + np.arange(-1, 1+1e-6, delta_wave)
+
+        # In wavenumber (cm^-1)
+        profile_wn_cen = 1e7 / profile_wave_cen
+        profile_wn     = 1e7 / profile_wave
+
+        # Broadening parameters
+        gamma_G = np.sqrt((2*k_B*T)/mass) * profile_wn_cen/c
+        gamma_L = 0.06 # Made up
+
+        # Use a Voigt profile
+        from scipy.special import wofz as Faddeeva
+
+        u = (profile_wn - profile_wn_cen) / gamma_G
+        a = gamma_L / gamma_G
+
+        profile_flux = Faddeeva(u + 1j*a).real
+        profile_flux = 1 - profile_flux/np.max(profile_flux) # Normalise
+
+        # Rotational broadening
+        Rot = self.get_Rot()
+        Rot.get_brightness(params=self.bestfit_params[self.m_set])
+        _, profile_flux_broad = Rot(
+            wave=profile_wave, flux=profile_flux, 
+            params=self.bestfit_params[self.m_set]
+            )
+        profile_flux_broad /= np.pi # Normalise
+
+        # Instrumental broadening
+        profile_flux = self.d_spec.instr_broadening(
+            wave=profile_wave, flux=profile_flux, 
+            out_res=self.d_spec.resolution, in_res=m_res
+            )
+        profile_flux_broad = self.d_spec.instr_broadening(
+            wave=profile_wave, flux=profile_flux_broad, 
+            out_res=self.d_spec.resolution, in_res=m_res
+            )
+        
+        if self.low_memory:
+            del self.d_spec
+
+        return profile_wave, profile_flux, profile_flux_broad
     
     def add_patch_to_Rot(self, Rot, Rot_spot):
 
@@ -219,8 +264,8 @@ class RetrievalResults:
             ):
 
         # Load the necessary objects
-        self.load_objects_as_attr(['Cov', 'LogLike'])
-        self.d_spec = self.load_object('d_spec', bestfit_prefix=False)
+        self._load_objects_as_attr(['Cov', 'LogLike'])
+        self.d_spec = self._load_object('d_spec', bestfit_prefix=False)
 
         # Barycentric velocity (already corrected for)
         self.vtell = self.d_spec.v_bary - self.bestfit_params[self.m_set]['rv']
