@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_A.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'no_bands_K_A_ret_2'
+prefix = 'test_K_A'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
@@ -15,7 +15,8 @@ config_data = dict(
     K2166_cloudy = {
         'w_set': 'K2166', # Wavelength setting
         #'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
-        'wave_range': (2040, 2500), 
+        'wave_range': (2300, 2400), 
+        #'wave_range': (2040, 2500), 
 
         # Data filenames
         'file_target': './data/Luhman_16A_K.dat', 
@@ -55,6 +56,7 @@ config_data = dict(
         'n_atm_layers': 50, 
         }, 
 )
+#config_data['K2166_spot'] = config_data['K2166_cloudy'].copy()
 
 # Magnitudes used for flux-calibration
 magnitudes = {
@@ -70,76 +72,106 @@ magnitudes = {
 free_params = {
 
     # Covariance parameters
-    'log_a': [(-0.7,0.3), r'$\log\ a$'], 
-    'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
+    #'log_a': [(-0.3,0.3), r'$\log\ a$'], 
+    #'log_l': [(-2.5,-1.2), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.1,2.0), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6.0), r'$\log\ g$'], 
+    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    'log_g': [(4.,6.), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(10,30), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10.,20.), r'$v\ \sin\ i$'], 
+    #'rv': [(10.,25.), r'$v_\mathrm{rad}$'], 
+    'rv': [(-10.,45.), r'$v_\mathrm{rad}$'], 
 
     # Surface brightness
-    #'lat_band': [(0,90), r'$\lambda_\mathrm{b}$'], 
-    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
+    #'lat_band': [(30.,90.), r'$\phi_\mathrm{b}$'], 
+    #'epsilon_band': [(0.,1.5), r'$\epsilon_\mathrm{b}$'], 
+
+    #'r_spot_0': [(0.,1.), r'$r_\mathrm{s0}$'], 
+    #'theta_spot_0': [(-180.,180.), r'$\theta_\mathrm{s0}$'], 
+    #'radius_spot_0': [(0.1,0.5), r'$\sigma_\mathrm{s0}$'], 
+    #'epsilon_spot_0': [(0.,5.), r'$\epsilon_\mathrm{s0}$'], 
+
+    #'r_spot_1': [(0.,1.), r'$r_\mathrm{s1}$'], 
+    #'theta_spot_1': [(-180.,180.), r'$\theta_\mathrm{s1}$'], 
+    #'radius_spot_1': [(0.1,0.5), r'$\sigma_\mathrm{s1}$'], 
+    #'epsilon_spot_1': [(0.,5.), r'$\epsilon_\mathrm{s1}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    #'log_opa_base_gray': [(-10.,5.), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    #'log_P_base_gray': [(-5.,3.), r'$\log\ P_{\mathrm{cl},0}$'], 
+    #'f_sed_gray': [(0.,20.), r'$f_\mathrm{sed}$'], 
+
+    # Parameters specific to model-settings
+    #'K2166_spot': {
+    #    # Chemistry
+    #    'log_H2O':  [(-12.,-2.), r'$\log\ \mathrm{H_2O}_\mathrm{s}$'],
+    #    'log_CH4':  [(-12.,-2.), r'$\log\ \mathrm{CH_4}_\mathrm{s}$'],
+    #    'log_12CO': [(-12.,-2.), r'$\log\ \mathrm{^{12}CO}_\mathrm{s}$'],
+    #    }, 
+    #'K2166_cloudy': {
+    #    # Chemistry
+    #    'log_H2O':  [(-12.,-2.), r'$\log\ \mathrm{H_2O}$'],
+    #    'log_CH4':  [(-12.,-2.), r'$\log\ \mathrm{CH_4}$'],
+    #    'log_12CO': [(-12.,-2.), r'$\log\ \mathrm{^{12}CO}$'],
+    #    }, 
 
     # Chemistry
-    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_H2(18)O': [(-12,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
-    'log_12CO': [(-12,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    'log_13CO': [(-12,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O': [(-12,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'],
-    'log_H2S': [(-12,-2), r'$\log\ \mathrm{H_2S}$'],
-    'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'],
-    #'log_Ca': [(-12,-2), r'$\log\ \mathrm{Ca}$'],
+    'log_H2O':     [(-12.,-2.), r'$\log\ \mathrm{H_2O}$'],
+    #'log_CH4':     [(-12.,-2.), r'$\log\ \mathrm{CH_4}$'],
+    'log_12CO':    [(-12.,-2.), r'$\log\ \mathrm{^{12}CO}$'],
+    
+    #'log_H2(18)O': [(-12.,-2.), r'$\log\ \mathrm{H_2^{18}O}$'],
+    #'log_13CO':    [(-12.,-2.), r'$\log\ \mathrm{^{13}CO}$'],
+    #'log_C18O':    [(-12.,-2.), r'$\log\ \mathrm{C^{18}O}$'],
+    #'log_NH3':     [(-12.,-2.), r'$\log\ \mathrm{NH_3}$'],
+    #'log_H2S':     [(-12.,-2.), r'$\log\ \mathrm{H_2S}$'],
+    #'log_HF':      [(-12.,-2.), r'$\log\ \mathrm{HF}$'],
 
-    # PT profile    
-    'dlnT_dlnP_0': [(0.0,0.4), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.0,0.4), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.0,0.4), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(-0.1,0.4), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
+    # PT profile
+    'dlnT_dlnP_0': [(0.,0.4), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_1': [(0.,0.4), r'$\nabla_{T,1}$'], 
+    'dlnT_dlnP_2': [(0.,0.4), r'$\nabla_{T,2}$'], 
+    'dlnT_dlnP_3': [(0.,0.4), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(0.,0.4), r'$\nabla_{T,4}$'], 
 
-    'T_phot': [(200,3000), r'$T_\mathrm{phot}$'], 
-    'log_P_phot': [(-3,1), r'$\log\ P_\mathrm{phot}$'], 
-    'd_log_P_phot+1': [(0.5,2), r'$\log\ P_\mathrm{up}$'], 
-    'd_log_P_phot-1': [(0.5,2), r'$\log\ P_\mathrm{low}$'], 
+    'T_phot': [(700.,2500.), r'$T_\mathrm{phot}$'], 
+    'log_P_phot': [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
+    'd_log_P_phot+1': [(0.5,3.), r'$\log\ P_\mathrm{up}$'], 
+    'd_log_P_phot-1': [(0.5,2.), r'$\log\ P_\mathrm{low}$'], 
 }
 
 # Constants to use if prior is not given
 constant_params = {
+    # Data resolution
+    'res': 60000, 
+
     # General properties
-    'parallax': 496,  # +/- 37 mas
-    #'inclination': 0, # degrees
-    'inclination': 18, # degrees
+    'parallax': 496.,  # +/- 37 mas
+    'inclination': 18., # degrees
+
+    #'K2166_cloudy': {'is_not_in_spot': True}, 
+    #'K2166_spot':   {'is_in_spot': True}, 
 
     # PT profile
-    'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
+    'log_P_knots': np.array([-5., -2., 0.5, 1.5, 3.], dtype=np.float64), 
 }
 
 ####################################################################################
 #
 ####################################################################################
 
-sum_m_spec = False
+sum_m_spec = len(config_data) > 1
 
-#scale_flux = True
 scale_flux = False
 scale_err  = True
 apply_high_pass_filter = True
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
+    #'cloud_mode': 'gray', 
+    'cloud_mode': None, 
 }
 
 rotation_mode = 'integrate' # 'convolve'
@@ -153,21 +185,20 @@ chem_kwargs = {
 
     'line_species': [
         'H2O_pokazatel_main_iso', 
-        'H2O_181', 
-        'CH4_hargreaves_main_iso', 
+        #'H2O_181_HotWat78', #'H2O_181', 
+        #'CH4_hargreaves_main_iso', 
         'CO_main_iso', 
-        'CO_36', 
-        'CO_28', 
-        'NH3_coles_main_iso', 
-        'H2S_Sid_main_iso', 
-        'HF_main_iso', 
-        #'Ca', 
+        #'CO_36', 
+        #'CO_28', 
+        #'NH3_coles_main_iso', 
+        #'H2S_Sid_main_iso', 
+        #'HF_main_iso', 
     ], 
 }
 
 species_to_plot_VMR = [
-    'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'NH3', 'H2S', 'HF', #'Ca', 
-    #'H2O', 'CH4', 'NH3', 'H2S', 'HF', 
+    #'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'NH3', 'H2S', 'HF', 
+    'H2O', '12CO', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
@@ -176,7 +207,8 @@ species_to_plot_CCF = species_to_plot_VMR
 ####################################################################################
 
 cov_kwargs = dict(
-    cov_mode = 'GP', #None, 
+    #cov_mode = 'GP', #None, 
+    cov_mode = None, 
     
     trunc_dist   = 3, 
     scale_GP_amp = True, 
@@ -184,7 +216,8 @@ cov_kwargs = dict(
     # Prepare the wavelength separation and
     # average squared error arrays and keep 
     # in memory
-    prepare_for_covariance = True, #False, 
+    #prepare_for_covariance = True, #False, 
+    prepare_for_covariance = False, 
 )
 
 if free_params.get('log_l') is not None:
@@ -209,5 +242,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 200
+n_live_points = 50
 n_iter_before_update = 200

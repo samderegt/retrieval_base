@@ -7,7 +7,7 @@ file_params = 'config_J.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'test'
+prefix = 'test_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
@@ -15,7 +15,9 @@ config_data = {
     'J1226': {
         'w_set': 'J1226', # Wavelength setting
         #'wave_range': (1115, 1325), 
-        'wave_range': (1239, 1267), # Range to fit, doesn't have to be full spectrum
+        'wave_range': (1316.5, 1325), # Range to fit, doesn't have to be full spectrum
+
+        #'wave_to_mask': np.array([[1168, 1179]]), #mask K I lines 
 
         # Data filenames
         'file_target': './data/LSPM_J0036_J.dat', 
@@ -50,7 +52,7 @@ config_data = {
         'sigma_clip_width': 5, # Remove outliers
     
         # Define pRT's log-pressure grid
-        'log_P_range': (-5,3), 
+        'log_P_range': (-5,2), 
         'n_atm_layers': 50, 
         }, 
     }
@@ -75,29 +77,29 @@ free_params = {
     #'log_l': [(-3,-1), r'$\log\ l_\mathrm{K}$'], 
 
     # General properties
-    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6.0), r'$\log\ g$'], 
+    'R_p': [(0.5,2), r'$R_\mathrm{p}$'], 
+    'log_g': [(4,5.5), r'$\log\ g$'], 
     'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
-    # Velocities
-    'vsini': [(30,50), r'$v\ \sin\ i$'], 
+    # Velocities #km/s
+    'vsini': [(30,45), r'$v\ \sin\ i$'], 
     'rv': [(10,30), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
+    'log_P_base_gray': [(-5,2), r'$\log\ P_{\mathrm{cl},0}$'], 
+    'f_sed_gray': [(1,20), r'$f_\mathrm{sed}$'], 
+    'cloud_fraction': [(0,1), r'$f_\mathrm{cloud}$'], 
 
     # Chemistry
-    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'], 
-    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'], 
-    'log_NH3': [(-12,-2), r'$\log\ \mathrm{NH_3}$'], 
-    'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'], 
-    'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
-    
-    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
-    'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
-    'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
+    'C/O': [(0.1,1.2), r'C/O'], 
+    'Fe/H': [(-1.0,1.0), r'Fe/H'], 
+    #'log_P_quench_CO_CH4': [(-5,3), r'$P_\mathrm{quench,CO-CH_4}$'], 
+
+    'log_Ti': [(-12,-2), r'$\log\ \mathrm{Ti}$'],
+    'log_TiH': [(-12,-2), r'$\log\ \mathrm{TiH}$'],
+    'log_V': [(-12,-2), r'$\log\ \mathrm{V}$'],
+    'log_Cr': [(-12,-2), r'$\log\ \mathrm{Cr}$'],
 
     # PT profile
     'dlnT_dlnP_0': [(0.12, 0.4), r'$\nabla_{T,0}$'], 
@@ -116,7 +118,7 @@ constant_params = {
     'inclination': 0, # degrees
 
     # PT profile
-    'log_P_knots': np.array([-5, -1.5, 0, 1.5, 3], dtype=np.float64), 
+    'log_P_knots': np.array([-5, -1.5, 0, 1.0, 2], dtype=np.float64), 
 }
 
 ####################################################################################
@@ -127,7 +129,7 @@ scale_flux = True
 scale_err  = True
 apply_high_pass_filter = False
 
-cloud_mode = None #'gray'
+cloud_mode = 'gray'  #'gray'
 cloud_species = None
 
 rotation_mode = 'convolve' #'integrate'
@@ -136,10 +138,13 @@ rotation_mode = 'convolve' #'integrate'
 # Chemistry parameters
 ####################################################################################
 
-chem_mode  = 'free' #'SONORAchem' #'eqchem'
-
 chem_kwargs = dict(
+    #chem_mode  = 'free' #'SONORAchem' #'eqchem'
+    chem_mode = 'SONORAchem', 
+
     spline_order = 0, 
+
+    path_SONORA_chem = '/net/lem/data1/regt/retrieval_base/SONORA_models/chemistry', 
 
     quench_setup = {
         'P_quench_CO_CH4': ['12CO', 'CH4', 'H2O', '13CO', 'C18O', 'C17O'], 
@@ -150,17 +155,34 @@ chem_kwargs = dict(
 
 line_species = [
     'H2O_pokazatel_main_iso', 
-    'CH4_hargreaves_main_iso', 
-    'NH3_coles_main_iso', 
+    #'CO2_main_iso',
+    #'CH4_hargreaves_main_iso', 
+    #'NH3_coles_main_iso', 
     'FeH_main_iso', 
-    'TiO_48_Exomol_McKemmish',  
-
-    'K', 
-    'Na_allard', 
-    'Fe', 
+    'TiO_48_Exomol_McKemmish', 
+    'Ti', 
+    'TiH_main_iso',
+    #'H2S_ExoMol_main_iso',
+    'VO_ExoMol_McKemmish',
+    #'CH_main_iso',
+   # 'CaH_main_iso',
+    #'HF_main_iso',
+  #  'AlO_main_iso',
+  #  'K', 
+  #  'Na_allard', 
+  #  'Al',
+  #  'OH_main_iso',
+  #  'NaH_main_iso',
+   # 'MgO_Sid_main_iso',
+   # 'Fe', 
+  #  'CrH_main_iso',
+    'V',
+    #'Mn',
+    #'Li',
+    'Cr'
     ]
 species_to_plot_VMR = [
-    'H2O', 'CH4', 'NH3', 'FeH', 'TiO', 'K', 'Na', 'Fe', 
+    'H2O','FeH', 'Ti','TiH', 'VO','TiO', 'H2S', 'Cr', 'V', 'CH'
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
@@ -168,9 +190,9 @@ species_to_plot_CCF = species_to_plot_VMR
 # Covariance parameters
 ####################################################################################
 
-cov_mode = None #'GP'
-
 cov_kwargs = dict(
+    cov_mode = None, # 'GP'
+
     trunc_dist   = 3, 
     scale_GP_amp = True, 
     max_separation = 20, 
@@ -200,9 +222,9 @@ if (free_params.get('log_l_K2166') is not None) and \
 # PT parameters
 ####################################################################################
 
-PT_mode = 'free_gradient'
-
 PT_kwargs = dict(
+    PT_mode = 'free_gradient', 
+
     conv_adiabat = True, 
 
     ln_L_penalty_order = 3, 
