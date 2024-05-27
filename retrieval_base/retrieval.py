@@ -888,7 +888,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory on start-up
-        time.sleep(0.1*rank*len(self.d_spec))
+        time.sleep(0.3*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval
         #pymultinest.solve(

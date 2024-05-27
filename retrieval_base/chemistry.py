@@ -96,10 +96,23 @@ class FreeChemistry(Chemistry):
         C, O, H = 0, 0, 0
 
         for species_i in self.species_info.index:
+
             line_species_i = self.read_species_info(species_i, 'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
             COH_i  = self.read_species_info(species_i, 'COH')
 
+            '''
+            if species_i == 'K':
+                VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
+                self.mass_fractions['KshiftH2'] = 0.85 * mass_i * VMR_i
+                self.mass_fractions['KshiftHe'] = 0.15 * mass_i * VMR_i
+
+                VMR_wo_H2 += VMR_i
+                continue
+            if species_i in ['KshiftH2', 'KshiftHe']:
+                continue
+            '''
+            
             if species_i in ['H2', 'He']:
                 continue
 
