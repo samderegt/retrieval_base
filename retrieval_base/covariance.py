@@ -2,7 +2,7 @@ import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
-from sksparse.cholmod import cholesky
+#from sksparse.cholmod import cholesky
 
 class Covariance:
      
@@ -232,7 +232,7 @@ class GaussianProcesses(Covariance):
             self.cov = csc_matrix(self.cov)
 
             # Compute sparse Cholesky decomposition
-            self.cov_cholesky = cholesky(self.cov)
+            #self.cov_cholesky = cholesky(self.cov)
 
         elif self.cholesky_mode == 'banded':
             

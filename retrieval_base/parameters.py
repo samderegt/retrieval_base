@@ -167,8 +167,8 @@ class Parameters:
         else:
             self.cube_copy = np.array(cube[:ndim])
 
-        if (cube < 0).any() or (cube > 1).any():
-            return -np.inf
+        #if (np.array(cube[:ndim]) < 0).any() or (np.array(cube[:ndim]) > 1).any():
+        #    return -np.inf
 
         # Loop over all parameters
         for i, key_i in enumerate(self.param_keys):
@@ -191,7 +191,7 @@ class Parameters:
         cube = self.read_PT_params(cube)
         self.read_uncertainty_params()
         self.read_chemistry_params()
-        self.read_cloud_params()
+        #self.read_cloud_params()
 
         if (ndim is None) and (nparams is None):
             return cube
@@ -333,25 +333,23 @@ class Parameters:
                 elif species_i == 'H2O_181' and ('log_O_ratio' in self.param_keys):
                     self.VMR_species[species_i] = self.params['O_ratio'] * 10**self.params['log_H2O']
         
-    def read_cloud_params(self, pressure=None, temperature=None):
+    def read_cloud_params(self, pressure=None, temperature=None, FeH=0, CO=0.68):
 
-        if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
-            # Return the eq.-chem. mass fraction of MgSiO3
-            X_eq_MgSiO3 = fc.return_XMgSiO3(self.params['Fe/H'], self.params['C/O'])
-            # Pressure at the cloud base
-            # TODO: this doesn't work, temperature is not yet given
-            self.params['P_base_MgSiO3'] = fc.simple_cdf_MgSiO3(pressure, temperature, 
-                                                                self.params['Fe/H'], 
-                                                                self.params['C/O']
-                                                                )
+        #if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
+        # Return the eq.-chem. mass fraction of MgSiO3
+        X_eq_MgSiO3 = fc.return_XMgSiO3(FeH, CO)
+        # Pressure at the cloud base
+        # TODO: this doesn't work, temperature is not yet given
+        self.params['P_base_MgSiO3'] = fc.simple_cdf_MgSiO3(pressure, temperature, FeH, CO)
 
-            # Log mass fraction at the cloud base
-            self.params['log_X_cloud_base_MgSiO3'] = np.log10(10**self.params['log_X_MgSiO3'] * X_eq_MgSiO3)
+        # Log mass fraction at the cloud base
+        self.params['log_X_cloud_base_MgSiO3'] = \
+            np.log10(10**self.params['log_X_MgSiO3'] * X_eq_MgSiO3)
 
         # Convert the cloud parameters from log to linear scale
         self.params = self.log_to_linear(self.params, 
-            key_log=['log_K_zz', 'log_P_base_MgSiO3', 'log_X_cloud_base_MgSiO3', 'log_P_base_gray', 'log_opa_base_gray'], 
-            key_lin=['K_zz', 'P_base_MgSiO3', 'X_cloud_base_MgSiO3', 'P_base_gray', 'opa_base_gray'], 
+            key_log=['log_K_zz', 'log_X_cloud_base_MgSiO3', 'log_P_base_gray', 'log_opa_base_gray'], 
+            key_lin=['K_zz', 'X_cloud_base_MgSiO3', 'P_base_gray', 'opa_base_gray'], 
             )
 
     @classmethod

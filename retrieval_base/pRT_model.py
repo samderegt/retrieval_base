@@ -101,7 +101,7 @@ class pRT_model:
                 line_species=self.line_species, 
                 rayleigh_species=self.rayleigh_species, 
                 continuum_opacities=self.continuum_species, 
-                cloud_species=self.cloud_species, 
+                cloud_species=self.cloud_species.copy(), 
                 wlen_bords_micron=wave_range_i, 
                 mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
