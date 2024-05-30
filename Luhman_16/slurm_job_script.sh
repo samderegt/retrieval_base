@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 01:00:00
-#SBATCH -p genoa
-#SBATCH --ntasks=130
-#SBATCH --mem=336G
+#SBATCH -t 04:00:00
+#SBATCH -p fat_genoa
+#SBATCH --ntasks=192
+#SBATCH --mem=1440G
 
-#SBATCH --job-name=Luhman_16B_K_H2He
+#SBATCH --job-name=multi_band_ret_1
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -18,7 +18,7 @@ source $HOME/activate_env
 echo "Number of tasks $SLURM_NTASKS"
 echo "Starting Python script"
 
-config_file=config_fiducial_J_B
+config_file=config_fiducial_K_B
 ret_script=retrieval_script.py
 
 # Replace the config file

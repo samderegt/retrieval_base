@@ -7,7 +7,7 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'spot_K_B_ret_31'
+prefix = 'multi_band_K_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -84,14 +84,18 @@ free_params = {
     'rv': [(15.,25.), r'$v_\mathrm{rad}$'], 
 
     # Surface brightness
-    'lat_band_0': [(-30.,30.), r'$\phi_\mathrm{b,0}$'], 
-    'lat_band': [(0.,90.), r'$\phi_\mathrm{b}$'], 
-    'epsilon_band': [(0.,1.5), r'$\epsilon_\mathrm{b}$'], 
+    'lat_band_cen_0': [(-30.,30.), r'$\phi_\mathrm{b,cen}$'], 
+    'lat_band_0': [(0.,90.), r'$\phi_\mathrm{b}$'], 
+    'epsilon_band_0': [(0.,1.5), r'$\epsilon_\mathrm{b}$'], 
 
-    'r_spot': [(0.,1.), r'$r_\mathrm{s}$'], 
-    'theta_spot': [(-180.,180.), r'$\theta_\mathrm{s}$'], 
-    'radius_spot': [(0.1,0.5), r'$\sigma_\mathrm{s}$'], 
-    'epsilon_spot': [(0.,5.), r'$\epsilon_\mathrm{s}$'], 
+    'lat_band_cen_1': [(-30.,30.), r'$\phi_\mathrm{b,cen}$'], 
+    'lat_band_1': [(0.,90.), r'$\phi_\mathrm{b}$'], 
+    'epsilon_band_1': [(0.,1.5), r'$\epsilon_\mathrm{b}$'], 
+
+    #'r_spot': [(0.,1.), r'$r_\mathrm{s}$'], 
+    #'theta_spot': [(-180.,180.), r'$\theta_\mathrm{s}$'], 
+    #'radius_spot': [(0.1,0.5), r'$\sigma_\mathrm{s}$'], 
+    #'epsilon_spot': [(0.,5.), r'$\epsilon_\mathrm{s}$'], 
 
     # Cloud properties
     'log_opa_base_gray': [(-10.,5.), r'$\log\ \kappa_{\mathrm{cl},0}$'], 

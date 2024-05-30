@@ -136,15 +136,32 @@ class IntRotationProfile:
                 self.y_grid * np.sin(self.c_grid)*np.sin(self.inc)
             )
         
-    def _add_latitudinal_band(self, params):
+    def _add_latitudinal_band(self, params, band_suffix=''):
 
-        lat_band_0   = np.deg2rad(params.get('lat_band_0', 0))
-        lat_band     = np.deg2rad(params.get('lat_band'))
-        epsilon_band = params.get('epsilon_band', 1)
+        lat_band_upper = params.get(f'lat_band_upper{band_suffix}')
+        lat_band_lower = params.get(f'lat_band_lower{band_suffix}')
+        
+        upper_and_lower = (lat_band_upper is not None) & (lat_band_lower is not None)
+        if not upper_and_lower:
+
+            if params.get('lat_band_1') is None:
+                # Only a single band
+                lat_band_cen = np.deg2rad(params.get('lat_band_0', 0))
+            else:
+                # Multiple bands
+                lat_band_cen = np.deg2rad(params.get(f'lat_band_cen{band_suffix}', 0))
+
+            # Band width/height
+            lat_band = np.deg2rad(params.get(f'lat_band{band_suffix}'))
+
+            lat_band_upper = lat_band_cen + lat_band
+            lat_band_lower = lat_band_cen - lat_band
+
+        # Brightness-scaling factor
+        epsilon_band = params.get(f'epsilon_band{band_suffix}', 1)
 
         # Add a band at some latitude
-        mask_band = (self.lat_grid < lat_band_0 + lat_band) & \
-            (self.lat_grid > lat_band_0 - lat_band)
+        mask_band = (self.lat_grid < lat_band_upper) & (self.lat_grid > lat_band_lower)
     
         if epsilon_band < 0:
             epsilon_band = 1 + epsilon_band
@@ -250,7 +267,7 @@ class IntRotationProfile:
             # Ignore segments inside spot
             self.included_segments[mask_spot] = False
 
-    def get_brightness(self, params, N_spot_max=5):
+    def get_brightness(self, params, max_features=5):
 
         self.relative_scaling  = params.get('relative_scaling', True)
         
@@ -269,7 +286,7 @@ class IntRotationProfile:
             epsilon_lat = params.get('epsilon_lat')
             self.brightness *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
 
-        if params.get('lat_band') is not None:
+        if (params.get('lat_band') is not None) or (params.get('lat_band_upper') is not None):
             # Add a band at some latitude
             self._add_latitudinal_band(params)
             
@@ -281,20 +298,25 @@ class IntRotationProfile:
             # Add a spot in the latitude/longitude coordinates
             self._add_latlon_spot(params)
 
-        for spot_idx in range(N_spot_max):
+        for idx in range(max_features):
             
-            # Add multiple spots
-            spot_suffix = f'_{spot_idx}'
-            
-            if (params.get(f'r_spot{spot_suffix}') is not None) and \
-                (params.get(f'theta_spot{spot_suffix}') is not None):
-                # Add a spot in the projected coordinates
-                self._add_projected_spot(params, spot_suffix=spot_suffix)
+            # Add multiple spots or bands
+            suffix = f'_{idx}'
 
-            if (params.get(f'lat_spot{spot_suffix}') is not None) and \
-                (params.get(f'lon_spot{spot_suffix}') is not None):
+            if (params.get(f'lat_band{suffix}') is not None) or \
+                (params.get(f'lat_band_upper{suffix}') is not None):
+                # Add a band at some latitude
+                self._add_latitudinal_band(params, band_suffix=suffix)
+
+            if (params.get(f'r_spot{suffix}') is not None) and \
+                (params.get(f'theta_spot{suffix}') is not None):
+                # Add a spot in the projected coordinates
+                self._add_projected_spot(params, spot_suffix=suffix)
+
+            if (params.get(f'lat_spot{suffix}') is not None) and \
+                (params.get(f'lon_spot{suffix}') is not None):
                 # Add a spot in the latitude/longitude coordinates
-                self._add_latlon_spot(params, spot_suffix=spot_suffix)
+                self._add_latlon_spot(params, spot_suffix=suffix)
 
         # Update the incidence angles included in this patch
         self.unique_mu_included = np.unique(
