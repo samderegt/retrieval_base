@@ -507,8 +507,8 @@ class DataSpectrum(Spectrum):
         elif mode == 'PHOENIX':
 
             T_to_use = T
-            if T > 12000:
-                T_to_use = 12000
+            #if T > 12000:
+            #    T_to_use = 12000
 
             # Download or read a PHOENIX model spectrum
             ref_wave, ref_flux = af.get_PHOENIX_model(
@@ -531,6 +531,10 @@ class DataSpectrum(Spectrum):
 
             # Interpolate onto the data's wavelength grid
             ref_flux = np.interp(self.wave.flatten(), ref_wave, ref_flux)
+
+            np.save(f'./PHOENIX_T{T}_wave.dat', self.wave.flatten())
+            np.save(f'./PHOENIX_T{T}_flux.dat', ref_flux)
+            import sys; sys.exit()
 
             # Change the slope with a blackbody spectrum of a different temperature
             ref_flux *= (np.exp(nc.h*nc.c/(self.wave*1e-7*nc.kB*T_to_use)) - 1) / \

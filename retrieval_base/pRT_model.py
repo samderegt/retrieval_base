@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
@@ -95,13 +96,18 @@ class pRT_model:
 
         self.atm = []
         for wave_range_i in self.wave_range_micron:
+
+            if isinstance(self.cloud_species, list):
+                cloud_species_i = self.cloud_species.copy()
+            else:
+                cloud_species_i = self.cloud_species
             
             # Make a pRT.Radtrans object
             atm_i = Radtrans(
                 line_species=self.line_species, 
                 rayleigh_species=self.rayleigh_species, 
                 continuum_opacities=self.continuum_species, 
-                cloud_species=self.cloud_species.copy(), 
+                cloud_species=cloud_species_i, 
                 wlen_bords_micron=wave_range_i, 
                 mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
@@ -257,6 +263,26 @@ class pRT_model:
                 )
             wave_i = nc.c / atm_i.freq
             flux_i = atm_i.flux
+
+            if self.params.get('cloud_fraction') is not None:
+                # Clear column
+                tmp_atm_i = copy.deepcopy(atm_i)
+                tmp_atm_i.calc_flux(
+                    self.temperature, 
+                    self.mass_fractions, 
+                    gravity=10**self.params['log_g'], 
+                    mmw=self.mass_fractions['MMW'], 
+                    Kzz=self.params['K_zz'], 
+                    fsed=self.f_seds, 
+                    sigma_lnorm=self.params['sigma_g'],
+                    give_absorption_opacity=None, 
+                    contribution=get_contr, 
+                    )
+                
+                frac = self.params.get('cloud_fraction')
+                flux_i = flux_i*frac + (1-frac)*tmp_atm_i.flux
+                
+                del tmp_atm_i
 
             # Convert [erg cm^{-2} s^{-1} Hz^{-1}] -> [erg cm^{-2} s^{-1} cm^{-1}]
             flux_i *= nc.c / (wave_i**2)

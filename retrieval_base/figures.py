@@ -448,9 +448,10 @@ def fig_PT(PT,
     ax_PT.plot(
         PT.temperature, PT.pressure, c=bestfit_color, lw=1, label=label
         )
-    ax_PT.plot(
-        PT.T_knots, PT.P_knots, c=bestfit_color, ls='', marker='o', markersize=3
-        )
+    if hasattr(PT, 'T_knots'):
+        ax_PT.plot(
+            PT.T_knots, PT.P_knots, c=bestfit_color, ls='', marker='o', markersize=3
+            )
 
     if show_ln_L_penalty:
         ax_PT.legend(

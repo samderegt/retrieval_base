@@ -118,11 +118,14 @@ class Parameters:
         # Check if Molliere et al. (2020) PT-profile is used
         Molliere_param_keys = ['log_P_phot', 'alpha', 'T_int', 'T_1', 'T_2', 'T_3']
         PT_grid_param_keys = ['log_g', 'T_eff']
+        MS09_param_keys = ['log_P_1', 'log_P_2', 'log_P_3', 'alpha_1', 'alpha_2', 'T_3']
 
         if np.isin(Molliere_param_keys, self.param_keys).all():
             self.PT_mode = 'Molliere'
         elif np.isin(PT_grid_param_keys, self.param_keys).all():
             self.PT_mode = 'grid'
+        elif np.isin(MS09_param_keys, self.param_keys).all():
+            self.PT_mode = 'MS09'
         else:
             self.PT_mode = 'free'
 
@@ -191,7 +194,7 @@ class Parameters:
         cube = self.read_PT_params(cube)
         self.read_uncertainty_params()
         self.read_chemistry_params()
-        #self.read_cloud_params()
+        self.read_cloud_params()
 
         if (ndim is None) and (nparams is None):
             return cube
@@ -227,36 +230,45 @@ class Parameters:
             self.params['T_3'] = self.params['T_2'] * (high - (high-low)*self.cube[idx])
             cube[idx] = self.params['T_3']
 
-        # Combine the upper temperature knots into an array
-        self.params['T_knots'] = np.array(
-            [self.params[f'T_{i+1}'] \
-             for i in range(self.n_T_knots)]
-            )[::-1]
+        if self.PT_mode == 'free':
+            # Combine the upper temperature knots into an array
+            self.params['T_knots'] = np.array(
+                [self.params[f'T_{i+1}'] \
+                for i in range(self.n_T_knots)]
+                )[::-1]
 
-        # Fill the pressure knots
-        self.params['P_knots'] = 10**np.array(
-            self.params['log_P_knots'], dtype=np.float64
-            )[[0,-1]]
-        for i in range(self.n_T_knots-1):
+            # Fill the pressure knots
+            self.params['P_knots'] = 10**np.array(
+                self.params['log_P_knots'], dtype=np.float64
+                )[[0,-1]]
+            for i in range(self.n_T_knots-1):
+                
+                if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
+                    # Add the difference in log P to the previous knot
+                    log_P_i = np.log10(self.params['P_knots'][1]) - \
+                        self.params[f'd_log_P_{i}{i+1}']
+                else:
+                    # Use the stationary knot
+                    log_P_i = self.params['log_P_knots'][-i-2]
+
+                # Insert each pressure knot into the array
+                self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
+
+            self.params['log_P_knots'] = np.log10(self.params['P_knots'])
+
+            # Convert from logarithmic to linear scale
+            self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
             
-            if f'd_log_P_{i}{i+1}' in list(self.params.keys()):
-                # Add the difference in log P to the previous knot
-                log_P_i = np.log10(self.params['P_knots'][1]) - \
-                    self.params[f'd_log_P_{i}{i+1}']
-            else:
-                # Use the stationary knot
-                log_P_i = self.params['log_P_knots'][-i-2]
+            if 'invgamma_gamma' in self.param_keys:
+                self.params['gamma'] = self.params['invgamma_gamma']
 
-            # Insert each pressure knot into the array
-            self.params['P_knots'] = np.insert(self.params['P_knots'], 1, 10**log_P_i)
-
-        self.params['log_P_knots'] = np.log10(self.params['P_knots'])
-
-        # Convert from logarithmic to linear scale
-        self.params = self.log_to_linear(self.params, 'log_gamma', 'gamma')
-        
-        if 'invgamma_gamma' in self.param_keys:
-            self.params['gamma'] = self.params['invgamma_gamma']
+        if self.PT_mode == 'MS09':
+            
+            # Convert to natural logarithm
+            self.params['ln_P_1'], self.params['ln_P_2'], self.params['ln_P_3'] = \
+                np.log(10**np.sort([
+                    self.params['log_P_1'],self.params['log_P_2'],self.params['log_P_3']
+                    ]))
 
         return cube
 
@@ -335,16 +347,17 @@ class Parameters:
         
     def read_cloud_params(self, pressure=None, temperature=None, FeH=0, CO=0.68):
 
-        #if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
-        # Return the eq.-chem. mass fraction of MgSiO3
-        X_eq_MgSiO3 = fc.return_XMgSiO3(FeH, CO)
-        # Pressure at the cloud base
-        # TODO: this doesn't work, temperature is not yet given
-        self.params['P_base_MgSiO3'] = fc.simple_cdf_MgSiO3(pressure, temperature, FeH, CO)
+        if pressure is not None:
+            #if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
+            # Return the eq.-chem. mass fraction of MgSiO3
+            X_eq_MgSiO3 = fc.return_XMgSiO3(FeH, CO)
+            # Pressure at the cloud base
+            # TODO: this doesn't work, temperature is not yet given
+            self.params['P_base_MgSiO3'] = fc.simple_cdf_MgSiO3(pressure, temperature, FeH, CO)
 
-        # Log mass fraction at the cloud base
-        self.params['log_X_cloud_base_MgSiO3'] = \
-            np.log10(10**self.params['log_X_MgSiO3'] * X_eq_MgSiO3)
+            # Log mass fraction at the cloud base
+            self.params['log_X_cloud_base_MgSiO3'] = \
+                np.log10(10**self.params['log_X_MgSiO3'] * X_eq_MgSiO3)
 
         # Convert the cloud parameters from log to linear scale
         self.params = self.log_to_linear(self.params, 

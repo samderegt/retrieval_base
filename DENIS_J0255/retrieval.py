@@ -9,7 +9,7 @@ import sys
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 # Pause the process to not overload memory
-time.sleep(1.5*rank)
+time.sleep(0.5*rank)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,7 +22,7 @@ from retrieval_base.spectrum import DataSpectrum, ModelSpectrum, Photometry
 from retrieval_base.parameters import Parameters
 from retrieval_base.pRT_model import pRT_model
 from retrieval_base.log_likelihood import LogLikelihood
-from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA
+from retrieval_base.PT_profile import PT_profile_free, PT_profile_Molliere, PT_profile_SONORA, PT_profile_MS09
 from retrieval_base.chemistry import FreeChemistry, EqChemistry
 from retrieval_base.callback import CallBack
 from retrieval_base.covariance import Covariance, GaussianProcesses
@@ -30,7 +30,7 @@ from retrieval_base.covariance import Covariance, GaussianProcesses
 import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
-import config_DENIS as conf
+import config_DENIS_MS09 as conf
 
 def pre_processing():
 
@@ -197,6 +197,10 @@ class Retrieval:
             self.PT = PT_profile_SONORA(
                 self.pRT_atm.pressure, 
                 )
+        elif self.Param.PT_mode == 'MS09':
+            self.PT = PT_profile_MS09(
+                self.pRT_atm.pressure, 
+                )
 
         if self.Param.chem_mode == 'free':
             self.Chem = FreeChemistry(
@@ -279,9 +283,9 @@ class Retrieval:
         # Retrieve the ln L penalty (=0 by default)
         ln_L_penalty = self.PT.ln_L_penalty
 
-        self.Param.read_cloud_params(
-            pressure=self.PT.pressure, temperature=temperature
-            )
+        #self.Param.read_cloud_params(
+        #    pressure=self.PT.pressure, temperature=temperature
+        #    )
 
         #temperature[self.PT.pressure<=1e-2] = temperature[self.PT.pressure<=1e-2][-1]
 
@@ -411,7 +415,7 @@ class Retrieval:
             self.Param.read_PT_params(cube=None)
             self.Param.read_uncertainty_params()
             self.Param.read_chemistry_params()
-            #self.Param.read_cloud_params()
+            self.Param.read_cloud_params()
 
             # Class instances with best-fitting parameters
             returned = self.PMN_lnL_func()
@@ -653,7 +657,7 @@ class Retrieval:
         self.Param.read_PT_params(cube=None)
         self.Param.read_uncertainty_params()
         self.Param.read_chemistry_params()
-        #self.Param.read_cloud_params()
+        self.Param.read_cloud_params()
 
         if args.evaluation:
             # Get each species' contribution to the spectrum
