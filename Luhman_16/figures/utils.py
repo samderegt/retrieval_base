@@ -54,7 +54,9 @@ def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
 
 class RetrievalResults:
     
-    def __init__(self, prefix, m_set='K2166_cloudy', w_set='K2166', low_memory=True):
+    def __init__(
+            self, prefix, m_set='K2166_cloudy', w_set='K2166', low_memory=True, load_posterior=False
+            ):
 
         self.prefix = prefix
         self.m_set  = m_set
@@ -73,6 +75,10 @@ class RetrievalResults:
         stats = analyzer.get_stats()
         #self.ln_Z = stats['nested importance sampling global log-evidence']
         self.ln_Z = stats['nested sampling global log-evidence']
+
+        if load_posterior:
+            self.posterior = analyzer.get_equal_weighted_posterior()
+            self.posterior = self.posterior[:,:-1]
 
         # Read the parameters of the best-fitting model
         self.bestfit_values = np.array(stats['modes'][0]['maximum a posterior'])
@@ -156,6 +162,7 @@ class RetrievalResults:
 
         if is_local:
             params['vsini'] = 0
+            #params['rv'] = 0
 
             # Remove any spots/bands
             keys_to_delete = [
@@ -247,6 +254,177 @@ class RetrievalResults:
 
         return profile_wave, profile_flux, profile_flux_broad
     
+    def get_telluric_CCF(
+            self, wave_local, flux_local, 
+            rv=np.arange(-300,300+1e-6,0.5), 
+            high_pass={'tell_res': high_pass_filter(), 'm_res': high_pass_filter()}, 
+            orders_to_include=None, 
+            path_data='../data/', 
+            tell_threshold=0.7, 
+            **kwargs
+            ):
+
+        # Load the necessary objects
+        self._load_objects_as_attr(['Cov', 'LogLike'])
+        self.d_spec = self._load_object('d_spec', bestfit_prefix=False)
+
+        # Load the telluric standard observation
+        _, flux_std, err_std = np.loadtxt(f'{path_data}Luhman_16_std_K.dat').T
+        self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm.dat').T
+        _, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum.dat').T
+        #self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm_new.dat').T
+        #_, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum_new.dat').T
+
+        # Remove the continuum and tellurics
+        flux_std /= continuum
+        err_std  /= continuum
+
+        self.tell_res = np.ones_like(flux_std) * np.nan
+        self.tell_err = np.ones_like(err_std) * np.nan
+        
+        from scipy.ndimage import minimum_filter
+        mask_tell = (transm_mf > tell_threshold)
+        #mask_tell = minimum_filter(mask_tell, size=30)
+
+        self.tell_res[mask_tell] = (flux_std/transm_mf)[mask_tell]
+        #self.tell_res[mask_tell] = (flux_std)[mask_tell]
+        self.tell_err[mask_tell] = (err_std/transm_mf)[mask_tell]
+
+        #self.tell_res /= self.tell_res
+        #self.tell_err /= self.tell_res
+
+        # Reshape the arrays
+        mask_wave = (self.tell_wave > self.d_spec.wave.min()-10) & \
+            (self.tell_wave < self.d_spec.wave.max()+10)
+        self.tell_wave = self.tell_wave[mask_wave].reshape(self.d_spec.wave.shape)
+        self.tell_res  = self.tell_res[mask_wave].reshape(self.d_spec.wave.shape)
+        self.tell_err  = self.tell_err[mask_wave].reshape(self.d_spec.wave.shape)
+
+        #self.tell_res -= 1
+
+        transm_mf = transm_mf[mask_wave].reshape(self.d_spec.wave.shape)
+
+        # Mask the intrinsic hydrogen (H I) lines
+        mask_lines = np.zeros_like(self.tell_res, dtype=bool)
+
+        mask_lines = mask_lines | ((self.tell_wave > 2157.6) & (self.tell_wave < 2174.3))
+        mask_lines = mask_lines | ((self.tell_wave > 1944-5) & (self.tell_wave < 1944+5))
+        mask_lines = mask_lines | ((self.tell_wave > 2166-5) & (self.tell_wave < 2166+5))
+        mask_lines = mask_lines | ((self.tell_wave > 2470.0-3) & (self.tell_wave < 2470.0+3))
+        mask_lines = mask_lines | ((self.tell_wave > 2449.0-3) & (self.tell_wave < 2449.0+3))
+        mask_lines = mask_lines | ((self.tell_wave > 2431.4-3) & (self.tell_wave < 2431.4+3))
+
+        self.tell_res[mask_lines] = np.nan
+
+        self.tell_res[~self.d_spec.mask_isfinite] = np.nan
+
+        if high_pass.get('tell_res') is not None:
+            # Apply a high-pass filter
+            self.tell_res = high_pass.get('tell_res')(self.tell_res)
+
+        # Shift the telluric residuals to the planet's restframe
+
+        # Correct for the barycentric velocity
+        #self.tell_wave = self.tell_wave * (1+(self.d_spec.v_bary)/(nc.c*1e-5))
+            
+        fig, ax = plt.subplots(figsize=(12,2.5))
+        #ax.plot(self.tell_wave, flux_std, c='k', lw=1, alpha=0.5)
+        ax.plot(self.tell_wave.flatten(), self.tell_res.flatten(), c='k', lw=1)
+        #ax.set(xlim=(2320,2370), ylim=(0.95,1.05))
+        #ax.set(ylim=(-0.05,0.05))
+        plt.show()
+
+        # Perform the cross-correlation
+        CCF = np.nan * np.ones((len(rv), self.d_spec.n_orders, self.d_spec.n_dets))
+        CCF_mf = np.nan * np.ones((len(rv), self.d_spec.n_orders, self.d_spec.n_dets))
+
+        for i, rv_i in enumerate(tqdm(rv)):
+
+            # Center the model in the telluric rest-frame
+            rv_i -= self.bestfit_params[self.m_set]['rv']
+            #rv_i += self.vtell
+        
+            for j in range(self.d_spec.n_orders):
+
+                # Shift the model spectrum
+                m_wave_local = np.copy(wave_local[j]) * (1+rv_i/(nc.c*1e-5))
+                m_flux_local = np.copy(flux_local[j])
+                
+                for k in range(self.d_spec.n_dets):
+
+                    # Ignore the nans
+                    mask_jk = self.d_spec.mask_isfinite[j,k] & \
+                        np.isfinite(self.tell_res[j,k])
+                    if not mask_jk.any():
+                        continue
+
+                    m_res_local_jk = m_flux_local.copy()
+
+                    m_wave_mf = np.copy(self.tell_wave[j,k]) * (1+rv[i]/(nc.c*1e-5))
+                    m_res_mf_jk = np.copy(transm_mf[j,k])
+
+                    # Interpolate onto the data wavelength-grid
+                    m_res_local_jk = np.interp(
+                        self.tell_wave[j,k], xp=m_wave_local, fp=m_res_local_jk
+                        )
+                    m_res_local_jk *= self.LogLike.phi[j,k,0]
+
+                    m_res_mf_jk = np.interp(
+                        self.tell_wave[j,k], xp=m_wave_mf, fp=m_res_mf_jk, 
+                        left=np.nan, right=np.nan
+                        )
+                    m_res_mf_jk *= self.LogLike.phi[j,k,0]
+
+                    if high_pass.get('m_res') is not None:
+                        # Apply a high-pass filter
+                        m_res_local_jk = high_pass.get('m_res')(m_res_local_jk)
+                        m_res_mf_jk = high_pass.get('m_res')(m_res_mf_jk)
+
+                    # Compute the cross-correlation coefficient
+                    CCF[i,j,k] = np.dot(
+                        m_res_local_jk[mask_jk], 
+                        self.tell_res[j,k,mask_jk] / self.tell_err[j,k,mask_jk]**2
+                        #1/self.LogLike.s2[j,k] * \
+                        #    self.Cov[j,k].solve(self.tell_res[j,k,mask_jk])
+                        )
+                    
+                    mask_jk = mask_jk & np.isfinite(m_res_mf_jk)
+                    CCF_mf[i,j,k] = np.dot(
+                        m_res_mf_jk[mask_jk], 
+                        self.tell_res[j,k,mask_jk] / self.tell_err[j,k,mask_jk]**2
+                        #1/self.LogLike.s2[j,k] * \
+                        #    self.Cov[j,k].solve(self.tell_res[j,k,mask_jk])
+                        )
+
+                    '''
+                    if rv[i] != 0.:
+                        continue
+
+                    fig, ax = plt.subplots(figsize=(12,5))
+                    #ax.plot(self.tell_wave, flux_std, c='k', lw=1, alpha=0.5)
+                    ax.plot(self.tell_wave[j,k,mask_jk], self.tell_res[j,k,mask_jk], c='k', lw=1)
+                    #ax.set(xlim=(2320,2370), ylim=(0.95,1.05))
+                    ax.set(ylim=(0.95,1.05))
+                    plt.show()
+                    '''
+                    
+        if self.low_memory:
+            del self.d_spec, self.Cov, self.LogLike, self.tell_wave, self.tell_res
+
+        if orders_to_include is None:
+            CCF_sum = np.nansum(CCF, axis=(1,2))
+        else:
+            CCF_sum = CCF[:,orders_to_include,:].sum(axis=(1,2))
+        CCF_SNR = convert_CCF_to_SNR(rv, CCF_sum, **kwargs)
+
+        if orders_to_include is None:
+            CCF_sum = np.nansum(CCF_mf, axis=(1,2))
+        else:
+            CCF_sum = CCF_mf[:,orders_to_include,:].sum(axis=(1,2))
+        CCF_SNR_mf = convert_CCF_to_SNR(rv, CCF_sum, **kwargs)
+
+        return rv, CCF, CCF_SNR, CCF_mf, CCF_SNR_mf
+    
     def add_patch_to_Rot(self, Rot, Rot_spot):
 
         # Fill in the patch with another Rot-instance
@@ -323,7 +501,7 @@ class RetrievalResults:
                     )
 
         if orders_to_include is None:
-            CCF_sum = CCF.sum(axis=(1,2))
+            CCF_sum = np.nansum(CCF, axis=(1,2))
         else:
             CCF_sum = CCF[:,orders_to_include,:].sum(axis=(1,2))
 
@@ -409,7 +587,7 @@ class SpherePlot:
                 self.ax.plot(np.pi/2-th_i, [r_i[0]]*len(th_i), **r_grid_kwargs)
             
     def configure_cax(
-            self, label=None, xlim=None, xticks=None, vmin=0, vmax=1, 
+            self, label=None, xlim=None, xticks=None, xticklabels=None, vmin=0, vmax=1, 
             cb_width=0.1, scale=1.1, N=256, cmap=None, flip_cb=False, 
             ):
 
@@ -451,11 +629,19 @@ class SpherePlot:
 
             frac   = (xticks-vmin) / (vmax-vmin)
             xticks = xticks[(frac>=0) & (frac<=1)]
-            frac   = frac[(frac>=0) & (frac<=1)]
+            if xticklabels is not None:
+                xticklabels = np.array(xticklabels)[(frac>=0) & (frac<=1)]
+
+            frac = frac[(frac>=0) & (frac<=1)]
+
+            if xticklabels is None:
+                xticklabels = []
+                for xtick_i in xticks:
+                    xticklabels.append(str(xtick_i).replace('-',r'$-$'))
 
             theta_ticks = (theta_max-theta_min)*frac + theta_min
             self.cax.set_xticks(theta_ticks)
-            self.cax.set_xticklabels(xticks)
+            self.cax.set_xticklabels(xticklabels)
 
         if label is not None:
             # Add a label to the axis
@@ -466,7 +652,7 @@ class SpherePlot:
                 )
             
     def configure_ax(
-            self, xlim=None, sep_spine_lw=5, plot_grid=True, grid_lw=0.4, grid_color='k'
+            self, xlim=None, sep_spine_lw=5, plot_grid=True, grid_lw=0.4, grid_color='k', grid_alpha=1
             ):
 
         self.ax.grid(False)
@@ -481,7 +667,7 @@ class SpherePlot:
             self.grid(
                 inc=np.rad2deg(self.Rot.inc), 
                 lon_0=np.rad2deg(self.Rot.lon_0), 
-                c=grid_color, lw=grid_lw, 
+                c=grid_color, lw=grid_lw, alpha=grid_alpha
                 )
         
         if sep_spine_lw is None:
