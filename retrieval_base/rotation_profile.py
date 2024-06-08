@@ -135,7 +135,53 @@ class IntRotationProfile:
             self.r_grid * np.cos(self.c_grid)*np.cos(self.inc) - \
                 self.y_grid * np.sin(self.c_grid)*np.sin(self.inc)
             )
+    
+    def _add_longitudinal_band(self, params, band_suffix=''):
+
+        lon_band_upper = params.get(f'lon_band_upper{band_suffix}')
+        lon_band_lower = params.get(f'lon_band_lower{band_suffix}')
         
+        upper_and_lower = (lon_band_upper is not None) & (lon_band_lower is not None)
+        if not upper_and_lower:
+
+            if params.get('lon_band_1') is None:
+                # Only a single band
+                lon_band_cen = np.deg2rad(params.get('lon_band_0', 0))
+            else:
+                # Multiple bands
+                lon_band_cen = np.deg2rad(params.get(f'lon_band_cen{band_suffix}', 0))
+
+            # Band width
+            lon_band = np.deg2rad(params.get(f'lon_band{band_suffix}'))
+
+            lon_band_upper = lon_band_cen + lon_band
+            lon_band_lower = lon_band_cen - lon_band
+        else:
+            lon_band_upper = np.deg2rad(lon_band_upper)
+            lon_band_lower = np.deg2rad(lon_band_lower)
+
+        # Brightness-scaling factor
+        epsilon_band = params.get(f'epsilon_band{band_suffix}', 1)
+
+        # Add a band at some longitude
+        mask_band = (self.lon_grid < lon_band_upper) & (self.lon_grid > lon_band_lower)
+    
+        if epsilon_band < 0:
+            epsilon_band = 1 + epsilon_band
+
+        # Change the flux between some latitudes
+        if self.relative_scaling:
+            self.brightness[mask_band] *= epsilon_band
+        else:
+            self.brightness[mask_band] = epsilon_band
+
+        if params.get('is_in_band'):
+            # Ignore segments outside of band
+            self.included_segments[~mask_band] = False
+        if params.get('is_not_in_band'):
+            # Ignore segments inside band 
+            self.included_segments[mask_band] = False
+
     def _add_latitudinal_band(self, params, band_suffix=''):
 
         lat_band_upper = params.get(f'lat_band_upper{band_suffix}')
@@ -156,6 +202,9 @@ class IntRotationProfile:
 
             lat_band_upper = lat_band_cen + lat_band
             lat_band_lower = lat_band_cen - lat_band
+        else:
+            lat_band_upper = np.deg2rad(lat_band_upper)
+            lat_band_lower = np.deg2rad(lat_band_lower)
 
         # Brightness-scaling factor
         epsilon_band = params.get(f'epsilon_band{band_suffix}', 1)
@@ -285,6 +334,10 @@ class IntRotationProfile:
             # Latitude-darkening
             epsilon_lat = params.get('epsilon_lat')
             self.brightness *= (1 - epsilon_lat * np.sin(self.lat_grid)**2)
+
+        if (params.get('lon_band') is not None) or (params.get('lon_band_upper') is not None):
+            # Add a band at some longitude
+            self._add_longitudinal_band(params)
 
         if (params.get('lat_band') is not None) or (params.get('lat_band_upper') is not None):
             # Add a band at some latitude

@@ -147,7 +147,7 @@ class RetrievalResults:
         
         return copy.copy(pRT_atm.Rot)
     
-    def get_model_spec(self, is_local=False, m_set=None, line_species=None):
+    def get_model_spec(self, is_local=False, m_set=None, line_species=None, return_pRT_atm=False):
         
         # Load the necessary objects
         self._load_objects_as_attr(['Chem', 'PT'])
@@ -195,9 +195,12 @@ class RetrievalResults:
         if self.low_memory:
             del self.Chem, self.PT
 
+        if return_pRT_atm:
+            return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm), pRT_atm
+        
         return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm) # Rotation model
     
-    def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16)):
+    def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16), return_Rot=False):
 
         k_B = 1.3807e-16    # cm^2 g s^-2 K^-1
         c   = 2.99792458e10 # cm s^-1
@@ -211,7 +214,7 @@ class RetrievalResults:
 
         profile_wave_cen = np.nanmean(self.d_spec.wave)
         delta_wave       = profile_wave_cen / m_res # Use model resolution get wlen-spacing
-        profile_wave     = profile_wave_cen + np.arange(-1, 1+1e-6, delta_wave)
+        profile_wave     = profile_wave_cen + np.arange(-5, 5+1e-6, delta_wave)
 
         # In wavenumber (cm^-1)
         profile_wn_cen = 1e7 / profile_wave_cen
@@ -230,18 +233,40 @@ class RetrievalResults:
         profile_flux = Faddeeva(u + 1j*a).real
         profile_flux = 1 - profile_flux/np.max(profile_flux) # Normalise
 
+        _, _, Rot, pRT_atm = self.get_model_spec(is_local=False, return_pRT_atm=True)
+        int_intensities  = np.sum(pRT_atm.atm[0].flux_mu, axis=-1)
+        #int_intensities  = pRT_atm.atm[0].flux_mu[:,100]
+        int_intensities /= np.sum(int_intensities) # Normalize
+        #int_intensities /= np.max(int_intensities) # Normalize
+        del pRT_atm
+
+        # Scale the profile with the integrated mu-dependent intensities
+        flux_mu = profile_flux[None,:]*int_intensities[:,None]
+
+        params_vsini_0 = {'vsini':0}
+        Rot.get_brightness(params=params_vsini_0)
+        _, profile_flux_vsini_0 = Rot(
+            wave=profile_wave, flux=flux_mu, 
+            params=params_vsini_0, get_scaling=True, 
+            )
+
         # Rotational broadening
-        Rot = self.get_Rot()
         Rot.get_brightness(params=self.bestfit_params[self.m_set])
         _, profile_flux_broad = Rot(
-            wave=profile_wave, flux=profile_flux, 
-            params=self.bestfit_params[self.m_set]
+            wave=profile_wave, flux=flux_mu, 
+            params=self.bestfit_params[self.m_set], 
+            get_scaling=True, 
             )
-        profile_flux_broad /= np.pi # Normalise
+        #profile_flux_broad /= np.pi # Normalise
+
+        # Normalise
+        profile_flux_broad   /= np.nanmax(profile_flux_broad)
+        #profile_flux_broad   /= profile_flux_vsini_0.max()
+        profile_flux_vsini_0 /= profile_flux_vsini_0.max()
 
         # Instrumental broadening
-        profile_flux = self.d_spec.instr_broadening(
-            wave=profile_wave, flux=profile_flux, 
+        profile_flux_vsini_0 = self.d_spec.instr_broadening(
+            wave=profile_wave, flux=profile_flux_vsini_0, 
             out_res=self.d_spec.resolution, in_res=m_res
             )
         profile_flux_broad = self.d_spec.instr_broadening(
@@ -252,7 +277,10 @@ class RetrievalResults:
         if self.low_memory:
             del self.d_spec
 
-        return profile_wave, profile_flux, profile_flux_broad
+        if return_Rot:
+            return profile_wave, profile_flux_vsini_0, profile_flux_broad, Rot
+        
+        return profile_wave, profile_flux_vsini_0, profile_flux_broad
     
     def get_telluric_CCF(
             self, wave_local, flux_local, 
@@ -652,7 +680,8 @@ class SpherePlot:
                 )
             
     def configure_ax(
-            self, xlim=None, sep_spine_lw=5, plot_grid=True, grid_lw=0.4, grid_color='k', grid_alpha=1
+            self, xlim=None, plot_grid=True, grid_lw=0.4, grid_color='k', grid_alpha=1, 
+            sep_spine_kwargs={'lw':5, 'c':'w', 'capstyle':'round'}, **kwargs
             ):
 
         self.ax.grid(False)
@@ -670,17 +699,17 @@ class SpherePlot:
                 c=grid_color, lw=grid_lw, alpha=grid_alpha
                 )
         
-        if sep_spine_lw is None:
+        if sep_spine_kwargs is None:
             return
         
         for i, key_i in enumerate(['start', 'end']):
             # Make the spine a separating white line
-            self.ax.spines[key_i].set_linewidth(sep_spine_lw)
-            self.ax.spines[key_i].set_color('w')
-            self.ax.spines[key_i].set_capstyle('round')
+            self.ax.spines[key_i].set_linewidth(sep_spine_kwargs.get('lw', 5))
+            self.ax.spines[key_i].set_color(sep_spine_kwargs.get('c', 'w'))
+            self.ax.spines[key_i].set_capstyle(sep_spine_kwargs.get('capstyle', 'round'))
             
             # Plot a black spine around the inner axis edge
-            self.ax.axvline(self.ax.get_xlim()[i], lw=sep_spine_lw+0.8*2, c='k')
+            self.ax.axvline(self.ax.get_xlim()[i], lw=sep_spine_kwargs.get('lw', 5)+0.8*2, c='k')
 
     def grid(
             self, 
@@ -763,16 +792,21 @@ class CrossCorrPlot:
         self.vsini = vsini
         self.vtell = vtell
 
-    def colorbar(self, h=0.03):
+    def colorbar(self, h=0.03, N=50, **kwargs):
 
         ylim = self.ax.get_ylim()
 
         # Plot a colorbar at the bottom of the axis
-        Z = np.linspace(0,1+1e-6,50).reshape(-1,1).T
+        Z = np.linspace(0,1+1e-6,N).reshape(-1,1).T
         self.ax.imshow(
             Z, extent=[-self.vsini,self.vsini,0,h], origin='lower', 
             aspect='auto', transform=self.ax.get_xaxis_transform(), 
             zorder=-2, cmap=self.cmap, vmin=0, vmax=1, 
+            )
+        
+        self.ax.plot(
+            [-self.vsini,-self.vsini,self.vsini,self.vsini], [0,h,h,0], 
+            transform=self.ax.get_xaxis_transform(), zorder=-1, **kwargs
             )
         
         self.ax.set(ylim=ylim)
@@ -793,7 +827,9 @@ class CrossCorrPlot:
         self.ax.add_collection(lc)
 
     def plot(
-            self, rv, CCF, CCF_other=None, plot_colorbar=False, plot_multicolor=True, **kwargs
+            self, rv, CCF, CCF_other=None, 
+            plot_colorbar=False, plot_multicolor=True, 
+            **kwargs
             ):
 
         self.ax.plot(rv, CCF, **kwargs)

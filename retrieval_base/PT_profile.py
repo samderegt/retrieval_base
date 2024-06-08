@@ -33,6 +33,49 @@ class PT_profile():
         
         return -np.inf
 
+class PT_profile_MS09(PT_profile):
+
+    def __init__(self, pressure):
+
+        # Give arguments to the parent class
+        super().__init__(pressure)
+
+        # Convert to natural logarithm
+        self.ln_pressure = np.log(self.pressure)
+
+    def __call__(self, params):
+
+        temperature = np.zeros_like(self.pressure)
+
+        # Read all parameters
+        alpha_1 = params.get('alpha_1')
+        alpha_2 = params.get('alpha_2')
+
+        ln_P_0 = np.log(self.pressure.min())
+        ln_P_1 = params.get('ln_P_1')
+        ln_P_2 = params.get('ln_P_2')
+        ln_P_3 = params.get('ln_P_3')
+
+        T_3 = params.get('T_3')
+        # Derive the other temperatures from the expected continuity
+        T_2 = T_3 - (ln_P_3-ln_P_2)**2 / alpha_2**2
+        T_1 = T_2 + (ln_P_1-ln_P_2)**2 / alpha_2**2
+        T_0 = T_1 - (ln_P_1-ln_P_0)**2 / alpha_1**2
+
+        mask_layer_1 = (self.ln_pressure < ln_P_1)
+        mask_layer_2 = (self.ln_pressure > ln_P_1) & (self.ln_pressure < ln_P_3)
+        mask_layer_3 = (self.ln_pressure > ln_P_3)
+
+        temperature[mask_layer_1] = T_0 + (self.ln_pressure[mask_layer_1]-ln_P_0)**2 / alpha_1**2
+        temperature[mask_layer_2] = T_2 + (self.ln_pressure[mask_layer_2]-ln_P_2)**2 / alpha_2**2
+        temperature[mask_layer_3] = T_3
+
+        # Boxcar smoothing
+        temperature = generic_filter(temperature, function=np.mean, size=5)
+        self.temperature = temperature
+        return temperature
+
+
 class PT_profile_SONORA(PT_profile):
 
     def __init__(self, pressure, path_to_SONORA_PT='./data/SONORA_PT_structures', **kwargs):
