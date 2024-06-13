@@ -73,8 +73,8 @@ class RetrievalResults:
             n_params=self.n_params, outputfiles_basename=prefix
             )
         stats = analyzer.get_stats()
-        #self.ln_Z = stats['nested importance sampling global log-evidence']
-        self.ln_Z = stats['nested sampling global log-evidence']
+        self.ln_Z = stats['nested importance sampling global log-evidence']
+        #self.ln_Z = stats['nested sampling global log-evidence']
 
         if load_posterior:
             self.posterior = analyzer.get_equal_weighted_posterior()
@@ -298,10 +298,10 @@ class RetrievalResults:
 
         # Load the telluric standard observation
         _, flux_std, err_std = np.loadtxt(f'{path_data}Luhman_16_std_K.dat').T
-        self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm.dat').T
-        _, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum.dat').T
-        #self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm_new.dat').T
-        #_, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum_new.dat').T
+        #self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm.dat').T
+        #_, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum.dat').T
+        self.tell_wave, transm_mf = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_transm_new.dat').T
+        _, continuum = np.loadtxt(f'{path_data}Luhman_16_std_K_molecfit_continuum_new.dat').T
 
         # Remove the continuum and tellurics
         flux_std /= continuum
