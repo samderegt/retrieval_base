@@ -189,13 +189,8 @@ class IntRotationProfile:
         
         upper_and_lower = (lat_band_upper is not None) & (lat_band_lower is not None)
         if not upper_and_lower:
-
-            if params.get('lat_band_1') is None:
-                # Only a single band
-                lat_band_cen = np.deg2rad(params.get('lat_band_0', 0))
-            else:
-                # Multiple bands
-                lat_band_cen = np.deg2rad(params.get(f'lat_band_cen{band_suffix}', 0))
+            # Central latitude of the band
+            lat_band_cen = np.deg2rad(params.get(f'lat_band_cen{band_suffix}', 0))
 
             # Band width/height
             lat_band = np.deg2rad(params.get(f'lat_band{band_suffix}'))
@@ -203,6 +198,7 @@ class IntRotationProfile:
             lat_band_upper = lat_band_cen + lat_band
             lat_band_lower = lat_band_cen - lat_band
         else:
+            # Define upper and lower edges directly
             lat_band_upper = np.deg2rad(lat_band_upper)
             lat_band_lower = np.deg2rad(lat_band_lower)
 
