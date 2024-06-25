@@ -5,6 +5,7 @@ import petitRADTRANS.nat_cst as nc
 
 from .spectrum import ModelSpectrum
 from .rotation_profile import get_Rotation_class
+from .clouds import get_Cloud_class
 
 class pRT_model:
 
@@ -24,6 +25,7 @@ class pRT_model:
                  rotation_mode='convolve', 
                  inclination=0, 
                  sum_m_spec=False, 
+                 do_scat_emis=False, 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -77,14 +79,7 @@ class pRT_model:
         self.rayleigh_species  = rayleigh_species
         self.continuum_species = continuum_opacities
 
-        # Clouds
-        if self.cloud_species is None:
-            self.do_scat_emis = False
-        else:
-            self.do_scat_emis = True
-
-        #self.do_scat_emis = True
-        self.cloud_mode = cloud_mode
+        self.do_scat_emis = do_scat_emis
 
         self.rv_max = np.array(list(rv_range))
         self.rv_max[0] -= np.max(list(vsini_range))
@@ -100,6 +95,13 @@ class pRT_model:
             log_P_range[0], log_P_range[1], n_atm_layers, dtype=np.float64
             )
 
+        # Clouds
+        self.cloud_mode = cloud_mode
+        self.Cloud = get_Cloud_class(
+            mode=self.cloud_mode, pressure=self.pressure, 
+            cloud_species=self.cloud_species
+            )
+        
         # Make the pRT.Radtrans objects
         self.get_atmospheres(CB_active=False)
 
@@ -128,7 +130,7 @@ class pRT_model:
                 wlen_bords_micron=wave_range_i, 
                 mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
-                do_scat_emis=False
+                do_scat_emis=self.do_scat_emis
                 )
 
             # Set up the atmospheric layers
@@ -142,6 +144,8 @@ class pRT_model:
                  params, 
                  get_contr=False, 
                  get_full_spectrum=False, 
+                 CO=0.59, 
+                 FeH=0.0, 
                  ):
         '''
         Create a new model spectrum with the given arguments.
@@ -173,8 +177,11 @@ class pRT_model:
         if self.params.get(f'res_{self.w_set}') is not None:
             self.d_resolution = self.params[f'res_{self.w_set}']
 
-        # Add clouds if requested
-        self.add_clouds()
+        # Update the cloud parameters + add abundances if necessary
+        self.mass_fractions = self.Cloud(
+            params=self.params, mass_fractions=self.mass_fractions, 
+            temperature=temperature, CO=CO, FeH=FeH, 
+            )
 
         # Generate a model spectrum
         m_spec = self.get_model_spectrum(
@@ -182,70 +189,6 @@ class pRT_model:
             )
 
         return m_spec
-
-    def add_clouds(self):
-        '''
-        Add clouds to the model atmosphere using the given parameters.
-        '''
-
-        self.give_absorption_opacity = None
-        self.f_sed  = None
-        self.K_zz   = None
-        self.sigma_g = None
-
-        if self.cloud_mode == 'MgSiO3':
-
-            # Mask the pressure above the cloud deck
-            mask_above_deck = (self.pressure <= self.params['P_base_MgSiO3'])
-
-            # Add the MgSiO3 particles
-            self.mass_fractions['MgSiO3(c)'] = np.zeros_like(self.pressure)
-            self.mass_fractions['MgSiO3(c)'][mask_above_deck] = self.params['X_cloud_base_MgSiO3'] * \
-                (self.pressure[mask_above_deck]/self.params['P_base_MgSiO3'])**self.params['f_sed']
-            #self.params['K_zz'] = self.params['K_zz'] * np.ones_like(self.pressure)
-            self.K_zz = self.params['K_zz'] * np.ones_like(self.pressure)
-            self.sigma_g = self.params['sigma_g']
-
-            self.f_sed = {'MgSiO3(c)': self.params['f_sed']}
-        
-        elif self.cloud_mode == 'gray':
-            
-            # Gray cloud opacity
-            self.give_absorption_opacity = self.gray_cloud_opacity
-
-    def gray_cloud_opacity(self, wave_micron, pressure):
-        '''
-        Function to be called by petitRADTRANS. 
-
-        Input
-        -----
-        wave_micron: np.ndarray
-            Wavelength in micron.
-        pressure: np.ndarray
-            Pressure in bar.
-
-        Output
-        ------
-        opa_gray_cloud: np.ndarray
-            Gray cloud opacity for each wavelength and pressure layer.
-        '''
-
-        # Create gray cloud opacity, i.e. independent of wavelength
-        opa_gray_cloud = np.zeros((len(wave_micron), len(pressure)))
-
-        # Constant below the cloud base
-        #opa_gray_cloud[:,pressure >= params['P_base_gray']] = params['opa_base_gray']
-        opa_gray_cloud[:,pressure > self.params['P_base_gray']] = 0
-
-        # Opacity decreases with power-law above the base
-        mask_above_deck = (pressure <= self.params['P_base_gray'])
-        opa_gray_cloud[:,mask_above_deck] = self.params['opa_base_gray'] * \
-            (pressure[mask_above_deck]/self.params['P_base_gray'])**self.params['f_sed_gray']
-
-        if self.params.get('cloud_slope') is not None:
-            opa_gray_cloud *= (wave_micron[:,None] / 1)**self.params['cloud_slope']
-
-        return opa_gray_cloud
 
     def get_model_spectrum(self, get_contr=False, get_full_spectrum=False):
         '''
@@ -281,10 +224,10 @@ class pRT_model:
             abunds  = self.mass_fractions, 
             gravity = 10**self.params['log_g'], 
             mmw     = self.mass_fractions['MMW'], 
-            Kzz     = self.K_zz, 
-            fsed    = self.f_sed, 
-            sigma_lnorm = self.sigma_g,
-            give_absorption_opacity = self.give_absorption_opacity, 
+            Kzz     = self.Cloud.K_zz, 
+            fsed    = self.Cloud.f_sed, 
+            sigma_lnorm = self.Cloud.sigma_g,
+            give_absorption_opacity = self.Cloud.get_opacity, 
             contribution = get_contr, 
             )
 
@@ -483,9 +426,9 @@ class pRT_model:
 
         # Get the cloud opacity
         if self.cloud_mode == 'gray':
-            opa_cloud_i = self.gray_cloud_opacity(m_wave_i*1e-3, self.pressure).T
-        elif self.cloud_mode == 'MgSiO3':
-            opa_cloud_i = atm_i.tau_cloud.T
+            opa_cloud_i = self.Cloud.get_opacity(m_wave_i*1e-3, self.pressure).T
+        elif self.cloud_mode == 'EddySed':
+            opa_cloud_i = np.nansum(atm_i.tau_cloud.T, axis=(1,3))
         else:
             opa_cloud_i = np.zeros_like(contr_em_i)
 

@@ -87,7 +87,7 @@ class ParameterWaveSetting:
         self.cloud_mode   = self.cloud_kwargs.get('cloud_mode', None)
         if self.cloud_mode == 'grey':
             self.cloud_mode = 'gray'
-        assert(self.cloud_mode in ['gray', 'MgSiO3', None])
+        assert(self.cloud_mode in ['gray', 'EddySed', None])
 
         # Check the used covariance definition
         self.cov_kwargs = cov_kwargs
@@ -103,11 +103,14 @@ class ParameterWaveSetting:
             return cube
 
         # If free, or free-gradient, define the pressure knots
-        self.params['log_P_knots'] = np.array(self.params.get('log_P_knots'))
+        if self.params.get('log_P_knots') is None:
+            self.params['log_P_knots'] = np.zeros(self.PT_kwargs.get('n_T_knots'), dtype=np.float64)
+        else:
+            self.params['log_P_knots'] = np.array(self.params.get('log_P_knots'), dtype=np.float64)
 
         if self.params.get('d_log_P_01') is not None:
             # Separations are given relative to bottom knot
-            log_P_knots = [self.params['log_P_knots'].max(), ]
+            log_P_knots = [self.params['log_P_range'][1], ]
 
             for i in range(self.n_T_knots-1):
 
@@ -116,7 +119,7 @@ class ParameterWaveSetting:
                     # Add knot above previous knot
                     log_P_knots.append(log_P_knots[-1]-up_i)
             
-            log_P_knots.append(self.params['log_P_knots'].min())
+            log_P_knots.append(self.params['log_P_range'][0])
             
             self.params['log_P_knots'] = np.sort(np.array(log_P_knots))
 
@@ -124,8 +127,8 @@ class ParameterWaveSetting:
             # Separations are given relative to photospheric knot
             log_P_phot  = self.params['log_P_phot']
             log_P_knots = [
-                log_P_phot, self.params['log_P_knots'].max(), 
-                self.params['log_P_knots'].min(), 
+                log_P_phot, self.params['log_P_range'][1], 
+                self.params['log_P_range'][0], 
                 ]
 
             for i in range(1, self.n_T_knots-1):
@@ -239,22 +242,6 @@ class ParameterWaveSetting:
                 if species_i == 'H2O_171' and ('log_17O/16O_ratio' in self.param_keys):
                     self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['H2O']
 
-    def read_cloud_params(self, pressure=None, temperature=None):
-
-        if (self.cloud_mode == 'MgSiO3') and (self.chem_mode == 'eqchem'):
-            # Return the eq.-chem. mass fraction of MgSiO3
-            X_eq_MgSiO3 = fc.return_XMgSiO3(self.params['Fe/H'], self.params['C/O'])
-            # Pressure at the cloud base
-            # TODO: this doesn't work, temperature is not yet given
-            self.params['P_base_MgSiO3'] = fc.simple_cdf_MgSiO3(pressure, temperature, 
-                                                                self.params['Fe/H'], 
-                                                                self.params['C/O']
-                                                                )
-
-            # Log mass fraction at the cloud base
-            self.params['log_X_cloud_base_MgSiO3'] = np.log10(self.params['X_MgSiO3'] * X_eq_MgSiO3)
-            self.params['X_cloud_base_MgSiO3'] = 10**self.params['log_X_cloud_base_MgSiO3']
-
     def __call__(self, cube, apply_prior=True):
 
         # Loop over all parameters
@@ -295,7 +282,6 @@ class ParameterWaveSetting:
         cube = self.read_PT_params(cube)
         self.read_uncertainty_params()
         self.read_chemistry_params()
-        self.read_cloud_params()
 
         idx = list(self.param_idx.values())
         return cube[idx]

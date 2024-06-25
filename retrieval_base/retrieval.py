@@ -68,13 +68,12 @@ def pre_processing(conf, conf_data, m_set):
     # Instance of the Photometry class for the given magnitudes
     photom_2MASS = Photometry(magnitudes=conf.magnitudes)
 
-    if conf_data.get('file_molecfit_transm') is None:
+    has_molecfit = (conf_data.get('file_molecfit_transm') is not None)
+    if not has_molecfit:
         # Get transmission from telluric std and add to target's class
-        #d_std_spec.get_transmission(T=conf.T_std, ref_rv=0, mode='bb')
         d_std_spec.get_transm(
             T=conf_data['T_std'], log_g=conf_data['log_g_std'], 
             ref_rv=conf_data['rv_std'], ref_vsini=conf_data['vsini_std'], 
-            #mode='bb'
             mode='PHOENIX'
             )
         
@@ -92,16 +91,14 @@ def pre_processing(conf, conf_data, m_set):
         d_spec.load_molecfit_transm(
             file_transm=conf_data['file_molecfit_transm'], 
             T=1500, 
-            tell_threshold=conf_data['tell_threshold']
             )
         d_std_spec.load_molecfit_transm(
             file_transm=conf_data['file_std_molecfit_transm'], 
             file_continuum=conf_data['file_std_molecfit_continuum'], 
             T=conf_data['T_std'], 
-            tell_threshold=conf_data['tell_threshold']
             )
         
-        #d_spec.transm = np.copy(d_std_spec.transm)
+        # Use the standard star throughput for the science target
         d_spec.throughput = np.copy(d_std_spec.throughput)
 
     del d_std_spec
@@ -112,8 +109,8 @@ def pre_processing(conf, conf_data, m_set):
         conf_data['filter_2MASS'], 
         tell_threshold=conf_data['tell_threshold'], 
         prefix=conf.prefix, 
-        file_skycalc_transm=conf_data['file_skycalc_transm'], 
-        molecfit=(conf_data.get('file_molecfit_transm') is not None)
+        file_skycalc_transm=conf_data.get('file_skycalc_transm'), 
+        molecfit=has_molecfit
         )
     del photom_2MASS
 
@@ -144,7 +141,7 @@ def pre_processing(conf, conf_data, m_set):
 
     # Prepare the wavelength separation and average squared error arrays
     d_spec.prepare_for_covariance(
-        prepare_err_eff=conf.cov_kwargs['prepare_for_covariance']
+        prepare_err_eff=conf.cov_kwargs.get('prepare_for_covariance', False)
         )
 
     # Plot the pre-processed spectrum
@@ -193,23 +190,42 @@ def pre_processing(conf, conf_data, m_set):
     if (cloud_mode is None) and (conf.cloud_kwargs.get(m_set) is not None):
         conf.cloud_kwargs[m_set].get('cloud_mode')
 
+    lbl_opacity_sampling = conf.constant_params.get('lbl_opacity_sampling')
+    if lbl_opacity_sampling is None:
+        lbl_opacity_sampling = conf.constant_params[m_set].get('lbl_opacity_sampling')
+    if lbl_opacity_sampling is None:
+        lbl_opacity_sampling = conf_data.get('lbl_opacity_sampling', 1)
+
+    n_atm_layers = conf.constant_params.get('n_atm_layers')
+    if n_atm_layers is None:
+        n_atm_layers = conf.constant_params[m_set].get('n_atm_layers')
+    if n_atm_layers is None:
+        n_atm_layers = conf_data.get('n_atm_layers', 50)
+
+    log_P_range = conf.constant_params.get('log_P_range')
+    if log_P_range is None:
+        log_P_range = conf.constant_params[m_set].get('log_P_range')
+    if log_P_range is None:
+        log_P_range = conf_data.get('log_P_range', (-5,3))
+
     # Create the Radtrans objects
     pRT_atm = pRT_model(
         line_species=line_species, 
         d_spec=d_spec, 
         mode='lbl', 
-        lbl_opacity_sampling=conf_data['lbl_opacity_sampling'], 
+        lbl_opacity_sampling=lbl_opacity_sampling, 
         cloud_species=cloud_species, 
         cloud_mode=cloud_mode, 
         rayleigh_species=['H2', 'He'], 
         continuum_opacities=['H2-H2', 'H2-He'], 
-        log_P_range=conf_data.get('log_P_range'), 
-        n_atm_layers=conf_data.get('n_atm_layers'), 
+        log_P_range=log_P_range, 
+        n_atm_layers=n_atm_layers, 
         rv_range=rv_range, 
         vsini_range=vsini_range, 
         rotation_mode=conf.rotation_mode, 
         inclination=conf.constant_params.get('inclination', 0), 
-        sum_m_spec=conf.sum_m_spec
+        sum_m_spec=conf.sum_m_spec, 
+        do_scat_emis=conf.constant_params.get('do_scat_emis', False)
         )
 
     # Save as pickle
@@ -405,6 +421,8 @@ class Retrieval:
                 Param_i.params, 
                 get_contr=self.CB.active, 
                 get_full_spectrum=self.evaluation, 
+                CO=self.Chem[m_set].CO, 
+                FeH=self.Chem[m_set].FeH, 
                 )
 
             # Update the covariance matrix
@@ -428,7 +446,7 @@ class Retrieval:
             if self.sum_m_spec:
                 # Spectra need to be combined at this point
                 continue
-
+            
             # Compute log-likelihood separate for each model-setting
             M = self.m_spec[m_set].flux[:,:,None,:]
 
@@ -746,7 +764,6 @@ class Retrieval:
             self.Param.read_PT_params(cube=None)
             self.Param.read_uncertainty_params()
             self.Param.read_chemistry_params()
-            self.Param.read_cloud_params()
 
             # Create the spectrum
             self.PMN_lnL_func()

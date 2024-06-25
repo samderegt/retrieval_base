@@ -14,8 +14,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.pre_processing:
-        for conf_data_i in conf.config_data.values():
-            pre_processing(conf=conf, conf_data=conf_data_i)
+        for w_set_i, conf_data_i in conf.config_data.items():
+            pre_processing(conf, conf_data_i, w_set_i)
 
     if args.retrieval:
         ret = Retrieval(

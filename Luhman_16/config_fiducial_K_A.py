@@ -7,15 +7,15 @@ file_params = 'config_fiducial_K_A.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'test_K_A'
+prefix = '_spec_K_A'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 
 config_data = dict(
     K2166_cloudy = {
         'w_set': 'K2166', # Wavelength setting
-        #'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
-        'wave_range': (2300, 2400), 
+        'wave_range': (1900, 2500), # Range to fit, doesn't have to be full spectrum
+        #'wave_range': (2300, 2400), 
         #'wave_range': (2040, 2500), 
 
         # Data filenames
@@ -167,7 +167,8 @@ sum_m_spec = len(config_data) > 1
 
 scale_flux = False
 scale_err  = True
-apply_high_pass_filter = True
+#apply_high_pass_filter = True
+apply_high_pass_filter = False
 
 cloud_kwargs = {
     #'cloud_mode': 'gray', 

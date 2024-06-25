@@ -561,16 +561,14 @@ class DataSpectrum(Spectrum):
         # Update the isfinite mask
         self.update_isfinite_mask()
 
-    def load_molecfit_transm(self, file_transm, file_continuum=None, T=10000, tell_threshold=0.0):
+    def load_molecfit_transm(self, file_transm, file_continuum=None, T=10000):
 
         # Load the pre-computed transmission from molecfit
         self.wave_transm, self.transm = np.loadtxt(file_transm).T
 
         # Confirm that we are using the same wavelength grid
-        assert(
-            np.sum(~np.isclose(self.wave_transm, self.wave)) <= \
-            self.n_orders*self.n_dets*4
-            )
+        if np.sum(~np.isclose(self.wave_transm, self.wave)) > self.n_orders*self.n_dets*4:
+            self.transm = np.interp(self.wave, self.wave_transm, self.transm)
 
         if file_continuum is None:
             return
@@ -583,6 +581,9 @@ class DataSpectrum(Spectrum):
 
         continuum /= self.wave
         self.throughput = continuum / ref_flux
+
+        if np.sum(~np.isclose(self.wave_transm, self.wave)) > self.n_orders*self.n_dets*4:
+            self.throughput = np.interp(self.wave, self.wave_transm, self.throughput)
 
     def get_transm(
             self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb', 

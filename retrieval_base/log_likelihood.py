@@ -2,6 +2,10 @@ import numpy as np
 from scipy.special import loggamma
 
 class LogLikelihood:
+    '''
+    Calculate the log-likelihood of a model given observed data,
+    considering linear flux and uncertainty scaling.
+    '''
 
     def __init__(self, 
                  d_spec, 
@@ -9,8 +13,25 @@ class LogLikelihood:
                  scale_flux=False, 
                  scale_err=False, 
                  alpha=2, 
-                 N_phi=1, 
-                 ):
+                 N_phi=1):
+        '''
+        Initialize LogLikelihood object.
+
+        Parameters
+        ----------
+        d_spec : Spectrum
+            Observed spectrum object.
+        n_params : int
+            Number of model parameters.
+        scale_flux : bool, optional
+            Flag to enable flux scaling (default is False).
+        scale_err : bool, optional
+            Flag to enable error scaling (default is False).
+        alpha : float, optional
+            Shape parameter for log-likelihood calculation (default is 2).
+        N_phi : int, optional
+            Number of linear scaling parameters (default is 1).
+        '''
 
         # Observed spectrum is constant
         self.d_spec = d_spec
@@ -28,11 +49,24 @@ class LogLikelihood:
         self.N_params = n_params
         
         self.alpha = alpha
-
-        # Number of linear scaling parameters
         self.N_phi = N_phi
         
     def __call__(self, M, Cov, **kwargs):
+        '''
+        Compute the log-likelihood given model M and covariance Cov.
+
+        Parameters
+        ----------
+        M : np.ndarray
+            Model spectrum.
+        Cov : Covariance
+            Covariance matrix.
+
+        Returns
+        -------
+        float
+            Log-likelihood value.
+        '''
 
         self.ln_L   = 0
         self.chi2_0 = 0
@@ -47,7 +81,6 @@ class LogLikelihood:
         # Loop over all orders and detectors
         for i in range(self.d_spec.n_orders):
             for j in range(self.d_spec.n_dets):
-
                 # Apply mask to model and data, calculate residuals
                 mask_ij = self.d_mask[i,j,:]
 
@@ -60,7 +93,7 @@ class LogLikelihood:
                 d_flux_ij = self.d_flux[i,j,mask_ij]
                 M_ij = M[i,j,:,mask_ij]
 
-                if (M_ij.shape[-1] == 1):
+                if M_ij.shape[-1] == 1:
                     # Only a planet model is included
                     M_ij = M_ij[:,0]
 
@@ -86,7 +119,7 @@ class LogLikelihood:
                 logdet_MT_inv_cov_0_M = 0
                 if self.scale_flux:
                     # Covariance matrix of phi
-                    inv_cov_0_M    = Cov[i,j].solve(M_ij)
+                    inv_cov_0_M = Cov[i,j].solve(M_ij)
                     MT_inv_cov_0_M = np.dot(M_ij.T, inv_cov_0_M)
 
                     # Take the (log)-determinant of the phi-covariance matrix
