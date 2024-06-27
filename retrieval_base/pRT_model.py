@@ -121,12 +121,18 @@ class pRT_model:
         self.atm = []
         for wave_range_i in self.wave_range_micron:
             
+            # Make a copy, otherwise pRT crashes
+            if isinstance(self.cloud_species, list):
+                cloud_species_i = self.cloud_species.copy()
+            else:
+                cloud_species_i = self.cloud_species
+
             # Make a pRT.Radtrans object
             atm_i = Radtrans(
                 line_species=self.line_species, 
                 rayleigh_species=self.rayleigh_species, 
                 continuum_opacities=self.continuum_species, 
-                cloud_species=self.cloud_species, 
+                cloud_species=cloud_species_i, 
                 wlen_bords_micron=wave_range_i, 
                 mode=self.mode, 
                 lbl_opacity_sampling=self.lbl_opacity_sampling, 
@@ -428,7 +434,10 @@ class pRT_model:
         if self.cloud_mode == 'gray':
             opa_cloud_i = self.Cloud.get_opacity(m_wave_i*1e-3, self.pressure).T
         elif self.cloud_mode == 'EddySed':
-            opa_cloud_i = np.nansum(atm_i.tau_cloud.T, axis=(1,3))
+            #opacity_shape = (1, atm_i.freq_len, 1, len(atm_i.press))
+            #opa_cloud_i = atm_i.cloud_total_opa_retrieval_check.reshape(opacity_shape)
+            #opa_cloud_i = np.nansum(opa_cloud_i.T, axis=(1,3))
+            opa_cloud_i = atm_i.cloud_total_opa_retrieval_check.T
         else:
             opa_cloud_i = np.zeros_like(contr_em_i)
 

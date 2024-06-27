@@ -75,12 +75,10 @@ class Chemistry:
 
 class FreeChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, spline_order=0, **kwargs):
+    def __init__(self, line_species, pressure, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)
-
-        self.spline_order = spline_order
 
     def __call__(self, VMRs, params):
 
@@ -122,8 +120,8 @@ class FreeChemistry(Chemistry):
                     # Single value given: constant, vertical profile
                     VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
 
-                VMR_TOA_i = params.get(f'{species_i}_TOA')
                 P_i = params.get(f'{species_i}_P')
+                VMR_TOA_i = params.get(f'{species_i}_TOA')
                 if (VMR_TOA_i is not None) and (P_i is not None):
                     # Top-of-atmosphere abundance given
                     mask_TOA = (self.pressure < P_i)
@@ -133,7 +131,11 @@ class FreeChemistry(Chemistry):
                         xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
                         fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
                     )
-
+                elif (P_i is not None):
+                    # Drop-off pressure given
+                    mask_TOA = (self.pressure < P_i)
+                    VMR_i[mask_TOA] = 0.
+                    
                 self.VMRs[species_i] = VMR_i
 
                 # Convert VMR to mass fraction using molecular mass number
