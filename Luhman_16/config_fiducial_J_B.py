@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'K_H2He_J_B_ret_2'
+prefix = 'K_He_table_J_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -40,16 +40,9 @@ config_data = dict(
         # Slit-width, sets model resolution
         'slit': 'w_0.4', 
 
-        # Down-sample opacities for faster radiative transfer
-        'lbl_opacity_sampling': 3, 
-
         # Ignore pixels with lower telluric transmission
         'tell_threshold': 0.7, 
         'sigma_clip_width': 5, # Remove outliers
-    
-        # Define pRT's log-pressure grid
-        'log_P_range': (-5,3), 
-        'n_atm_layers': 50, 
         }, 
 )
 
@@ -65,7 +58,7 @@ magnitudes = {
 # Define the priors of the parameters
 free_params = {
 
-    'res': [(40000,100000), r'$R$'], 
+    #'res': [(40000,100000), r'$R$'], 
 
     # Covariance parameters
     'log_a': [(-0.7,0.3), r'$\log\ a$'], 
@@ -100,7 +93,7 @@ free_params = {
     'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
     'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'],     
 
-    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
+    'log_Knearwing': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     #'log_KshiftH2': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     #'log_KshiftHe': [(-12,-2), r'$\log\ \mathrm{K}$'], 
 
@@ -124,6 +117,13 @@ free_params = {
 
 # Constants to use if prior is not given
 constant_params = {
+    # Define pRT's log-pressure grid
+    'log_P_range': (-5,3), 
+    'n_atm_layers': 50, 
+
+    # Down-sample opacities for faster radiative transfer
+    'lbl_opacity_sampling': 3, 
+
     # General properties
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
@@ -138,7 +138,7 @@ constant_params = {
 #
 ####################################################################################
 
-sum_m_spec = False
+sum_m_spec = len(config_data) > 1
 
 scale_flux = True
 scale_err  = True
@@ -168,9 +168,9 @@ chem_kwargs = {
         'TiO_48_Exomol_McKemmish', 
         'VO_ExoMol_McKemmish', 
 
-        #'K', 
-        'KshiftH2',
-        'KshiftHe',
+        #'Knearwing', 
+        #'KshiftH2',
+        #'KshiftHe',
         #'Na_allard_recomputed', 
         #'Ti', 
         'Fe', 
@@ -181,8 +181,9 @@ chem_kwargs = {
 species_to_plot_VMR = [
     'H2O', 'HF', 'FeH', 'TiO', 'VO', 'Fe', 
     #'K', 
-    'KshiftH2', 
-    'KshiftHe', 
+    #'KshiftH2', 
+    #'KshiftHe', 
+    'Knearwing', 
 
     #'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 'FeH', 'TiO', 'VO', 
     #'K', 'Na', 'Ti', 'Fe', 'Ca', 

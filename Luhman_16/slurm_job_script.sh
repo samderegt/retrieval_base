@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 06:00:00
+#SBATCH -t 01:00:00
 #SBATCH -p genoa
-#SBATCH --ntasks=120
+#SBATCH --ntasks=125
 #SBATCH --mem=336G
 
-#SBATCH --job-name=eq_band_K_B_ret_8
+#SBATCH --job-name=no_bands_K_B_ret_11
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -25,9 +25,9 @@ ret_script=retrieval_script.py
 sed -i "s/import config as conf/import ${config_file} as conf/g" ${ret_script}
 
 # Run the pre-processing
-python ${ret_script} -p
+#python ${ret_script} -p
 # Run the retrieval and evaluation
-mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} -r
+#mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} -r
 mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} -e
 
 # Revert to original config file

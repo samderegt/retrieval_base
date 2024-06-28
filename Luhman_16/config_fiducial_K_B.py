@@ -7,13 +7,13 @@ file_params = 'config_fiducial_K_B.py'
 ####################################################################################
 
 # Where to store retrieval outputs
-prefix = 'eq_band_K_B_ret_10'
+prefix = 'no_bands_K_B_ret_11'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     K2166_cloudy = {
         'w_set': 'K2166', # Wavelength setting
-        #'wave_range': (2040, 2500), # Range to fit, doesn't have to be full spectrum
+        'wave_range': (2040, 2500), # Range to fit, doesn't have to be full spectrum
 
         # Data filenames
         'file_target': './data/Luhman_16B_K.dat', 
@@ -64,7 +64,7 @@ free_params = {
     'log_l': [(-2.5,-1.2), r'$\log\ l$'], 
 
     # General properties
-    'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
+    #'R_p': [(0.5,1.5), r'$R_\mathrm{p}$'], 
     'log_g': [(4.,6.), r'$\log\ g$'], 
     #'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
@@ -94,13 +94,14 @@ free_params = {
     #'cloud_slope': [(0.,10.), r'$\alpha_\mathrm{cl}$'], 
     #'wave_cloud_0': [(), r'$\lambda_{\mathrm{cl},0}$'], 
     
-    'log_X_MgSiO3(c)': [(-2.3,1), r'$\log\ X_\mathrm{MgSiO3}$'], 
-    'f_sed_MgSiO3(c)': [(0,10), r'$f_\mathrm{sed,MgSiO3}$'], 
+    'log_X_Mg2SiO4(c)': [(-2.3,1.), r'$\log\ X_\mathrm{Mg2SiO4}$'], 
+    'f_sed_Mg2SiO4(c)': [(0.,10.), r'$f_\mathrm{sed,Mg2SiO4}$'], 
+    'log_X_MgSiO3(c)': [(-2.3,1.), r'$\log\ X_\mathrm{MgSiO3}$'], 
+    'f_sed_MgSiO3(c)': [(0.,10.), r'$f_\mathrm{sed,MgSiO3}$'], 
+    'log_X_Fe(c)': [(-2.3,1.), r'$\log\ X_\mathrm{Fe}$'], 
+    'f_sed_Fe(c)': [(0.,10.), r'$f_\mathrm{sed,Fe}$'], 
 
-    'log_X_Fe(c)': [(-2.3,1), r'$\log\ X_\mathrm{Fe}$'], 
-    'f_sed_Fe(c)': [(0,10), r'$f_\mathrm{sed,Fe}$'], 
-
-    'log_K_zz': [(5,13), r'$\log\ K_\mathrm{zz}$'], 
+    'log_K_zz': [(5.,13.), r'$\log\ K_\mathrm{zz}$'], 
     'sigma_g': [(1.05,3), r'$\sigma_\mathrm{g}$'], 
 
     # Parameters specific to model-settings
@@ -180,13 +181,14 @@ constant_params = {
 
 sum_m_spec = len(config_data) > 1
 
-scale_flux = False
+scale_flux = True
 scale_err  = True
 apply_high_pass_filter = True
 
 cloud_kwargs = {
     #'cloud_mode': 'gray', 
-    'cloud_mode': 'EddySed', 'cloud_species': ['MgSiO3(c)_cd', 'Fe(c)_cd'], 
+    'cloud_mode': 'EddySed', 
+    'cloud_species': ['Mg2SiO4(c)_cd', 'MgSiO3(c)_cd', 'Fe(c)_cd'], 
 
     #'K2166_cloudy': {'cloud_mode': 'gray'}, 
     #'K2166_clear': {'cloud_mode': None}, 
@@ -218,7 +220,7 @@ species_to_plot_VMR = [
     #'H2O', 'CH4', 'NH3', 'H2S', 
     #'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'C17O', 'NH3', 'H2S', 'HF', #'Ca', 
     'H2O', 'H2(18)O', 'CH4', '12CO', '13CO', 'C18O', 'NH3', 'H2S', 'HF', 
-    #'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 
+    #'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', #'HF', 
     #'H2O', 'CO', 'CH4'
     ]
 species_to_plot_CCF = species_to_plot_VMR
