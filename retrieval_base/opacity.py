@@ -1,0 +1,426 @@
+import numpy as np
+import petitRADTRANS.nat_cst as nc
+
+from scipy.special import wofz as Faddeeva
+
+class InterpolateOpacity:
+
+    def __init__(
+            self, LineOpacity, wave_micron, 
+            #T_grid=np.arange(0,7000+1e-6,100)
+            T_grid=np.arange(0,5000+1e-6,100), 
+            ):
+
+        # Define the (P,T)-grid
+        self.P_grid = LineOpacity.pressure
+        self.T_grid = T_grid
+
+        self.T_grid[self.T_grid == 0.] = 1.
+        
+        self.log_P_grid = np.log10(self.P_grid)
+        self.log_T_grid = np.log10(self.T_grid)
+
+        self.wave_micron = wave_micron
+        
+        # Set up the rectangular (P,T)-grid
+        self.setup_grid(LineOpacity)
+
+    def setup_grid(self, LineOpacity):
+
+        def get_opa(T_i, Line_i):
+            # Update the temperature and density arrays
+            Line_i.temperature = np.ones_like(self.P_grid) * T_i
+            Line_i.n_density   = self.P_grid*1e6 / (nc.kB*T_i)
+
+            return Line_i.get_line_opacity(self.wave_micron, self.P_grid)
+
+        # Set mass-fraction to 1, so un-scaled opacity is returned
+        LineOpacity.mf = np.ones_like(self.P_grid)
+
+        #opacity = np.zeros(
+        #    (len(self.P_grid), len(self.T_grid), len(self.wave_micron)), 
+        #    dtype=np.float64
+        #    )
+        
+        iterable = [(T_i, LineOpacity) for T_i in self.T_grid]
+
+        from multiprocessing import Pool
+        import os
+        with Pool(processes=os.cpu_count()//2) as p:
+            opacity = np.reshape(
+                p.starmap(get_opa, iterable=iterable), 
+                (len(self.P_grid), len(self.T_grid), len(self.wave_micron))
+                )
+
+        '''
+        # Loop over all temperature points
+        for i, T_i in enumerate(self.T_grid):
+            print(f'{i}/{len(self.T_grid)}')
+
+            # Update the temperature and density arrays
+            LineOpacity.temperature = np.ones_like(self.P_grid) * T_i
+            LineOpacity.n_density   = self.P_grid*1e6 / (nc.kB*T_i)
+
+            # Opacity for this temperature and these pressures
+            opacity[:,i,:] = LineOpacity.get_line_opacity(
+                self.wave_micron, self.P_grid
+                ).T
+        '''
+
+        from scipy.interpolate import interp1d
+        # Create an interp-function for each pressure
+        self.func = [
+            interp1d(self.T_grid, opa_i, axis=0, kind='linear', 
+                     assume_sorted=True, bounds_error=False, 
+                     fill_value=(opa_i[0], opa_i[-1]))
+            for opa_i in opacity
+            ]
+
+    def __call__(self, idx_P, T):
+
+        #idx_P = (np.abs(self.log_P_grid - np.log10(P))).argmin()
+        return self.func[idx_P](T)
+        
+class LineOpacity:
+
+    c2 = 1.4387769 # cm K
+
+    # H2, Schweitzer et al. (1996)
+    alpha_H = 0.666793
+    alpha_p = 0.806
+    mass_p  = 2.016*nc.amu
+
+    E_H = 13.6*8065.73, 
+    VMR_H2 = 0.85
+    VMR_He = 0.15
+
+    def __init__(
+            self, 
+            pressure, 
+            wave_range_micron, 
+            NIST_states_file, 
+            VALD_trans_file=None, 
+            pRT_name='', 
+            mass=1.0, 
+            is_alkali=False, 
+            E_ion=35009.8140, Z=0, # Potassium (K I)
+            line_cutoff=4500, 
+            n_density_ref=1e20, 
+            log_gf_threshold=-np.inf, 
+            nu_0=None, 
+            log_gf=None, 
+            E_low=None, 
+            gamma_N=None, 
+            gamma_vdW=None, 
+            pre_compute=True, 
+            wave_micron_broad=None, 
+            **kwargs
+            ):
+        
+        # Define atmospheric layers
+        self.pressure = pressure
+        
+        self.wave_range_micron = wave_range_micron
+        self.nu_range = (
+            1e4/np.max(self.wave_range_micron)-line_cutoff, 
+            1e4/np.min(self.wave_range_micron)+line_cutoff
+            )
+
+        self.mass = mass * nc.amu # [amu] to [g]
+        self.pRT_name  = pRT_name  # Index correct abundance
+        self.is_alkali = is_alkali
+        self.E_ion = E_ion # [cm^-1]
+        self.Z = Z
+
+        # Lines with custom power-law broadening/shift
+        self.nu_0      = np.reshape([nu_0], -1)
+        self.log_gf    = np.reshape([log_gf], -1)
+        self.E_low     = np.reshape([E_low], -1)
+        self.gamma_N   = np.reshape([gamma_N], -1)
+        self.gamma_vdW = np.reshape([gamma_vdW], -1)
+
+        self.log_gf_threshold = log_gf_threshold
+
+        # Line cutoff [cm^-1]
+        self.line_cutoff = line_cutoff
+
+        # Reference number density [cm^-3]
+        self.n_density_ref = n_density_ref
+
+        self._load_states(NIST_states_file)
+        self._load_transitions(VALD_trans_file)
+        
+        # Calculate opacities for all lines
+        self.lines_to_skip = None
+
+        if pre_compute:
+            # Skip the custom lines, which are calculated exactly
+            self.lines_to_skip = 'custom'
+            
+            # Pre-compute opacity table (per order) for interpolation
+            self.Interp = InterpolateOpacity(
+                LineOpacity=self, wave_micron=wave_micron_broad
+                )
+
+            self.lines_to_skip = 'non-custom'
+
+    def _load_transitions(self, file):
+
+        self.idx_custom = np.arange(len(self.nu_0))
+
+        if self.nu_0[0] is None:
+            # No custom lines, clear arrays
+            self.nu_0      = np.array([], dtype=np.float64)
+            self.log_gf    = np.array([], dtype=np.float64)
+            self.E_low     = np.array([], dtype=np.float64)
+            self.gamma_N   = np.array([], dtype=np.float64)
+            self.gamma_vdW = np.array([], dtype=np.float64)
+
+            self.idx_custom = np.array([])
+        
+        if file is None:
+            # Only use the custom lines
+            return
+        
+        # Load data from the VALD transitions
+        d = np.genfromtxt(
+            file, delimiter=',', dtype=float, skip_header=2, 
+            usecols=(1,2,3,4,5,6), invalid_raise=False
+            )
+        
+        # Select transitions that affect modelled wavelengths
+        mask_nu_range = (d[:,0] >= self.nu_range[0]) & (d[:,0] < self.nu_range[1])
+        
+        # Energies in transition
+        self.nu_0   = np.concatenate((self.nu_0, d[mask_nu_range,0]))
+        self.E_low  = np.concatenate((self.E_low, d[mask_nu_range,1]))
+        
+        # Oscillator strength
+        self.log_gf = np.concatenate((self.log_gf, d[mask_nu_range,2]))
+
+        # Natural broadening + vdW broadening
+        self.gamma_N   = np.concatenate((self.gamma_N, d[mask_nu_range,3]))
+        self.gamma_vdW = np.concatenate((self.gamma_vdW, d[mask_nu_range,5]))
+        
+        for i in self.idx_custom:
+            # Find matching lines and remove duplicates
+            nu_0_i = self.nu_0[i]
+            match_nu_0 = np.isclose(self.nu_0, nu_0_i)
+            match_nu_0[i] *= 0 # Keep first occurence
+
+            # Remove duplicates
+            self.nu_0      = self.nu_0[~match_nu_0]
+            self.E_low     = self.E_low[~match_nu_0]
+            self.log_gf    = self.log_gf[~match_nu_0]
+            self.gamma_N   = self.gamma_N[~match_nu_0]
+            self.gamma_vdW = self.gamma_vdW[~match_nu_0]
+
+        # Only consider the strongest lines
+        mask_log_gf = (self.log_gf >= self.log_gf_threshold)
+
+        self.nu_0      = self.nu_0[mask_log_gf]
+        self.E_low     = self.E_low[mask_log_gf]
+        self.log_gf    = self.log_gf[mask_log_gf]
+        self.gamma_N   = self.gamma_N[mask_log_gf]
+        self.gamma_vdW = self.gamma_vdW[mask_log_gf]
+
+
+        self.gf = 10**self.log_gf
+        self.E_high = self.E_low + self.nu_0
+
+        # Replace missing natural broadening
+        valid_gamma_N = (self.gamma_N != 0.0)
+        self.gamma_N[~valid_gamma_N] = \
+            0.22 * self.nu_0[~valid_gamma_N]**2/(4*np.pi*nc.c)
+        # Use provided coefficient
+        self.gamma_N[valid_gamma_N] = \
+            10**self.gamma_N[valid_gamma_N]/(4*np.pi*nc.c)
+
+    def _load_states(self, file):
+
+        # Load data from the NIST states
+        d = np.loadtxt(file, dtype=str, skiprows=1, usecols=(0,2))
+
+        g, E = [], []
+        for g_i, E_i in d:
+
+            if g_i == '""':
+                continue
+            g.append(float(g_i))
+            E.append(float(E_i.replace('"', '')))
+        
+        self.g = np.array(g)
+        self.E = np.array(E)
+
+    def _partition_function(self):
+        # Partition function per temperature
+        Q = np.sum(
+            self.g[None,:] * np.exp(
+                -self.c2*self.E[None,:]/self.temperature[:,None]
+                ), 
+            axis=-1, keepdims=True
+            )
+        return Q
+
+    def _cutoff_mask(self, nu_0):
+        return np.abs(self.nu-nu_0) < self.line_cutoff
+    
+    def _oscillator_strength(self):
+
+        # Partition function
+        Q = self._partition_function()
+
+        term1 = (self.gf[None,:]*np.pi*nc.e**2) / (nc.m_elec*nc.c**2)
+        term2 = np.exp(-self.c2*self.E_low[None,:] / self.temperature[:,None]) / Q
+        term3 = (1 - np.exp(-self.c2*self.nu_0[None,:]/self.temperature[:,None]))
+
+        # Oscillator strengths (T,trans)
+        S = term1 * term2 * term3 # [cm^1]
+        return S
+    
+    def _get_gamma_G(self):
+
+        # Thermal broadening coefficient (T,trans)
+        gamma_G = self.nu_0[None,:]/nc.c * \
+            np.sqrt((2*nc.kB*self.temperature[:,None])/self.mass)
+        return gamma_G
+
+    def _get_gamma_L(self):
+
+        # Valid coefficients
+        valid_gamma_vdW = (self.gamma_vdW != 0.0)
+        
+        # Provided vdW broadening coefficients (Sharp & Burrows 2007) (T/P,trans)
+        gamma_vdW_PT = 10**self.gamma_vdW[None,:]/(4*np.pi*nc.c) * \
+            (self.n_density[:,None]) * (self.temperature[:,None]/10000)**(3/10)
+        gamma_vdW_PT[:,~valid_gamma_vdW] = np.nan
+
+        if self.is_alkali:
+            # Schweitzer et al. (1995) [cm^6 s^-1]
+            C_6 = 1.01e-32 * self.alpha_p/self.alpha_H * (self.Z+1)**2 * \
+                ((self.E_H / (self.E_ion-self.E_low))**2 - \
+                 (self.E_H / (self.E_ion-self.E_high))**2)
+            C_6 = np.abs(C_6)[None,~valid_gamma_vdW]
+
+            # vdW broadening (T/P,trans)
+            gamma_vdW_PT[:,~valid_gamma_vdW] = 1.664461/(2*nc.c) * \
+                (nc.kB*self.temperature[:,None] * (1/self.mass+1/self.mass_p))**(3/10) * \
+                C_6**(2/5) * self.n_density[:,None]
+            
+            # Update mask, all transitions are valid
+            #valid_gamma_vdW = np.ones_like(valid_gamma_vdW)
+
+        if self.lines_to_skip != 'custom':
+            for i in self.idx_custom:
+                # Replace with custom impact-width
+                gamma_vdW_PT[:,i] = self.w[:,i]
+
+        # Combine natural- and pressure-broadening
+        gamma_L = self.gamma_N[None,:] + gamma_vdW_PT
+        return gamma_L
+
+    def _impact_width_shift(self):
+
+        # Power law treatment of impact-width and -shift (T/P,trans)
+        self.w = np.zeros((len(self.pressure),len(self.idx_custom)))
+        self.d = np.zeros((len(self.pressure),len(self.idx_custom)))
+
+        for i in range(len(self.idx_custom)):
+            
+            # Read the parameters
+            A_w_i = self.params.get(f'A_w_{i}')
+            b_w_i = self.params.get(f'b_w_{i}')
+            A_d_i = self.params.get(f'A_d_{i}')
+            b_d_i = self.params.get(f'b_d_{i}')
+
+            for el in [A_w_i, b_w_i, A_d_i, b_d_i]:
+                assert(el is not None)
+
+            # Scale the impact width and shift with (P,T)
+            self.w[:,i] = A_w_i * self.temperature**b_w_i * \
+                self.n_density/self.n_density_ref
+            self.d[:,i] = A_d_i * self.temperature**b_d_i * \
+                self.n_density/self.n_density_ref
+
+    def _line_profile(self, nu_0, gamma_L, gamma_G, mask_nu, S):
+        
+        # Gandhi et al. (2020b)
+        u = (self.nu[mask_nu] - nu_0) / gamma_G
+        a = gamma_L / gamma_G
+
+        # Scale the line profile with the oscillator strength and mass
+        f  = Faddeeva(u + 1j*a).real / (gamma_G*np.sqrt(np.pi))  # [cm]
+        f *= S/self.mass # [cm^2 g^-1]
+        return f
+
+    def get_line_opacity(self, wave_micron, pressure):
+
+        # Convert to centimeter, get wavenumber
+        wave_cm = 1e-4*wave_micron
+        self.nu = 1/wave_cm
+
+        if hasattr(self, 'Interp'):
+            mask_wave = (
+                (self.Interp.wave_micron >= wave_micron.min()-1e-6) &
+                (self.Interp.wave_micron <= wave_micron.max()+1e-6)
+            )
+
+        if self.lines_to_skip != 'custom':
+            # Update the impact widths and shifts
+            self._impact_width_shift()
+
+        # Update broadening coefficients (layer,trans)
+        gamma_L = self._get_gamma_L()
+        gamma_G = self._get_gamma_G()
+
+        # Update line strengths (layer,trans)
+        S = self._oscillator_strength()
+
+        # Create line-opacity array
+        opacity = np.zeros((len(wave_micron), len(pressure)), dtype=np.float64)
+
+        # Loop over atmospheric layers
+        for i in range(len(self.pressure)):
+
+            # Loop over lines
+            for j, nu_0_j in enumerate(self.nu_0):
+
+                if (self.lines_to_skip == 'non-custom') and (j not in self.idx_custom):
+                    continue
+                if (self.lines_to_skip == 'custom') and (j in self.idx_custom):
+                    continue
+
+                nu_0_ij = nu_0_j
+                if j in self.idx_custom:
+                    # Shift the line-centre
+                    nu_0_ij = nu_0_j + self.d[i,j]
+
+                # Lorentz-wing cutoff
+                mask_nu_ij = self._cutoff_mask(nu_0_ij)
+
+                # Get scaled line profile for this layer
+                opacity[mask_nu_ij,i] += self._line_profile(
+                    nu_0_ij, gamma_L=gamma_L[i,j], gamma_G=gamma_G[i,j], 
+                    mask_nu=mask_nu_ij, S=S[i,j]
+                    )
+                
+            if hasattr(self, 'Interp'):
+                # Interpolate on the pre-computed grid
+                opacity[:,i] += self.Interp(idx_P=i, T=self.temperature[i])[mask_wave]
+                
+        # Scale the opacity by the abundance profile
+        opacity *= self.mf[None,:]
+        return opacity
+    
+    def __call__(self, params, temperature, mass_fractions):
+
+        self.params = params
+
+        # Update the PT profile
+        self.temperature = temperature
+        
+        # Number density [cm^-3]
+        self.n_density = self.pressure*1e6 / (nc.kB*self.temperature)
+
+        # Mass fraction of species
+        self.mf = mass_fractions[self.pRT_name].copy()

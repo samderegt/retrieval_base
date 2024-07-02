@@ -7,13 +7,14 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'K_He_table_J_B_ret_1'
+prefix = 'custom_line_opacity_J_B_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     J1226_A = {
         #'w_set': 'J1226', 'wave_range': (1115, 1325), 
         'w_set': 'J1226', 'wave_range': (1240, 1267), 
+        #'w_set': 'J1226', 'wave_range': (1240, 1296), 
 
         #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
         #'wave_to_mask': np.array([[1251,1255]]), # Mask K I lines
@@ -24,19 +25,20 @@ config_data = dict(
         'file_wave': './data/Luhman_16_std_J_molecfit_transm.dat', # Use molecfit wlen-solution
 
         # Telluric transmission
-        'file_skycalc_transm': './data/skycalc_transm_J1226.dat', 
         'file_molecfit_transm': './data/Luhman_16B_J_molecfit_transm.dat', 
         'file_std_molecfit_transm': './data/Luhman_16_std_J_molecfit_transm.dat', 
         'file_std_molecfit_continuum': './data/Luhman_16_std_J_molecfit_continuum.dat', 
 
-        'filter_2MASS': '2MASS/2MASS.J', 
-        'pwv': 1.5, 
+        'filter_2MASS': '2MASS/2MASS.J', # Magnitude used for flux-calibration
+        'pwv': 1.5, # Precipitable water vapour
 
+        # Telescope-pointing, used for barycentric velocity-correction
         'ra': 162.299451, 'dec': -53.31767, 'mjd': 59946.35286502, 
         'ra_std': 161.738984, 'dec_std': -56.75771, 'mjd_std': 59946.3601578, 
-
-        'T_std': 15000, 'log_g_std': 2.3, 'rv_std': 31.00, 'vsini_std': 280, 
         
+        # Some info on standard-observation
+        'T_std': 15000, 
+
         # Slit-width, sets model resolution
         'slit': 'w_0.4', 
 
@@ -93,7 +95,7 @@ free_params = {
     'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
     'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'],     
 
-    'log_Knearwing': [(-12,-2), r'$\log\ \mathrm{K}$'], 
+    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     #'log_KshiftH2': [(-12,-2), r'$\log\ \mathrm{K}$'], 
     #'log_KshiftHe': [(-12,-2), r'$\log\ \mathrm{K}$'], 
 
@@ -102,17 +104,23 @@ free_params = {
     'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'],
     #'log_Ca': [(-12,-2), r'$\log\ \mathrm{Ca}$'], 
 
-    # PT profile    
-    'dlnT_dlnP_0': [(0.0,0.4), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.0,0.4), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.0,0.4), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(-0.1,0.4), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(-0.2,0.2), r'$\nabla_{T,4}$'], 
+    # Impact shifts
+    #'A_d_0': [(0.001,0.004), r'$A_{d,0}$'], # 0.00158988 (K-H2) | 0.001943820 (K-He)
+    #'A_d_1': [(0.001,0.004), r'$A_{d,1}$'], # 0.00211668 (K-H2) | 0.000462539 (K-He)
+    #'b_d_0': [(0.5,1.5), r'$b_{d,0}$'],     # 0.949254 (K-H2) | 0.89691 (K-He)
+    #'b_d_1': [(0.5,1.5), r'$b_{d,1}$'],     # 0.933563 (K-H2) | 1.07284 (K-He)
 
-    'T_phot': [(200,3000), r'$T_\mathrm{phot}$'], 
-    'log_P_phot': [(-3,1), r'$\log\ P_\mathrm{phot}$'], 
-    'd_log_P_phot+1': [(0.5,2), r'$\log\ P_\mathrm{up}$'], 
-    'd_log_P_phot-1': [(0.5,2), r'$\log\ P_\mathrm{low}$'], 
+    # PT profile    
+    'dlnT_dlnP_0': [(0.,0.4), r'$\nabla_{T,0}$'], 
+    'dlnT_dlnP_1': [(0.,0.4), r'$\nabla_{T,1}$'], 
+    'dlnT_dlnP_2': [(0.,0.4), r'$\nabla_{T,2}$'], 
+    'dlnT_dlnP_3': [(0.,0.4), r'$\nabla_{T,3}$'], 
+    'dlnT_dlnP_4': [(0.,0.4), r'$\nabla_{T,4}$'], 
+
+    'T_phot': [(700.,2500.), r'$T_\mathrm{phot}$'], 
+    'log_P_phot': [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
+    'd_log_P_phot+1': [(0.5,3.), r'$\log\ P_\mathrm{up}$'], 
+    'd_log_P_phot-1': [(0.5,2.), r'$\log\ P_\mathrm{low}$'], 
 }
 
 # Constants to use if prior is not given
@@ -132,6 +140,34 @@ constant_params = {
 
     # PT profile
     'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
+
+    # Custom line opacity
+    'A_w_0': 0.352609, 'b_w_0': 0.385961, 
+    'A_w_1': 0.245926, 'b_w_1': 0.447971, 
+
+    'A_d_0': 0.00158988, 'b_d_0': 0.949254, 
+    'A_d_1': 0.00211668, 'b_d_1': 0.933563, 
+}
+
+parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
+line_opacity_kwargs = {
+    'NIST_states_file': f'{parent_dir}/K_I_states.txt', 
+    'VALD_trans_file': f'{parent_dir}/K_I_transitions.txt', 
+    'pRT_name': 'K', 
+    'mass': 39.0983, 
+    'is_alkali': True, 
+    #E_ion=35009.8140, Z=0, # Potassium (K I)
+    
+    'line_cutoff': 100, #line_cutoff=4500, 
+    #n_density_ref=1e20, 
+    'log_gf_threshold': -2.0, 
+    'pre_compute': False, 
+
+    'nu_0': [7983.67489, 8041.38112], 
+    'log_gf': [-0.139, -0.439], 
+    'E_low': [13042.876, 12985.170], 
+    'gamma_N': [7.790, 7.790], 
+    'gamma_vdW': [0.0, 0.0], 
 }
 
 ####################################################################################
@@ -183,7 +219,7 @@ species_to_plot_VMR = [
     #'K', 
     #'KshiftH2', 
     #'KshiftHe', 
-    'Knearwing', 
+    #'Knearwing', 
 
     #'H2O', 'H2(18)O', 'CH4', 'NH3', 'H2S', 'HF', 'FeH', 'TiO', 'VO', 
     #'K', 'Na', 'Ti', 'Fe', 'Ca', 
@@ -229,5 +265,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
-n_iter_before_update = 200
+n_live_points = 50
+n_iter_before_update = 100

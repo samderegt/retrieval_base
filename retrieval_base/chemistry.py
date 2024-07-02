@@ -75,10 +75,14 @@ class Chemistry:
 
 class FreeChemistry(Chemistry):
 
-    def __init__(self, line_species, pressure, **kwargs):
+    def __init__(self, line_species, pressure, CustomOpacity, **kwargs):
 
         # Give arguments to the parent class
         super().__init__(line_species, pressure)
+
+        self.custom_pRT_names = []
+        if CustomOpacity is not None:
+            self.custom_pRT_names = np.reshape([CustomOpacity.pRT_name], -1)
 
     def __call__(self, VMRs, params):
 
@@ -114,42 +118,44 @@ class FreeChemistry(Chemistry):
             if species_i in ['H2', 'He']:
                 continue
 
-            if line_species_i in self.line_species:
+            if (line_species_i not in self.line_species) and \
+                (line_species_i not in self.custom_pRT_names):
+                continue
+
+            if self.VMRs.get(species_i) is not None:
+                # Single value given: constant, vertical profile
+                VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
+
+            P_i = params.get(f'{species_i}_P')
+            VMR_TOA_i = params.get(f'{species_i}_TOA')
+            if (VMR_TOA_i is not None) and (P_i is not None):
+                # Top-of-atmosphere abundance given
+                mask_TOA = (self.pressure < P_i)
+                # Linear interpolation towards TOA
+                VMR_i[mask_TOA] = 10**np.interp(
+                    x=np.log10(self.pressure[mask_TOA]), 
+                    xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
+                    fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
+                )
+            elif (P_i is not None):
+                # Drop-off pressure given
+                mask_TOA = (self.pressure < P_i)
+                VMR_i[mask_TOA] = 0.
                 
-                if self.VMRs.get(species_i) is not None:
-                    # Single value given: constant, vertical profile
-                    VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
+            self.VMRs[species_i] = VMR_i
 
-                P_i = params.get(f'{species_i}_P')
-                VMR_TOA_i = params.get(f'{species_i}_TOA')
-                if (VMR_TOA_i is not None) and (P_i is not None):
-                    # Top-of-atmosphere abundance given
-                    mask_TOA = (self.pressure < P_i)
-                    # Linear interpolation towards TOA
-                    VMR_i[mask_TOA] = 10**np.interp(
-                        x=np.log10(self.pressure[mask_TOA]), 
-                        xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
-                        fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
-                    )
-                elif (P_i is not None):
-                    # Drop-off pressure given
-                    mask_TOA = (self.pressure < P_i)
-                    VMR_i[mask_TOA] = 0.
-                    
-                self.VMRs[species_i] = VMR_i
+            # Convert VMR to mass fraction using molecular mass number
+            self.mass_fractions[line_species_i] = mass_i * VMR_i
+            if species_i in ['H2lines']:
+                # Ignore H2lines when computing total VMR
+                continue
 
-                # Convert VMR to mass fraction using molecular mass number
-                self.mass_fractions[line_species_i] = mass_i * VMR_i
-                if species_i in ['H2lines']:
-                    # Ignore H2lines when computing total VMR
-                    continue
+            VMR_wo_H2 += VMR_i
 
-                VMR_wo_H2 += VMR_i
-
-                # Record C, O, and H bearing species for C/O and metallicity
-                C += COH_i[0] * VMR_i
-                O += COH_i[1] * VMR_i
-                H += COH_i[2] * VMR_i
+            # Record C, O, and H bearing species for C/O and metallicity
+            C += COH_i[0] * VMR_i
+            O += COH_i[1] * VMR_i
+            H += COH_i[2] * VMR_i
 
         # Add the H2 and He abundances
         self.mass_fractions['He'] = self.read_species_info('He', 'mass') * VMR_He

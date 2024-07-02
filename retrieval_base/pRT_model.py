@@ -1,171 +1,12 @@
-from typing import Any
 import numpy as np
 
 from petitRADTRANS import Radtrans
 import petitRADTRANS.nat_cst as nc
 
-from scipy.special import wofz as Faddeeva
-
 from .spectrum import ModelSpectrum
 from .rotation_profile import get_Rotation_class
 from .clouds import get_Cloud_class
-
-class LineOpacity:
-
-    c2 = 1.4387769 # cm K
-
-    def __init__(self, NIST_tsv_file, line_cutoff=4500, n_density_ref=1e19):
-        
-        # Line cutoff [cm^-1]
-        self.line_cutoff = line_cutoff
-
-        # Reference number density [cm^-3]
-        self.n_density_ref = n_density_ref
-
-        self.load_states_file(NIST_tsv_file)
-
-    def load_states_file(self, file):
-
-        d = np.loadtxt(file, dtype=str, skiprows=1, usecols=(0,2))
-
-        g, E = [], []
-        for g_i, E_i in d:
-
-            if g_i == '""':
-                continue
-            g.append(float(g_i))
-            E.append(float(E_i.replace('"', '')))
-        
-        self.g = np.array(g)
-        self.E = np.array(E)
-
-    def _partition_function(self, T):
-        Q = np.sum(self.g * np.exp(-self.c2*self.E/T))
-        return Q
-
-    def _cutoff_mask(self, nu_0):
-        return np.abs(self.nu-nu_0) < self.line_cutoff
-    
-    def _oscillator_strength(self, nu_0, gf, E_low, T):
-
-        # Partition function
-        Q = self._partition_function(T)
-
-        term1 = (gf*np.pi*nc.e**2) / (nc.m_elec*nc.c**2)
-        term2 = np.exp(-self.c2*E_low/T) / Q
-        term3 = (1 - np.exp(-self.c2*nu_0/T))
-
-        S = term1 * term2 * term3 # [cm^1]
-        return S
-
-    def _impact_width_shift(self):
-
-        # Power law treatment of impact-width and -shift
-        self.w = np.zeros((len(self.nu_0),len(self.pressure)))
-        self.d = np.zeros((len(self.nu_0),len(self.pressure)))
-
-        for i in range(len(self.nu_0)):
-            
-            # Read the parameters
-            A_w_i = self.params.get(f'A_w_{i}')
-            b_w_i = self.params.get(f'b_w_{i}')
-            A_d_i = self.params.get(f'A_d_{i}')
-            b_d_i = self.params.get(f'b_d_{i}')
-
-            assert(not None in [A_w_i, b_w_i, A_d_i, b_d_i])
-
-            # Scale the impact width and shift with (P,T)
-            self.w[i] = A_w_i * self.temperature**b_w_i * self.n_density/self.n_density_ref
-            self.d[i] = A_d_i * self.temperature**b_d_i * self.n_density/self.n_density_ref
-
-    def _line_profile(self, nu_0, gamma_L, gamma_G, mask_nu, S):
-        
-        # Gandhi et al. (2020b)
-        u = (self.nu[mask_nu] - nu_0) / gamma_G
-        a = gamma_L / gamma_G
-
-        # Scale the line profile with the oscillator strength and mass
-        f  = Faddeeva(u + 1j*a).real / (gamma_G*np.sqrt(np.pi))  # [cm]
-        f *= S/self.mass # [cm^2 g^-1]
-        return f
-
-    def get_line_opacity(self, wave_micron, pressure):
-
-        # Convert to centimeter, get wavenumber
-        wave_cm = 1e4*wave_micron
-        self.nu = 1/wave_cm
-        
-        # Create line-opacity array
-        opacity = np.zeros((len(wave_micron), len(pressure)), dtype=np.float64)
-
-        # Update the impact widths and shifts per (P,T)
-        self._impact_width_shift()
-
-        # Loop over lines
-        for i, nu_0_i in enumerate(self.nu_0):
-
-            # Loop over atmospheric layers/pressures
-            for j, T_j in enumerate(self.temperature):
-
-                # Thermal broadening coefficient
-                gamma_G_ij = np.sqrt((2*nc.kB*T_j)/self.mass) * nu_0_i/nc.c
-
-                # Lorentz with (P,T)-dependent width
-                gamma_L_ij = self.gamma_N[i] + self.w[i,j]
-
-                # Shift the line-centre
-                nu_0_ij = nu_0_i + self.d[i,j]
-
-                # Lorentz-wing cutoff
-                mask_nu_ij = self._cutoff_mask(nu_0_ij)
-                
-                # Oscillator strength
-                S = self._oscillator_strength(
-                    nu_0_i, gf=10**self.log_gf[i], E_low=self.E_low[i], T=T_j
-                    )
-
-                # Get scaled line profile for this layer
-                opacity[mask_nu_ij,j] = self._line_profile(
-                    nu_0_ij, gamma_L_ij, gamma_G_ij, mask_nu_ij, S=S
-                    )
-                
-        # Scale the opacity by the abundance profile
-        opacity *= self.mf[None,:]
-        return opacity
-    
-    def __call__(self, params, temperature, mass_fractions):
-
-        # Update the PT profile
-        self.temperature = temperature
-        
-        # Number density [cm^-3]
-        self.n_density = self.pressure*1e6 / (nc.kB*self.temperature)
-
-        # Central wavenumber [cm^-1]
-        self.nu_0 = params.get('nu_0')
-        
-        self.log_gf  = params.get('log_gf')
-        self.E_low   = params.get('E_low')
-        self.gamma_N = params.get('gamma_N')
-        #self.gamma_N =  0.22 * self.nu_0**2/(4*np.pi*c) # Gandhi et al. (2020b) [cm^-1]
-
-        # Name of species belonging to this custom-line treatment
-        species = params.get('custom_line_species_name')
-        self.mf = mass_fractions[species]
-
-        # Convert from [amu] to [g]
-        self.mass = params.get('custom_line_species_mass') * nc.amu
-
-        assert(not None in [self.nu_0, self.log_gf, self.E_low, self.gamma_N])
-
-        if not isinstance(self.nu_0, list):
-            # If only a single value is given
-            self.nu_0 = [self.nu_0]
-            self.log_gf  = np.array([self.log_gf])
-            self.E_low   = np.array([self.E_low])
-            self.gamma_N = np.array([self.gamma_N])
-
-        self.nu_0 = np.array(self.nu_0)
+from .opacity import LineOpacity
 
 class pRT_model:
 
@@ -186,6 +27,7 @@ class pRT_model:
                  inclination=0, 
                  sum_m_spec=False, 
                  do_scat_emis=False, 
+                 line_opacity_kwargs=None, 
                  ):
         '''
         Create instance of the pRT_model class.
@@ -265,6 +107,50 @@ class pRT_model:
         # Make the pRT.Radtrans objects
         self.get_atmospheres(CB_active=False)
 
+        # Custom (on-the-fly) line opacities
+        if line_opacity_kwargs is not None:
+            import copy
+
+            # Extend to the broad wavelength range
+            rv_max = 1001
+            wave_pad = 1.1 * rv_max/(nc.c*1e-5) * self.d_wave.max()
+            wave_range_micron = np.concatenate(
+                (self.d_wave.min(axis=(1,2))[None,:]-wave_pad, 
+                 self.d_wave.max(axis=(1,2))[None,:]+wave_pad
+                )).T
+            wave_range_micron *= 1e-3
+
+            wave_micron_broad = []
+            for atm_i, wave_range_micron_i in zip(self.atm, wave_range_micron):
+                
+                # Temporary copy of Radtrans object
+                new_atm_i = copy.deepcopy(atm_i)
+                new_atm_i.wlen_bords_micron = wave_range_micron_i
+                new_atm_i.lbl_opacity_sampling = None
+                
+                # Obtain pRT frequency/wavelength grid
+                freq_i, *_ = new_atm_i._init_line_opacities_parameters()
+                
+                # Find the starting index
+                for idx_0 in range(self.lbl_opacity_sampling):
+                    freq_ij = freq_i[idx_0::self.lbl_opacity_sampling]
+                    if np.isin(atm_i.freq, freq_ij).all():
+                        break
+
+                wave_micron_broad.append(1e4*nc.c/freq_ij)
+                del new_atm_i
+
+            wave_micron_broad = np.concatenate(wave_micron_broad)
+            wave_micron_broad = np.unique(wave_micron_broad) # Remove duplicates
+            
+            # Create instance of custom opacities
+            self.LineOpacity = LineOpacity(
+                pressure=self.pressure, 
+                wave_range_micron=wave_range_micron, # Use broad wavelength range
+                wave_micron_broad=wave_micron_broad, 
+                **line_opacity_kwargs
+                )
+            
     def get_atmospheres(self, CB_active=False):
 
         # pRT model is somewhat wider than observed spectrum
@@ -304,20 +190,26 @@ class pRT_model:
 
             self.atm.append(atm_i)
         
-    def give_absorption_opacity(self, wave_micron, pressure):
+    def give_absorption_opacity(self):
 
-        cloud_opacity = 0
-        if self.Cloud.get_opacity is not None:
-            cloud_opacity = self.Cloud.get_opacity(wave_micron, pressure)
-        
-        line_opacity = 0
-        if hasattr(self, 'LineOpacity'):
-            line_opacity = self.LineOpacity.get_line_opacity(wave_micron, pressure)
-        
-        opacity = cloud_opacity + line_opacity
-        if opacity == 0:
+        include_cloud = (self.Cloud.get_opacity is not None)
+        include_line  = hasattr(self, 'LineOpacity')
+
+        if (not include_cloud) and (not include_line):
             return None
-        return opacity
+
+        # Define the function
+        if include_cloud and (not include_line):
+            def get_opacity(wave_micron, pressure):
+                return self.Cloud.get_opacity(wave_micron, pressure)
+        if include_line and (not include_cloud):
+            def get_opacity(wave_micron, pressure):
+                return self.LineOpacity.get_line_opacity(wave_micron, pressure)
+        if include_cloud and include_line:
+            def get_opacity(wave_micron, pressure):
+                return self.Cloud.get_opacity(wave_micron, pressure) + \
+                    self.LineOpacity.get_line_opacity(wave_micron, pressure)
+        return get_opacity
 
     def __call__(self, 
                  mass_fractions, 
@@ -364,16 +256,14 @@ class pRT_model:
             temperature=temperature, CO=CO, FeH=FeH, 
             )
         
-        if self.params.get('custom_line_species_name') is not None:
-            # Make an instance of the custom line opacity
-            self.LineOpacity = LineOpacity(
-                NIST_tsv_file='./custom_opacity_data/K_I_states.txt'
-                )
-            # Update with the new parameters
+        if hasattr(self, 'LineOpacity'):
+            # Update the on-the-fly opacity with new parameters
             self.LineOpacity(
-                self.params, self.temperature, 
-                mass_fractions=self.mass_fractions
+                self.params, self.temperature, self.mass_fractions
                 )
+
+        # Additional opacity from a cloud or custom line profile
+        self.add_opacity = self.give_absorption_opacity()
 
         # Generate a model spectrum
         m_spec = self.get_model_spectrum(
@@ -419,7 +309,7 @@ class pRT_model:
             Kzz     = self.Cloud.K_zz, 
             fsed    = self.Cloud.f_sed, 
             sigma_lnorm = self.Cloud.sigma_g,
-            give_absorption_opacity = self.give_absorption_opacity, 
+            give_absorption_opacity = self.add_opacity, 
             contribution = get_contr, 
             )
 

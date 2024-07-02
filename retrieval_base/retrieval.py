@@ -225,7 +225,8 @@ def pre_processing(conf, conf_data, m_set):
         rotation_mode=conf.rotation_mode, 
         inclination=conf.constant_params.get('inclination', 0), 
         sum_m_spec=conf.sum_m_spec, 
-        do_scat_emis=conf.constant_params.get('do_scat_emis', False)
+        do_scat_emis=conf.constant_params.get('do_scat_emis', False), 
+        line_opacity_kwargs=getattr(conf, 'line_opacity_kwargs', None), 
         )
 
     # Save as pickle
@@ -312,6 +313,7 @@ class Retrieval:
                 )
             self.Chem[m_set] = get_Chemistry_class(
                 self.pRT_atm[m_set].pressure, 
+                CustomOpacity=getattr(self.pRT_atm[m_set], 'LineOpacity', None), 
                 **chem_kwargs[m_set], 
                 )
         
