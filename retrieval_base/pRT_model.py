@@ -119,9 +119,10 @@ class pRT_model:
                  self.d_wave.max(axis=(1,2))[None,:]+wave_pad
                 )).T
             wave_range_micron *= 1e-3
-
+            
+            self.wave_range_micron_broad = wave_range_micron.copy()
             wave_micron_broad = []
-            for atm_i, wave_range_micron_i in zip(self.atm, wave_range_micron):
+            for i, (atm_i, wave_range_micron_i) in enumerate(zip(self.atm, wave_range_micron)):
                 
                 # Temporary copy of Radtrans object
                 new_atm_i = copy.deepcopy(atm_i)
@@ -138,24 +139,38 @@ class pRT_model:
                         break
 
                 wave_micron_broad.append(1e4*nc.c/freq_ij)
-                del new_atm_i
+                del new_atm_i, freq_ij, freq_i
 
+                self.wave_range_micron_broad[i,0] = wave_micron_broad[-1].min()
+                self.wave_range_micron_broad[i,1] = wave_micron_broad[-1].max()
+
+            order_indices = np.concatenate([
+                i*np.ones(len(wave_i),dtype=int) \
+                for i, wave_i in enumerate(wave_micron_broad)
+                ])
             wave_micron_broad = np.concatenate(wave_micron_broad)
-            wave_micron_broad = np.unique(wave_micron_broad) # Remove duplicates
             
-            # Create instance of custom opacities
-            self.LineOpacity = LineOpacity(
-                pressure=self.pressure, 
-                wave_range_micron=wave_range_micron, # Use broad wavelength range
-                wave_micron_broad=wave_micron_broad, 
-                **line_opacity_kwargs
-                )
+            # Loop over multiple species
+            self.LineOpacity = []
+            line_opacity_kwargs = np.reshape([line_opacity_kwargs], -1)
+            for kwargs_i in line_opacity_kwargs:
+                # Create instance of custom opacities
+                self.LineOpacity.append(
+                    LineOpacity(
+                        pressure=self.pressure, 
+                        wave_range_micron=self.wave_range_micron_broad, # Use broad wavelength range
+                        wave_micron_broad=wave_micron_broad, 
+                        order_indices=order_indices, 
+                        **kwargs_i
+                        )
+                    )
             
     def get_atmospheres(self, CB_active=False):
 
         # pRT model is somewhat wider than observed spectrum
         if CB_active:
-            self.rv_max = 1000
+            self.rv_max = 1001
+
         wave_pad = 1.1 * self.rv_max/(nc.c*1e-5) * self.d_wave.max()
 
         self.wave_range_micron = np.concatenate(
@@ -163,6 +178,11 @@ class pRT_model:
              self.d_wave.max(axis=(1,2))[None,:]+wave_pad
             )).T
         self.wave_range_micron *= 1e-3
+
+        if hasattr(self, 'wave_range_micron_broad') and CB_active:
+            # Use the same wavelengths as LineOpacity
+            self.wave_range_micron = \
+                self.wave_range_micron_broad + np.array([+1e-10,-1e-10])[None,:]
 
         self.atm = []
         for wave_range_i in self.wave_range_micron:
@@ -202,13 +222,21 @@ class pRT_model:
         if include_cloud and (not include_line):
             def get_opacity(wave_micron, pressure):
                 return self.Cloud.get_opacity(wave_micron, pressure)
+            
         if include_line and (not include_cloud):
             def get_opacity(wave_micron, pressure):
-                return self.LineOpacity.get_line_opacity(wave_micron, pressure)
+                opacity = 0
+                for Line_i in self.LineOpacity:
+                    opacity += Line_i.get_line_opacity(wave_micron, pressure)
+                return opacity
+            
         if include_cloud and include_line:
             def get_opacity(wave_micron, pressure):
-                return self.Cloud.get_opacity(wave_micron, pressure) + \
-                    self.LineOpacity.get_line_opacity(wave_micron, pressure)
+                opacity = 0
+                for Line_i in self.LineOpacity:
+                    opacity += Line_i.get_line_opacity(wave_micron, pressure)
+                return self.Cloud.get_opacity(wave_micron, pressure) + opacity
+            
         return get_opacity
 
     def __call__(self, 
@@ -258,9 +286,10 @@ class pRT_model:
         
         if hasattr(self, 'LineOpacity'):
             # Update the on-the-fly opacity with new parameters
-            self.LineOpacity(
-                self.params, self.temperature, self.mass_fractions
-                )
+            for i in range(len(self.LineOpacity)):
+                self.LineOpacity[i](
+                    self.params, self.temperature, self.mass_fractions
+                    )
 
         # Additional opacity from a cloud or custom line profile
         self.add_opacity = self.give_absorption_opacity()

@@ -82,7 +82,9 @@ class FreeChemistry(Chemistry):
 
         self.custom_pRT_names = []
         if CustomOpacity is not None:
-            self.custom_pRT_names = np.reshape([CustomOpacity.pRT_name], -1)
+            self.custom_pRT_names = np.reshape(
+                [Opa_i.pRT_name for Opa_i in CustomOpacity], 
+                -1)
 
     def __call__(self, VMRs, params):
 

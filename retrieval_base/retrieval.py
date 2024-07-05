@@ -676,7 +676,8 @@ class Retrieval:
             line_species_i = Chemistry.read_species_info(species_i, 'pRT_name')
 
             for m_set in self.Chem.keys():
-                if (line_species_i not in self.Chem[m_set].line_species):
+                if (line_species_i not in self.Chem[m_set].line_species) and \
+                    (line_species_i not in getattr(self.Chem[m_set], 'custom_pRT_names', [])):
                     continue
 
                 # Ignore one species at a time
@@ -695,7 +696,8 @@ class Retrieval:
 
             # Turn all but species_i off
             for m_set in self.Chem.keys():
-                if (line_species_i not in self.Chem[m_set].line_species):
+                if (line_species_i not in self.Chem[m_set].line_species) and \
+                    (line_species_i not in getattr(self.Chem[m_set], 'custom_pRT_names', [])):
                     continue
 
                 self.Chem[m_set].neglect_species = \
@@ -907,7 +909,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory on start-up
-        time.sleep(0.3*rank*len(self.d_spec))
+        time.sleep(0.2*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval
         #pymultinest.solve(

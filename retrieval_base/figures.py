@@ -553,7 +553,8 @@ def fig_VMR(ax_VMR,
 
         # Check if the line species was included in the model
         line_species_i = Chem.read_species_info(species_i, info_key='pRT_name')
-        if line_species_i not in Chem.line_species:
+        if (line_species_i not in Chem.line_species) and \
+            (line_species_i not in getattr(Chem, 'custom_pRT_names', [])):
             continue
 
         # Read the mass, color and label
@@ -926,94 +927,96 @@ def fig_species_contribution(d_spec,
 
         # Check if the line species was included in the model
         line_species_h = Chem.read_species_info(species_h, info_key='pRT_name')
-        if line_species_h in Chem.line_species:
+        if (line_species_h not in Chem.line_species) and \
+            (line_species_h not in getattr(Chem, 'custom_pRT_names', [])):
+            continue
 
-            h += 1
+        h += 1
 
-            # Read the ModelSpectrum class for this species
-            m_spec_h  = m_spec_species[species_h]
-            pRT_atm_h = pRT_atm_species[species_h]
+        # Read the ModelSpectrum class for this species
+        m_spec_h  = m_spec_species[species_h]
+        pRT_atm_h = pRT_atm_species[species_h]
+        
+        # Residual between data and model w/o species_i
+        d_res = d_spec.flux/LogLike.phi[:,:,[0]] - m_spec_h.flux
+
+        low_pass_d_res = np.nan * np.ones_like(d_res)
+        low_pass_d_res[d_spec.mask_isfinite] = gaussian_filter1d(d_res[d_spec.mask_isfinite], sigma=300)
+        d_res -= low_pass_d_res
+
+        # Residual between complete model and model w/o species_i
+        if hasattr(m_spec_h, 'flux_only'):
+            m_res = m_spec_h.flux_only
+        else:
+            m_res = m_spec.flux - m_spec_h.flux
+
+        low_pass_m_res = np.nan * np.ones_like(m_res)
+        low_pass_m_res[d_spec.mask_isfinite] = gaussian_filter1d(m_res[d_spec.mask_isfinite], sigma=300)
+        m_res -= low_pass_m_res
+
+        # Read the color and label
+        color_h = Chem.read_species_info(species_h, info_key='color')
+        label_h = Chem.read_species_info(species_h, info_key='label')
+
+        # Plot the cross-correlation of species_h
+        plot_ax_CCF(
+            ax_CCF[h], 
+            d_spec, 
+            m_spec, 
+            pRT_atm, 
+            m_spec_wo_species=m_spec_h, 
+            pRT_atm_wo_species=pRT_atm_h, 
+            LogLike=LogLike, 
+            Cov=Cov, 
+            rv=rv_CCF, 
+            rv_to_exclude=rv_to_exclude, 
+            color=color_h, 
+            label=label_h
+            )
+
+        # Use a common ylim for all orders
+        ylim = (np.nanmean(d_res) - 5*np.nanstd(d_res), 
+                np.nanmean(d_res) + 4*np.nanstd(d_res)
+                )
+
+        fig, ax = fig_order_subplots(
+            d_spec.n_orders, 
+            ylabel='Residuals\n'+r'$\mathrm{(erg\ s^{-1}\ cm^{-2}\ nm^{-1})}$'
+            )
+
+        for i in range(d_spec.n_orders):
             
-            # Residual between data and model w/o species_i
-            d_res = d_spec.flux/LogLike.phi[:,:,[0]] - m_spec_h.flux
+            ax[i].axhline(0, lw=0.1, c='k')
+            
+            for j in range(d_spec.n_dets):
 
-            low_pass_d_res = np.nan * np.ones_like(d_res)
-            low_pass_d_res[d_spec.mask_isfinite] = gaussian_filter1d(d_res[d_spec.mask_isfinite], sigma=300)
-            d_res -= low_pass_d_res
+                mask_ij = d_spec.mask_isfinite[i,j]
 
-            # Residual between complete model and model w/o species_i
-            if hasattr(m_spec_h, 'flux_only'):
-                m_res = m_spec_h.flux_only
-            else:
-                m_res = m_spec.flux - m_spec_h.flux
-
-            low_pass_m_res = np.nan * np.ones_like(m_res)
-            low_pass_m_res[d_spec.mask_isfinite] = gaussian_filter1d(m_res[d_spec.mask_isfinite], sigma=300)
-            m_res -= low_pass_m_res
-
-            # Read the color and label
-            color_h = Chem.read_species_info(species_h, info_key='color')
-            label_h = Chem.read_species_info(species_h, info_key='label')
-
-            # Plot the cross-correlation of species_h
-            plot_ax_CCF(
-                ax_CCF[h], 
-                d_spec, 
-                m_spec, 
-                pRT_atm, 
-                m_spec_wo_species=m_spec_h, 
-                pRT_atm_wo_species=pRT_atm_h, 
-                LogLike=LogLike, 
-                Cov=Cov, 
-                rv=rv_CCF, 
-                rv_to_exclude=rv_to_exclude, 
-                color=color_h, 
-                label=label_h
-                )
-
-            # Use a common ylim for all orders
-            ylim = (np.nanmean(d_res) - 5*np.nanstd(d_res), 
-                    np.nanmean(d_res) + 4*np.nanstd(d_res)
+                label = r'$d-m_\mathrm{w/o\ ' + label_h.replace('$', '') + r'}$'
+                ax[i].plot(
+                    d_spec.wave[i,j][mask_ij], d_res[i,j][mask_ij], 
+                    c='k', lw=0.5, label=label
                     )
 
-            fig, ax = fig_order_subplots(
-                d_spec.n_orders, 
-                ylabel='Residuals\n'+r'$\mathrm{(erg\ s^{-1}\ cm^{-2}\ nm^{-1})}$'
-                )
-
-            for i in range(d_spec.n_orders):
-                
-                ax[i].axhline(0, lw=0.1, c='k')
-                
-                for j in range(d_spec.n_dets):
-
-                    mask_ij = d_spec.mask_isfinite[i,j]
-
-                    label = r'$d-m_\mathrm{w/o\ ' + label_h.replace('$', '') + r'}$'
-                    ax[i].plot(
-                        d_spec.wave[i,j][mask_ij], d_res[i,j][mask_ij], 
-                        c='k', lw=0.5, label=label
-                        )
-
-                    ax[i].plot(
-                        d_spec.wave[i,j][mask_ij], m_res[i,j][mask_ij], c=color_h, lw=1, 
-                        label=r'$m_\mathrm{only\ '+label_h.replace('$', '')+r'}$'
-                        )
-
-                    if (i == 0) and (j == 0):
-                        ax[i].legend(
-                            loc='upper right', ncol=2, fontsize=10, handlelength=1, 
-                            framealpha=0.7, handletextpad=0.3, columnspacing=0.8
-                            )
-                ax[i].set(
-                    ylim=ylim, 
-                    xlim=(d_spec.wave[i,d_spec.mask_isfinite[i]].min()-0.5, 
-                          d_spec.wave[i,d_spec.mask_isfinite[i]].max()+0.5)
+                ax[i].plot(
+                    d_spec.wave[i,j][mask_ij], m_res[i,j][mask_ij], c=color_h, lw=1, 
+                    label=r'$m_\mathrm{only\ '+label_h.replace('$', '')+r'}$'
                     )
 
-            if prefix is not None:
-                fig.savefig(prefix+f'plots/species/{species_h}_spec.pdf')
-            plt.close(fig)
+                if (i == 0) and (j == 0):
+                    ax[i].legend(
+                        loc='upper right', ncol=2, fontsize=10, handlelength=1, 
+                        framealpha=0.7, handletextpad=0.3, columnspacing=0.8
+                        )
+            ax[i].set(
+                ylim=ylim, 
+                xlim=(d_spec.wave[i,d_spec.mask_isfinite[i]].min()-0.5, 
+                        d_spec.wave[i,d_spec.mask_isfinite[i]].max()+0.5)
+                )
+
+        if prefix is not None:
+            fig.savefig(prefix+f'plots/species/{species_h}_spec.pdf')
+        plt.close(fig)
 
     ax_CCF[-1].set(
         xlabel=r'$v_\mathrm{rad}\ \mathrm{(km\ s^{-1})}$', 

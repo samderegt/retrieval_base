@@ -3,17 +3,45 @@ import petitRADTRANS.nat_cst as nc
 
 from scipy.special import wofz as Faddeeva
 
+def get_opa(x):
+    
+    i, T_i, Line_i, P_grid_i, wave_i, T_grid_i = x
+    if (i%10 == 0) or i == len(T_grid_i)-1:
+        print(f'T-point: {i+1}/{len(T_grid_i)}')
+
+    # Update the temperature and density arrays
+    Line_i.temperature = np.ones_like(P_grid_i) * T_i
+    Line_i.n_density   = P_grid_i*1e6 / (nc.kB*T_i)
+
+    return Line_i.get_line_opacity(wave_i, P_grid_i)
+
 class InterpolateOpacity:
 
+    #T_grid = np.arange(0,5000+1e-6,100)
+    #'''
+    T_grid = np.array([
+        81.14113604736988, 
+        109.60677358237457, 
+        148.05862230132453, 
+        200., 
+        270.163273706, 
+        364.940972297, 
+        492.968238926, 
+        665.909566306, 
+        899.521542126, 
+        1215.08842295, 
+        1641.36133093, 
+        2217.17775249, 
+        2995., 
+    ])
+    #'''
+
     def __init__(
-            self, LineOpacity, wave_micron, 
-            #T_grid=np.arange(0,7000+1e-6,100)
-            T_grid=np.arange(0,5000+1e-6,100), 
+            self, LineOpacity, wave_micron, order_indices, 
             ):
 
         # Define the (P,T)-grid
         self.P_grid = LineOpacity.pressure
-        self.T_grid = T_grid
 
         self.T_grid[self.T_grid == 0.] = 1.
         
@@ -21,65 +49,46 @@ class InterpolateOpacity:
         self.log_T_grid = np.log10(self.T_grid)
 
         self.wave_micron = wave_micron
+        self.order_indices = order_indices
         
         # Set up the rectangular (P,T)-grid
-        self.setup_grid(LineOpacity)
+        self.setup_grid(LineOpacity, order_indices)
 
-    def setup_grid(self, LineOpacity):
-
-        def get_opa(T_i, Line_i):
-            # Update the temperature and density arrays
-            Line_i.temperature = np.ones_like(self.P_grid) * T_i
-            Line_i.n_density   = self.P_grid*1e6 / (nc.kB*T_i)
-
-            return Line_i.get_line_opacity(self.wave_micron, self.P_grid)
+    def setup_grid(self, LineOpacity, order_indices):
 
         # Set mass-fraction to 1, so un-scaled opacity is returned
         LineOpacity.mf = np.ones_like(self.P_grid)
 
-        #opacity = np.zeros(
-        #    (len(self.P_grid), len(self.T_grid), len(self.wave_micron)), 
-        #    dtype=np.float64
-        #    )
-        
-        iterable = [(T_i, LineOpacity) for T_i in self.T_grid]
-
-        from multiprocessing import Pool
-        import os
-        with Pool(processes=os.cpu_count()//2) as p:
-            opacity = np.reshape(
-                p.starmap(get_opa, iterable=iterable), 
-                (len(self.P_grid), len(self.T_grid), len(self.wave_micron))
-                )
-
-        '''
-        # Loop over all temperature points
-        for i, T_i in enumerate(self.T_grid):
-            print(f'{i}/{len(self.T_grid)}')
-
-            # Update the temperature and density arrays
-            LineOpacity.temperature = np.ones_like(self.P_grid) * T_i
-            LineOpacity.n_density   = self.P_grid*1e6 / (nc.kB*T_i)
-
-            # Opacity for this temperature and these pressures
-            opacity[:,i,:] = LineOpacity.get_line_opacity(
-                self.wave_micron, self.P_grid
-                ).T
-        '''
+        print('Setting up opacity table...')
+        iterable = [
+            (i, T_i, LineOpacity, self.P_grid, self.wave_micron, self.T_grid) \
+            for i, T_i in enumerate(self.T_grid)
+            ]
+        opacity = np.array(list(map(get_opa, iterable))) # (T, wave, P)
+        opacity = opacity.swapaxes(1,2) # (T, P, wave)
+        opacity = opacity.swapaxes(0,1) # (P, T, wave)
 
         from scipy.interpolate import interp1d
-        # Create an interp-function for each pressure
-        self.func = [
-            interp1d(self.T_grid, opa_i, axis=0, kind='linear', 
-                     assume_sorted=True, bounds_error=False, 
-                     fill_value=(opa_i[0], opa_i[-1]))
-            for opa_i in opacity
-            ]
+        # Create an interp-function for each pressure + each order
+        self.func = np.empty((len(self.P_grid),order_indices.max()+1), dtype=object)
 
-    def __call__(self, idx_P, T):
+        # Loop over pressure
+        for i, opa_i in enumerate(opacity):
+            # Loop over orders
+            for j in range(self.func.shape[1]):
+                # Select only pixels within order
+                opa_ij = opa_i[:, (order_indices == j)]
+                
+                # Create an interpolation function
+                self.func[i,j] = interp1d(
+                    self.T_grid, np.log10(opa_ij), axis=0, kind='linear', 
+                    assume_sorted=True, bounds_error=False, 
+                    fill_value=(np.log10(opa_ij[0]), np.log10(opa_ij[-1]))
+                    )
 
-        #idx_P = (np.abs(self.log_P_grid - np.log10(P))).argmin()
-        return self.func[idx_P](T)
+    def __call__(self, idx_P, idx_order, T):
+
+        return 10**self.func[idx_P,idx_order](T)
         
 class LineOpacity:
 
@@ -107,6 +116,7 @@ class LineOpacity:
             line_cutoff=4500, 
             n_density_ref=1e20, 
             log_gf_threshold=-np.inf, 
+            log_gf_threshold_exact=-0.5, 
             nu_0=None, 
             log_gf=None, 
             E_low=None, 
@@ -114,6 +124,7 @@ class LineOpacity:
             gamma_vdW=None, 
             pre_compute=True, 
             wave_micron_broad=None, 
+            order_indices=None, 
             **kwargs
             ):
         
@@ -140,6 +151,7 @@ class LineOpacity:
         self.gamma_vdW = np.reshape([gamma_vdW], -1)
 
         self.log_gf_threshold = log_gf_threshold
+        self.log_gf_threshold_exact = log_gf_threshold_exact
 
         # Line cutoff [cm^-1]
         self.line_cutoff = line_cutoff
@@ -159,7 +171,8 @@ class LineOpacity:
             
             # Pre-compute opacity table (per order) for interpolation
             self.Interp = InterpolateOpacity(
-                LineOpacity=self, wave_micron=wave_micron_broad
+                LineOpacity=self, wave_micron=wave_micron_broad, 
+                order_indices=order_indices
                 )
 
             self.lines_to_skip = 'non-custom'
@@ -206,7 +219,7 @@ class LineOpacity:
             # Find matching lines and remove duplicates
             nu_0_i = self.nu_0[i]
             match_nu_0 = np.isclose(self.nu_0, nu_0_i)
-            match_nu_0[i] *= 0 # Keep first occurence
+            match_nu_0[i] = False # Keep first occurence
 
             # Remove duplicates
             self.nu_0      = self.nu_0[~match_nu_0]
@@ -215,7 +228,7 @@ class LineOpacity:
             self.gamma_N   = self.gamma_N[~match_nu_0]
             self.gamma_vdW = self.gamma_vdW[~match_nu_0]
 
-        # Only consider the strongest lines
+        # Only consider the strong-ish lines
         mask_log_gf = (self.log_gf >= self.log_gf_threshold)
 
         self.nu_0      = self.nu_0[mask_log_gf]
@@ -235,6 +248,14 @@ class LineOpacity:
         # Use provided coefficient
         self.gamma_N[valid_gamma_N] = \
             10**self.gamma_N[valid_gamma_N]/(4*np.pi*nc.c)
+        
+        # Use exact treatment for strongest lines
+        self.idx_strong = np.argwhere(
+            self.log_gf >= self.log_gf_threshold_exact
+            ).flatten()
+        
+        print('Strong lines:')
+        print(1e7/self.nu_0[self.idx_strong])
 
     def _load_states(self, file):
 
@@ -312,6 +333,9 @@ class LineOpacity:
 
         if self.lines_to_skip != 'custom':
             for i in self.idx_custom:
+                if (self.w[:,i] == 0.).all():
+                    # Use equation above instead
+                    continue
                 # Replace with custom impact-width
                 gamma_vdW_PT[:,i] = self.w[:,i]
 
@@ -322,25 +346,38 @@ class LineOpacity:
     def _impact_width_shift(self):
 
         # Power law treatment of impact-width and -shift (T/P,trans)
-        self.w = np.zeros((len(self.pressure),len(self.idx_custom)))
-        self.d = np.zeros((len(self.pressure),len(self.idx_custom)))
+        self.w = np.zeros((len(self.pressure),len(self.idx_custom)), dtype=np.float64)
+        self.d = np.zeros((len(self.pressure),len(self.idx_custom)), dtype=np.float64)
 
-        for i in range(len(self.idx_custom)):
-            
-            # Read the parameters
-            A_w_i = self.params.get(f'A_w_{i}')
-            b_w_i = self.params.get(f'b_w_{i}')
-            A_d_i = self.params.get(f'A_d_{i}')
-            b_d_i = self.params.get(f'b_d_{i}')
+        # Separate coefficients per perturber?
+        iterables = zip(
+            ['H2', 'He', ''], 
+            [0.85*self.n_density, 0.15*self.n_density, self.n_density]
+            )
+        for perturber, perturber_density in iterables:
 
-            for el in [A_w_i, b_w_i, A_d_i, b_d_i]:
-                assert(el is not None)
+            # Access specific power-law coefficients
+            suffix = f'_{perturber}'
+            if perturber == '':
+                suffix = ''
 
-            # Scale the impact width and shift with (P,T)
-            self.w[:,i] = A_w_i * self.temperature**b_w_i * \
-                self.n_density/self.n_density_ref
-            self.d[:,i] = A_d_i * self.temperature**b_d_i * \
-                self.n_density/self.n_density_ref
+            for i in range(len(self.idx_custom)):
+                
+                # Read the parameters
+                A_w_i = self.params.get(f'A_w_{i}{suffix}')
+                b_w_i = self.params.get(f'b_w_{i}{suffix}')
+                A_d_i = self.params.get(f'A_d_{i}{suffix}')
+                b_d_i = self.params.get(f'b_d_{i}{suffix}')
+
+                if None in [A_w_i, b_w_i, A_d_i, b_d_i]:
+                    # Keep width and shift at 0
+                    continue
+
+                # Scale the impact width and shift with (P,T)
+                self.w[:,i] += A_w_i * self.temperature**b_w_i * \
+                    perturber_density/self.n_density_ref
+                self.d[:,i] += A_d_i * self.temperature**b_d_i * \
+                    perturber_density/self.n_density_ref
 
     def _line_profile(self, nu_0, gamma_L, gamma_G, mask_nu, S):
         
@@ -360,9 +397,15 @@ class LineOpacity:
         self.nu = 1/wave_cm
 
         if hasattr(self, 'Interp'):
+            
+            idx_order = np.argwhere(
+                (wave_micron.mean() > self.wave_range_micron[:,0]) & \
+                (wave_micron.mean() < self.wave_range_micron[:,1])
+            ).flatten()[0]
+            mask_order = (self.Interp.order_indices==idx_order)
             mask_wave = (
-                (self.Interp.wave_micron >= wave_micron.min()-1e-6) &
-                (self.Interp.wave_micron <= wave_micron.max()+1e-6)
+                (self.Interp.wave_micron[mask_order] >= wave_micron.min()-1e-10) & \
+                (self.Interp.wave_micron[mask_order] <= wave_micron.max()+1e-10)
             )
 
         if self.lines_to_skip != 'custom':
@@ -377,7 +420,7 @@ class LineOpacity:
         S = self._oscillator_strength()
 
         # Create line-opacity array
-        opacity = np.zeros((len(wave_micron), len(pressure)), dtype=np.float64)
+        opacity = 1e-250 * np.ones((len(wave_micron), len(pressure)), dtype=np.float64)
 
         # Loop over atmospheric layers
         for i in range(len(self.pressure)):
@@ -385,9 +428,11 @@ class LineOpacity:
             # Loop over lines
             for j, nu_0_j in enumerate(self.nu_0):
 
-                if (self.lines_to_skip == 'non-custom') and (j not in self.idx_custom):
+                use_exact = (j in self.idx_custom) or (j in self.idx_strong)
+
+                if (self.lines_to_skip == 'non-custom') and (not use_exact):
                     continue
-                if (self.lines_to_skip == 'custom') and (j in self.idx_custom):
+                if (self.lines_to_skip == 'custom') and use_exact:
                     continue
 
                 nu_0_ij = nu_0_j
@@ -406,7 +451,10 @@ class LineOpacity:
                 
             if hasattr(self, 'Interp'):
                 # Interpolate on the pre-computed grid
-                opacity[:,i] += self.Interp(idx_P=i, T=self.temperature[i])[mask_wave]
+                opacity[:,i] += self.Interp(
+                    idx_P=i, idx_order=idx_order, 
+                    T=self.temperature[i]
+                    )[mask_wave]
                 
         # Scale the opacity by the abundance profile
         opacity *= self.mf[None,:]
