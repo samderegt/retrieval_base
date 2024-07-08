@@ -129,20 +129,19 @@ class FreeChemistry(Chemistry):
                 VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
 
             P_i = params.get(f'{species_i}_P')
-            VMR_TOA_i = params.get(f'{species_i}_TOA')
-            if (VMR_TOA_i is not None) and (P_i is not None):
-                # Top-of-atmosphere abundance given
+            if P_i is not None:
+                # Drop-off pressure given
                 mask_TOA = (self.pressure < P_i)
-                # Linear interpolation towards TOA
+                VMR_i[mask_TOA] = 0.
+            
+            VMR_TOA_i = params.get(f'{species_i}_TOA')
+            if VMR_TOA_i is not None:
+                # Linear interpolation towards TOA-abundance
                 VMR_i[mask_TOA] = 10**np.interp(
                     x=np.log10(self.pressure[mask_TOA]), 
                     xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
                     fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
                 )
-            elif (P_i is not None):
-                # Drop-off pressure given
-                mask_TOA = (self.pressure < P_i)
-                VMR_i[mask_TOA] = 0.
                 
             self.VMRs[species_i] = VMR_i
 

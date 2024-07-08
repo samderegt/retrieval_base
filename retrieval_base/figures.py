@@ -400,6 +400,27 @@ def fig_PT(PT,
            xlim=(1,3500), 
            prefix=None, 
            ):
+
+    def cloud_condensation_curves(pressure, FeH, cloud_species):
+
+        coeffs = {
+            'CaTiO3': [5.125, -0.277, -0.554], # Wakeford et al. (2017)
+            'Fe': [5.44, -0.48, -0.48], # Visscher et al. (2010)
+            'Mg2SiO4': [5.89, -0.37, -0.73], # Visscher et al. (2010)
+            'MgSiO3': [6.26, -0.35, -0.70], # Visscher et al. (2010)
+            'Cr': [6.576, -0.486, -0.486], # Morley et al. (2012)
+            'KCl': [12.479, -0.879, -0.879], # Morley et al. (2012)
+            'MnS': [7.45, -0.42, -0.84], # Visscher et al. (2006)
+            'Na2S': [10.05, -0.72, -1.08], # Visscher et al. (2006)
+            'ZnS': [12.52, -0.63, -1.26], # Visscher et al. (2006)
+            'H2S': [86.49, -8.54, -8.54], # Visscher et al. (2006)
+        }
+
+        a, b, c = coeffs[cloud_species]        
+        y = a + b*np.log10(pressure) + c*FeH
+        T = 1e4/y
+        return T
+
     
     if ax_PT is None:
         fig, ax_PT = plt.subplots(
@@ -467,6 +488,17 @@ def fig_PT(PT,
             color='grey', 
             ls=ls
             )
+        
+    cond_species = ['Na2S', 'MnS', 'Mg2SiO4', 'Fe']
+    for cond_species_i in cond_species:
+        T_cond = cloud_condensation_curves(
+            PT_i.pressure, FeH=0.0, cloud_species=cond_species_i
+            )
+        ax_PT.plot(
+            T_cond, PT_i.pressure, lw=0.5, 
+            ls=(0,(8,3)), label=cond_species_i
+            )
+    ax_PT.legend(loc='upper right')
     
     # Axis-settings
     ax_PT.set(
