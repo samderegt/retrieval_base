@@ -73,8 +73,8 @@ class RetrievalResults:
             n_params=self.n_params, outputfiles_basename=prefix
             )
         stats = analyzer.get_stats()
-        self.ln_Z = stats['nested importance sampling global log-evidence']
-        #self.ln_Z = stats['nested sampling global log-evidence']
+        #self.ln_Z = stats['nested importance sampling global log-evidence']
+        self.ln_Z = stats['nested sampling global log-evidence']
 
         if load_posterior:
             self.posterior = analyzer.get_equal_weighted_posterior()
@@ -147,7 +147,12 @@ class RetrievalResults:
         
         return copy.copy(pRT_atm.Rot)
     
-    def get_model_spec(self, is_local=False, m_set=None, line_species=None, return_pRT_atm=False):
+    def get_model_spec(
+            self, is_local=False, m_set=None, 
+            line_species_to_exclude=None, 
+            line_species_to_include=None, 
+            return_pRT_atm=False
+            ):
         
         # Load the necessary objects
         self._load_objects_as_attr(['Chem', 'PT'])
@@ -172,12 +177,22 @@ class RetrievalResults:
             for key in keys_to_delete:
                 params.pop(key, None)
 
-            # Change the local abundances
-            if line_species is not None:
-                for key_i in mf.keys():
-                    if key_i == line_species:
-                        continue
-                    # Set abundances of other species to 0
+        # Change the local abundances
+        if line_species_to_include is not None:
+            for key_i in mf.keys():
+                if key_i in ['MMW', 'H2', 'He']:
+                    continue
+                if key_i == line_species_to_include:
+                    continue
+                # Set abundances of other species to 0
+                mf[key_i] *= 0
+        
+        if line_species_to_exclude is not None:
+            for key_i in mf.keys():
+                if key_i in ['MMW', 'H2', 'He']:
+                    continue
+                if key_i == line_species_to_exclude:
+                    # Set abundance of this species to 0
                     mf[key_i] *= 0
 
         # Only consider a single model
@@ -466,6 +481,8 @@ class RetrievalResults:
             on_d_res=True, 
             high_pass={'m_res': high_pass_filter()}, 
             orders_to_include=None, 
+            model_to_subtract_from_d_res=None, 
+            plot=False, 
             **kwargs
             ):
 
@@ -487,9 +504,21 @@ class RetrievalResults:
             # Residual wrt the combined model
             d_res -= np.copy(self.LogLike.m_flux_phi)
 
+        if model_to_subtract_from_d_res is not None:
+            # Subtract a model from the data
+            for j in range(self.d_spec.n_orders):
+                for k in range(self.d_spec.n_dets):
+                    d_res[j,k] -= np.interp(
+                        d_wave[j,k], xp=wave_local[j], 
+                        fp=model_to_subtract_from_d_res[j]
+                    )
+
         if high_pass.get('d_res') is not None:
             # Apply a high-pass filter
             d_res = high_pass.get('d_res')(d_res)
+
+        if plot:
+            plt.figure(figsize=(12,5))
 
         for i, rv_i in enumerate(tqdm(rv)):
 
@@ -527,6 +556,13 @@ class RetrievalResults:
                         m_res_local_jk[mask_jk], 
                         1/self.LogLike.s2[j,k] * self.Cov[j,k].solve(d_res[j,k,mask_jk])
                     )
+
+                    if plot and rv_i==0.:
+                        plt.plot(d_wave[j,k], d_res[j,k], c='k', lw=1)
+                        plt.plot(d_wave[j,k], m_res_local_jk, c='C1', lw=2)
+            
+        if plot:
+            plt.show()
 
         if orders_to_include is None:
             CCF_sum = np.nansum(CCF, axis=(1,2))
