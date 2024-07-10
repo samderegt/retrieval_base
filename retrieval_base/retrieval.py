@@ -188,7 +188,7 @@ def pre_processing(conf, conf_data, m_set):
 
     cloud_mode = conf.cloud_kwargs.get('cloud_mode')
     if (cloud_mode is None) and (conf.cloud_kwargs.get(m_set) is not None):
-        conf.cloud_kwargs[m_set].get('cloud_mode')
+        cloud_mode = conf.cloud_kwargs[m_set].get('cloud_mode')
 
     lbl_opacity_sampling = conf.constant_params.get('lbl_opacity_sampling')
     if lbl_opacity_sampling is None:

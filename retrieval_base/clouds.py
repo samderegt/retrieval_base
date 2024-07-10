@@ -12,7 +12,7 @@ def get_Cloud_class(mode=None, **kwargs):
         return EddySed(**kwargs)
 
 class Cloud:
-    def __init__(self, pressure):
+    def __init__(self, pressure, **kwargs):
         
         # If left at None, don't include a cloud
         self.f_sed   = None
@@ -28,7 +28,7 @@ class Cloud:
         
 class EddySed(Cloud):
 
-    def __init__(self, pressure, cloud_species=['MgSiO3(c)']):
+    def __init__(self, pressure, cloud_species=['MgSiO3(c)'], **kwargs):
 
         # Initialize parent class
         super().__init__(pressure)

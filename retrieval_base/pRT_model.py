@@ -341,7 +341,6 @@ class pRT_model:
             give_absorption_opacity = self.add_opacity, 
             contribution = get_contr, 
             )
-
         # Loop over all orders        
         for i, atm_i in enumerate(self.atm):
 
