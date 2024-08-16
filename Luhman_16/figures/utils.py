@@ -65,34 +65,41 @@ class RetrievalResults:
         # Remove attributes after running functions
         self.low_memory = low_memory
 
-        self.n_params = self._load_object('LogLike').N_params
-            
-        import pymultinest
-        # Set-up analyzer object
-        analyzer = pymultinest.Analyzer(
-            n_params=self.n_params, outputfiles_basename=prefix
-            )
-        stats = analyzer.get_stats()
-        #self.ln_Z = stats['nested importance sampling global log-evidence']
-        self.ln_Z = stats['nested sampling global log-evidence']
+        try:
+            self.n_params = self._load_object('LogLike').N_params
+                
+            import pymultinest
+            # Set-up analyzer object
+            analyzer = pymultinest.Analyzer(
+                n_params=self.n_params, outputfiles_basename=prefix
+                )
+            stats = analyzer.get_stats()
+            #self.ln_Z = stats['nested importance sampling global log-evidence']
+            self.ln_Z = stats['nested sampling global log-evidence']
 
-        if load_posterior:
-            self.posterior = analyzer.get_equal_weighted_posterior()
-            self.posterior = self.posterior[:,:-1]
+            if load_posterior:
+                self.posterior = analyzer.get_equal_weighted_posterior()
+                self.posterior = self.posterior[:,:-1]
 
-        # Read the parameters of the best-fitting model
-        self.bestfit_values = np.array(stats['modes'][0]['maximum a posterior'])
+            # Read the parameters of the best-fitting model
+            self.bestfit_values = np.array(stats['modes'][0]['maximum a posterior'])
 
-        import json
-        # Read the best-fitting parameters
-        with open(self.prefix+'data/bestfit.json') as f:
-            self.bestfit_params = json.load(f)['params']
+            import json
+            # Read the best-fitting parameters
+            with open(self.prefix+'data/bestfit.json') as f:
+                self.bestfit_params = json.load(f)['params']
+                
+        except:
+            return
 
-    def _load_object(self, name, bestfit_prefix=True):
+    def _load_object(self, name, bestfit_prefix=True, m_set=None):
 
-        setting = self.m_set
+        # Model setting
+        setting = m_set
+        if m_set is None:
+            setting = self.m_set
         if name == 'd_spec':
-            setting = self.w_set
+            setting = self.w_set # Use wavelength-setting instead
 
         file_name = f'{self.prefix}data/bestfit_{name}_{setting}.pkl'
         if not bestfit_prefix:
@@ -140,6 +147,36 @@ class RetrievalResults:
         print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
         return B, sigma
     
+    def get_mean_scaled_uncertainty(self, order_or_det='order'):
+
+        LogLike = self._load_object('LogLike', bestfit_prefix=True)
+        Cov = self._load_object('Cov', bestfit_prefix=True)
+
+        sigma = np.zeros((LogLike.n_orders,LogLike.n_dets), dtype=np.float64)
+        
+        for i in range(LogLike.n_orders):
+            diag_i = []
+            for j in range(LogLike.n_dets):
+                
+                if Cov[i,j] is None:
+                    diag_ij = [np.nan]*2048
+                else:
+                    # First column of banded matrix is diagonal
+                    diag_ij = Cov[i,j].cov[0] * LogLike.s2[i,j]
+                diag_i.append(diag_ij)
+                
+                if order_or_det == 'det':
+                    # Get the mean uncertainty per detector
+                    sigma[i,j] = np.nanmean(np.sqrt(diag_ij))
+
+            if order_or_det == 'order':
+                diag_i = np.concatenate(diag_i)
+                
+                # Get the mean uncertainty per order
+                sigma[i,:] = np.nanmean(np.sqrt(diag_i))
+
+        return sigma
+    
     def get_Rot(self, pRT_atm=None):
 
         if pRT_atm is None:
@@ -151,12 +188,15 @@ class RetrievalResults:
             self, is_local=False, m_set=None, 
             line_species_to_exclude=None, 
             line_species_to_include=None, 
-            return_pRT_atm=False
+            return_pRT_atm=False, 
+            return_wave_flux=False
             ):
         
         # Load the necessary objects
         self._load_objects_as_attr(['Chem', 'PT'])
-        pRT_atm = self._load_object('pRT_atm_broad', bestfit_prefix=False)
+        pRT_atm = self._load_object(
+            'pRT_atm_broad', bestfit_prefix=False, m_set=m_set
+            )
 
         # Change the parameters for a local, un-broadened model
         if m_set is None:
@@ -171,8 +211,10 @@ class RetrievalResults:
 
             # Remove any spots/bands
             keys_to_delete = [
-                'lat_band', 'lon_band', 'lon_spot', 'lon_spot_0', 
-                'is_within_patch', 'is_outside_patch'
+                'epsilon_lat', 'lat_band', 'lon_band', 'r_spot', 'lat_spot', 
+                'is_within_patch', 'is_outside_patch', 
+                'is_in_band', 'is_not_in_band', 
+                'is_in_spot', 'is_not_in_spot', 
                 ]
             for key in keys_to_delete:
                 params.pop(key, None)
@@ -183,6 +225,7 @@ class RetrievalResults:
                 if key_i in ['MMW', 'H2', 'He']:
                     continue
                 if key_i == line_species_to_include:
+                    print(f'Generating a model with only {line_species_to_include}')
                     continue
                 # Set abundances of other species to 0
                 mf[key_i] *= 0
@@ -192,6 +235,7 @@ class RetrievalResults:
                 if key_i in ['MMW', 'H2', 'He']:
                     continue
                 if key_i == line_species_to_exclude:
+                    print(f'Generating a model w/o {line_species_to_exclude}')
                     # Set abundance of this species to 0
                     mf[key_i] *= 0
 
@@ -208,7 +252,11 @@ class RetrievalResults:
         flux_pRT_grid = copy.copy(pRT_atm.flux_pRT_grid)
 
         if self.low_memory:
-            del self.Chem, self.PT
+            del self.Chem, self.PT, m_spec
+
+        if return_wave_flux:
+            del pRT_atm
+            return wave_pRT_grid, flux_pRT_grid
 
         if return_pRT_atm:
             return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm), pRT_atm
@@ -475,13 +523,12 @@ class RetrievalResults:
         Rot.int_flux[mask_patch] = Rot_spot.int_flux[mask_patch]
     
     def get_CCF(
-            self, wave_local, flux_local, flux_global, 
+            self, wave_local, flux_local, 
             rv=np.arange(-300,300+1e-6,0.5), 
-            subtract_global=False, 
-            on_d_res=True, 
             high_pass={'m_res': high_pass_filter()}, 
             orders_to_include=None, 
             model_to_subtract_from_d_res=None, 
+            model_to_subtract_from_m_res=None, 
             plot=False, 
             **kwargs
             ):
@@ -500,25 +547,46 @@ class RetrievalResults:
     
         d_wave = np.copy(self.d_spec.wave)
         d_res  = np.copy(self.d_spec.flux)
-        if on_d_res:
-            # Residual wrt the combined model
-            d_res -= np.copy(self.LogLike.m_flux_phi)
 
-        if model_to_subtract_from_d_res is not None:
+        #fig, ax = plt.subplots(
+        #    figsize=(12,3*self.d_spec.n_orders), 
+        #    nrows=self.d_spec.n_orders
+        #    )
+
+        if model_to_subtract_from_d_res in ['m_flux_phi', 'complete']:
+            # Residual wrt the complete model 
+            d_res -= np.copy(self.LogLike.m_flux_phi)
+        elif model_to_subtract_from_d_res is not None:
             # Subtract a model from the data
             for j in range(self.d_spec.n_orders):
                 for k in range(self.d_spec.n_dets):
-                    d_res[j,k] -= np.interp(
+
+                    model_to_subtract_from_d_res_jk = np.interp(
                         d_wave[j,k], xp=wave_local[j], 
-                        fp=model_to_subtract_from_d_res[j]
+                        fp=model_to_subtract_from_d_res[j]*self.LogLike.phi[j,k,0]
                     )
+
+                    #ax[j].plot(d_wave[j,k], d_res[j,k], c='k', lw=0.8)
+                    #ax[j].plot(
+                    #    d_wave[j,k], model_to_subtract_from_d_res_jk, c='C1', lw=1.2
+                    #    )
+
+                    d_res[j,k] -= model_to_subtract_from_d_res_jk
+
+                #ax[j].set(xlim=(d_wave[j,:].min()-0.3,d_wave[j,:].max()+0.3))
+        
+        #plt.tight_layout()
+        #plt.show()
 
         if high_pass.get('d_res') is not None:
             # Apply a high-pass filter
             d_res = high_pass.get('d_res')(d_res)
 
         if plot:
-            plt.figure(figsize=(12,5))
+            fig, ax = plt.subplots(
+                figsize=(12,3*self.d_spec.n_orders), 
+                nrows=self.d_spec.n_orders, sharey=True
+                )
 
         for i, rv_i in enumerate(tqdm(rv)):
 
@@ -538,8 +606,8 @@ class RetrievalResults:
                     m_res_local_jk = m_flux_local.copy()
 
                     # Subtract the global model from the template
-                    if subtract_global:
-                        m_res_local_jk -= flux_global[j]
+                    if model_to_subtract_from_m_res is not None:
+                        m_res_local_jk -= model_to_subtract_from_m_res[j]
 
                     # Interpolate onto the data wavelength-grid
                     m_res_local_jk = np.interp(
@@ -558,10 +626,12 @@ class RetrievalResults:
                     )
 
                     if plot and rv_i==0.:
-                        plt.plot(d_wave[j,k], d_res[j,k], c='k', lw=1)
-                        plt.plot(d_wave[j,k], m_res_local_jk, c='C1', lw=2)
+                        ax[j].plot(d_wave[j,k], d_res[j,k], c='k', lw=0.8)
+                        ax[j].plot(d_wave[j,k], m_res_local_jk, c='C1', lw=1.2)
+                        ax[j].set(xlim=(d_wave[j,:].min()-0.3,d_wave[j,:].max()+0.3))
             
         if plot:
+            plt.tight_layout()
             plt.show()
 
         if orders_to_include is None:
