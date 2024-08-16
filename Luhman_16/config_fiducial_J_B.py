@@ -7,15 +7,16 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_21'
+prefix = 'fiducial_J_B_ret_29'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     J1226_A = {
-        'w_set': 'J1226', 'wave_range': (1115, 1325), 
+        'w_set': 'J1226', 'wave_range': (1115, 1338), 
         #'w_set': 'J1226', 'wave_range': (1115, 1162.5), 
         #'w_set': 'J1226', 'wave_range': (1240, 1267), 
         #'w_set': 'J1226', 'wave_range': (1240, 1296), 
+        #'w_set': 'J1226', 'wave_range': (1297, 1326), 
 
         #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
         #'wave_to_mask': np.array([[1251,1255]]), # Mask K I lines
@@ -61,59 +62,52 @@ magnitudes = {
 # Define the priors of the parameters
 free_params = {
 
-    #'res': [(40000,100000), r'$R$'], 
-
     # Covariance parameters
     'log_a': [(-0.7,0.3), r'$\log\ a$'], 
     'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
     #'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(4,6.0), r'$\log\ g$'], 
+    'log_g': [(4.0,6.0), r'$\log\ g$'], 
     'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(10,30), r'$v\ \sin\ i$'], 
-    'rv': [(10,30), r'$v_\mathrm{rad}$'], 
-
-    # Surface brightness
-    #'lat_band': [(0,90), r'$\lambda_\mathrm{b}$'], 
-    #'epsilon_band': [(-1,1), r'$\epsilon_\mathrm{b}$'], 
+    'vsini': [(20.,30.), r'$v\ \sin\ i$'], 
+    'rv': [(15.,25.), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': [(-10,5), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    #'log_P_base_gray': [(-5,3), r'$\log\ P_{\mathrm{cl},0}$'], 
-    #'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
-    'log_X_Mg2SiO4(c)': [(-2.3,1.), r'$\log\ X_\mathrm{Mg2SiO4}$'], 
-    'f_sed_Mg2SiO4(c)': [(0.,10.), r'$f_\mathrm{sed,Mg2SiO4}$'], 
-    'log_X_MgSiO3(c)': [(-2.3,1.), r'$\log\ X_\mathrm{MgSiO3}$'], 
-    'f_sed_MgSiO3(c)': [(0.,10.), r'$f_\mathrm{sed,MgSiO3}$'], 
-    'log_X_Fe(c)': [(-2.3,1.), r'$\log\ X_\mathrm{Fe}$'], 
-    'f_sed_Fe(c)': [(0.,10.), r'$f_\mathrm{sed,Fe}$'], 
+    'log_opa_base_gray_0': [(-10,10), r'$\log\ \kappa_{\mathrm{cl},0,\mathrm{slab}}$'], # Cloud slab
+    'log_P_base_gray_0': [(-1,2.5), r'$\log\ P_{\mathrm{cl},0,\mathrm{slab}}$'], 
+    'f_sed_gray_0': [(0,20), r'$f_\mathrm{sed,slab}$'], 
 
-    'log_K_zz': [(5.,13.), r'$\log\ K_\mathrm{zz}$'], 
-    'sigma_g': [(1.05,3), r'$\sigma_\mathrm{g}$'], 
+    'log_opa_base_gray_1': [(-10,10), r'$\log\ \kappa_{\mathrm{cl},0,\mathrm{deck}}$'], # Cloud deck
+    'log_P_base_gray_1': [(-1,2.5), r'$\log\ P_{\mathrm{cl},0,\mathrm{deck}}$'], 
 
     # Chemistry
-    'log_H2O': [(-12,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_CH4': [(-12,-2), r'$\log\ \mathrm{CH_4}$'],
-    'log_HF': [(-12,-2), r'$\log\ \mathrm{HF}$'],
-    'log_FeH': [(-12,-2), r'$\log\ \mathrm{FeH}$'],
-    'log_TiO': [(-12,-2), r'$\log\ \mathrm{TiO}$'], 
-    'log_VO': [(-12,-2), r'$\log\ \mathrm{VO}$'],     
+    'log_H2O': [(-14,-2), r'$\log\ \mathrm{H_2O}$'], 
+    'log_CH4': [(-14,-2), r'$\log\ \mathrm{CH_4}$'], 
+    'log_HF': [(-14,-2), r'$\log\ \mathrm{HF}$'], 
+    'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    'log_K': [(-14,-2), r'$\log\ \mathrm{K}$'], 'log_K_P': [(-5,3), r'$\log\ P_\mathrm{K}$'], 
+    'log_Na': [(-14,-2), r'$\log\ \mathrm{Na}$'], 
+    'log_Cr': [(-14,-2), r'$\log\ \mathrm{Cr}$'], 
+    'log_Mn': [(-14,-2), r'$\log\ \mathrm{Mn}$'], 
 
-    'log_K': [(-12,-2), r'$\log\ \mathrm{K}$'], 
-    #'log_KshiftH2': [(-12,-2), r'$\log\ \mathrm{K}$'], 
-    'log_Na': [(-12,-2), r'$\log\ \mathrm{Na}$'], 
-    'log_Fe': [(-12,-2), r'$\log\ \mathrm{Fe}$'], 
-    'log_Mg': [(-12,-2), r'$\log\ \mathrm{Mg}$'], 
-    'log_Mn': [(-12,-2), r'$\log\ \mathrm{Mn}$'], 
+    #'log_AlH': [(-14,-2), r'$\log\ \mathrm{AlH}$'], 
+    #'log_SH': [(-14,-2), r'$\log\ \mathrm{SH}$'], 
+    'log_H2S': [(-14,-2), r'$\log\ \mathrm{H_2S}$'], 
 
-    # Impact shifts
-    #'A_d_0': [(0.001,0.004), r'$A_{d,0}$'], # 0.00158988 (K-H2) | 0.001943820 (K-He)
-    #'A_d_1': [(0.001,0.004), r'$A_{d,1}$'], # 0.00211668 (K-H2) | 0.000462539 (K-He)
-    #'b_d_0': [(0.5,1.5), r'$b_{d,0}$'],     # 0.949254 (K-H2) | 0.89691 (K-He)
-    #'b_d_1': [(0.5,1.5), r'$b_{d,1}$'],     # 0.933563 (K-H2) | 1.07284 (K-He)
+    # Impact shifts: d = A*T^b * n/n_ref
+    'A_d_0': [(0.0,0.005), r'$A_{d,0}$'], # 0.00158988 (K-H2) | 0.001943820 (K-He)
+    'A_d_1': [(0.0,0.005), r'$A_{d,1}$'], # 0.00211668 (K-H2) | 0.000462539 (K-He)
+    'b_d_0': [(0.5,1.5), r'$b_{d,0}$'],   # 0.949254 (K-H2) | 0.89691 (K-He)
+    'b_d_1': [(0.5,1.5), r'$b_{d,1}$'],   # 0.933563 (K-H2) | 1.07284 (K-He)
+
+    # Impact widths: w = A*T^b * n/n_ref
+    'A_w_0': [(0.05,0.45), r'$A_{w,0}$'], # 0.352609 (K-H2) | 0.208190 (K-He)
+    'A_w_1': [(0.05,0.45), r'$A_{w,1}$'], # 0.245926 (K-H2) | 0.121448 (K-He)
+    'b_w_0': [(0.30,0.60), r'$b_{w,0}$'], # 0.385961 (K-H2) | 0.452833 (K-He)
+    'b_w_1': [(0.30,0.60), r'$b_{w,1}$'], # 0.447971 (K-H2) | 0.531718 (K-He)
 
     # PT profile    
     'dlnT_dlnP_0': [(0.,0.4), r'$\nabla_{T,0}$'], 
@@ -141,23 +135,18 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
-    #'vsini': 25.3, 
-
-    # PT profile
-    'log_P_knots': np.array([-5, -2, 0.5, 1.5, 3], dtype=np.float64), 
-
-    'do_scat_emis': True, 
+    'do_scat_emis': False, 
 
     # Custom line opacity
-    'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
-    'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
-    'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
-    'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
+    #'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
+    #'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
+    #'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
+    #'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
 
-    'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
-    'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
-    'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
-    'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
+    #'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
+    #'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
+    #'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
+    #'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
 }
 
 #'''
@@ -172,7 +161,8 @@ line_opacity_kwargs = [
     'is_alkali': True, 
     #E_ion=35009.8140, Z=0, # Potassium (K I)
     
-    'line_cutoff': 200, #line_cutoff=4500, 
+    #'line_cutoff': 200, 
+    'line_cutoff': 1000, 
     #n_density_ref=1e20, 
     'log_gf_threshold': -2.0, 
     'log_gf_threshold_exact': -0.5, 
@@ -193,7 +183,8 @@ line_opacity_kwargs = [
     'is_alkali': True, 
     'E_ion': 41449.451, #Z=0, # Sodium (Na I)
     
-    'line_cutoff': 200, #line_cutoff=4500, 
+    #'line_cutoff': 200, 
+    'line_cutoff': 1000, 
     #n_density_ref=1e20, 
     'log_gf_threshold': -2.0, 
     'log_gf_threshold_exact': -0.5, 
@@ -212,10 +203,8 @@ scale_err  = True
 apply_high_pass_filter = False
 
 cloud_kwargs = {
-    #'cloud_mode': 'gray', 
-    'cloud_mode': 'EddySed', 
-    'cloud_species': ['Mg2SiO4(c)_cd', 'MgSiO3(c)_cd', 'Fe(c)_cd'], 
-
+    'cloud_mode': 'gray', 
+    #'cloud_mode': 'EddySed', 'cloud_species': ['Mg2SiO4(c)_cd', 'MgSiO3(c)_cd', 'Fe(c)_cd'], 
 }
 
 #rotation_mode = 'integrate' # 'convolve'
@@ -230,26 +219,22 @@ chem_kwargs = {
 
     'line_species': [
         'H2O_pokazatel_main_iso', 
-        #'H2O_181', 
         'CH4_hargreaves_main_iso', 
-        #'NH3_coles_main_iso', 
-        #'H2S_Sid_main_iso', 
         'HF_main_iso', 
         'FeH_main_iso', 
-        'TiO_48_Exomol_McKemmish', 
-        'VO_HyVO_main_iso', #'VO_ExoMol_McKemmish', 
-
-        #'KshiftH2',
-        #'Na_allard_recomputed', 
-        'Fe', 
-        #'Ca', 
-        'Mg', 
+        #'K', 'Na', # On-the-fly treatment
+        'Cr', 
         'Mn', 
+
+        #'AlH_AloHa_main_iso', 
+        #'SH_main_iso', 
+        'H2S_Sid_main_iso', 
     ], 
 }
 
 species_to_plot_VMR = [
-    'H2O', 'CH4', 'HF', 'FeH', 'TiO', 'VO', 'Fe', 'K', 'Na', 'Mg', 'Mn'
+    #'H2O', 'CH4', 'HF', 'FeH', 'Cr', 'Mn', 'AlH', 'SH', 'K', 'Na', 
+    'H2O', 'CH4', 'HF', 'FeH', 'Cr', 'Mn', 'H2S' 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
@@ -279,7 +264,7 @@ if free_params.get('log_l') is not None:
 
 PT_kwargs = dict(
     PT_mode   = 'free_gradient', 
-    n_T_knots = len(constant_params['log_P_knots']), 
+    n_T_knots = 5, 
     PT_interp_mode = 'linear', 
     symmetric_around_P_phot = False, 
 )

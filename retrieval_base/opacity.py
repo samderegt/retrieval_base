@@ -112,7 +112,7 @@ class LineOpacity:
             pRT_name='', 
             mass=1.0, 
             is_alkali=False, 
-            E_ion=35009.8140, Z=0, # Potassium (K I)
+            E_ion=35009.8140, Z=1, # Potassium (K I)
             line_cutoff=4500, 
             n_density_ref=1e20, 
             log_gf_threshold=-np.inf, 

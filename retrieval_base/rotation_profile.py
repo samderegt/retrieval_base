@@ -224,6 +224,12 @@ class IntRotationProfile:
             lon_band_upper = np.deg2rad(lon_band_upper)
             lon_band_lower = np.deg2rad(lon_band_lower)
 
+        # Ensure that the upper longitude is the maximum
+        lon_band_u = max([lon_band_upper, lon_band_lower])
+        lon_band_l = min([lon_band_upper, lon_band_lower])
+        lon_band_upper = lon_band_u
+        lon_band_lower = lon_band_l
+
         # Brightness-scaling factor
         epsilon_band = params.get(f'epsilon_band{band_suffix}', 1)
 
