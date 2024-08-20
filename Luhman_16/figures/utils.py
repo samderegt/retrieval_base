@@ -263,6 +263,49 @@ class RetrievalResults:
         
         return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm) # Rotation model
     
+    def get_grey_cloud_opacity(self, keys_indices, m_set=None):
+
+        # Load the necessary objects
+        Cloud = self._load_object(
+            'pRT_atm', bestfit_prefix=False, m_set=m_set
+            ).Cloud
+
+        if Cloud.get_opacity is None:
+            # Not a parameterised cloud
+            return
+
+        opa_posterior = []
+        # Loop over samples in posterior
+        for posterior_i in self.posterior:
+            
+            # Add parameters to a dictionary
+            params = {}
+            for key_i, idx_i in keys_indices.items():
+
+                if key_i.startswith('log_'):
+                    params[key_i.replace('log_','')] = 10**posterior_i[idx_i]
+                else:
+                    params[key_i] = posterior_i[idx_i]
+
+            # Update Cloud instance with sample
+            Cloud(params=params, mass_fractions=None)
+
+            # Get opacity at 1 micron
+            opa_i = Cloud.cloud_opacity(
+                wave_micron=np.array([1.0]), pressure=Cloud.pressure
+                )
+            opa_posterior.append(opa_i[0])
+
+        opa_posterior = np.array(opa_posterior)
+
+        # Opacity with best-fitting parameters
+        Cloud(params=self.bestfit_params[self.m_set], mass_fractions=None)
+        opa_bestfit = Cloud.cloud_opacity(
+            wave_micron=np.array([1.0]), pressure=Cloud.pressure
+            )[0]
+
+        return opa_posterior, opa_bestfit
+
     def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16), return_Rot=False):
 
         k_B = 1.3807e-16    # cm^2 g s^-2 K^-1
