@@ -31,6 +31,7 @@ def pre_processing(conf, conf_data, m_set):
 
     # --- Pre-process data ----------------------------------------------
 
+    #'''
     # Get instances of the DataSpectrum class 
     # for the target and telluric standard
     d_spec = DataSpectrum(
@@ -161,6 +162,11 @@ def pre_processing(conf, conf_data, m_set):
 
     # Save as pickle
     af.pickle_save(conf.prefix+f'data/d_spec_{d_spec.w_set}.pkl', d_spec)
+    #'''
+    '''
+    w_set = conf_data['w_set']
+    d_spec = af.pickle_load(conf.prefix+f'data/d_spec_{w_set}.pkl')
+    '''
 
     # --- Set up a pRT model --------------------------------------------
 
@@ -892,6 +898,11 @@ class Retrieval:
             # Retrieve the model spectrum, with the wider pRT model
             pRT_atm_to_use = self.pRT_atm_broad
 
+            # Save the updated pRT emission contribution
+            for m_set in self.pRT_atm_broad.keys():
+                for i, atm_i in enumerate(self.pRT_atm_broad[m_set].atm):
+                    np.save(self.conf.prefix+f'data/contr_em_order{i}_{m_set}', atm_i.contr_em)
+        
         # Call the CallBack class and make summarizing figures
         self.CB(
             self.Param, 

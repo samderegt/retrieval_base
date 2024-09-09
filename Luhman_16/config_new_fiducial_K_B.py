@@ -1,31 +1,29 @@
 import numpy as np
+import os
 
-file_params = 'config_fiducial_K_B.py'
+file_params = 'config_new_fiducial_K_B.py'
 
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-# Where to store retrieval outputs
-prefix = 'no_bands_K_B_ret_19'
+prefix = 'new_fiducial_K_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    K2166_cloudy = {
-        'w_set': 'K2166', # Wavelength setting
-        'wave_range': (2040, 2500), # Range to fit, doesn't have to be full spectrum
-        #'wave_range': (2300, 2400), 
+    K2166_B = {
+        'w_set': 'K2166', 'wave_range': (1900, 2500), 
 
         # Data filenames
         'file_target': './data/Luhman_16B_K.dat', 
         'file_std': './data/Luhman_16_std_K.dat', 
         #'file_wave': './data/Luhman_16_std_K.dat', # Use std-observation wlen-solution
         'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', # Use molecfit wlen-solution
-    
+
         # Telluric transmission
         'file_molecfit_transm': './data/Luhman_16B_K_molecfit_transm.dat', 
         'file_std_molecfit_transm': './data/Luhman_16_std_K_molecfit_transm.dat', 
-        'file_std_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat', # Continuum fit by molecfit
+        'file_std_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat', 
 
         'filter_2MASS': '2MASS/2MASS.Ks', # Magnitude used for flux-calibration
         'pwv': 1.5, # Precipitable water vapour
@@ -45,9 +43,7 @@ config_data = dict(
         'sigma_clip_width': 5, # Remove outliers
         }, 
 )
-#config_data['K2166_spot'] = config_data['K2166_cloudy'].copy()
 
-# Magnitudes used for flux-calibration
 magnitudes = {
     '2MASS/2MASS.J': (11.22, 0.04), # Burgasser et al. (2013)
     '2MASS/2MASS.Ks': (9.73, 0.09), 
@@ -59,42 +55,45 @@ magnitudes = {
 
 # Define the priors of the parameters
 free_params = {
+
     # Covariance parameters
-    'log_a': [(-0.3,0.2), r'$\log\ a$'], 
-    'log_l': [(-2.5,-1.2), r'$\log\ l$'], 
+    'log_a': [(-0.7,0.3), r'$\log\ a$'], 
+    'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    #'R_p': [(0.,2.), r'$R_p$'], 
-    'log_g': [(4.,6.), r'$\log\ g$'], 
+    #'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
+    'log_g': [(4.0,6.0), r'$\log\ g$'], 
+    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(20.,30.), r'$v\ \sin\ i$'], 
-    'rv': [(15.,25.), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10.,30.), r'$v\ \sin\ i$'], 
+    'rv': [(10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': [(-10,10), r'$\log\ \kappa_{\mathrm{cl},0}$'], 
-    'log_P_base_gray': [(-1,2), r'$\log\ P_{\mathrm{cl},0}$'], 
-    'f_sed_gray': [(0,20), r'$f_\mathrm{sed}$'], 
+    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    'log_P_base_gray_0': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
 
     # Chemistry
-    'log_H2O':     [(-12.,-2.), r'$\log\ \mathrm{H_2O}$'],
-    'log_CH4':     [(-12.,-2.), r'$\log\ \mathrm{CH_4}$'],
-    'log_12CO':    [(-12.,-2.), r'$\log\ \mathrm{^{12}CO}$'],
+    'log_H2O': [(-14,-2), r'$\log\ \mathrm{H_2O}$'], 
+    'log_H2(18)O': [(-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+
+    'log_12CO': [(-14,-2), r'$\log\ \mathrm{^{12}CO}$'], 
+    'log_13CO': [(-14,-2), r'$\log\ \mathrm{^{13}CO}$'], 
+    'log_C18O': [(-14,-2), r'$\log\ \mathrm{C^{18}O}$'], 
+
+    'log_CH4': [(-14,-2), r'$\log\ \mathrm{CH_4}$'], 
+    'log_NH3': [(-14,-2), r'$\log\ \mathrm{NH_3}$'], 
+    'log_H2S': [(-14,-2), r'$\log\ \mathrm{H_2S}$'], 
     
-    'log_H2(18)O': [(-12.,-2.), r'$\log\ \mathrm{H_2^{18}O}$'],
-    'log_13CO':    [(-12.,-2.), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O':    [(-12.,-2.), r'$\log\ \mathrm{C^{18}O}$'],
-    'log_NH3':     [(-12.,-2.), r'$\log\ \mathrm{NH_3}$'],
-    #'log_15NH3':   [(-12.,-2.), r'$\log\ \mathrm{^{15}NH_3}$'],
-    'log_H2S':     [(-12.,-2.), r'$\log\ \mathrm{H_2S}$'],
-    'log_HF':      [(-12.,-2.), r'$\log\ \mathrm{HF}$'],
-    
-    # PT profile
-    'dlnT_dlnP_0': [(0.,0.4), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.,0.4), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.,0.4), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.,0.4), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(0.,0.4), r'$\nabla_{T,4}$'], 
+    'log_HF': [(-14,-2), r'$\log\ \mathrm{HF}$'], 
+
+    # PT profile    
+    'dlnT_dlnP_0': [(0.10,0.34), r'$\nabla_0$'], 
+    'dlnT_dlnP_1': [(0.10,0.34), r'$\nabla_1$'], 
+    'dlnT_dlnP_2': [(0.03,0.34), r'$\nabla_2$'], 
+    'dlnT_dlnP_3': [(0.,0.34), r'$\nabla_3$'], 
+    'dlnT_dlnP_4': [(0.,0.34), r'$\nabla_4$'], 
 
     'T_phot': [(700.,2500.), r'$T_\mathrm{phot}$'], 
     'log_P_phot': [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
@@ -115,13 +114,9 @@ constant_params = {
     'res': 60000, 
 
     # General properties
-    'parallax': 496.,  # +/- 37 mas
-    'inclination': 26., # degrees
-    #'inclination': 0., # degrees
+    'parallax': 496,  # +/- 37 mas
+    'inclination': 26, # degrees
 
-    'relative_scaling': False, 
-    #'K2166_cloudy': {'is_not_in_spot': True}, 'K2166_spot': {'is_in_spot': True}, 
-    #'K2166_cloudy': {'is_not_in_band': True}, 'K2166_spot': {'is_in_band': True}, 
     'do_scat_emis': False, 
 }
 
@@ -131,19 +126,15 @@ constant_params = {
 
 sum_m_spec = len(config_data) > 1
 
-scale_flux = False
+scale_flux = True
 scale_err  = True
-apply_high_pass_filter = True
+apply_high_pass_filter = False
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
-    #'cloud_mode': 'EddySed', 'cloud_species': ['MgSiO3(c)_cd', 'Fe(c)_cd'], 
-
-    #'K2166_cloudy': {'cloud_mode': 'gray'}, 
-    #'K2166_spot': {'cloud_mode': 'gray'}, 
+    'cloud_mode': 'gray'
 }
 
-rotation_mode = 'integrate' # 'convolve'
+rotation_mode = 'convolve' # 'integrate'
 
 ####################################################################################
 # Chemistry parameters
@@ -153,21 +144,23 @@ chem_kwargs = {
     'chem_mode': 'free', #'SONORAchem' #'eqchem'
 
     'line_species': [
-        'H2O_pokazatel_main_iso_Sam', 
-        'CH4_hargreaves_main_iso', 
-        'CO_high_Sam', 
-        
+        'H2O_pokazatel_main_iso_Sam_new', 
         'H2O_181_HotWat78', 
+
+        'CO_high_Sam',         
         'CO_36_high_Sam', 
         'CO_28_high_Sam', 
+
+        'CH4_hargreaves_main_iso_Sam', 
         'NH3_coles_main_iso', 
         'H2S_Sid_main_iso', 
-        'HF_main_iso', 
+
+        'HF_main_iso_new', 
     ], 
 }
 
 species_to_plot_VMR = [
-    'H2O', 'CH4', '12CO', 'H2(18)O', '13CO', 'C18O', 'NH3', 'H2S', 'HF', 
+    'H2O', 'H2(18)O', '12CO', '13CO', 'C18O', 'CH4', 'NH3', 'H2S', 'HF', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 
@@ -181,8 +174,9 @@ cov_kwargs = dict(
     trunc_dist   = 3, 
     scale_GP_amp = True, 
 
-    # Prepare the wavelength separation and average squared error- 
-    # arrays and keep in memory
+    # Prepare the wavelength separation and
+    # average squared error arrays and keep 
+    # in memory
     prepare_for_covariance = True, #False, 
 )
 

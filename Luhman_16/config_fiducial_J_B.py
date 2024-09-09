@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_29'
+prefix = 'fiducial_J_B_ret_37_2column'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -49,6 +49,7 @@ config_data = dict(
         'sigma_clip_width': 5, # Remove outliers
         }, 
 )
+config_data['J1226_B'] = config_data['J1226_A'].copy()
 
 magnitudes = {
     '2MASS/2MASS.J': (11.22, 0.04), # Burgasser et al. (2013)
@@ -72,49 +73,65 @@ free_params = {
     'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
-    'vsini': [(20.,30.), r'$v\ \sin\ i$'], 
-    'rv': [(15.,25.), r'$v_\mathrm{rad}$'], 
+    'vsini': [(10.,30.), r'$v\ \sin\ i$'], 
+    'rv': [(10.,30.), r'$v_\mathrm{rad}$'], 
 
-    # Cloud properties
-    'log_opa_base_gray_0': [(-10,10), r'$\log\ \kappa_{\mathrm{cl},0,\mathrm{slab}}$'], # Cloud slab
-    'log_P_base_gray_0': [(-1,2.5), r'$\log\ P_{\mathrm{cl},0,\mathrm{slab}}$'], 
-    'f_sed_gray_0': [(0,20), r'$f_\mathrm{sed,slab}$'], 
+    'cloud_fraction': [(0.,1.), r'cf'], 
 
-    'log_opa_base_gray_1': [(-10,10), r'$\log\ \kappa_{\mathrm{cl},0,\mathrm{deck}}$'], # Cloud deck
-    'log_P_base_gray_1': [(-1,2.5), r'$\log\ P_{\mathrm{cl},0,\mathrm{deck}}$'], 
+    'J1226_A': {
+        # Cloud properties
+        'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+        'log_P_base_gray_0': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+        'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+
+        'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
+        'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    }, 
+    'J1226_B': {
+        # Cloud properties
+        'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+        'log_P_base_gray_0': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+        'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+
+        'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
+        'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    }, 
+
+    #'log_opa_base_gray_1': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,2}}$'], # Cloud slab
+    #'log_P_base_gray_1': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,2}}$'], 
+    #'f_sed_gray_1': [(1,20), r'$f_\mathrm{sed,2}$'], 
 
     # Chemistry
     'log_H2O': [(-14,-2), r'$\log\ \mathrm{H_2O}$'], 
-    'log_CH4': [(-14,-2), r'$\log\ \mathrm{CH_4}$'], 
     'log_HF': [(-14,-2), r'$\log\ \mathrm{HF}$'], 
-    'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
-    'log_K': [(-14,-2), r'$\log\ \mathrm{K}$'], 'log_K_P': [(-5,3), r'$\log\ P_\mathrm{K}$'], 
+    #'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    'log_K': [(-14,-2), r'$\log\ \mathrm{K}$'], #'log_K_P': [(-5,3), r'$\log\ P_\mathrm{K}$'], 
     'log_Na': [(-14,-2), r'$\log\ \mathrm{Na}$'], 
-    'log_Cr': [(-14,-2), r'$\log\ \mathrm{Cr}$'], 
-    'log_Mn': [(-14,-2), r'$\log\ \mathrm{Mn}$'], 
-
-    #'log_AlH': [(-14,-2), r'$\log\ \mathrm{AlH}$'], 
-    #'log_SH': [(-14,-2), r'$\log\ \mathrm{SH}$'], 
-    'log_H2S': [(-14,-2), r'$\log\ \mathrm{H_2S}$'], 
 
     # Impact shifts: d = A*T^b * n/n_ref
-    'A_d_0': [(0.0,0.005), r'$A_{d,0}$'], # 0.00158988 (K-H2) | 0.001943820 (K-He)
-    'A_d_1': [(0.0,0.005), r'$A_{d,1}$'], # 0.00211668 (K-H2) | 0.000462539 (K-He)
-    'b_d_0': [(0.5,1.5), r'$b_{d,0}$'],   # 0.949254 (K-H2) | 0.89691 (K-He)
-    'b_d_1': [(0.5,1.5), r'$b_{d,1}$'],   # 0.933563 (K-H2) | 1.07284 (K-He)
+    # 0.0033 pm 0.0008 # 0.0036 pm 0.0006
+    #'A_d_0': [(0.0,0.007), r'$A_{d,0}$'], # 0.00158988 (K-H2) | 0.001943820 (K-He)
+    #'A_d_1': [(0.0,0.007), r'$A_{d,1}$'], # 0.00211668 (K-H2) | 0.000462539 (K-He)
+
+    # 0.93 pm 0.03 # 0.90 pm 0.03
+    #'b_d_0': [(0.5,1.5), r'$b_{d,0}$'],   # 0.949254 (K-H2) | 0.89691 (K-He)
+    #'b_d_1': [(0.5,1.5), r'$b_{d,1}$'],   # 0.933563 (K-H2) | 1.07284 (K-He)
 
     # Impact widths: w = A*T^b * n/n_ref
-    'A_w_0': [(0.05,0.45), r'$A_{w,0}$'], # 0.352609 (K-H2) | 0.208190 (K-He)
-    'A_w_1': [(0.05,0.45), r'$A_{w,1}$'], # 0.245926 (K-H2) | 0.121448 (K-He)
-    'b_w_0': [(0.30,0.60), r'$b_{w,0}$'], # 0.385961 (K-H2) | 0.452833 (K-He)
-    'b_w_1': [(0.30,0.60), r'$b_{w,1}$'], # 0.447971 (K-H2) | 0.531718 (K-He)
+    # 0.38 pm 0.04 # 0.17 pm 0.04
+    #'A_w_0': [(0.05,0.60), r'$A_{w,0}$'], # 0.352609 (K-H2) | 0.208190 (K-He)
+    #'A_w_1': [(0.00,0.45), r'$A_{w,1}$'], # 0.245926 (K-H2) | 0.121448 (K-He)
+
+    # 0.39 pm 0.02 # 0.50 pm 0.03
+    #'b_w_0': [(0.30,0.60), r'$b_{w,0}$'], # 0.385961 (K-H2) | 0.452833 (K-He)
+    #'b_w_1': [(0.30,0.65), r'$b_{w,1}$'], # 0.447971 (K-H2) | 0.531718 (K-He)
 
     # PT profile    
-    'dlnT_dlnP_0': [(0.,0.4), r'$\nabla_{T,0}$'], 
-    'dlnT_dlnP_1': [(0.,0.4), r'$\nabla_{T,1}$'], 
-    'dlnT_dlnP_2': [(0.,0.4), r'$\nabla_{T,2}$'], 
-    'dlnT_dlnP_3': [(0.,0.4), r'$\nabla_{T,3}$'], 
-    'dlnT_dlnP_4': [(0.,0.4), r'$\nabla_{T,4}$'], 
+    'dlnT_dlnP_0': [(0.10,0.34), r'$\nabla_0$'], 
+    'dlnT_dlnP_1': [(0.10,0.34), r'$\nabla_1$'], 
+    'dlnT_dlnP_2': [(0.03,0.34), r'$\nabla_2$'], 
+    'dlnT_dlnP_3': [(0.,0.34), r'$\nabla_3$'], 
+    'dlnT_dlnP_4': [(0.,0.34), r'$\nabla_4$'], 
 
     'T_phot': [(700.,2500.), r'$T_\mathrm{phot}$'], 
     'log_P_phot': [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
@@ -138,22 +155,27 @@ constant_params = {
     'do_scat_emis': False, 
 
     # Custom line opacity
-    #'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
-    #'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
-    #'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
-    #'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
+    'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
+    'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
+    'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
+    'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
 
-    #'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
-    #'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
-    #'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
-    #'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
+    'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
+    'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
+    'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
+    'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
 }
 
 #'''
 parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
+old_result_dir = '/home/sdregt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_36/'
 line_opacity_kwargs = [
     {
     # --- Potassium (K I) --------------------
+    ###
+    'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
+    ###
+
     'NIST_states_file': f'{parent_dir}/K_I_states.txt', 
     'VALD_trans_file': f'{parent_dir}/K_I_transitions.txt', 
     'pRT_name': 'K', 
@@ -176,6 +198,10 @@ line_opacity_kwargs = [
     }, 
     {
     # --- Sodium (Na I) ----------------------
+    ###
+    'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
+    ###
+
     'NIST_states_file': f'{parent_dir}/Na_I_states.txt', 
     'VALD_trans_file': f'{parent_dir}/Na_I_transitions.txt', 
     'pRT_name': 'Na_allard_recomputed', 
@@ -203,7 +229,7 @@ scale_err  = True
 apply_high_pass_filter = False
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
+    'cloud_mode': 'gray'
     #'cloud_mode': 'EddySed', 'cloud_species': ['Mg2SiO4(c)_cd', 'MgSiO3(c)_cd', 'Fe(c)_cd'], 
 }
 
@@ -218,23 +244,17 @@ chem_kwargs = {
     'chem_mode': 'free', #'SONORAchem' #'eqchem'
 
     'line_species': [
-        'H2O_pokazatel_main_iso', 
-        'CH4_hargreaves_main_iso', 
-        'HF_main_iso', 
-        'FeH_main_iso', 
+        'H2O_pokazatel_main_iso_Sam_new', 
+        'HF_main_iso_new', 
+        'FeH_main_iso_Sam', 
         #'K', 'Na', # On-the-fly treatment
-        'Cr', 
-        'Mn', 
-
-        #'AlH_AloHa_main_iso', 
-        #'SH_main_iso', 
-        'H2S_Sid_main_iso', 
+        #'K_param_shift', 'Na_Sam'
     ], 
 }
 
 species_to_plot_VMR = [
     #'H2O', 'CH4', 'HF', 'FeH', 'Cr', 'Mn', 'AlH', 'SH', 'K', 'Na', 
-    'H2O', 'CH4', 'HF', 'FeH', 'Cr', 'Mn', 'H2S' 
+    'H2O', 'HF', 'FeH', 'K', 'Na', 
     ]
 species_to_plot_CCF = species_to_plot_VMR
 

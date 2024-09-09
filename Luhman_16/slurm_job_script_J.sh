@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 06:00:00
+#SBATCH -t 01:30:00
 #SBATCH -p fat_genoa
-#SBATCH --ntasks=192
+#SBATCH --ntasks=48
 #SBATCH --mem=1440G
 
-#SBATCH --job-name=fiducial_J_B_ret_29
+#SBATCH --job-name=fiducial_J_B_ret_37_2column
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -22,18 +22,13 @@ echo "Starting Python script"
 config_file=config_fiducial_J_B
 #config_file=config_fiducial_K_A
 #config_file=config_fiducial_K_B
+
 ret_script=retrieval_script.py
 
-# Replace the config file
-sed -i "s/import config as conf/import ${config_file} as conf/g" ${ret_script}
-
 # Run the pre-processing
-python ${ret_script} -p
+#python ${ret_script} ${config_file} -p
 # Run the retrieval and evaluation
-mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} -r
-mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} -e
-
-# Revert to original config file
-sed -i "s/import ${config_file} as conf/import config as conf/g" ${ret_script}
+#mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} ${config_file} -r
+mpiexec -np $SLURM_NTASKS --use-hwthread-cpus --bind-to none python ${ret_script} ${config_file} -e
 
 echo "Done"

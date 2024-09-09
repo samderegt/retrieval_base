@@ -154,16 +154,40 @@ class pRT_model:
             self.LineOpacity = []
             line_opacity_kwargs = np.reshape([line_opacity_kwargs], -1)
             for kwargs_i in line_opacity_kwargs:
-                # Create instance of custom opacities
-                self.LineOpacity.append(
-                    LineOpacity(
+
+                exists_in_pRT_atm = kwargs_i.get('exists_in_pRT_atm')
+                if exists_in_pRT_atm is not None:
+
+                    # Load from existing pRT_model object
+                    from retrieval_base.auxiliary_functions import pickle_load
+                    tmp_LineOpacity = pickle_load(exists_in_pRT_atm).LineOpacity
+                    
+                    # Find the matching LineOpacity object in list
+                    for i in range(len(tmp_LineOpacity)):
+                        Line_i = tmp_LineOpacity[i]
+                        if Line_i.pRT_name == kwargs_i.get('pRT_name'):
+                            break
+                        else:
+                            Line_i = None
+                    del tmp_LineOpacity
+
+                    if Line_i is None:
+                        print('No matching \"pRT_name\"')
+                    else:
+                        print('Loaded opacity table from previous pRT_model')
+
+                else:
+                    # Create new instance of custom opacities
+                    Line_i = LineOpacity(
                         pressure=self.pressure, 
-                        wave_range_micron=self.wave_range_micron_broad, # Use broad wavelength range
+                        # Use broad wavelength range
+                        wave_range_micron=self.wave_range_micron_broad, 
                         wave_micron_broad=wave_micron_broad, 
                         order_indices=order_indices, 
                         **kwargs_i
                         )
-                    )
+
+                self.LineOpacity.append(Line_i)
             
     def get_atmospheres(self, CB_active=False):
 

@@ -85,8 +85,8 @@ class Spectrum:
     
     def high_pass_filter(
             self, 
-            #removal_mode='divide', 
-            removal_mode='subtract', 
+            removal_mode='divide', 
+            #removal_mode='subtract', 
             #filter_mode='gaussian', 
             filter_mode='savgol', 
             replace_flux_err=False, 

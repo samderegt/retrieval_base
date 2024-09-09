@@ -146,7 +146,7 @@ class Gray(Cloud):
             )
         for P_base_i, opa_base_i, f_sed_gray_i, cloud_slope_i in iterables:
 
-            if f_sed_gray_i == 0.:
+            if f_sed_gray_i is None:
                 # No opacity change with altitude, assume deck below P_base_i
                 mask_P = (pressure >= P_base_i)
                 slope_pressure = 1.
@@ -163,11 +163,11 @@ class Gray(Cloud):
 
         return opacity
     
-    def __call__(self, params, mass_fractions,**kwargs):
+    def __call__(self, params, mass_fractions, **kwargs):
         
         self.P_base     = [params.get('P_base_gray', np.nan), ]   # Base pressure
         self.opa_base   = [params.get('opa_base_gray', np.nan), ] # Opacity at the base
-        self.f_sed_gray = [params.get('f_sed_gray', 0.), ]        # Power-law drop-off
+        self.f_sed_gray = [params.get('f_sed_gray'), ]        # Power-law drop-off
         
         # Parameters for a non-gray cloud
         self.cloud_slope  = [params.get('cloud_slope', 0.), ]
@@ -183,7 +183,7 @@ class Gray(Cloud):
 
             self.P_base.append(P_base_i)
             self.opa_base.append(opa_base_i)
-            self.f_sed_gray.append(params.get(f'f_sed_gray_{idx}', 0.))
+            self.f_sed_gray.append(params.get(f'f_sed_gray_{idx}'))
             self.cloud_slope.append(params.get(f'cloud_slope_{idx}', 0.))
 
             idx += 1

@@ -3,18 +3,6 @@ import petitRADTRANS.nat_cst as nc
 
 from scipy.special import wofz as Faddeeva
 
-def get_opa(x):
-    
-    i, T_i, Line_i, P_grid_i, wave_i, T_grid_i = x
-    if (i%10 == 0) or i == len(T_grid_i)-1:
-        print(f'T-point: {i+1}/{len(T_grid_i)}')
-
-    # Update the temperature and density arrays
-    Line_i.temperature = np.ones_like(P_grid_i) * T_i
-    Line_i.n_density   = P_grid_i*1e6 / (nc.kB*T_i)
-
-    return Line_i.get_line_opacity(wave_i, P_grid_i)
-
 class InterpolateOpacity:
 
     #T_grid = np.arange(0,5000+1e-6,100)
@@ -35,6 +23,18 @@ class InterpolateOpacity:
         2995., 
     ])
     #'''
+    @classmethod
+    def get_opa(cls, x):
+        
+        i, T_i, Line_i, P_grid_i, wave_i, T_grid_i = x
+        if (i%10 == 0) or i == len(T_grid_i)-1:
+            print(f'T-point: {i+1}/{len(T_grid_i)}')
+
+        # Update the temperature and density arrays
+        Line_i.temperature = np.ones_like(P_grid_i) * T_i
+        Line_i.n_density   = P_grid_i*1e6 / (nc.kB*T_i)
+
+        return Line_i.get_line_opacity(wave_i, P_grid_i)
 
     def __init__(
             self, LineOpacity, wave_micron, order_indices, 
@@ -64,7 +64,7 @@ class InterpolateOpacity:
             (i, T_i, LineOpacity, self.P_grid, self.wave_micron, self.T_grid) \
             for i, T_i in enumerate(self.T_grid)
             ]
-        opacity = np.array(list(map(get_opa, iterable))) # (T, wave, P)
+        opacity = np.array(list(map(self.get_opa, iterable))) # (T, wave, P)
         opacity = opacity.swapaxes(1,2) # (T, P, wave)
         opacity = opacity.swapaxes(0,1) # (P, T, wave)
 
@@ -214,7 +214,7 @@ class LineOpacity:
         # Natural broadening + vdW broadening
         self.gamma_N   = np.concatenate((self.gamma_N, d[mask_nu_range,3]))
         self.gamma_vdW = np.concatenate((self.gamma_vdW, d[mask_nu_range,5]))
-        
+                
         for i in self.idx_custom:
             # Find matching lines and remove duplicates
             nu_0_i = self.nu_0[i]
@@ -317,16 +317,49 @@ class LineOpacity:
         gamma_vdW_PT[:,~valid_gamma_vdW] = np.nan
 
         if self.is_alkali:
+            red_mass_H_X  = (1.00784*nc.amu)*self.mass / ((1.00784*nc.amu)+self.mass)
+            red_mass_H2_X = (2.01568*nc.amu)*self.mass / ((2.01568*nc.amu)+self.mass)
+            red_mass_He_X = (4.002602*nc.amu)*self.mass / ((4.002602*nc.amu)+self.mass)
+
+            alpha_H  = 0.666793 # 10^{-24} cm^3
+            alpha_H2 = 0.806    # 10^{-24} cm^3
+            alpha_He = 0.204956 # 10^{-24} cm^3
+
+            # Eq. 23 (Sharp & Burrows 2007)
+            gamma_vdW_PT = 10**self.gamma_vdW[None,:]/(4*np.pi*nc.c) * \
+                (self.n_density[:,None]) * (self.temperature[:,None]/10000)**(3/10) * (
+                    self.VMR_H2 * (red_mass_H_X/red_mass_H2_X)**(3/10) * (alpha_H2/alpha_H)**(2/5) + \
+                    self.VMR_He * (red_mass_H_X/red_mass_He_X)**(3/10) * (alpha_He/alpha_H)**(2/5)
+                )
+
             # Schweitzer et al. (1995) [cm^6 s^-1]
-            C_6 = 1.01e-32 * self.alpha_p/self.alpha_H * (self.Z+1)**2 * \
-                ((self.E_H / (self.E_ion-self.E_low))**2 - \
-                 (self.E_H / (self.E_ion-self.E_high))**2)
-            C_6 = np.abs(C_6)[None,~valid_gamma_vdW]
+            C_6_H2 = 1.01e-32 * alpha_H2/alpha_H * (self.Z+1)**2 * (
+                (self.E_H / (self.E_ion-self.E_low))**2 - \
+                (self.E_H / (self.E_ion-self.E_high))**2
+                )
+            C_6_H2 = np.abs(C_6_H2)[None,~valid_gamma_vdW]
+
+            C_6_He = 1.01e-32 * alpha_He/alpha_H * (self.Z+1)**2 * (
+                (self.E_H / (self.E_ion-self.E_low))**2 - \
+                (self.E_H / (self.E_ion-self.E_high))**2
+                )
+            C_6_He = np.abs(C_6_He)[None,~valid_gamma_vdW]
+            
+            gamma_vdW_PT[:,~valid_gamma_vdW] = 1.664461/(2*nc.c) * self.n_density[:,None] * \
+                (nc.kB*self.temperature[:,None])**(3/10) * (
+                    self.VMR_H2 * (1/red_mass_H2_X)**(3/10) * C_6_H2**(2/5) + \
+                    self.VMR_He * (1/red_mass_He_X)**(3/10) * C_6_He**(2/5)
+                )
+                        
+            #C_6 = 1.01e-32 * self.alpha_p/self.alpha_H * (self.Z+1)**2 * \
+            #    ((self.E_H / (self.E_ion-self.E_low))**2 - \
+            #     (self.E_H / (self.E_ion-self.E_high))**2)
+            #C_6 = np.abs(C_6)[None,~valid_gamma_vdW]
 
             # vdW broadening (T/P,trans)
-            gamma_vdW_PT[:,~valid_gamma_vdW] = 1.664461/(2*nc.c) * \
-                (nc.kB*self.temperature[:,None] * (1/self.mass+1/self.mass_p))**(3/10) * \
-                C_6**(2/5) * self.n_density[:,None]
+            #gamma_vdW_PT[:,~valid_gamma_vdW] = 1.664461/(2*nc.c) * \
+            #    (nc.kB*self.temperature[:,None] * (1/self.mass+1/self.mass_p))**(3/10) * \
+            #    C_6**(2/5) * self.n_density[:,None]
             
             # Update mask, all transitions are valid
             #valid_gamma_vdW = np.ones_like(valid_gamma_vdW)
@@ -352,7 +385,7 @@ class LineOpacity:
         # Separate coefficients per perturber?
         iterables = zip(
             ['H2', 'He', ''], 
-            [0.85*self.n_density, 0.15*self.n_density, self.n_density]
+            [self.VMR_H2*self.n_density, self.VMR_He*self.n_density, self.n_density]
             )
         for perturber, perturber_density in iterables:
 
@@ -469,6 +502,11 @@ class LineOpacity:
         
         # Number density [cm^-3]
         self.n_density = self.pressure*1e6 / (nc.kB*self.temperature)
+
+        self.VMR_H2 = np.mean(mass_fractions['H2']*mass_fractions['MMW']/2.01568)
+        self.VMR_He = np.mean(mass_fractions['He']*mass_fractions['MMW']/4.002602)
+        if not hasattr(self, 'mf'):
+            print(self.VMR_H2, self.VMR_He)
 
         # Mass fraction of species
         self.mf = mass_fractions[self.pRT_name].copy()
