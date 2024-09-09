@@ -263,7 +263,49 @@ class RetrievalResults:
         
         return wave_pRT_grid, flux_pRT_grid, self.get_Rot(pRT_atm=pRT_atm) # Rotation model
     
-    def get_grey_cloud_opacity(self, keys_indices, m_set=None):
+    def get_int_contr_em(self, m_set=None):
+
+        pRT_atm_broad = self._load_object(
+            'pRT_atm_broad', bestfit_prefix=False, m_set=m_set
+            )
+        n_atm_layers = len(pRT_atm_broad.pressure)
+        pRT_wave = [nc.c*1e7/atm_i.freq for atm_i in pRT_atm_broad.atm]
+        del pRT_atm_broad
+
+        d_spec  = self._load_object('d_spec', bestfit_prefix=False)
+        LogLike = self._load_object('LogLike', bestfit_prefix=True)
+
+        int_contr_em_per_order = np.zeros((d_spec.n_orders, n_atm_layers))
+        # Loop over orders
+        for i in range(d_spec.n_orders):
+            
+            wave_i = d_spec.wave[i].flatten()
+            flux_i = LogLike.m_flux_phi[i].flatten()
+            
+            wave_i = wave_i[np.isfinite(flux_i)]
+            flux_i = flux_i[np.isfinite(flux_i)]
+
+            pRT_wave_i = pRT_wave[i]
+
+            contr_em_i = np.load(self.prefix+f'data/contr_em_order{i}_{m_set}.npy')
+
+            # Loop over atmospheric layers
+            for j in range(n_atm_layers):
+                # Rebin to same wavelength grid
+                contr_em_ij = np.interp(wave_i, xp=pRT_wave_i, fp=contr_em_i[j])
+
+                # Spectrally weighted integration
+                integral1 = np.trapz(wave_i*flux_i*contr_em_ij, wave_i)
+                integral2 = np.trapz(wave_i*flux_i, wave_i)
+
+                int_contr_em_per_order[i,j] = integral1/integral2
+
+        del d_spec, LogLike, pRT_wave
+
+        int_contr_em = np.sum(int_contr_em_per_order, axis=0)
+        return int_contr_em, int_contr_em_per_order
+    
+    def get_grey_cloud_opacity(self, keys_indices, m_set=None, N_fine_pressure=200):
 
         # Load the necessary objects
         Cloud = self._load_object(
@@ -274,6 +316,11 @@ class RetrievalResults:
             # Not a parameterised cloud
             return
 
+        fine_pressure = np.logspace(
+            np.log10(Cloud.pressure.min()), np.log10(Cloud.pressure.max()), 
+            N_fine_pressure
+            )
+    
         opa_posterior = []
         # Loop over samples in posterior
         for posterior_i in self.posterior:
@@ -287,13 +334,22 @@ class RetrievalResults:
                 else:
                     params[key_i] = posterior_i[idx_i]
 
-            # Update Cloud instance with sample
-            Cloud(params=params, mass_fractions=None)
+            if len(keys_indices) == 3:
+                opa_i = np.zeros_like(fine_pressure)
+                mask_cl = (fine_pressure < params['P_base_gray'])
+                opa_i[mask_cl] = params['opa_base_gray'] * (
+                    fine_pressure[mask_cl]/params['P_base_gray']
+                    )**params['f_sed_gray']
+                opa_i = opa_i[None,:]
+            else:
+                # Update Cloud instance with sample
+                Cloud(params=params, mass_fractions=None)
 
-            # Get opacity at 1 micron
-            opa_i = Cloud.cloud_opacity(
-                wave_micron=np.array([1.0]), pressure=Cloud.pressure
-                )
+                # Get opacity at 1 micron
+                opa_i = Cloud.cloud_opacity(
+                    wave_micron=np.array([1.0]), pressure=Cloud.pressure
+                    )
+                
             opa_posterior.append(opa_i[0])
 
         opa_posterior = np.array(opa_posterior)
@@ -304,7 +360,7 @@ class RetrievalResults:
             wave_micron=np.array([1.0]), pressure=Cloud.pressure
             )[0]
 
-        return opa_posterior, opa_bestfit
+        return opa_posterior, opa_bestfit, fine_pressure
 
     def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16), return_Rot=False):
 
