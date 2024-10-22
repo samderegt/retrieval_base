@@ -10,6 +10,103 @@ import petitRADTRANS.nat_cst as nc
 from tqdm import tqdm
 import copy
 
+def plot_envelopes(
+        ax, y, x, x_indices=[(0,6),(1,5),(2,4)], 
+        colors=['0.0','0.5','1.0'], median_kwargs=None
+        ):
+    
+    patch = None
+    for i, (idx_l, idx_u) in enumerate(x_indices):
+
+        patch = ax.fill_betweenx(
+            y=y, x1=x[idx_l], x2=x[idx_u], fc=colors[i], ec='none'
+            )
+    
+    line = None
+    if median_kwargs is not None:
+        idx_m = median_kwargs.get('idx', 3)
+        try:
+            median_kwargs.pop('idx')
+        except KeyError:
+            pass
+
+        line, = ax.plot(x[idx_m], y, **median_kwargs)
+
+    return (line, patch, line)
+
+def plot_condensation_curve(ax, pressure, species, FeH=0.0, ann_kwargs=None, **kwargs):
+
+    coeffs = {
+        'CaTiO3': [5.125, -0.277, -0.554], # Wakeford et al. (2017)
+        'Fe': [5.44, -0.48, -0.48], # Visscher et al. (2010)
+        'Mg2SiO4': [5.89, -0.37, -0.73], # Visscher et al. (2010)
+        'MgSiO3': [6.26, -0.35, -0.70], # Visscher et al. (2010)
+        'Cr': [6.576, -0.486, -0.486], # Morley et al. (2012)
+        'KCl': [12.479, -0.879, -0.879], # Morley et al. (2012)
+        'MnS': [7.45, -0.42, -0.84], # Visscher et al. (2006)
+        'Na2S': [10.05, -0.72, -1.08], # Visscher et al. (2006)
+        'ZnS': [12.52, -0.63, -1.26], # Visscher et al. (2006)
+        'H2S': [86.49, -8.54, -8.54], # Visscher et al. (2006)
+    }
+
+    a, b, c = coeffs[species]
+    y = a + b*np.log10(pressure) + c*FeH
+    T = 1e4/y
+    
+    ax.plot(T, pressure, **kwargs, zorder=-2)
+
+    if ann_kwargs is None:
+        return
+    
+    y = ann_kwargs.get('y', 1e0)
+    ann_kwargs['xy'] = (np.interp(np.log10(y),np.log10(pressure),T), y)
+    print(ann_kwargs['xy'])
+    ann_kwargs.pop('y')
+
+    ax.annotate(**ann_kwargs, zorder=-1)
+
+def indicate_ghost(
+        ax, v_bary, show_text=True, 
+        cmap=mpl.colors.LinearSegmentedColormap.from_list('',['0.9','1.0'])
+        ):
+    
+    ghosts = np.array([
+        [1119.44,1120.33], [1142.78,1143.76], [1167.12,1168.08], 
+        [1192.52,1193.49], [1219.01,1220.04], [1246.71,1247.76], 
+        [1275.70,1276.80], [1306.05,1307.15], [1337.98,1338.94], 
+    ])
+    ghosts += np.array([-0.1,+0.1])
+    ghosts *= (1+v_bary/3e5)
+
+    ylim = ax.get_ylim()
+    height = np.abs(np.diff(ylim))
+    for ghost_i in ghosts:
+        # Plot the masked wavelengths due to the ghost signature        
+        Z = np.abs(np.linspace(*ghost_i, 20) - ghost_i.mean())
+        ax.imshow(
+            Z.reshape(-1,1).T, cmap=cmap, vmin=0, vmax=Z.max(), 
+            extent=[*ghost_i, *ylim], interpolation='bilinear', 
+            aspect='auto', zorder=-1
+            )
+        if show_text:
+            ax.annotate(
+                'ghost', xy=(ghost_i.mean(),ylim[0]+0.07*height), rotation=90, 
+                ha='center', va='bottom', fontsize=9, color='0.4'
+            )
+
+def indicate_lines(ax, x, y, label, label_y=None):
+
+    X = np.array([x[0],x[0],x[1],x[1]])
+    Y = np.array([y[0],y[1],y[1],y[0]])
+    ax.plot(X, Y, c='k', lw=1, transform=ax.get_xaxis_transform())
+
+    text_kwargs = dict(ha='center', va='center', fontsize=12)
+    if label_y is None:
+        label_y = y[1]
+        text_kwargs['bbox'] = {'boxstyle':'square', 'ec':'none', 'fc':'w'}
+
+    ax.text(x=x.mean(), y=label_y, s=label, transform=ax.get_xaxis_transform(), **text_kwargs)
+
 def get_cmap(colors=['#4A0C0C','#fff0e6']):
     cmap = mpl.colors.LinearSegmentedColormap.from_list('cmap', colors)
     cmap.set_bad('w'); cmap.set_over('w'); cmap.set_under('k')
@@ -52,6 +149,30 @@ def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
 
     return (CCF - mean_CCF) / std_CCF
 
+def convert_mf_dict_to_VMR_dict(Chem, relative_to_key=None):
+
+    VMR = {}
+    for pRT_name_i, mass_fractions_i in Chem.mass_fractions_posterior.items():
+        #print(pRT_name_i)
+        if pRT_name_i == 'MMW':
+            continue
+        
+        # Read mass of current species
+        mask = (Chem.species_info.pRT_name == pRT_name_i)
+        species_i = Chem.species_info.index[mask].tolist()[0]
+
+        mass_i = Chem.read_species_info(species=species_i, info_key='mass')
+        
+        # Convert from mass fraction to VMR
+        VMR[species_i] = Chem.mass_fractions_posterior['MMW'] / mass_i * mass_fractions_i
+    
+    if relative_to_key is None:
+        return VMR
+
+    VMR_rel = VMR[relative_to_key]
+    VMR = {species_i: VMR_i/VMR_rel for species_i, VMR_i in VMR.items()}
+    return VMR
+
 class RetrievalResults:
     
     def __init__(
@@ -74,8 +195,12 @@ class RetrievalResults:
                 n_params=self.n_params, outputfiles_basename=prefix
                 )
             stats = analyzer.get_stats()
-            #self.ln_Z = stats['nested importance sampling global log-evidence']
-            self.ln_Z = stats['nested sampling global log-evidence']
+            self.ln_Z = stats['nested importance sampling global log-evidence']
+            #self.ln_Z = stats['nested sampling global log-evidence']
+            print(list(stats.keys()))
+            print(stats['nested sampling global log-evidence'])
+            print(stats['nested importance sampling global log-evidence'])
+            print(stats['global evidence'])
 
             if load_posterior:
                 self.posterior = analyzer.get_equal_weighted_posterior()
@@ -147,6 +272,38 @@ class RetrievalResults:
         print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
         return B, sigma
     
+    def print_retrieved_values(self, indices, print_all=False):
+
+        q = np.array([
+            0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+            0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+            ])
+
+        for i in indices:
+            
+            median = np.median(self.posterior[:,i])
+            
+            up  = np.quantile(self.posterior[:,i], q=q[4])
+            low = np.quantile(self.posterior[:,i], q=q[2])
+
+            up  -= median
+            low -= median
+
+            if print_all:
+                print(
+                    '{:.1f}'.format(median)+'^{+'+'{:.1f}'.format(up)+'}_{'+'{:.1f}'.format(low)+'}', 
+                    '{:.2f}'.format(median)+'^{+'+'{:.2f}'.format(up)+'}_{'+'{:.2f}'.format(low)+'}', 
+                    '{:.3f}'.format(median)+'^{+'+'{:.3f}'.format(up)+'}_{'+'{:.3f}'.format(low)+'}'
+                    )
+                continue
+
+            if (np.round(up, 1) != 0.) or (np.round(low, 1) != 0.):
+                print('{:.1f}'.format(median)+'^{+'+'{:.1f}'.format(up)+'}_{'+'{:.1f}'.format(low)+'}')
+            elif (np.round(up, 2) != 0.) or (np.round(low, 2) != 0.):
+                print('{:.2f}'.format(median)+'^{+'+'{:.2f}'.format(up)+'}_{'+'{:.2f}'.format(low)+'}')
+            else:
+                print('{:.3f}'.format(median)+'^{+'+'{:.3f}'.format(up)+'}_{'+'{:.3f}'.format(low)+'}')
+                
     def get_mean_scaled_uncertainty(self, order_or_det='order'):
 
         LogLike = self._load_object('LogLike', bestfit_prefix=True)
@@ -321,7 +478,7 @@ class RetrievalResults:
             N_fine_pressure
             )
     
-        opa_posterior = []
+        opa_posterior, opa_posterior_fine = [], []
         # Loop over samples in posterior
         for posterior_i in self.posterior:
             
@@ -334,25 +491,32 @@ class RetrievalResults:
                 else:
                     params[key_i] = posterior_i[idx_i]
 
+            # Update Cloud instance with sample
+            Cloud(params=params, mass_fractions=None)
+
+            # Get opacity at 1 micron
+            opa_i = Cloud.cloud_opacity(
+                wave_micron=np.array([1.0]), pressure=Cloud.pressure
+                )
+            
             if len(keys_indices) == 3:
-                opa_i = np.zeros_like(fine_pressure)
+                opa_fine_i = np.zeros_like(fine_pressure)
+                
                 mask_cl = (fine_pressure < params['P_base_gray'])
-                opa_i[mask_cl] = params['opa_base_gray'] * (
+                opa_fine_i[mask_cl] = params['opa_base_gray'] * (
                     fine_pressure[mask_cl]/params['P_base_gray']
                     )**params['f_sed_gray']
-                opa_i = opa_i[None,:]
-            else:
-                # Update Cloud instance with sample
-                Cloud(params=params, mass_fractions=None)
-
-                # Get opacity at 1 micron
-                opa_i = Cloud.cloud_opacity(
-                    wave_micron=np.array([1.0]), pressure=Cloud.pressure
-                    )
+                opa_fine_i = opa_fine_i[None,:]
                 
             opa_posterior.append(opa_i[0])
+            opa_posterior_fine.append(opa_fine_i[0])
 
-        opa_posterior = np.array(opa_posterior)
+        q = np.array([
+            0.5-0.997/2, 0.5-0.95/2, 0.5-0.68/2, 0.5, 
+            0.5+0.68/2, 0.5+0.95/2, 0.5+0.997/2
+            ])
+        opa_envelope      = np.quantile(opa_posterior, q=q, axis=0)
+        opa_envelope_fine = np.quantile(opa_posterior_fine, q=q, axis=0)
 
         # Opacity with best-fitting parameters
         Cloud(params=self.bestfit_params[self.m_set], mass_fractions=None)
@@ -360,7 +524,7 @@ class RetrievalResults:
             wave_micron=np.array([1.0]), pressure=Cloud.pressure
             )[0]
 
-        return opa_posterior, opa_bestfit, fine_pressure
+        return opa_posterior, opa_envelope, opa_posterior_fine, opa_envelope_fine, fine_pressure, opa_bestfit
 
     def get_example_line_profile(self, m_res=1e6, T=1200, P=1, mass=(2*1+16), return_Rot=False):
 
