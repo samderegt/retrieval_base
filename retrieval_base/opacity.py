@@ -195,12 +195,12 @@ class LineOpacity:
             # Only use the custom lines
             return
         
+        '''
         # Load data from the VALD transitions
         d = np.genfromtxt(
             file, delimiter=',', dtype=float, skip_header=2, 
             usecols=(1,2,3,4,5,6), invalid_raise=False
             )
-        
         # Select transitions that affect modelled wavelengths
         mask_nu_range = (d[:,0] >= self.nu_range[0]) & (d[:,0] < self.nu_range[1])
         
@@ -214,12 +214,47 @@ class LineOpacity:
         # Natural broadening + vdW broadening
         self.gamma_N   = np.concatenate((self.gamma_N, d[mask_nu_range,3]))
         self.gamma_vdW = np.concatenate((self.gamma_vdW, d[mask_nu_range,5]))
-                
+        '''
+
+        from pandas import read_fwf
+        d = read_fwf(
+            file, widths=(11,7,6,12,5,1,10,12,5,1,10,6,6,6), header=None, 
+            )
+        d = np.array(d)
+
+        # Oscillator strength
+        self.log_gf = np.concatenate((self.log_gf, d[:,1].astype(np.float64)))
+        
+        E_low  = d[:,3].astype(np.float64)
+        E_high = d[:,7].astype(np.float64)
+
+        # Kurucz line list are sorted by parity?
+        self.nu_0 = np.concatenate((self.nu_0, np.abs(E_high-E_low)))
+        
+        # Energies in transition
+        E_low = np.min(np.concatenate((E_low[None,:],E_high[None,:])), axis=0)
+        self.E_low = np.concatenate((self.E_low, E_low))
+
+        # Natural broadening + vdW broadening
+        self.gamma_N   = np.concatenate((self.gamma_N, d[:,11].astype(np.float64)))
+        self.gamma_vdW = np.concatenate((self.gamma_vdW, d[:,13].astype(np.float64)))
+
+        # Select transitions that affect modelled wavelengths
+        mask_nu_range = (self.nu_0 >= self.nu_range[0]) & \
+            (self.nu_0 < self.nu_range[1])
+        self.log_gf = self.log_gf[mask_nu_range]
+        self.E_low  = self.E_low[mask_nu_range]
+        self.nu_0   = self.nu_0[mask_nu_range]
+        self.gamma_N   = self.gamma_N[mask_nu_range]
+        self.gamma_vdW = self.gamma_vdW[mask_nu_range]
+
         for i in self.idx_custom:
             # Find matching lines and remove duplicates
             nu_0_i = self.nu_0[i]
             match_nu_0 = np.isclose(self.nu_0, nu_0_i)
             match_nu_0[i] = False # Keep first occurence
+
+            print(self.nu_0[match_nu_0], nu_0_i)
 
             # Remove duplicates
             self.nu_0      = self.nu_0[~match_nu_0]
@@ -256,6 +291,7 @@ class LineOpacity:
         
         print('Strong lines:')
         print(1e7/self.nu_0[self.idx_strong])
+        print(self.nu_0[self.idx_strong])
 
     def _load_states(self, file):
 
@@ -463,6 +499,9 @@ class LineOpacity:
 
                 use_exact = (j in self.idx_custom) or (j in self.idx_strong)
 
+                if not use_exact:
+                    continue
+
                 if (self.lines_to_skip == 'non-custom') and (not use_exact):
                     continue
                 if (self.lines_to_skip == 'custom') and use_exact:
@@ -505,8 +544,8 @@ class LineOpacity:
 
         self.VMR_H2 = np.mean(mass_fractions['H2']*mass_fractions['MMW']/2.01568)
         self.VMR_He = np.mean(mass_fractions['He']*mass_fractions['MMW']/4.002602)
-        if not hasattr(self, 'mf'):
-            print(self.VMR_H2, self.VMR_He)
+        #if not hasattr(self, 'mf'):
+        #    print(self.VMR_H2, self.VMR_He)
 
         # Mass fraction of species
         self.mf = mass_fractions[self.pRT_name].copy()

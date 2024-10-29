@@ -142,6 +142,11 @@ class FreeChemistry(Chemistry):
                     xp=np.log10(np.array([self.pressure.min(), self.pressure[~mask_TOA].min()])), 
                     fp=np.log10(np.array([VMR_TOA_i, VMR_i[0]]))
                 )
+
+            alpha_i = params.get(f'{species_i}_alpha')
+            if alpha_i is not None:
+                # Power-law dropoff
+                VMR_i[mask_TOA] = VMR_i[-1]*(self.pressure[mask_TOA]/P_i)**alpha_i
                 
             self.VMRs[species_i] = VMR_i
 

@@ -1,31 +1,17 @@
 #!/bin/bash
 
-# Number of mpi-processes to start, 
-# check that this number is un-occupied with htop
-export NTASKS=85
+output_file=logs/fiducial_J_AB_1column_vdW.out
+#NTASKS=120
+NTASKS=80
 
-echo "Number of tasks $NTASKS"
-echo "Starting Python script"
+# Run the pre-processing, retrieval and evaluation
+config_file=config_fiducial_J_B_1column
+python -u retrieval_script.py $config_file -p &> $output_file
+mpiexec --use-hwthread-cpus --bind-to none -np $NTASKS python -u retrieval_script.py $config_file -r >> $output_file 2>&1
+mpiexec --use-hwthread-cpus --bind-to none -np 20 python -u retrieval_script.py $config_file -e >> $output_file 2>&1
 
-# Make sure to have activated virtualenv in terminal 
-# where this script is run
-#source /net/lem/data1/regt/retrieval_venv/bin/activate.csh
-
-# Replace the config file and run pre-processing
-sed -i 's/import config as conf/import config_fiducial_K_A as conf/g' retrieval_script.py
-python retrieval_script.py -p
-
-# Run the retrieval and evaluation
-mpiexec --use-hwthread-cpus --bind-to none -np $NTASKS python retrieval_script.py -r
-mpiexec --use-hwthread-cpus --bind-to none -np 20 python retrieval_script.py -e
-
-# Revert to original config file
-sed -i 's/import config_fiducial_K_A as conf/import config as conf/g' retrieval_script.py
-
-echo "Done"
-
-# To save the terminal output, run this script as:
-# sh lem_job_script.sh >& logs/some_name.out &
-
-# Terminal output can be checked via e.g.:
-# tail -200 logs/some_name.out
+# Run the pre-processing, retrieval and evaluation
+config_file=config_fiducial_J_A_1column
+python -u retrieval_script.py $config_file -p >> $output_file
+mpiexec --use-hwthread-cpus --bind-to none -np 20 python -u retrieval_script.py $config_file -r >> $output_file 2>&1
+mpiexec --use-hwthread-cpus --bind-to none -np 20 python -u retrieval_script.py $config_file -e >> $output_file 2>&1
