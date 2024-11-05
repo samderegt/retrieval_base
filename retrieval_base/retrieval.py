@@ -311,6 +311,7 @@ class Retrieval:
                 n_params=self.Param.n_params, 
                 scale_flux=self.conf.scale_flux, 
                 scale_err=self.conf.scale_err, 
+                scale_rel_to_ij=getattr(self.conf, 'scale_rel_to_ij', (-1,-1))
                 )
 
             self.PT[m_set] = get_PT_profile_class(
@@ -920,7 +921,7 @@ class Retrieval:
     def PMN_run(self):
         
         # Pause the process to not overload memory on start-up
-        time.sleep(0.2*rank*len(self.d_spec))
+        time.sleep(0.3*rank*len(self.d_spec))
 
         # Run the MultiNest retrieval
         #pymultinest.solve(

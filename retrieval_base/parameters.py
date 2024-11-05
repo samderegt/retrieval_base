@@ -283,6 +283,14 @@ class ParameterWaveSetting:
         self.read_uncertainty_params()
         self.read_chemistry_params()
 
+        if (self.params.get('M_p') is not None) and (self.params.get('R_p') is not None):
+            G = 6.6743e-8 # cm^3 g^-1 s^-2
+            M_p = self.params['M_p'] * 1.899e30 # g
+            R_p = self.params['R_p'] * 7.149e9 # cm
+
+            g = G*M_p/R_p**2
+            self.params['log_g'] = np.log10(g)
+
         idx = list(self.param_idx.values())
         return cube[idx]
 

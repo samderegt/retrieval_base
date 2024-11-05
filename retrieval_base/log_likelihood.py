@@ -13,7 +13,9 @@ class LogLikelihood:
                  scale_flux=False, 
                  scale_err=False, 
                  alpha=2, 
-                 N_phi=1):
+                 N_phi=1, 
+                 scale_rel_to_ij=(-1,-1)
+                 ):
         '''
         Initialize LogLikelihood object.
 
@@ -43,6 +45,7 @@ class LogLikelihood:
 
         self.scale_flux   = scale_flux
         self.scale_err    = scale_err
+        self.scale_rel_to_ij = scale_rel_to_ij
         
         # Number of degrees of freedom
         self.N_d      = self.d_mask.sum()
@@ -101,7 +104,7 @@ class LogLikelihood:
                     # Retrieve a Cholesky decomposition
                     Cov[i,j].get_cholesky()
                     
-                if self.scale_flux:
+                if self.scale_flux and not (i==self.scale_rel_to_ij[0] and j==self.scale_rel_to_ij[1]):
                     # Find the optimal phi-vector to match the observed spectrum
                     self.m_flux_phi[i,j,mask_ij], self.phi[i,j,:] = \
                         self.get_flux_scaling(d_flux_ij, M_ij, Cov[i,j])
@@ -117,7 +120,7 @@ class LogLikelihood:
                 chi2_0 = np.dot(residuals_phi[mask_ij].T, inv_cov_0_residuals_phi)
 
                 logdet_MT_inv_cov_0_M = 0
-                if self.scale_flux:
+                if self.scale_flux and not (i==self.scale_rel_to_ij[0] and j==self.scale_rel_to_ij[1]):
                     # Covariance matrix of phi
                     inv_cov_0_M = Cov[i,j].solve(M_ij)
                     MT_inv_cov_0_M = np.dot(M_ij.T, inv_cov_0_M)

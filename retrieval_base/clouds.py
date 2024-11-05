@@ -156,7 +156,8 @@ class Gray(Cloud):
                 slope_pressure = (pressure[mask_P]/P_base_i)**f_sed_gray_i
 
             # Non-gray cloud model
-            slope_wave = 1 / (1+(wave_micron/self.wave_cloud_0)**cloud_slope_i)
+            #slope_wave = 1 / (1+(wave_micron/self.wave_cloud_0)**cloud_slope_i)
+            slope_wave = (wave_micron/self.wave_cloud_0)**cloud_slope_i
 
             # Opacity decreases with power-law above the base
             opacity[:,mask_P] += opa_base_i * slope_wave[:,None] * slope_pressure
