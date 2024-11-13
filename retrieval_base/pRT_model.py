@@ -234,7 +234,7 @@ class pRT_model:
 
             self.atm.append(atm_i)
         
-    def give_absorption_opacity(self):
+    def absorption_opacity(self):
 
         include_cloud = (self.Cloud.get_opacity is not None)
         include_line  = hasattr(self, 'LineOpacity')
@@ -261,6 +261,20 @@ class pRT_model:
                     opacity += Line_i.get_line_opacity(wave_micron, pressure)
                 return self.Cloud.get_opacity(wave_micron, pressure) + opacity
             
+        return get_opacity
+
+    def scattering_opacity(self):
+
+        include_cloud = (self.Cloud.get_opacity is not None)
+        if not include_cloud:
+            return None
+        
+        # Define the function
+        def get_opacity(wave_micron, pressure):
+            # Apply single-scattering albedo omega
+            opa_cloud = self.Cloud.get_opacity(wave_micron, pressure)
+            return (1-self.params['omega']) * opa_cloud
+        
         return get_opacity
 
     def __call__(self, 
@@ -316,7 +330,8 @@ class pRT_model:
                     )
 
         # Additional opacity from a cloud or custom line profile
-        self.add_opacity = self.give_absorption_opacity()
+        self.give_absorption_opacity = self.absorption_opacity()
+        self.give_scattering_opacity = self.scattering_opacity()
 
         # Generate a model spectrum
         m_spec = self.get_model_spectrum(
@@ -362,7 +377,8 @@ class pRT_model:
             Kzz     = self.Cloud.K_zz, 
             fsed    = self.Cloud.f_sed, 
             sigma_lnorm = self.Cloud.sigma_g,
-            give_absorption_opacity = self.add_opacity, 
+            give_absorption_opacity = self.give_absorption_opacity, 
+            give_scattering_opacity = self.give_scattering_opacity, 
             contribution = get_contr, 
             )
         # Loop over all orders        

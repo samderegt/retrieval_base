@@ -127,6 +127,14 @@ class FreeChemistry(Chemistry):
             if self.VMRs.get(species_i) is not None:
                 # Single value given: constant, vertical profile
                 VMR_i = self.VMRs[species_i] * np.ones(self.n_atm_layers)
+            elif params.get(f'{species_i}_ratio') is not None:
+                if species_i in ['H2(18)O', 'H2(17)O']:
+                    VMR_i = self.VMRs['H2O'] / params[f'{species_i}_ratio']
+                elif species_i in ['13CO', 'C18O', 'C17O']:
+                    VMR_i = self.VMRs['12CO'] / params[f'{species_i}_ratio']
+                
+                if not isinstance(VMR_i, np.ndarray):
+                    VMR_i = VMR_i * np.ones(self.n_atm_layers)
 
             P_i = params.get(f'{species_i}_P')
             if P_i is not None:
