@@ -11,15 +11,15 @@ from tqdm import tqdm
 import copy
 
 def plot_envelopes(
-        ax, y, x, x_indices=[(0,6),(1,5),(2,4)], 
-        colors=['0.0','0.5','1.0'], median_kwargs=None
+        ax, y, x, x_indices=[(0,6),(1,5),(2,4)], colors=['0.0','0.5','1.0'], 
+        median_kwargs=None, **kwargs
         ):
     
     patch = None
     for i, (idx_l, idx_u) in enumerate(x_indices):
 
         patch = ax.fill_betweenx(
-            y=y, x1=x[idx_l], x2=x[idx_u], fc=colors[i], ec='none'
+            y=y, x1=x[idx_l], x2=x[idx_u], fc=colors[i], ec='none', **kwargs
             )
     
     line = None
@@ -156,6 +156,11 @@ def convert_mf_dict_to_VMR_dict(Chem, relative_to_key=None):
         #print(pRT_name_i)
         if pRT_name_i == 'MMW':
             continue
+
+        if pRT_name_i == 'Na_wo_J_doublet':
+            pRT_name_i = 'Na_Sam'
+        if pRT_name_i == 'K_wo_J_doublets':
+            pRT_name_i = 'K_static'
         
         # Read mass of current species
         mask = (Chem.species_info.pRT_name == pRT_name_i)
@@ -176,7 +181,7 @@ def convert_mf_dict_to_VMR_dict(Chem, relative_to_key=None):
 class RetrievalResults:
     
     def __init__(
-            self, prefix, m_set='K2166_cloudy', w_set='K2166', low_memory=True, load_posterior=False
+            self, prefix, m_set='K2166_cloudy', w_set='K2166', low_memory=True, load_posterior=False, verbose=True
             ):
 
         self.prefix = prefix
@@ -197,10 +202,11 @@ class RetrievalResults:
             stats = analyzer.get_stats()
             self.ln_Z = stats['nested importance sampling global log-evidence']
             #self.ln_Z = stats['nested sampling global log-evidence']
-            print(list(stats.keys()))
-            print(stats['nested sampling global log-evidence'])
-            print(stats['nested importance sampling global log-evidence'])
-            print(stats['global evidence'])
+            if verbose:
+                print(list(stats.keys()))
+                print(stats['nested sampling global log-evidence'])
+                print(stats['nested importance sampling global log-evidence'])
+                print(stats['global evidence'])
 
             if load_posterior:
                 self.posterior = analyzer.get_equal_weighted_posterior()
@@ -280,11 +286,12 @@ class RetrievalResults:
             ])
 
         for i in indices:
-            
-            median = np.median(self.posterior[:,i])
-            
-            up  = np.quantile(self.posterior[:,i], q=q[4])
-            low = np.quantile(self.posterior[:,i], q=q[2])
+
+            if i < 0:
+                i = abs(i)
+                median, up, low = np.quantile(-self.posterior[:,i], q=q[[3,4,2]])
+            else:
+                median, up, low = np.quantile(self.posterior[:,i], q=q[[3,4,2]])
 
             up  -= median
             low -= median
