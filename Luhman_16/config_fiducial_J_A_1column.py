@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_A_1column.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_A_ret_15_1column_n100_vdW'
+prefix = 'fiducial_J_A_ret_17_1column_n1000'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -91,6 +91,7 @@ free_params = {
     'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
     'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
     'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+    'omega': [(0,1), r'$\omega$'], 
 
     'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
     'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
@@ -149,22 +150,23 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
-    'do_scat_emis': False, 
+    'do_scat_emis': True, 
 
-    ## Custom line opacity
-    #'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
-    #'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
-    #'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
-    #'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
-    #
-    #'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
-    #'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
-    #'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
-    #'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
+    # Custom line opacity
+    'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
+    'A_w_1_H2': 0.245926, 'b_w_1_H2': 0.447971, 
+    'A_d_0_H2': 0.00158988, 'b_d_0_H2': 0.949254, 
+    'A_d_1_H2': 0.00211668, 'b_d_1_H2': 0.933563, 
+    
+    'A_w_0_He': 0.208190, 'b_w_0_He': 0.452833, 
+    'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
+    'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
+    'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
 }
 
-'''
-parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+#'''
+#parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
 #old_result_dir = '/net/lem/data1/regt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_45_1column/'
 line_opacity_kwargs = [
     {
@@ -254,10 +256,10 @@ chem_kwargs = {
         'H2O_pokazatel_main_iso_Sam_new', 
         'HF_main_iso_new', 
         'FeH_main_iso_Sam', 
-        #'K_wo_J_doublets', 
-        #'Na_wo_J_doublet', 
+        'K_wo_J_doublets', 
+        'Na_wo_J_doublet', 
         #'K', 'Na', # On-the-fly treatment
-        'K_static', 'Na_Sam'
+        #'K_static', 'Na_Sam'
     ], 
 }
 
@@ -305,5 +307,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 100
+n_live_points = 1000
 n_iter_before_update = 400

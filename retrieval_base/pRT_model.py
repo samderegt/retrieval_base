@@ -239,13 +239,15 @@ class pRT_model:
         include_cloud = (self.Cloud.get_opacity is not None)
         include_line  = hasattr(self, 'LineOpacity')
 
+        omega = self.params.get('omega', 0.0)
+
         if (not include_cloud) and (not include_line):
             return None
 
         # Define the function
         if include_cloud and (not include_line):
             def get_opacity(wave_micron, pressure):
-                return self.Cloud.get_opacity(wave_micron, pressure)
+                return (1-omega)*self.Cloud.get_opacity(wave_micron, pressure)
             
         if include_line and (not include_cloud):
             def get_opacity(wave_micron, pressure):
@@ -259,7 +261,7 @@ class pRT_model:
                 opacity = 0
                 for Line_i in self.LineOpacity:
                     opacity += Line_i.get_line_opacity(wave_micron, pressure)
-                return self.Cloud.get_opacity(wave_micron, pressure) + opacity
+                return (1-omega)*self.Cloud.get_opacity(wave_micron, pressure) + opacity
             
         return get_opacity
 
@@ -268,12 +270,14 @@ class pRT_model:
         include_cloud = (self.Cloud.get_opacity is not None)
         if not include_cloud:
             return None
+
+        omega = self.params.get('omega', 0.0)
         
         # Define the function
         def get_opacity(wave_micron, pressure):
             # Apply single-scattering albedo omega
             opa_cloud = self.Cloud.get_opacity(wave_micron, pressure)
-            return (1-self.params['omega']) * opa_cloud
+            return omega * opa_cloud
         
         return get_opacity
 
