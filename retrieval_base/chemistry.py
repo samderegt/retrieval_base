@@ -683,5 +683,3 @@ class FastChemistry(EquilibriumChemistry):
 
             # Volume-mixing ratio, flip back to decreasing altitude
             self.VMRs[species_i] = n[:,idx][::-1] / n_tot
-
-        print(self.VMRs)
