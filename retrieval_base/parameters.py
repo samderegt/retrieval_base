@@ -80,7 +80,7 @@ class ParameterWaveSetting:
         # Check the used chemistry type
         self.chem_kwargs = chem_kwargs
         self.chem_mode   = self.chem_kwargs.get('chem_mode', 'free')
-        assert(self.chem_mode in ['eqchem', 'free', 'fastchem', 'SONORAchem'])
+        assert(self.chem_mode in ['pRT_table', 'free', 'fastchem', 'fastchem_table'])
         
         # Check the used cloud type
         self.cloud_kwargs = cloud_kwargs
@@ -203,7 +203,7 @@ class ParameterWaveSetting:
 
     def read_chemistry_params(self):
 
-        if self.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
+        if self.chem_mode in ['pRT_table', 'fastchem', 'fastchem_table']:
             # Use chemical equilibrium
             self.VMR_species = None
 
@@ -215,15 +215,18 @@ class ParameterWaveSetting:
             self.VMR_species = {}
             for species_i in Chemistry.species_info.index:
 
+                '''
                 # If multiple VMRs are given
                 for j in range(3):
                     if f'log_{species_i}_{j}' in self.param_keys:
                         self.VMR_species[f'{species_i}_{j}'] = self.params[f'{species_i}_{j}']
+                '''
 
                 if f'log_{species_i}' in self.param_keys:
                     self.VMR_species[f'{species_i}'] = self.params[f'{species_i}']
                     continue
 
+                '''
                 if species_i == '13CO' and ('log_13C/12C_ratio' in self.param_keys):
                     # Use isotope ratio to retrieve the VMR
                     self.VMR_species[species_i] = self.params['13C/12C_ratio'] * self.params['12CO']
@@ -241,6 +244,7 @@ class ParameterWaveSetting:
                     self.VMR_species[species_i] = self.params['18O/16O_ratio'] * self.params['H2O']
                 if species_i == 'H2O_171' and ('log_17O/16O_ratio' in self.param_keys):
                     self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['H2O']
+                '''
 
     def __call__(self, cube, apply_prior=True):
 

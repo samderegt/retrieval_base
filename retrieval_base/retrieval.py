@@ -383,10 +383,9 @@ class Retrieval:
             return -np.inf
 
         # Retrieve the chemical abundances
-        if Param_i.chem_mode == 'free':
-            mass_fractions = self.Chem[m_set](Param_i.VMR_species, Param_i.params)
-        elif Param_i.chem_mode in ['eqchem', 'fastchem', 'SONORAchem']:
-            mass_fractions = self.Chem[m_set](Param_i.params, temperature)
+        mass_fractions = self.Chem[m_set](
+            Param_i.params, temperature, param_VMRs=Param_i.VMR_species
+            )
 
         if not isinstance(mass_fractions, dict):
             # Non-H2 abundances added up to > 1
