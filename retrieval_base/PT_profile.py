@@ -1,85 +1,85 @@
 import numpy as np
-from scipy.interpolate import interp1d, splrep, splev, RegularGridInterpolator#, LinearNDInterpolator
+from scipy.interpolate import interp1d, RegularGridInterpolator
 from scipy.interpolate import make_interp_spline
 
 import petitRADTRANS.poor_mans_nonequ_chem as pm
 
 def get_PT_profile_class(pressure, PT_mode='free_gradient', **kwargs):
+    """
+    Get the PT profile class based on the mode.
 
+    Parameters:
+    pressure (array): 
+        Pressure levels.
+    PT_mode (str): 
+        Mode for the PT profile.
+    **kwargs: 
+        Additional keyword arguments.
+
+    Returns:
+    PT_profile: 
+        Instance of the PT profile class.
+    """
     if PT_mode == 'free':
         return PT_profile_free(pressure, **kwargs)
-    
     if PT_mode == 'free_gradient':
         return PT_profile_free_gradient(pressure, **kwargs)
-    
     if PT_mode == 'grid':
         return PT_profile_SONORA(pressure, **kwargs)
-    
     if PT_mode == 'static':
         return PT_profile(pressure, **kwargs)
 
-class PT_profile():
+class PT_profile:
+    """
+    Base class for PT profiles.
+    """
 
     def __init__(self, pressure):
-        
+        """
+        Initialize the PT_profile class.
+
+        Parameters:
+        pressure (array): 
+            Pressure levels.
+        """
         self.pressure = pressure
         self.temperature_envelopes = None
 
     def __call__(self, params):
+        """
+        Retrieve the temperature profile.
 
+        Parameters:
+        params (dict): 
+            Parameters for the PT profile.
+
+        Returns:
+        array or float: 
+            Temperature profile or -np.inf if failed.
+        """
         self.temperature = params.get('temperature')
         if self.temperature is not None:
             return self.temperature
         
         return -np.inf
 
-class PT_profile_MS09(PT_profile):
-
-    def __init__(self, pressure):
-
-        # Give arguments to the parent class
-        super().__init__(pressure)
-
-        # Convert to natural logarithm
-        self.ln_pressure = np.log(self.pressure)
-
-    def __call__(self, params):
-
-        temperature = np.zeros_like(self.pressure)
-
-        # Read all parameters
-        alpha_1 = params.get('alpha_1')
-        alpha_2 = params.get('alpha_2')
-
-        ln_P_0 = np.log(self.pressure.min())
-        ln_P_1 = params.get('ln_P_1')
-        ln_P_2 = params.get('ln_P_2')
-        ln_P_3 = params.get('ln_P_3')
-
-        T_3 = params.get('T_3')
-        # Derive the other temperatures from the expected continuity
-        T_2 = T_3 - (ln_P_3-ln_P_2)**2 / alpha_2**2
-        T_1 = T_2 + (ln_P_1-ln_P_2)**2 / alpha_2**2
-        T_0 = T_1 - (ln_P_1-ln_P_0)**2 / alpha_1**2
-
-        mask_layer_1 = (self.ln_pressure < ln_P_1)
-        mask_layer_2 = (self.ln_pressure > ln_P_1) & (self.ln_pressure < ln_P_3)
-        mask_layer_3 = (self.ln_pressure > ln_P_3)
-
-        temperature[mask_layer_1] = T_0 + (self.ln_pressure[mask_layer_1]-ln_P_0)**2 / alpha_1**2
-        temperature[mask_layer_2] = T_2 + (self.ln_pressure[mask_layer_2]-ln_P_2)**2 / alpha_2**2
-        temperature[mask_layer_3] = T_3
-
-        # Boxcar smoothing
-        temperature = generic_filter(temperature, function=np.mean, size=5)
-        self.temperature = temperature
-        return temperature
-
-
 class PT_profile_SONORA(PT_profile):
+    """
+    Class for SONORA PT profiles.
+    """
 
     def __init__(self, pressure, path_to_SONORA_PT='./data/SONORA_PT_structures', **kwargs):
+        """
+        Initialize the PT_profile_SONORA class.
 
+        Parameters:
+        pressure (array): 
+            Pressure levels.
+        path_to_SONORA_PT (str): 
+            Path to the SONORA PT structures.
+        **kwargs: 
+            Additional keyword arguments.
+        """
         # Give arguments to the parent class
         super().__init__(pressure)
 
@@ -181,7 +181,17 @@ class PT_profile_SONORA(PT_profile):
             )
         
     def __call__(self, params):
+        """
+        Retrieve the temperature profile.
 
+        Parameters:
+        params (dict): 
+            Parameters for the PT profile.
+
+        Returns:
+        array: 
+            Temperature profile.
+        """
         # Interpolate the 4D grid onto the requested point
         point = ()
         if len(self.T_eff_grid) > 1:
@@ -199,9 +209,24 @@ class PT_profile_SONORA(PT_profile):
         return self.temperature
     
 class PT_profile_free(PT_profile):
+    """
+    Class for free PT profiles.
+    """
 
     def __init__(self, pressure, ln_L_penalty_order=3, PT_interp_mode='log', **kwargs):
-        
+        """
+        Initialize the PT_profile_free class.
+
+        Parameters:
+        pressure (array): 
+            Pressure levels.
+        ln_L_penalty_order (int): 
+            Order of the log-likelihood penalty.
+        PT_interp_mode (str): 
+            Interpolation mode for PT profile.
+        **kwargs: 
+            Additional keyword arguments.
+        """
         # Give arguments to the parent class
         super().__init__(pressure)
 
@@ -209,7 +234,17 @@ class PT_profile_free(PT_profile):
         self.PT_interp_mode = PT_interp_mode
 
     def __call__(self, params):
+        """
+        Retrieve the temperature profile.
 
+        Parameters:
+        params (dict): 
+            Parameters for the PT profile.
+
+        Returns:
+        array: 
+            Temperature profile.
+        """
         # Combine all temperature knots
         self.T_knots = np.concatenate((params['T_knots'], 
                                        [params['T_0']]
@@ -235,7 +270,9 @@ class PT_profile_free(PT_profile):
         return self.temperature
 
     def spline_interp(self):
-
+        """
+        Perform spline interpolation for the PT profile.
+        """
         if self.PT_interp_mode == 'log':
             y = np.log10(self.T_knots)
         elif self.PT_interp_mode == 'lin':
@@ -257,7 +294,9 @@ class PT_profile_free(PT_profile):
         self.coeffs = self.coeffs[:len(self.knots)-4]
 
     def get_ln_L_penalty(self):
-
+        """
+        Compute the log-likelihood penalty.
+        """
         # Do not apply a ln L penalty
         if self.ln_L_penalty_order == 0:
             self.ln_L_penalty = 0
@@ -298,9 +337,22 @@ class PT_profile_free(PT_profile):
                               )
 
 class PT_profile_free_gradient(PT_profile):
+    """
+    Class for free gradient PT profiles.
+    """
 
     def __init__(self, pressure, PT_interp_mode='quadratic', **kwargs):
-        
+        """
+        Initialize the PT_profile_free_gradient class.
+
+        Parameters:
+        pressure (array): 
+            Pressure levels.
+        PT_interp_mode (str): 
+            Interpolation mode for PT profile.
+        **kwargs: 
+            Additional keyword arguments.
+        """
         # Give arguments to the parent class
         super().__init__(pressure)
 
@@ -309,7 +361,17 @@ class PT_profile_free_gradient(PT_profile):
         self.PT_interp_mode = PT_interp_mode
 
     def __call__(self, params):
+        """
+        Retrieve the temperature profile.
 
+        Parameters:
+        params (dict): 
+            Parameters for the PT profile.
+
+        Returns:
+        array: 
+            Temperature profile.
+        """
         self.P_knots = params['P_knots']
 
         # Perform interpolation over dlnT/dlnP gradients

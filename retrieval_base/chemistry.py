@@ -7,7 +7,23 @@ directory_path = pathlib.Path(__file__).parent.resolve()
 import petitRADTRANS.nat_cst as nc
 
 def get_Chemistry_class(pressure, line_species, chem_mode='free', **kwargs):
+    """
+    Factory function to get the appropriate Chemistry class based on the chem_mode.
 
+    Parameters:
+    pressure (array): 
+        Pressure levels.
+    line_species (list): 
+        List of line species.
+    chem_mode (str): 
+        Chemistry mode. Options are 'free', 'pRT_table', 'fastchem', 'fastchem_table'.
+    **kwargs: 
+        Additional arguments for the Chemistry class.
+
+    Returns:
+    Chemistry: 
+        An instance of a Chemistry subclass.
+    """
     if chem_mode == 'free':
         return FreeChemistry(line_species, pressure, **kwargs)
     if chem_mode == 'pRT_table':
@@ -19,12 +35,25 @@ def get_Chemistry_class(pressure, line_species, chem_mode='free', **kwargs):
 
 
 class Chemistry:
+    """
+    Base class for handling chemical species and their properties.
+    """
 
     species_info = pd.read_csv(directory_path/'species_info.csv', index_col=0)
     neglect_species = {key_i: False for key_i in species_info.index}
 
     def __init__(self, line_species, pressure, CustomOpacity=None):
+        """
+        Initialize the Chemistry class.
 
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        """
         self.line_species = [*line_species, 'H2', 'He']
 
         # Custom line-opacities
@@ -54,7 +83,9 @@ class Chemistry:
         self.unquenched_mass_fractions_envelopes = None
 
     def remove_species(self):
-
+        """
+        Remove the contribution of the specified species by setting their mass fractions to zero.
+        """
         # Remove the contribution of the specified species
         for species_i, remove in self.neglect_species.items():
             
@@ -70,7 +101,19 @@ class Chemistry:
 
     @classmethod
     def read_species_info(cls, species, info_key):
-        
+        """
+        Read species information from the species_info DataFrame.
+
+        Parameters:
+        species (str): 
+            Species name.
+        info_key (str): 
+            Key to retrieve specific information.
+
+        Returns:
+        Various: 
+            Information based on the info_key.
+        """
         if info_key == 'pRT_name':
             return cls.species_info.loc[species,info_key]
         if info_key == 'pyfc_name':
@@ -91,10 +134,27 @@ class Chemistry:
             return cls.species_info.loc[species,'mathtext_name']
         
     def get_VMRs(self, *args):
-        return
+        """
+        Placeholder method to get volume mixing ratios (VMRs).
+        Should be implemented by child classes.
+        """
+        raise NotImplementedError("Subclasses should implement this method")
+
+    def quench_VMRs(self, *args):
+        """
+        Placeholder method to quench volume mixing ratios (VMRs).
+        Should be implemented by child classes.
+        """
+        raise NotImplementedError("Subclasses should implement this method")
     
     def get_isotope_VMRs(self, params):
+        """
+        Calculate the volume mixing ratios (VMRs) for isotopologues.
 
+        Parameters:
+        params (dict): 
+            Parameters including isotope ratios.
+        """
         # If true, eq-chem abundances should be split into isotopologues
         conserve_tot_VMR = isinstance(self, EquilibriumChemistry)
 
@@ -151,11 +211,10 @@ class Chemistry:
             # e.g. 13CO = CO_all * 13/12C / (12/12C+13/12C+18/16O+17/16O)
             self.VMRs[species_i] = main_iso_VMR_i * minor_main_ratio_i/sum_of_ratios
     
-    def quench_VMRs(self, *args):
-        return
-    
     def convert_to_MFs(self):
-
+        """
+        Convert volume mixing ratios (VMRs) to mass fractions (MFs).
+        """
         # Convert to mass-fractions using mass-ratio
         self.mass_fractions = {'MMW': self.MMW}
         for species_i, VMR_i in self.VMRs.items():
@@ -166,7 +225,9 @@ class Chemistry:
             self.mass_fractions[line_species_i] = VMR_i * mass_i/self.MMW
     
     def get_diagnostics(self):
-
+        """
+        Calculate diagnostics such as C/O and Fe/H ratios.
+        """
         C, O, H = 0, 0, 0
         for species_i, VMR_i in self.VMRs.items():
             # Record C, O, and H bearing species for C/O and metallicity
@@ -186,7 +247,21 @@ class Chemistry:
                 self.FeH = np.mean(np.log10(C/H) - log_CH_solar)
         
     def __call__(self, params, temperature, param_VMRs=None):
+        """
+        Evaluate the chemistry model with given parameters and temperature.
 
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        temperature (array): 
+            Temperature profile.
+        param_VMRs (dict, optional): 
+            Parameterized volume mixing ratios.
+
+        Returns:
+        dict: 
+            Mass fractions.
+        """
         self.temperature = temperature
         
         self.mass_fractions = {}
@@ -231,14 +306,43 @@ class Chemistry:
 
 
 class FreeChemistry(Chemistry):
+    """
+    Class for handling free chemistry models.
+    """
 
     def __init__(self, line_species, pressure, CustomOpacity=None, **kwargs):
+        """
+        Initialize the FreeChemistry class.
 
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        **kwargs: 
+            Additional arguments.
+        """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, CustomOpacity)
 
     def _power_law_drop_off(self, VMR, P0, alpha):
+        """
+        Apply a power-law drop-off to the volume mixing ratio (VMR).
 
+        Parameters:
+        VMR (array): 
+            Volume mixing ratio.
+        P0 (float): 
+            Reference pressure.
+        alpha (float): 
+            Power-law exponent.
+
+        Returns:
+        array: 
+            Modified VMR.
+        """
         if P0 is None:
             # No drop-off
             return VMR
@@ -253,7 +357,17 @@ class FreeChemistry(Chemistry):
         return VMR
 
     def get_VMRs(self, params, param_VMRs, **kwargs):
+        """
+        Get volume mixing ratios (VMRs) for the free chemistry model.
 
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        param_VMRs (dict): 
+            Parameterized volume mixing ratios.
+        **kwargs: 
+            Additional arguments.
+        """
         # Constant He abundance
         self.VMRs = {'He':0.15*np.ones(self.n_atm_layers)}
 
@@ -274,6 +388,9 @@ class FreeChemistry(Chemistry):
                 )
         
     def get_H2(self):
+        """
+        Calculate the H2 abundance as the remainder of the total VMR.
+        """
         # H2 abundance is the remainder
         VMR_wo_H2 = np.sum([VMR_i for VMR_i in self.VMRs.values()], axis=0)
         self.VMRs['H2'] = 1 - VMR_wo_H2
@@ -283,6 +400,9 @@ class FreeChemistry(Chemistry):
             self.VMRs = -np.inf
 
     def get_MMW(self):
+        """
+        Calculate the mean molecular weight (MMW) from the VMRs.
+        """
         # Get mean-molecular weight from free-chem VMRs
         MMW = 0.
         for species_i, VMR_i in self.VMRs.items():
@@ -290,7 +410,9 @@ class FreeChemistry(Chemistry):
             MMW += mass_i * VMR_i
         
     def convert_to_MFs(self):
-
+        """
+        Convert volume mixing ratios (VMRs) to mass fractions (MFs).
+        """
         # Get mean-molecular weight from free-chem VMRs
         MMW = 0.
         for species_i, VMR_i in self.VMRs.items():
@@ -308,9 +430,22 @@ class FreeChemistry(Chemistry):
     
       
 class EquilibriumChemistry(Chemistry):
+    """
+    Class for handling equilibrium chemistry models.
+    """
     
     def __init__(self, line_species, pressure, CustomOpacity=None):
-        
+        """
+        Initialize the EquilibriumChemistry class.
+
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, CustomOpacity)
 
@@ -321,7 +456,15 @@ class EquilibriumChemistry(Chemistry):
         }
 
     def get_P_quench_from_Kzz(self, params, alpha=1):
+        """
+        Calculate the quench pressure from the eddy diffusion coefficient (Kzz).
 
+        Parameters:
+        params (dict): 
+            Parameters including Kzz.
+        alpha (float): 
+            Mixing length factor.
+        """
         # Metallicity
         m = 10**self.FeH
 
@@ -383,7 +526,13 @@ class EquilibriumChemistry(Chemistry):
                     computed['CO2'] = True
     
     def quench_VMRs(self, params):
-        
+        """
+        Quench the volume mixing ratios (VMRs) based on the quench settings.
+
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        """
         # Update the parameters
         for key_q in list(self.quench_settings):
             # Update the quench pressures from the free parameters
@@ -418,9 +567,26 @@ class EquilibriumChemistry(Chemistry):
                 self.VMRs[species_i] = 10**log_VMR_i
 
 class FastChemistryTable(EquilibriumChemistry):
+    """
+    Class for handling fast chemistry models using interpolation tables.
+    """
 
     def __init__(self, line_species, pressure, CustomOpacity=None, path_fastchem_tables='./fastchem_tables', **kwargs):
+        """
+        Initialize the FastChemistryTable class.
 
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        path_fastchem_tables (str): 
+            Path to the fast chemistry tables.
+        **kwargs: 
+            Additional arguments.
+        """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, CustomOpacity)
 
@@ -434,7 +600,13 @@ class FastChemistryTable(EquilibriumChemistry):
         }
 
     def _load_interp_tables(self, path_tables):
+        """
+        Load the interpolation tables for fast chemistry.
 
+        Parameters:
+        path_tables (Path): 
+            Path to the tables.
+        """
         import h5py
         def load_hdf5(file, key):
             with h5py.File(f'{path_tables}/{file}', 'r') as f:
@@ -466,7 +638,15 @@ class FastChemistryTable(EquilibriumChemistry):
                 )        
 
     def get_VMRs(self, params, **kwargs):
-        
+        """
+        Get volume mixing ratios (VMRs) using interpolation tables.
+
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        **kwargs: 
+            Additional arguments.
+        """
         def apply_bounds(val, grid):
             val[val > grid.max()] = grid.max()
             val[val < grid.min()] = grid.min()
@@ -494,9 +674,24 @@ class FastChemistryTable(EquilibriumChemistry):
                 self.MMW = arr_i.copy() # Mean-molecular weight
 
 class pRTChemistryTable(EquilibriumChemistry):
+    """
+    Class for handling pRT chemistry models using interpolation tables.
+    """
 
     def __init__(self, line_species, pressure, CustomOpacity=None, **kwargs):
+        """
+        Initialize the pRTChemistryTable class.
 
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        **kwargs: 
+            Additional arguments.
+        """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, CustomOpacity)
 
@@ -511,7 +706,15 @@ class pRTChemistryTable(EquilibriumChemistry):
         }
 
     def get_VMRs(self, params, **kwargs):
+        """
+        Get volume mixing ratios (VMRs) using pRT interpolation tables.
 
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        **kwargs: 
+            Additional arguments.
+        """
         # Update the parameters
         self.CO  = params.get('C/O')
         self.FeH = params.get('Fe/H')
@@ -553,9 +756,24 @@ class pRTChemistryTable(EquilibriumChemistry):
             
 
 class FastChemistry(EquilibriumChemistry):
+    """
+    Class for handling fast chemistry models using the FastChem library.
+    """
 
     def __init__(self, line_species, pressure, CustomOpacity=None, **kwargs):
-        
+        """
+        Initialize the FastChemistry class.
+
+        Parameters:
+        line_species (list): 
+            List of line species.
+        pressure (array): 
+            Pressure levels.
+        CustomOpacity (list, optional): 
+            Custom opacity objects.
+        **kwargs: 
+            Additional arguments.
+        """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, CustomOpacity)
 
@@ -585,7 +803,9 @@ class FastChemistry(EquilibriumChemistry):
         self._get_solar()
 
     def _get_element_indices(self):
-
+        """
+        Get the indices of relevant elements in the FastChem library.
+        """
         # Get the indices of relevant species
         self.idx = {
             el: int(self.fastchem.getElementIndex(el)) \
@@ -599,7 +819,9 @@ class FastChemistry(EquilibriumChemistry):
             )
         
     def _get_solar(self):
-        
+        """
+        Get the solar abundances and ratios.
+        """
         # Make a copy of the solar abundances
         self.solar_abund = np.array(self.fastchem.getElementAbundances())
         
@@ -610,9 +832,15 @@ class FastChemistry(EquilibriumChemistry):
         self.solar_FeH = 0.0
 
     def _set_metallicity(self):
+        """
+        Set the metallicity for the element abundances.
+        """
         self.el_abund[self.metal_idx] *= 10**self.FeH
 
     def _set_CO(self):
+        """
+        Set the C/O ratio for the element abundances.
+        """
         # C = C/O * O_sol
         self.el_abund[self.idx['C']] = self.CO * self.el_abund[self.idx['O']]
 
@@ -622,6 +850,9 @@ class FastChemistry(EquilibriumChemistry):
         self.el_abund[self.idx['O']] *= tot_abund_ratio
 
     def _set_NO(self):
+        """
+        Set the N/O ratio for the element abundances.
+        """
         # N = N/O * O_sol
         self.el_abund[self.idx['N']] = self.NO * self.el_abund[self.idx['O']]
 
@@ -631,7 +862,15 @@ class FastChemistry(EquilibriumChemistry):
         self.el_abund[self.idx['O']] *= tot_abund_ratio
 
     def get_VMRs(self, params, **kwargs):
+        """
+        Get volume mixing ratios (VMRs) using the FastChem library.
 
+        Parameters:
+        params (dict): 
+            Parameters for the model.
+        **kwargs: 
+            Additional arguments.
+        """
         # Flip to order by increasing altitude
         self.input.pressure = self.pressure[::-1]
 

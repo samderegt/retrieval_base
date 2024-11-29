@@ -12,6 +12,21 @@ import petitRADTRANS.nat_cst as nc
 import retrieval_base.auxiliary_functions as af
 
 def fig_order_subplots(n_orders, ylabel, xlabel=r'Wavelength (nm)'):
+    """
+    Create a figure with a specified number of subplots arranged vertically.
+
+    Parameters:
+    n_orders (int): 
+        Number of subplots (orders).
+    ylabel (str): 
+        Label for the y-axis of the middle subplot.
+    xlabel (str, optional): 
+        Label for the x-axis of the bottom subplot. Default is 'Wavelength (nm)'.
+
+    Returns:
+    tuple: 
+        A tuple containing the figure and an array of axes.
+    """
 
     fig, ax = plt.subplots(
         figsize=(10,2.8*n_orders), nrows=n_orders, 
@@ -27,18 +42,37 @@ def fig_order_subplots(n_orders, ylabel, xlabel=r'Wavelength (nm)'):
 
     return fig, ax
 
-def fig_flux_calib_2MASS(wave, 
-                         calib_flux, 
-                         calib_flux_wo_tell_corr, 
-                         transm, 
-                         poly_model, 
-                         wave_2MASS, 
-                         transm_2MASS, 
-                         tell_threshold=0.2, 
-                         order_wlen_ranges=None, 
-                         prefix=None, 
-                         w_set='', 
-                         ):
+def fig_flux_calib_2MASS(wave, calib_flux, calib_flux_wo_tell_corr, transm, poly_model, wave_2MASS, transm_2MASS, tell_threshold=0.2, order_wlen_ranges=None, prefix=None, w_set=''):
+    """
+    Plot the flux calibration for 2MASS data with and without telluric correction.
+
+    Parameters:
+    wave (array): 
+        Wavelength array.
+    calib_flux (array): 
+        Calibrated flux with telluric correction.
+    calib_flux_wo_tell_corr (array): 
+        Calibrated flux without telluric correction.
+    transm (array): 
+        Transmissivity data.
+    poly_model (array): 
+        Polynomial model for telluric correction.
+    wave_2MASS (array): 
+        Wavelength array for 2MASS data.
+    transm_2MASS (array): 
+        Transmissivity data for 2MASS.
+    tell_threshold (float or array, optional): 
+        Threshold for telluric transmissivity. Default is 0.2.
+    order_wlen_ranges (array, optional): 
+        Wavelength ranges for different orders. Default is None.
+    prefix (str, optional): 
+        Prefix for saving the plots. Default is None.
+    w_set (str, optional): 
+        Wavelength set identifier. Default is ''.
+
+    Returns:
+    None
+    """
 
     fig, ax = plt.subplots(
         figsize=(10,4), nrows=2, sharex=True, 
@@ -108,6 +142,30 @@ def fig_flux_calib_2MASS(wave,
         plt.close(fig)
 
 def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_ranges, sigma, prefix=None, w_set=''):
+    """
+    Plot zoom-ins of the sigma-clipping procedure.
+
+    Parameters:
+    wave (array): 
+        Wavelength array.
+    flux (array): 
+        Flux array after sigma clipping.
+    flux_wo_clip (array): 
+        Flux array before sigma clipping.
+    sigma_clip_bounds (array): 
+        Bounds for sigma clipping.
+    order_wlen_ranges (array): 
+        Wavelength ranges for each order.
+    sigma (float): 
+        Sigma value for clipping.
+    prefix (str, optional): 
+        Prefix for saving the plot.
+    w_set (str, optional): 
+        Wavelength set identifier.
+
+    Returns:
+    None
+    """
 
     # Plot zoom-ins of the sigma-clipping procedure
     n_orders = order_wlen_ranges.shape[0]
@@ -143,6 +201,20 @@ def fig_sigma_clip(wave, flux, flux_wo_clip, sigma_clip_bounds, order_wlen_range
     plt.close(fig)
 
 def fig_spec_to_fit(d_spec, prefix=None, w_set=''):
+    """
+    Generate and save a figure of the spectrum to fit.
+
+    Parameters:
+    d_spec (object): 
+        The spectrum data object containing wavelength, flux, and other relevant information.
+    prefix (str, optional): 
+        The prefix for the saved figure filename.
+    w_set (str, optional): 
+        The wavelength set identifier for the saved figure filename.
+    
+    Returns:
+    None
+    """
 
     ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
     if d_spec.high_pass_filtered:
@@ -163,8 +235,7 @@ def fig_spec_to_fit(d_spec, prefix=None, w_set=''):
     #plt.show()
     plt.close(fig)
 
-def fig_bestfit_model(
-        d_spec, 
+def fig_bestfit_model(d_spec, 
         m_spec, 
         LogLike, 
         Cov, 
@@ -175,7 +246,38 @@ def fig_bestfit_model(
         prefix=None, 
         m_set=''
         ):
+    """
+    Plot the best-fit model spectrum and residuals.
 
+    Parameters:
+    d_spec (object): 
+        Observed spectrum data.
+    m_spec (object): 
+        Model spectrum data.
+    LogLike (object): 
+        Log-likelihood object containing model flux and chi-squared values.
+    Cov (object): 
+        Covariance matrix object.
+    xlabel (str, optional): 
+        Label for the x-axis. Default is 'Wavelength (nm)'.
+    bestfit_color (str, optional): 
+        Color for the best-fit model plot. Default is 'C1'.
+    ax_spec (matplotlib.axes.Axes, optional): 
+        Axes object for the spectrum plot. Default is None.
+    ax_res (matplotlib.axes.Axes, optional): 
+        Axes object for the residuals plot. Default is None.
+    prefix (str, optional): 
+        Prefix for saving the plot. Default is None.
+    m_set (str, optional): 
+        Model set identifier. Default is ''.
+
+    Returns:
+    tuple: 
+        ax_spec (matplotlib.axes.Axes): 
+            Axes object for the spectrum plot.
+        ax_res (matplotlib.axes.Axes): 
+            Axes object for the residuals plot.
+    """
     if (ax_spec is None) and (ax_res is None):
         # Create a new figure
         is_new_fig = True
@@ -307,6 +409,27 @@ def fig_bestfit_model(
         return ax_spec, ax_res
 
 def fig_cov(LogLike, Cov, d_spec, cmap, prefix=None, m_set=''):
+    """
+    Generate and save a figure of covariance matrices.
+
+    Parameters:
+    LogLike (object): 
+        Log-likelihood object containing the optimal uncertainty scaling.
+    Cov (array-like): 
+        Array of covariance matrix objects.
+    d_spec (object): 
+        Data specification object containing information about orders, detectors, and pixels.
+    cmap (str): 
+        Colormap to use for the covariance matrices.
+    prefix (str, optional): 
+        Prefix for the saved figure filename.
+    m_set (str, optional): 
+        Additional string to include in the saved figure filename.
+
+    Returns:
+    array: 
+        Array of all covariance matrices.
+    """
 
     all_cov = np.zeros(
         (d_spec.n_orders, d_spec.n_dets, 
@@ -400,7 +523,35 @@ def fig_PT(PT,
            xlim=(1,3500), 
            prefix=None, 
            ):
+    """
+    Plot pressure-temperature (PT) profiles along with cloud condensation curves.
 
+    Parameters:
+    PT (dict): 
+        Dictionary containing PT profiles.
+    pRT_atm (dict): 
+        Dictionary containing atmospheric retrieval data.
+    ax_PT (matplotlib.axes.Axes, optional): 
+        Axis to plot on. If None, a new figure and axis will be created.
+    envelope_colors (list, optional): 
+        List of colors for the temperature envelopes.
+    posterior_color (str, optional): 
+        Color for the posterior median profile.
+    bestfit_color (str, optional): 
+        Color for the best-fitting PT profile.
+    ylabel (str, optional): 
+        Label for the y-axis.
+    yticks (array-like, optional): 
+        Ticks for the y-axis.
+    xlim (tuple, optional): 
+        Limits for the x-axis.
+    prefix (str, optional): 
+        Prefix for saving the figure.
+        
+    Returns:
+    matplotlib.axes.Axes: 
+        Axis with the PT profiles plotted.
+    """
     def cloud_condensation_curves(pressure, FeH, cloud_species):
 
         coeffs = {
@@ -518,6 +669,27 @@ def fig_PT(PT,
         return ax_PT
 
 def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestfit_color='C1', ls='-'):
+    """
+    Plot the emission contribution functions.
+
+    Parameters:
+    ax_contr (matplotlib.axes.Axes): 
+        The axes object to plot on.
+    int_contr_em (array): 
+        Integrated emission contribution function.
+    int_contr_em_per_order (array or None): 
+        Emission contribution functions per order.
+    pressure (array): 
+        Pressure levels.
+    bestfit_color (str, optional): 
+        Color for the best-fit line. Default is 'C1'.
+    ls (str, optional): 
+        Line style for the best-fit line. Default is '-'.
+
+    Returns:
+    matplotlib.axes.Axes: 
+        The axes object with the plotted data.
+    """
     
     if int_contr_em_per_order is not None:
         
@@ -548,6 +720,26 @@ def fig_contr_em(ax_contr, int_contr_em, int_contr_em_per_order, pressure, bestf
     return ax_contr
 
 def fig_opa_cloud(ax_opa_cloud, int_opa_cloud, pressure, xlim=(1e0, 1e-10), color='grey', ls='-'):
+    """
+    Plot the integrated cloud opacity as a function of pressure.
+
+    Parameters:
+    ax_opa_cloud (matplotlib.axes.Axes): 
+        The axes object to plot on.
+    int_opa_cloud (array): 
+        Integrated cloud opacity values.
+    pressure (array): 
+        Pressure levels.
+    xlim (tuple, optional): 
+        Limits for the x-axis (default is (1e0, 1e-10)).
+    color (str, optional): 
+        Color of the plot line (default is 'grey').
+    ls (str, optional): 
+        Line style of the plot (default is '-').
+
+    Returns:
+    None
+    """
 
     ax_opa_cloud.plot(
         int_opa_cloud, pressure, c=color, lw=1, ls=ls, alpha=0.5
@@ -575,7 +767,31 @@ def fig_VMR(ax_VMR,
             xlim=(1e-12, 1e-2), 
             ls='-'
             ):
+    """
+    Plot volume mixing ratios (VMRs) as a function of pressure.
 
+    Parameters:
+    ax_VMR (matplotlib.axes.Axes): 
+        The axes object to plot on.
+    Chem (Chemistry): 
+        An instance of the Chemistry class containing species information and mass fractions.
+    species_to_plot (list): 
+        List of species to plot.
+    pressure (array): 
+        Pressure levels.
+    ylabel (str, optional): 
+        Label for the y-axis. Default is r'$P\ \mathrm{(bar)}$'.
+    yticks (array, optional): 
+        Ticks for the y-axis. Default is np.logspace(-6, 3, 10).
+    xlim (tuple, optional): 
+        Limits for the x-axis. Default is (1e-12, 1e-2).
+    ls (str, optional): 
+        Line style for the plot. Default is '-'.
+
+    Returns:
+    matplotlib.axes.Axes: 
+        The axes object with the plotted VMRs.
+    """
     MMW = Chem.mass_fractions['MMW']
 
     for species_i in Chem.species_info.index:
@@ -681,7 +897,30 @@ def fig_hist_posterior(posterior_i,
                        bins=20, 
                        prefix=None, 
                        ):
+    """
+    Plot and save a histogram of the posterior distribution for a given parameter.
 
+    Parameters:
+    posterior_i (array): 
+        Posterior samples of the parameter.
+    param_range_i (tuple): 
+        Range of the parameter values for the histogram.
+    param_quantiles_i (array): 
+        Quantiles (16th, 50th, 84th) of the parameter.
+    param_key_i (str): 
+        Key/name of the parameter.
+    posterior_color (str, optional): 
+        Color of the histogram. Default is 'C0'.
+    title (str, optional): 
+        Title of the plot. Default is None.
+    bins (int, optional): 
+        Number of bins for the histogram. Default is 20.
+    prefix (str, optional): 
+        Prefix for the file path to save the histogram. Default is None.
+
+    Returns:
+    None
+    """
     for _ in range(2):
 
         title = title + r'$=' + '{:.2f}'.format(param_quantiles_i[1])
@@ -739,8 +978,31 @@ def fig_residual_ACF(d_spec,
                      rv=np.arange(-500,500+1e-6,1), 
                      bestfit_color='C1', 
                      prefix=None, 
-                     m_set=''
-                     ):
+                     m_set=''):
+    """
+    Generate a figure of the auto-correlation function (ACF) of the residuals between the data spectrum and model spectrum.
+
+    Parameters:
+    d_spec (Spectrum): 
+        The data spectrum object.
+    m_spec (Spectrum): 
+        The model spectrum object.
+    LogLike (LogLikelihood): 
+        The log-likelihood object containing the residuals and other relevant information.
+    Cov (Covariance): 
+        The covariance object containing the covariance matrices.
+    rv (array, optional): 
+        Radial velocity range for the cross-correlation function. Default is np.arange(-500,500+1e-6,1).
+    bestfit_color (str, optional): 
+        Color for the best-fit line. Default is 'C1'.
+    prefix (str, optional): 
+        Prefix for the output file path. Default is None.
+    m_set (str, optional): 
+        Model set identifier. Default is ''.
+
+    Returns:
+    None
+    """
 
     # Create a spectrum residual object
     d_spec_res = copy.deepcopy(d_spec)
@@ -848,7 +1110,39 @@ def plot_ax_CCF(ax,
                 color='k', 
                 label=None
                 ):
+    """
+    Plot the cross-correlation function (CCF) and auto-correlation function (ACF) signal-to-noise ratios (SNR) on the given axis.
 
+    Parameters:
+    ax (matplotlib.axes.Axes): 
+        The axis to plot on.
+    d_spec (array): 
+        The data spectrum.
+    m_spec (array): 
+        The model spectrum.
+    pRT_atm (object): 
+        The petitRADTRANS atmosphere object.
+    m_spec_wo_species (array, optional): 
+        The model spectrum without certain species.
+    pRT_atm_wo_species (object, optional): 
+        The petitRADTRANS atmosphere object without certain species.
+    LogLike (array, optional): 
+        The log-likelihood array.
+    Cov (array, optional): 
+        The covariance array.
+    rv (array, optional): 
+        The radial velocity array. Default is np.arange(-1000,1000+1e-6,10).
+    rv_to_exclude (tuple, optional): 
+        The range of radial velocities to exclude. Default is (-100,100).
+    color (str, optional): 
+        The color for the plot. Default is 'k'.
+    label (str, optional): 
+        The label for the plot.
+
+    Returns:
+    matplotlib.axes.Axes: 
+        The axis with the plotted CCF and ACF SNR.
+    """
     m_flux_pRT_grid = pRT_atm.flux_pRT_grid.copy()
     m_flux_wo_species_pRT_grid = None
 
@@ -921,8 +1215,43 @@ def fig_species_contribution(d_spec,
                              rv_to_exclude=(-100,100), 
                              bin_size=25, 
                              prefix=None, 
-                             m_set='', 
-                             ):
+                             m_set=''):
+    """
+    Generate and save figures showing the contribution of different species to the cross-correlation function (CCF).
+
+    Parameters:
+    d_spec (object): 
+        Data spectrum object containing observed data.
+    m_spec (object): 
+        Model spectrum object containing the complete model.
+    m_spec_species (dict): 
+        Dictionary of model spectra for individual species.
+    pRT_atm (object): 
+        Atmospheric model object for the complete model.
+    pRT_atm_species (dict): 
+        Dictionary of atmospheric models for individual species.
+    Chem (object): 
+        Chemistry object containing species information.
+    LogLike (object): 
+        Log-likelihood object for the model.
+    Cov (object): 
+        Covariance object for the model.
+    species_to_plot (list): 
+        List of species to plot.
+    rv_CCF (array, optional): 
+        Radial velocity range for the CCF, default is np.arange(-1000,1000+1e-6,5).
+    rv_to_exclude (tuple, optional): 
+        Radial velocity range to exclude, default is (-100,100).
+    bin_size (int, optional): 
+        Bin size for the plots, default is 25.
+    prefix (str, optional): 
+        Prefix for the output file paths, default is None.
+    m_set (str, optional): 
+        Model set identifier, default is ''.
+
+    Returns:
+    None
+    """
 
     if not os.path.exists(prefix+'plots/species'):
         os.makedirs(prefix+'plots/species')

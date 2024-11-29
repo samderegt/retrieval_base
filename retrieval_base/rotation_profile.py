@@ -5,13 +5,16 @@ def get_Rotation_class(mode='convolve', **kwargs):
     """
     Function to create a rotation profile based on the mode.
 
-    Args:
-    - mode (str): Either 'integrate' or 'convolve' to choose the type of rotation profile.
-    - **kwargs: Additional keyword arguments passed to the rotation profile classes.
+    Parameters:
+    mode (str): 
+        Either 'integrate' or 'convolve' to choose the type of rotation profile.
+    **kwargs: 
+        Additional keyword arguments passed to the rotation profile classes.
 
     Returns:
-    - Instance of IntRotationProfile or ConvRotationProfile based on the mode.
+    Instance of IntRotationProfile or ConvRotationProfile based on the mode.
     """
+
     if mode is None:
         return ConvRotationProfile(**kwargs)
     if mode == 'convolve':
@@ -22,16 +25,15 @@ def get_Rotation_class(mode='convolve', **kwargs):
 class ConvRotationProfile:
     """
     Class for convolutional rotation profile.
-
-    Attributes:
-    - fastRotBroad: Fast rotational broadening function from PyAstronomy.
     """
+
     def __init__(self, **kwargs):
         """
         Initializes ConvRotationProfile.
 
-        Args:
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        **kwargs: 
+            Additional keyword arguments.
         """
         from PyAstronomy import pyasl
         self.fastRotBroad = pyasl.fastRotBroad
@@ -40,15 +42,21 @@ class ConvRotationProfile:
         """
         Applies rotational broadening to a given spectrum.
 
-        Args:
-        - wave (numpy.ndarray): Wavelength grid.
-        - flux (numpy.ndarray): Flux values corresponding to the wavelength grid.
-        - params (dict): Parameters for rotational broadening.
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        wave (numpy.ndarray): 
+            Wavelength grid.
+        flux (numpy.ndarray): 
+            Flux values corresponding to the wavelength grid.
+        params (dict): 
+            Parameters for rotational broadening.
+        **kwargs: 
+            Additional keyword arguments.
 
         Returns:
-        - wave_even (numpy.ndarray): Evenly spaced wavelength grid.
-        - flux_rot_broad (numpy.ndarray): Rotational broadened flux.
+        wave_even (numpy.ndarray): 
+            Evenly spaced wavelength grid.
+        flux_rot_broad (numpy.ndarray): 
+            Rotational broadened flux.
         """
         # Evenly space the wavelength grid
         wave_even = np.linspace(wave.min(), wave.max(), wave.size)
@@ -71,24 +79,23 @@ class ConvRotationProfile:
 class IntRotationProfile:
     """
     Class for integrated rotation profile.
-
-    Attributes:
-    - inc (float): Inclination angle in radians.
-    - lon_0 (float): Longitude angle in radians.
-    - n_c (int): Number of longitudinal grid points.
-    - n_theta (int): Number of latitudinal grid points.
-    - Various grid-related attributes for integration.
     """
+
     def __init__(self, inc=0, lon_0=0, n_c=15, n_theta=150, **kwargs):
         """
         Initializes IntRotationProfile.
 
-        Args:
-        - inc (float): Inclination angle in degrees.
-        - lon_0 (float): Longitude angle in degrees.
-        - n_c (int): Number of longitudinal grid points.
-        - n_theta (int): Number of latitudinal grid points.
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        inc (float): 
+            Inclination angle in degrees.
+        lon_0 (float): 
+            Longitude angle in degrees.
+        n_c (int): 
+            Number of longitudinal grid points.
+        n_theta (int): 
+            Number of latitudinal grid points.
+        **kwargs: 
+            Additional keyword arguments.
         """
         # (Partially) adopted from Carvalho & Johns-Krull (2023)
         self.inc   = np.deg2rad(inc)
@@ -105,8 +112,9 @@ class IntRotationProfile:
         """
         Computes coordinates on a grid for integration.
 
-        Args:
-        - sampling_factor (float): Factor to adjust grid sampling density.
+        Parameters:
+        sampling_factor (float): 
+            Factor to adjust grid sampling density.
         """
         # Compute coordinates on a finer grid
         n_c     = self.n_c * int(sampling_factor)
@@ -198,9 +206,11 @@ class IntRotationProfile:
         """
         Adds a longitudinal band of brightness scaling.
 
-        Args:
-        - params (dict): Parameters for the band.
-        - band_suffix (str): Suffix for distinguishing multiple bands.
+        Parameters:
+        params (dict): 
+            Parameters for the band.
+        band_suffix (str): 
+            Suffix for distinguishing multiple bands.
         """
         lon_band_upper = params.get(f'lon_band_upper{band_suffix}')
         lon_band_lower = params.get(f'lon_band_lower{band_suffix}')
@@ -256,9 +266,11 @@ class IntRotationProfile:
         """
         Adds a latitudinal band of brightness scaling.
 
-        Args:
-        - params (dict): Parameters for the band.
-        - band_suffix (str): Suffix for distinguishing multiple bands.
+        Parameters:
+        params (dict): 
+            Parameters for the band.
+        band_suffix (str): 
+            Suffix for distinguishing multiple bands.
         """
         lat_band_upper = params.get(f'lat_band_upper{band_suffix}')
         lat_band_lower = params.get(f'lat_band_lower{band_suffix}')
@@ -309,9 +321,11 @@ class IntRotationProfile:
         """
         Adds a projected spot on the grid.
 
-        Args:
-        - params (dict): Parameters for the spot.
-        - spot_suffix (str): Suffix for distinguishing multiple spots.
+        Parameters:
+        params (dict): 
+            Parameters for the spot.
+        spot_suffix (str): 
+            Suffix for distinguishing multiple spots.
         """
         # Add a spot in polar/Cartesian coordinates
         r_spot      = params.get(f'r_spot{spot_suffix}')
@@ -350,9 +364,11 @@ class IntRotationProfile:
         """
         Adds a spot defined by latitude and longitude.
 
-        Args:
-        - params (dict): Parameters for the spot.
-        - spot_suffix (str): Suffix for distinguishing multiple spots.
+        Parameters:
+        params (dict): 
+            Parameters for the spot.
+        spot_suffix (str): 
+            Suffix for distinguishing multiple spots.
         """
         # Revert to a single spot
         epsilon_spot = params.get(f'epsilon_spot{spot_suffix}', 1)
@@ -409,9 +425,11 @@ class IntRotationProfile:
         """
         Computes the brightness distribution over the grid.
 
-        Args:
-        - params (dict): Parameters for brightness computation.
-        - max_features (int): Maximum number of features (spots or bands) to add.
+        Parameters:
+        params (dict): 
+            Parameters for brightness computation.
+        max_features (int): 
+            Maximum number of features (spots or bands) to add.
         """
         # Compute velocity-grid
         vsini = params.get('vsini', 0)
@@ -485,15 +503,21 @@ class IntRotationProfile:
         """
         Broadens the input spectrum due to rotational effects.
 
-        Args:
-        - wave (array): Wavelength array of the input spectrum.
-        - flux (array): Flux array of the input spectrum.
-        - params (dict): Parameters for rotational broadening.
-        - get_scaling (bool): If True, also compute and return the scaling factor.
+        Parameters:
+        wave (array): 
+            Wavelength array of the input spectrum.
+        flux (array): 
+            Flux array of the input spectrum.
+        params (dict): 
+            Parameters for rotational broadening.
+        get_scaling (bool): 
+            If True, also compute and return the scaling factor.
 
         Returns:
-        - wave (array): The input wavelength array.
-        - flux_rot_broad (array): Rotational-broadened flux array.
+        wave (array): 
+            The input wavelength array.
+        flux_rot_broad (array): 
+            Rotational-broadened flux array.
         """
         # Flux-scaling grid
         #self.get_brightness(params)

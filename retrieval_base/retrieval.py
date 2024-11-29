@@ -25,7 +25,17 @@ import retrieval_base.figures as figs
 import retrieval_base.auxiliary_functions as af
 
 def pre_processing(conf, conf_data, m_set):
+    """
+    Pre-process the data and set up the pRT model.
 
+    Parameters:
+    conf (object): 
+        Configuration object.
+    conf_data (dict): 
+        Configuration data dictionary.
+    m_set (str): 
+        Model setting identifier.
+    """
     # Set up the output directories
     af.create_output_dir(conf.prefix, conf.file_params)
 
@@ -239,9 +249,20 @@ def pre_processing(conf, conf_data, m_set):
     af.pickle_save(conf.prefix+f'data/pRT_atm_{m_set}.pkl', pRT_atm)
 
 class Retrieval:
+    """
+    Class for handling the retrieval process.
+    """
 
     def __init__(self, conf, evaluation):
+        """
+        Initialize the Retrieval class.
 
+        Parameters:
+        conf (object): 
+            Configuration object.
+        evaluation (bool): 
+            Flag indicating if evaluation mode is active.
+        """
         self.conf = conf
         self.evaluation = evaluation
 
@@ -366,7 +387,19 @@ class Retrieval:
         self.LogLike_species = None
 
     def get_PT_mf(self, m_set, Param_i):
+        """
+        Retrieve the PT profile and mass fractions.
 
+        Parameters:
+        m_set (str): 
+            Model setting identifier.
+        Param_i (object): 
+            Parameter instance.
+
+        Returns:
+        tuple or float: 
+            Temperature and mass fractions or -np.inf if failed.
+        """
         # Retrieve the temperatures
         try:
             temperature = self.PT[m_set](Param_i.params)
@@ -394,7 +427,21 @@ class Retrieval:
         return temperature, mass_fractions
         
     def PMN_lnL_func(self, cube=None, ndim=None, nparams=None):
+        """
+        Compute the log-likelihood function for MultiNest.
 
+        Parameters:
+        cube (array, optional): 
+            Parameter cube.
+        ndim (int, optional): 
+            Number of dimensions.
+        nparams (int, optional): 
+            Number of parameters.
+
+        Returns:
+        float: 
+            Log-likelihood value.
+        """
         time_A = time.time()
 
         # Param.params dictionary is already updated
@@ -498,7 +545,21 @@ class Retrieval:
         return ln_L
     
     def parallel_for_loop(self, func, iterable, **kwargs):
+        """
+        Parallel for loop using MPI.
 
+        Parameters:
+        func (function): 
+            Function to apply.
+        iterable (iterable): 
+            Iterable to loop over.
+        **kwargs: 
+            Additional keyword arguments.
+
+        Returns:
+        list: 
+            Combined results from all processes.
+        """
         n_iter = len(iterable)
         n_procs = comm.Get_size()
         
@@ -549,7 +610,15 @@ class Retrieval:
         return flat_all_returned
 
     def get_PT_mf_envelopes(self, posterior, m_set):
+        """
+        Get the PT profile and mass fractions envelopes.
 
+        Parameters:
+        posterior (array): 
+            Posterior distribution.
+        m_set (str): 
+            Model setting identifier.
+        """
         # Return the PT profile and mass fractions
         #self.CB.return_PT_mf = {m_set: True for m_set in self.model_settings.keys()}
 
@@ -672,7 +741,9 @@ class Retrieval:
         #self.CB.return_PT_mf = False
 
     def get_species_contribution(self):
-
+        """
+        Assess the species' contribution to the spectrum.
+        """
         self.m_spec_species  = dict.fromkeys(self.d_spec.keys(), {})
         self.pRT_atm_species = dict.fromkeys(self.d_spec.keys(), {})
 
@@ -729,7 +800,19 @@ class Retrieval:
                 dict.fromkeys(self.Chem[m_set].neglect_species, False)
 
     def get_all_spectra(self, posterior, save_spectra=False):
+        """
+        Get all spectra from the posterior distribution.
 
+        Parameters:
+        posterior (array): 
+            Posterior distribution.
+        save_spectra (bool, optional): 
+            Flag to save spectra.
+
+        Returns:
+        array: 
+            Flux envelope.
+        """
         if os.path.exists(self.conf.prefix+'data/m_flux_envelope.npy'):
             
             # Load the model spectrum envelope if it was computed before
@@ -836,7 +919,31 @@ class Retrieval:
                           ln_Z_err, 
                           nullcontext
                           ):
+        """
+        Callback function for MultiNest.
 
+        Parameters:
+        n_samples (int): 
+            Number of samples.
+        n_live (int): 
+            Number of live points.
+        n_params (int): 
+            Number of parameters.
+        live_points (array): 
+            Live points.
+        posterior (array): 
+            Posterior distribution.
+        stats (dict): 
+            Statistics.
+        max_ln_L (float): 
+            Maximum log-likelihood.
+        ln_Z (float): 
+            Log-evidence.
+        ln_Z_err (float): 
+            Log-evidence error.
+        nullcontext (context): 
+            Null context.
+        """
         self.CB.active = True
 
         if self.evaluation:
@@ -918,7 +1025,9 @@ class Retrieval:
             )
 
     def PMN_run(self):
-        
+        """
+        Run the MultiNest retrieval.
+        """
         # Pause the process to not overload memory on start-up
         time.sleep(0.3*rank*len(self.d_spec))
 

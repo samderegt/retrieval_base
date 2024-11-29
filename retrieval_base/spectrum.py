@@ -48,7 +48,19 @@ class Spectrum:
     n_pixels = 2048
 
     def __init__(self, wave, flux, err=None, w_set='K2166'):
+        """
+        Initialize the Spectrum class.
 
+        Parameters:
+        wave (array): 
+            Wavelength array.
+        flux (array): 
+            Flux array.
+        err (array, optional): 
+            Error array.
+        w_set (str, optional): 
+            Wavelength set identifier.
+        """
         self.wave = wave
         self.flux = flux
         self.err  = err
@@ -63,7 +75,13 @@ class Spectrum:
         self.high_pass_filtered = False
 
     def update_isfinite_mask(self, array=None):
+        """
+        Update the mask for finite values.
 
+        Parameters:
+        array (array, optional): 
+            Array to check for finite values.
+        """
         if array is None:
             self.mask_isfinite = np.isfinite(self.flux)
         else:
@@ -71,7 +89,21 @@ class Spectrum:
         self.n_data_points = self.mask_isfinite.sum()
 
     def rv_shift(self, rv, wave=None, replace_wave=False):
+        """
+        Apply a radial velocity shift to the wavelength array.
 
+        Parameters:
+        rv (float): 
+            Radial velocity in km/s.
+        wave (array, optional): 
+            Wavelength array to shift.
+        replace_wave (bool, optional): 
+            If True, replace the current wavelength array.
+
+        Returns:
+        array: 
+            Radial velocity shifted wavelength array.
+        """
         # Use the supplied wavelengths
         if wave is None:
             wave = np.copy(self.wave)
@@ -94,7 +126,25 @@ class Spectrum:
             sigma=301, 
             polyorder=2
             ):
+        """
+        Apply a high-pass filter to the flux array.
 
+        Parameters:
+        removal_mode (str, optional): 
+            Mode of removal ('divide' or 'subtract').
+        filter_mode (str, optional): 
+            Filter mode ('gaussian' or 'savgol').
+        replace_flux_err (bool, optional): 
+            If True, replace the current flux and error arrays.
+        sigma (int, optional): 
+            Sigma value for the filter.
+        polyorder (int, optional): 
+            Polynomial order for the Savitzky-Golay filter.
+
+        Returns:
+        tuple: 
+            High-pass filtered flux and error arrays.
+        """
         # Prepare an array of low-frequency structure
         low_pass_flux = np.ones_like(self.flux) * np.nan
 
@@ -143,7 +193,23 @@ class Spectrum:
         return high_pass_flux, high_pass_err
 
     def sigma_clip_poly(self, sigma=5, poly_deg=1, replace_flux=True, prefix=None):
+        """
+        Apply sigma clipping using a polynomial fit.
 
+        Parameters:
+        sigma (float, optional): 
+            Sigma threshold for clipping.
+        poly_deg (int, optional): 
+            Degree of the polynomial fit.
+        replace_flux (bool, optional): 
+            If True, replace the current flux array.
+        prefix (str, optional): 
+            Prefix for the output plot.
+
+        Returns:
+        array: 
+            Sigma-clipped flux array.
+        """
         flux_copy = self.flux.copy()
 
         sigma_clip_bounds = np.ones((3, self.n_orders, 3*self.n_pixels)) * np.nan
@@ -204,7 +270,23 @@ class Spectrum:
         return flux_copy
 
     def sigma_clip_median_filter(self, sigma=3, filter_width=3, replace_flux=True, prefix=None):
+        """
+        Apply sigma clipping using a median filter.
 
+        Parameters:
+        sigma (float, optional): 
+            Sigma threshold for clipping.
+        filter_width (int, optional): 
+            Width of the median filter.
+        replace_flux (bool, optional): 
+            If True, replace the current flux array.
+        prefix (str, optional): 
+            Prefix for the output plot.
+
+        Returns:
+        array: 
+            Sigma-clipped flux array.
+        """
         flux_copy = self.flux.copy()
         sigma_clip_bounds = np.ones((3, self.n_orders, 3*self.n_pixels)) * np.nan
 
@@ -261,7 +343,25 @@ class Spectrum:
         return flux_copy
 
     def rot_broadening_convolution(self, vsini, epsilon_limb=0, wave=None, flux=None, replace_wave_flux=False):
+        """
+        Apply rotational broadening to the spectrum.
 
+        Parameters:
+        vsini (float): 
+            Rotational velocity in km/s.
+        epsilon_limb (float, optional): 
+            Limb darkening coefficient.
+        wave (array, optional): 
+            Wavelength array.
+        flux (array, optional): 
+            Flux array.
+        replace_wave_flux (bool, optional): 
+            If True, replace the current wavelength and flux arrays.
+
+        Returns:
+        tuple or array: 
+            Rotationally broadened wavelength and flux arrays.
+        """
         if wave is None:
             wave = self.wave
         if flux is None:
@@ -287,7 +387,23 @@ class Spectrum:
 
     @classmethod
     def instr_broadening(cls, wave, flux, out_res=1e6, in_res=1e6):
+        """
+        Apply instrumental broadening to the spectrum.
 
+        Parameters:
+        wave (array): 
+            Wavelength array.
+        flux (array): 
+            Flux array.
+        out_res (float, optional): 
+            Output resolution.
+        in_res (float, optional): 
+            Input resolution.
+
+        Returns:
+        array: 
+            Instrumentally broadened flux array.
+        """
         # Delta lambda of resolution element is FWHM of the LSF's standard deviation
         sigma_LSF = np.sqrt(1/out_res**2 - 1/in_res**2) / \
                     (2*np.sqrt(2*np.log(2)))
@@ -305,7 +421,21 @@ class Spectrum:
     
     @classmethod
     def spectrally_weighted_integration(cls, wave, flux, array):
+        """
+        Perform spectrally weighted integration.
 
+        Parameters:
+        wave (array): 
+            Wavelength array.
+        flux (array): 
+            Flux array.
+        array (array): 
+            Array to integrate.
+
+        Returns:
+        float: 
+            Spectrally weighted integral.
+        """
         # Integrate and weigh the array by the spectrum
         integral1 = np.trapz(wave*flux*array, wave)
         integral2 = np.trapz(wave*flux, wave)
@@ -328,7 +458,35 @@ class DataSpectrum(Spectrum):
                  wave_range=(1900,2500), 
                  w_set='K2166', 
                  ):
+        """
+        Initialize the DataSpectrum class.
 
+        Parameters:
+        wave (array): 
+            Wavelength array.
+        flux (array): 
+            Flux array.
+        err (array): 
+            Error array.
+        ra (float): 
+            Right ascension.
+        dec (float): 
+            Declination.
+        mjd (float): 
+            Modified Julian Date.
+        pwv (float): 
+            Precipitable water vapor.
+        file_target (str, optional): 
+            File path for the target spectrum.
+        file_wave (str, optional): 
+            File path for the wavelength data.
+        slit (str, optional): 
+            Slit identifier.
+        wave_range (tuple, optional): 
+            Wavelength range.
+        w_set (str, optional): 
+            Wavelength set identifier.
+        """
         if file_target is not None:
             wave, flux, err = self.load_spectrum_excalibuhr(file_target, file_wave)
         
@@ -358,7 +516,19 @@ class DataSpectrum(Spectrum):
         self.flux_eff = np.array([[None]*self.n_dets]*self.n_orders)
 
     def load_spectrum_excalibuhr(self, file_target, file_wave=None):
+        """
+        Load the spectrum from Excalibuhr.
 
+        Parameters:
+        file_target (str or list): 
+            File path(s) for the target spectrum.
+        file_wave (str, optional): 
+            File path for the wavelength data.
+
+        Returns:
+        tuple: 
+            Wavelength, flux, and error arrays.
+        """
         # Load in the data of the target
         if not isinstance(file_target, (list, np.ndarray)):
             wave, flux, err = np.loadtxt(file_target).T
@@ -398,7 +568,9 @@ class DataSpectrum(Spectrum):
         return wave, flux, err
 
     def crop_spectrum(self):
-
+        """
+        Crop the spectrum to the specified wavelength range.
+        """
         # Crop the spectrum to within a given wavelength range
         mask_wave = (self.wave >= self.wave_range[0]) & \
                     (self.wave <= self.wave_range[1])
@@ -406,7 +578,13 @@ class DataSpectrum(Spectrum):
         self.flux[~mask_wave] = np.nan
 
     def mask_ghosts(self, wave_to_mask=None):
-        
+        """
+        Mask ghost lines in the spectrum.
+
+        Parameters:
+        wave_to_mask (list, optional): 
+            List of wavelength ranges to mask.
+        """
         # Mask user-specified lines
         if wave_to_mask is not None:
             for (wave_min, wave_max) in wave_to_mask:
@@ -426,7 +604,19 @@ class DataSpectrum(Spectrum):
             self.flux[mask_wave] = np.nan
 
     def bary_corr(self, replace_wave=True, return_v_bary=False):
+        """
+        Apply barycentric correction to the wavelength array.
 
+        Parameters:
+        replace_wave (bool, optional): 
+            If True, replace the current wavelength array.
+        return_v_bary (bool, optional): 
+            If True, return the barycentric velocity.
+
+        Returns:
+        array or float: 
+            Barycentric corrected wavelength array or barycentric velocity.
+        """
         # Barycentric velocity (using Paranal coordinates)
         self.v_bary, _ = pyasl.helcorr(obs_long=-70.40, obs_lat=-24.62, obs_alt=2635, 
                                        ra2000=self.ra, dec2000=self.dec, 
@@ -441,7 +631,9 @@ class DataSpectrum(Spectrum):
         return wave_shifted
 
     def reshape_orders_dets(self):
-
+        """
+        Reshape the spectrum into orders and detectors.
+        """
         # Ordered arrays of shape (n_orders, n_dets, n_pixels)
         wave_ordered = np.ones((self.n_orders, self.n_dets, self.n_pixels)) * np.nan
         flux_ordered = np.copy(wave_ordered)
@@ -483,7 +675,9 @@ class DataSpectrum(Spectrum):
         self.update_isfinite_mask()
 
     def clear_empty_orders_dets(self):
-
+        """
+        Remove empty orders and detectors from the spectrum.
+        """
         # If all pixels are NaNs within an order...
         mask_empty = (~np.isfinite(self.flux)).all(axis=(1,2))
         
@@ -502,7 +696,13 @@ class DataSpectrum(Spectrum):
         self.n_orders, self.n_dets, self.n_pixels = self.flux.shape
 
     def prepare_for_covariance(self, prepare_err_eff=False):
+        """
+        Prepare the spectrum for covariance calculation.
 
+        Parameters:
+        prepare_err_eff (bool, optional): 
+            If True, prepare the effective error array.
+        """
         # Make a nested array of ndarray objects with different shapes
         self.separation = np.empty((self.n_orders, self.n_dets), dtype=object)
 
@@ -538,7 +738,13 @@ class DataSpectrum(Spectrum):
                     #self.flux_eff[i,j] = np.sqrt(1/2*(flux_ij[None,:]**2 + flux_ij[:,None]**2))              
 
     def clip_det_edges(self, n_edge_pixels=30):
-        
+        """
+        Clip the edges of the detectors.
+
+        Parameters:
+        n_edge_pixels (int, optional): 
+            Number of edge pixels to clip.
+        """
         # Loop over the orders and detectors
         for i in range(self.n_orders):
             for j in range(self.n_dets):
@@ -562,7 +768,17 @@ class DataSpectrum(Spectrum):
         self.update_isfinite_mask()
 
     def load_molecfit_transm(self, file_transm, file_continuum=None, T=10000):
+        """
+        Load the transmission spectrum from Molecfit.
 
+        Parameters:
+        file_transm (str): 
+            File path for the transmission spectrum.
+        file_continuum (str, optional): 
+            File path for the continuum data.
+        T (float, optional): 
+            Temperature for the Planck spectrum.
+        """
         # Load the pre-computed transmission from molecfit
         self.wave_transm, self.transm = np.loadtxt(file_transm).T
 
@@ -588,7 +804,25 @@ class DataSpectrum(Spectrum):
     def get_transm(
             self, T=10000, log_g=3.5, ref_rv=0, ref_vsini=1, mode='bb', 
             ):
+        """
+        Retrieve the transmission spectrum.
 
+        Parameters:
+        T (float, optional): 
+            Temperature for the reference spectrum.
+        log_g (float, optional): 
+            Logarithm of the surface gravity.
+        ref_rv (float, optional): 
+            Reference radial velocity.
+        ref_vsini (float, optional): 
+            Reference rotational velocity.
+        mode (str, optional): 
+            Mode for the reference spectrum ('bb' or 'PHOENIX').
+
+        Returns:
+        array: 
+            Transmission spectrum.
+        """
         lines_to_mask = [1282.0, 1945.09,2166.12]
         mask_width = [7, 10,10]
         #mask_width = [7, 10,30]
@@ -652,7 +886,15 @@ class DataSpectrum(Spectrum):
         self.transm_err /= np.nanmax(self.flux / ref_flux)
 
     def add_transm(self, transm, transm_err):
-        
+        """
+        Add transmission spectrum to the instance.
+
+        Parameters:
+        transm (array): 
+            Transmission spectrum.
+        transm_err (array): 
+            Transmission error spectrum.
+        """
         # Add transmission (e.g. from another instance) as attributes
         self.transm     = transm
         self.transm_err = transm_err
@@ -670,7 +912,29 @@ class DataSpectrum(Spectrum):
             file_skycalc_transm=None, 
             molecfit=False
             ):
+        """
+        Apply flux calibration using 2MASS photometry.
 
+        Parameters:
+        photom_2MASS (Photometry): 
+            Instance of the Photometry class.
+        filter_2MASS (str): 
+            2MASS filter identifier.
+        tell_threshold (float, optional): 
+            Threshold for telluric correction.
+        replace_flux_err (bool, optional): 
+            If True, replace the current flux and error arrays.
+        prefix (str, optional): 
+            Prefix for the output plot.
+        file_skycalc_transm (str, optional): 
+            File path for the SkyCalc transmission spectrum.
+        molecfit (bool, optional): 
+            If True, use Molecfit for telluric correction.
+
+        Returns:
+        tuple: 
+            Calibrated flux and error arrays.
+        """
         if molecfit:
 
             # Apply correction for telluric transmission
@@ -782,7 +1046,19 @@ class DataSpectrum(Spectrum):
         return calib_flux, calib_err
 
     def get_skycalc_transm(self, resolution_skycalc=2e5, file_skycalc_transm=None):
+        """
+        Retrieve the SkyCalc transmission spectrum.
 
+        Parameters:
+        resolution_skycalc (float, optional): 
+            Resolution for SkyCalc.
+        file_skycalc_transm (str, optional): 
+            File path for the SkyCalc transmission spectrum.
+
+        Returns:
+        tuple: 
+            Wavelength and transmission arrays.
+        """
         if file_skycalc_transm is not None:
             if os.path.exists(file_skycalc_transm):
                 # Load the skycalc transmissivity
@@ -844,7 +1120,21 @@ class ModelSpectrum(Spectrum):
                  multiple_orders=False, 
                  high_pass_filtered=False, 
                  ):
+        """
+        Initialize the ModelSpectrum class.
 
+        Parameters:
+        wave (array): 
+            Wavelength array.
+        flux (array): 
+            Flux array.
+        lbl_opacity_sampling (int, optional): 
+            Opacity sampling for line-by-line mode.
+        multiple_orders (bool, optional): 
+            If True, the instance contains multiple orders.
+        high_pass_filtered (bool, optional): 
+            If True, the flux array is high-pass filtered.
+        """
         super().__init__(wave, flux)
 
         if multiple_orders:
@@ -869,7 +1159,19 @@ class ModelSpectrum(Spectrum):
         self.resolution = int(1e6/lbl_opacity_sampling)
 
     def rebin(self, d_wave, replace_wave_flux=False):
+        """
+        Rebin the spectrum onto a new wavelength grid.
 
+        Parameters:
+        d_wave (array): 
+            New wavelength grid.
+        replace_wave_flux (bool, optional): 
+            If True, replace the current wavelength and flux arrays.
+
+        Returns:
+        array: 
+            Rebinned flux array.
+        """
         # Interpolate onto the observed spectrum's wavelength grid
         flux_rebinned = np.interp(d_wave, xp=self.wave, fp=self.flux)
 
@@ -891,7 +1193,29 @@ class ModelSpectrum(Spectrum):
                             d_wave=None, 
                             rebin=True, 
                             ):
+        """
+        Apply Doppler shift, rotational broadening, and rebinning to the spectrum.
 
+        Parameters:
+        rv (float): 
+            Radial velocity in km/s.
+        vsini (float): 
+            Rotational velocity in km/s.
+        epsilon_limb (float, optional): 
+            Limb darkening coefficient.
+        out_res (float, optional): 
+            Output resolution.
+        in_res (float, optional): 
+            Input resolution.
+        d_wave (array, optional): 
+            New wavelength grid.
+        rebin (bool, optional): 
+            If True, rebin the spectrum.
+
+        Returns:
+        array: 
+            Processed flux array.
+        """
         # Apply Doppler shift, rotational/instrumental broadening, 
         # and rebin onto a new wavelength grid
         self.rv_shift(rv, replace_wave=True)
@@ -907,7 +1231,13 @@ class ModelSpectrum(Spectrum):
 class Photometry:
 
     def __init__(self, magnitudes):
+        """
+        Initialize the Photometry class.
 
+        Parameters:
+        magnitudes (dict): 
+            Dictionary of magnitudes for different filters.
+        """
         # Magnitudes of 2MASS, MKO, WISE, etc.
         self.magnitudes = magnitudes
         # Filter names
@@ -920,7 +1250,13 @@ class Photometry:
         self.get_transm_curves()
 
     def mag_to_flux_conversion(self):
+        """
+        Convert magnitudes to fluxes.
 
+        Returns:
+        dict: 
+            Dictionary of fluxes for different filters.
+        """
         # Mag-to-flux conversion using the species package
         import species
         species.SpeciesInit()
@@ -939,7 +1275,9 @@ class Photometry:
         return self.fluxes
 
     def get_transm_curves(self):
-
+        """
+        Retrieve the transmission curves for the filters.
+        """
         self.transm_curves = {}
         if os.path.exists('./transm_curves.pk'):
             # Read the filter information
@@ -983,4 +1321,6 @@ class Photometry:
 
             # Save the requested transmission curves
             with open('transm_curves.pk', 'wb') as outp:
+                pickle.dump(self.transm_curves, outp, pickle.HIGHEST_PROTOCOL)
+
                 pickle.dump(self.transm_curves, outp, pickle.HIGHEST_PROTOCOL)

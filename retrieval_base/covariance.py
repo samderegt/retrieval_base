@@ -5,12 +5,15 @@ def get_Covariance_class(err, **kwargs):
     """
     Factory function to instantiate either a GaussianProcesses or Covariance class based on 'cov_mode'.
 
-    Args:
-    - err (np.ndarray): Array of uncertainties.
-    - **kwargs: Additional keyword arguments passed to the chosen class.
+    Parameters:
+    err (np.ndarray): 
+        Array of uncertainties.
+    **kwargs: 
+        Additional keyword arguments passed to the chosen class.
 
     Returns:
-    - Instance of either GaussianProcesses or Covariance class.
+    Covariance: 
+        Instance of either GaussianProcesses or Covariance class.
     """
     if kwargs.get('cov_mode') == 'GP':
         # Use a GaussianProcesses instance
@@ -28,9 +31,11 @@ class Covariance:
         """
         Initialize Covariance class.
 
-        Args:
-        - err (np.ndarray): Array of uncertainties.
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        err (np.ndarray): 
+            Array of uncertainties.
+        **kwargs: 
+            Additional keyword arguments.
         """
         # Set up the covariance matrix
         self.err = err
@@ -43,14 +48,18 @@ class Covariance:
         """
         Callable method to handle covariance matrix operations.
 
-        Args:
-        - params (dict): Parameters for covariance operation.
-        - w_set (str): Key for accessing specific parameters.
-        - order (int): Order of the parameter.
-        - det (int): Detector number.
+        Parameters:
+        params (dict): 
+            Parameters for covariance operation.
+        w_set (str): 
+            Key for accessing specific parameters.
+        order (int): 
+            Order of the parameter.
+        det (int): 
+            Detector number.
 
         Returns:
-        - None
+        None
         """
         # Reset the covariance matrix
         self.cov_reset()
@@ -68,7 +77,7 @@ class Covariance:
         Reset covariance matrix to initial state based on input uncertainties.
 
         Returns:
-        - None
+        None
         """
         # Create the covariance matrix from the uncertainties
         self.cov = self.err**2
@@ -79,11 +88,12 @@ class Covariance:
         """
         Scale the covariance matrix by a given factor beta.
 
-        Args:
-        - beta (float): Scaling factor.
+        Parameters:
+        beta (float): 
+            Scaling factor.
 
         Returns:
-        - None
+        None
         """
         # Scale the uncertainty with a (beta) factor
         if not self.is_matrix:
@@ -95,11 +105,12 @@ class Covariance:
         """
         Add a model uncertainty term to the covariance matrix.
 
-        Args:
-        - model_err (float): Model uncertainty value.
+        Parameters:
+        model_err (float): 
+            Model uncertainty value.
 
         Returns:
-        - None
+        None
         """
         # Add a model uncertainty term
         if not self.is_matrix:
@@ -112,7 +123,8 @@ class Covariance:
         Calculate the log determinant of the covariance matrix.
 
         Returns:
-        - logdet (float): Log determinant of the covariance matrix.
+        float: 
+            Log determinant of the covariance matrix.
         """
         self.logdet = np.sum(np.log(self.cov))
         return self.logdet
@@ -121,11 +133,13 @@ class Covariance:
         """
         Solve the system cov*x = b for x (x = cov^{-1}*b).
 
-        Args:
-        - b (np.ndarray): Right-hand side of cov*x = b.
+        Parameters:
+        b (np.ndarray): 
+            Right-hand side of cov*x = b.
 
         Returns:
-        - x (np.ndarray): Solution x for the equation cov*x = b.
+        np.ndarray: 
+            Solution x for the equation cov*x = b.
         """
         if self.is_matrix:
             return np.linalg.solve(self.cov, b)
@@ -138,7 +152,8 @@ class Covariance:
         Return the dense representation of the covariance matrix.
 
         Returns:
-        - cov (np.ndarray): Dense representation of the covariance matrix.
+        np.ndarray: 
+            Dense representation of the covariance matrix.
         """
         if self.is_matrix:
             return self.cov
@@ -154,14 +169,19 @@ class GaussianProcesses(Covariance):
         """
         Create a banded covariance matrix representation.
 
-        Args:
-        - array (np.ndarray): Input array for covariance matrix.
-        - max_value (float): Maximum value for the banded matrix.
-        - pad_value (float): Padding value for the banded matrix.
-        - n_pixels (int): Number of pixels.
+        Parameters:
+        array (np.ndarray): 
+            Input array for covariance matrix.
+        max_value (float, optional): 
+            Maximum value for the banded matrix.
+        pad_value (float, optional): 
+            Padding value for the banded matrix.
+        n_pixels (int, optional): 
+            Number of pixels.
 
         Returns:
-        - banded_array (np.ndarray): Banded representation of the covariance matrix.
+        np.ndarray: 
+            Banded representation of the covariance matrix.
         """
         # Make banded covariance matrix
         banded_array = []
@@ -206,13 +226,19 @@ class GaussianProcesses(Covariance):
         """
         Initialize GaussianProcesses class.
 
-        Args:
-        - err (np.ndarray): Array of uncertainties.
-        - separation (np.ndarray): Separation between pixels.
-        - err_eff (np.ndarray): Average squared error between pixels.
-        - flux_eff (np.ndarray): Flux effectiveness.
-        - max_separation (float): Maximum separation value.
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        err (np.ndarray): 
+            Array of uncertainties.
+        separation (np.ndarray): 
+            Separation between pixels.
+        err_eff (np.ndarray, optional): 
+            Average squared error between pixels.
+        flux_eff (np.ndarray, optional): 
+            Flux effectiveness.
+        max_separation (float, optional): 
+            Maximum separation value.
+        **kwargs: 
+            Additional keyword arguments.
         """
         # Pre-computed average error and wavelength separation
         self.separation = np.abs(separation)
@@ -231,15 +257,20 @@ class GaussianProcesses(Covariance):
         """
         Callable method to handle Gaussian processes and covariance operations.
 
-        Args:
-        - params (dict): Parameters for covariance operation.
-        - w_set (str): Key for accessing specific parameters.
-        - order (int): Order of the parameter.
-        - det (int): Detector number.
-        - **kwargs: Additional keyword arguments.
+        Parameters:
+        params (dict): 
+            Parameters for covariance operation.
+        w_set (str): 
+            Key for accessing specific parameters.
+        order (int, optional): 
+            Order of the parameter.
+        det (int, optional): 
+            Detector number.
+        **kwargs: 
+            Additional keyword arguments.
 
         Returns:
-        - None
+        None
         """
         # Reset the covariance matrix
         self.cov_reset()
@@ -267,7 +298,7 @@ class GaussianProcesses(Covariance):
         Reset covariance matrix to initial state for Gaussian processes.
 
         Returns:
-        - None
+        None
         """
         # Create the covariance matrix from the uncertainties
         self.cov = np.zeros_like(self.separation)
@@ -278,15 +309,20 @@ class GaussianProcesses(Covariance):
         """
         Add a radial-basis function (RBF) kernel to the covariance matrix.
 
-        Args:
-        - a (float): Square-root of amplitude of the RBF kernel.
-        - l (float): Length-scale of the RBF kernel.
-        - array (np.ndarray): Input array for covariance matrix.
-        - trunc_dist (float): Truncation distance for the kernel.
-        - scale_GP_amp (bool): Flag to scale the amplitude of the kernel.
+        Parameters:
+        a (float): 
+            Square-root of amplitude of the RBF kernel.
+        l (float): 
+            Length-scale of the RBF kernel.
+        array (np.ndarray): 
+            Input array for covariance matrix.
+        trunc_dist (float, optional): 
+            Truncation distance for the kernel.
+        scale_GP_amp (bool, optional): 
+            Flag to scale the amplitude of the kernel.
 
         Returns:
-        - None
+        None
         """
         # Hann window function to ensure sparsity
         w_ij = (self.separation < trunc_dist*l)
@@ -308,7 +344,7 @@ class GaussianProcesses(Covariance):
         Get the Cholesky decomposition of the covariance matrix.
 
         Returns:
-        - None
+        None
         """
         self.cov = self.cov[(self.cov!=0).any(axis=1),:]
         # Compute banded Cholesky decomposition
@@ -321,7 +357,8 @@ class GaussianProcesses(Covariance):
         Calculate the log determinant of the covariance matrix for Gaussian processes.
 
         Returns:
-        - logdet (float): Log determinant of the covariance matrix.
+        float: 
+            Log determinant of the covariance matrix.
         """
         self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
         return self.logdet
@@ -330,11 +367,13 @@ class GaussianProcesses(Covariance):
         """
         Solve the system cov*x = b for x (x = cov^{-1}*b) for Gaussian processes.
 
-        Args:
-        - b (np.ndarray): Right-hand side of cov*x = b.
+        Parameters:
+        b (np.ndarray): 
+            Right-hand side of cov*x = b.
 
         Returns:
-        - x (np.ndarray): Solution x for the equation cov*x = b.
+        np.ndarray: 
+            Solution x for the equation cov*x = b.
         """
         return cho_solve_banded((self.cov_cholesky, True), b)
     
@@ -343,7 +382,8 @@ class GaussianProcesses(Covariance):
         Return the dense representation of the covariance matrix for Gaussian processes.
 
         Returns:
-        - cov (np.ndarray): Dense representation of the covariance matrix.
+        np.ndarray: 
+            Dense representation of the covariance matrix.
         """
         # Full covariance matrix
         cov_full = np.zeros((self.cov.shape[1], self.cov.shape[1]))

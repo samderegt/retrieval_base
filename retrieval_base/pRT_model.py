@@ -9,6 +9,9 @@ from .clouds import get_Cloud_class
 from .opacity import LineOpacity
 
 class pRT_model:
+    """
+    Class for handling pRT models.
+    """
 
     def __init__(self, 
                  line_species, 
@@ -29,33 +32,45 @@ class pRT_model:
                  do_scat_emis=False, 
                  line_opacity_kwargs=None, 
                  ):
-        '''
-        Create instance of the pRT_model class.
+        """
+        Initialize the pRT_model class.
 
-        Input
-        -----
-        line_species : list
+        Parameters:
+        line_species (list): 
             Names of line-lists to include.
-        d_spec : DataSpectrum
+        d_spec (DataSpectrum): 
             Instance of the DataSpectrum class.
-        mode : str
+        mode (str): 
             pRT mode to use, can be 'lbl' or 'c-k'.
-        lbl_opacity_sampling : int
+        lbl_opacity_sampling (int): 
             Let pRT sample every n-th datapoint.
-        cloud_species : list or None
-            Chemical cloud species to include. 
-        rayleigh_species : list
+        cloud_species (list or None): 
+            Chemical cloud species to include.
+        rayleigh_species (list): 
             Rayleigh-scattering species.
-        continuum_opacities : list
+        continuum_opacities (list): 
             CIA-induced absorption species.
-        log_P_range : tuple or list
+        log_P_range (tuple or list): 
             Logarithm of modelled pressure range.
-        n_atm_layers : int
+        n_atm_layers (int): 
             Number of atmospheric layers to model.
-        cloud_mode : None or str
+        cloud_mode (None or str): 
             Cloud mode to use, can be 'MgSiO3', 'gray' or None.
-        
-        '''
+        rv_range (tuple): 
+            Range of radial velocities to consider.
+        vsini_range (tuple): 
+            Range of rotational velocities to consider.
+        rotation_mode (str): 
+            Mode of rotation to use, can be 'convolve' or 'integrate'.
+        inclination (float): 
+            Inclination angle in degrees.
+        sum_m_spec (bool): 
+            If True, sum the model spectra.
+        do_scat_emis (bool): 
+            If True, include scattering emission.
+        line_opacity_kwargs (dict or None): 
+            Additional keyword arguments for line opacity.
+        """
 
         # Create instance of RotationProfile
         self.rotation_mode = rotation_mode
@@ -190,6 +205,13 @@ class pRT_model:
                 self.LineOpacity.append(Line_i)
             
     def get_atmospheres(self, CB_active=False):
+        """
+        Initialize the atmospheric layers and create pRT.Radtrans objects.
+
+        Parameters:
+        CB_active (bool): 
+            If True, use a broader wavelength range.
+        """
 
         # pRT model is somewhat wider than observed spectrum
         if CB_active:
@@ -235,6 +257,13 @@ class pRT_model:
             self.atm.append(atm_i)
         
     def absorption_opacity(self):
+        """
+        Compute the absorption opacity.
+
+        Returns:
+        function or None: 
+            Function to compute the absorption opacity or None if not applicable.
+        """
 
         include_cloud = (self.Cloud.get_opacity is not None)
         include_line  = hasattr(self, 'LineOpacity')
@@ -266,6 +295,13 @@ class pRT_model:
         return get_opacity
 
     def scattering_opacity(self):
+        """
+        Compute the scattering opacity.
+
+        Returns:
+        function or None: 
+            Function to compute the scattering opacity or None if not applicable.
+        """
 
         include_cloud = (self.Cloud.get_opacity is not None)
         if not include_cloud:
@@ -290,25 +326,29 @@ class pRT_model:
                  CO=0.59, 
                  FeH=0.0, 
                  ):
-        '''
+        """
         Create a new model spectrum with the given arguments.
 
-        Input
-        -----
-        mass_fractions : dict
+        Parameters:
+        mass_fractions (dict): 
             Species' mass fractions in the pRT format.
-        temperature : np.ndarray
+        temperature (np.ndarray): 
             Array of temperatures at each atmospheric layer.
-        params : dict
+        params (dict): 
             Parameters of the current model.
-        get_contr : bool
-            If True, compute the emission contribution function. 
+        get_contr (bool): 
+            If True, compute the emission contribution function.
+        get_full_spectrum (bool): 
+            If True, get the full spectrum.
+        CO (float): 
+            Carbon to oxygen ratio.
+        FeH (float): 
+            Metallicity.
 
-        Returns
-        -------
-        m_spec : ModelSpectrum class
-            Instance of the ModelSpectrum class. 
-        '''
+        Returns:
+        ModelSpectrum: 
+            Instance of the ModelSpectrum class.
+        """
 
         # Update certain attributes
         self.mass_fractions = mass_fractions.copy()
@@ -345,21 +385,19 @@ class pRT_model:
         return m_spec
 
     def get_model_spectrum(self, get_contr=False, get_full_spectrum=False):
-        '''
+        """
         Generate a model spectrum with the given parameters.
 
-        Input
-        -----
-        get_contr : bool
-            If True, computes the emission contribution 
-            and cloud opacity. Updates the contr_em and 
-            opa_cloud attributes.
-        
-        Returns
-        -------
-        m_spec : ModelSpectrum class
-            Instance of the ModelSpectrum class
-        '''
+        Parameters:
+        get_contr (bool): 
+            If True, compute the emission contribution function.
+        get_full_spectrum (bool): 
+            If True, get the full spectrum.
+
+        Returns:
+        ModelSpectrum: 
+            Instance of the ModelSpectrum class.
+        """
 
         self.int_contr_em  = np.zeros_like(self.pressure)
         self.int_opa_cloud = np.zeros_like(self.pressure)
@@ -465,7 +503,23 @@ class pRT_model:
             self, other_pRT_wave=None, other_pRT_flux=None, 
             get_contr=False, get_full_spectrum=False
             ):
+        """
+        Combine multiple model spectra.
 
+        Parameters:
+        other_pRT_wave (list or tuple, optional): 
+            List of wavelengths from other models.
+        other_pRT_flux (list or tuple, optional): 
+            List of fluxes from other models.
+        get_contr (bool): 
+            If True, compute the emission contribution function.
+        get_full_spectrum (bool): 
+            If True, get the full spectrum.
+
+        Returns:
+        ModelSpectrum: 
+            Instance of the ModelSpectrum class.
+        """
         wave = np.ones_like(self.d_wave) * np.nan
         flux = np.ones_like(self.d_wave) * np.nan
 
@@ -573,6 +627,23 @@ class pRT_model:
     def get_contr_em_and_opa_cloud(
             self, atm_i, m_wave_i, d_wave_i, d_mask_i, m_spec_i, order
             ):
+        """
+        Get the emission contribution function and cloud opacity.
+
+        Parameters:
+        atm_i (Radtrans): 
+            Instance of the Radtrans class.
+        m_wave_i (np.ndarray): 
+            Model wavelengths.
+        d_wave_i (np.ndarray): 
+            Data wavelengths.
+        d_mask_i (np.ndarray): 
+            Data mask.
+        m_spec_i (ModelSpectrum): 
+            Instance of the ModelSpectrum class.
+        order (int): 
+            Order of the spectrum.
+        """
         
         # Get the emission contribution function
         contr_em_i = atm_i.contr_em
