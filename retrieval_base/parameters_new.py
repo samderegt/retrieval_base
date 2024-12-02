@@ -1,6 +1,11 @@
 import scipy.stats as stats
+import scipy.constants as sc
+
 import pandas as pd
 import numpy as np
+
+sc.r_jup_mean = 69911.0e3 # [m]
+sc.m_jup      = 1.899e27  # [kg]
 
 class Parameter:
 
@@ -43,17 +48,18 @@ class Parameter:
     
 class ParameterTable:
 
-    def get(self, name, value=None):
+    def get(self, name, value=None, key='val'):
 
-        query = f'm_set in ["all","{self.queried_m_set}"] and name=="{name}"'
+        queried_m_set = list(np.array(self.queried_m_set).flatten())
+        query = 'm_set=={} and name=={}'.format(queried_m_set, [name])
         queried_table = self.table.query(query)
         
         if queried_table.empty:
             # Parameter not found
             return value
         
-        return queried_table['val'].values[0]
-
+        return queried_table[key].values[0]
+        
     def expand_per_model_setting(self, d, is_kwargs=False):
         
         # Expand dictionary to have all model settings
@@ -86,33 +92,61 @@ class ParameterTable:
 
         return d_expanded
     
-    def add_params(self, params, is_free=False):
+    #def add_param(self, name, m_set, Param, val, cols=['name','m_set','Param','val']):
+    def add_param(self, **kwargs):
 
-        cols = list(self.table.columns)
-        idx  = len(self.table)
+        m_set = kwargs['m_set']
+        name  = kwargs['name']
 
+        # Check if parameter already exists
+        query = f'm_set=="{m_set}" and name=="{name}"'
+        queried_table = self.table.query(query)
+
+        if queried_table.empty:
+            # Add parameter to the table
+            idx = len(self.table)            
+        else:
+            # Update the parameter in the table
+            idx = queried_table.index[0]
+
+        cols = list(kwargs.keys())
+
+        self.table.loc[idx,:] = None
+        self.table.loc[idx,cols] = list(kwargs.values())
+
+        # Add linear parameter if log
+        if not name.startswith('log_'):
+            return
+        
+        val = kwargs.get('val')        
+        if not isinstance(val, (float, int)):
+            # Cannot take power 10
+            return
+        
+        # Add the linear parameter
+        cols = ['name', 'm_set', 'val']
+        self.table.loc[idx+1,:] = None
+        self.table.loc[idx+1,cols] = name.replace('log_',''), m_set, 10**val
+    
+    def add_params_dictionary(self, params, is_free=False):
+
+        # Expand dictionary to have all model settings
         params_expanded = self.expand_per_model_setting(params)
         for m_set, dictionary in params_expanded.items():
             
             # Set of parameters for a model setting
             for name, val in dictionary.items():
-                
+
                 Param = None
                 if is_free:
                     # Is a free parameter
                     Param = Parameter(name, *val, m_set)
                     val = np.nan
 
-                self.table.loc[idx,cols] = name, m_set, Param, val
-                idx += 1
+                # Add the parameter to the table
+                self.add_param(name=name, m_set=m_set, Param=Param, val=val)
 
-                if name.startswith('log_') and isinstance(val, (float, int)):
-                    # Add the linear parameter
-                    name = name.replace('log_','')
-                    self.table.loc[idx,cols] = name, m_set, None, 10**val
-                    idx += 1
-
-    def __init__(self, free_params, constant_params, model_settings, PT_kwargs={}, chem_kwargs={}, cloud_kwargs={}, cov_kwargs={}, **kwargs):
+    def __init__(self, free_params, constant_params, model_settings, PT_kwargs={}, chem_kwargs={}, cloud_kwargs={}, cov_kwargs={}, pRT_kwargs={}, **kwargs):
 
         self.model_settings = model_settings
 
@@ -121,8 +155,8 @@ class ParameterTable:
         self.table = pd.DataFrame(columns=cols)
 
         # Add parameters to the table
-        self.add_params(constant_params, is_free=False)
-        self.add_params(free_params, is_free=True)
+        self.add_params_dictionary(constant_params, is_free=False)
+        self.add_params_dictionary(free_params, is_free=True)
 
         # Add indices for free parameters
         self.table['idx_free'] = None
@@ -137,6 +171,43 @@ class ParameterTable:
         self.chem_kwargs  = self.expand_per_model_setting(chem_kwargs, is_kwargs=True)
         self.cloud_kwargs = self.expand_per_model_setting(cloud_kwargs, is_kwargs=True)
         self.cov_kwargs   = self.expand_per_model_setting(cov_kwargs, is_kwargs=True)
+        self.pRT_kwargs   = self.expand_per_model_setting(pRT_kwargs, is_kwargs=True)
+
+    def update_log_g(self, m_set):
+
+        if self.get('log_g', key='idx_free') is not None:
+            # log_g is a free parameter
+            return
+        
+        M_p = self.get('M_p')
+        R_p = self.get('R_p')
+        if None in [M_p, R_p]:
+            return
+            #raise ValueError('Mass and radius not set')
+        
+        # Compute the surface gravity
+        M_p *= (sc.m_jup*1e3)
+        R_p *= (sc.r_jup_mean*1e2)
+
+        g = (sc.G*1e3) * M_p/R_p**2
+        log_g = np.log10(g)
+        
+        # Add the parameter to the table
+        self.add_param(name='log_g', m_set=m_set, val=log_g)
+
+    def update_Chem_params(self):
+        raise NotImplementedError
+    
+    def update_Cloud_params(self):
+        raise NotImplementedError
+
+    def update_secondary_params(self, m_set):
+        
+        self.update_log_g(m_set)
+        #self.update_PT_params()
+        #self.update_chem_params()
+        #self.update_cloud_params()
+        #self.update_cov_params()
 
     def __call__(self, cube, ndim=None, nparams=None):
 
@@ -165,6 +236,13 @@ class ParameterTable:
             if name.startswith('log_'):
                 # Update the linear parameter too
                 self.table.loc[idx+1,'val'] = 10**val
+
+        # Update secondary parameters, consider shared parameters initially
+        for m_set in ['all', *self.model_settings]:
+            # Query parameters specific to or shared between model settings
+            self.queried_m_set = [m_set, 'all']
+            self.update_secondary_params(m_set)
+        self.queried_m_set = 'all'
 
         # Make attribute
         self.cube = cube_np

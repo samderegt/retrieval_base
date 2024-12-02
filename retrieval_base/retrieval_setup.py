@@ -14,12 +14,13 @@ class RetrievalSetup:
         if hasattr(config, 'config_data'):
             
             self.model_settings = list(config.config_data.keys())
-
+            self.d_spec_target = {}
             for m_set_i, config_data_i in config.config_data.items():
                 # Loop over model settings
-                self.pre_process_data(config_data_i)
+                self.d_spec_target[m_set_i] = self.pre_process_data(config_data_i)
 
         elif hasattr(config, 'config_synthetic_spectrum'):
+            raise NotImplementedError
 
             self.model_settings = list(config.config_synthetic_spectrum.keys())
 
@@ -73,7 +74,8 @@ class RetrievalSetup:
         d_spec_target.make_figures(plots_dir=self.plots_dir)
         d_spec_target.save_to_pickle(data_dir=self.data_dir)
         
-        self.d_spec_target = d_spec_target
+        #self.d_spec_target = d_spec_target
+        return d_spec_target
 
     def get_synthetic_spectrum(self, config_synthetic_spectrum, m_set):
         raise NotImplementedError
@@ -100,5 +102,9 @@ class RetrievalSetup:
     def get_model(self):
 
         # Create the model object
+        from .model.model import Model
+        model = Model(self.ParamTable, self.d_spec_target)
 
         pass
+
+#class RetrievalRun(RetrievalSetup)
