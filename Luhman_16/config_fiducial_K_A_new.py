@@ -43,7 +43,8 @@ config_data = dict(
 
         kwargs={
             # Observation info
-            'wave_range': (1900, 2500), 'w_set': 'K2166', 
+            #'wave_range': (1900, 2500), 'w_set': 'K2166', 
+            'wave_range': (2300, 2450), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -59,58 +60,44 @@ config_data = dict(
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    'log_a': [(-0.7,0.3), r'$\log\ a$'], 
-    'log_l': [(-3.0,-1.0), r'$\log\ l$'], 
+    'log_a': ['U', (-0.7,0.3), r'$\log\ a$'], 
+    'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    #'log_g': [(3.5,6.0), r'$\log\ g$'], 
-    'gaussian_M_p': [(33.5,0.3), r'$\mathrm{M_p}$'], 
-    'gaussian_R_p': [(1.0,0.1), r'$\mathrm{R_p}$'], 
-    'rv': [(10.,30.), r'$v_\mathrm{rad}$'], 
+    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
+    'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
-    'vsini':        [(10.,30.), r'$v\ \sin\ i$'], 
-    'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
+    'vsini':        ['U', (10.,30.), r'$v\ \sin\ i$'], 
+    'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-    'log_P_base_gray_0':   [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-    'f_sed_gray_0':        [(1,20), r'$f_\mathrm{sed,1}$'], 
-    'cloud_slope_0':       [(-6,1), r'$\xi_\mathrm{cl,1}$'], 
+    'log_opa_base_gray_0': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    'log_P_base_gray_0':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    'f_sed_gray_0':        ['U', (1,20), r'$f_\mathrm{sed,1}$'], 
+    'cloud_slope_0':       ['U', (-6,1), r'$\xi_\mathrm{cl,1}$'], 
 
     # Chemistry
-#    'log_H2O':     [(-14,-2), r'$\log\ \mathrm{H_2O}$'], 
-#    'log_H2(18)O': [(-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'], 
+    'C/O':  ['U', (0.1,1.0), r'C/O'], 
+    'Fe/H': ['U', (-1.0,1.0), r'Fe/H'], 
 
-#    'log_12CO':    [(-14,-2), r'$\log\ \mathrm{^{12}CO}$'], 
-#    'log_13CO':    [(-14,-2), r'$\log\ \mathrm{^{13}CO}$'], 
-#    'log_C18O':    [(-14,-2), r'$\log\ \mathrm{C^{18}O}$'], 
-
-#    'log_CH4':     [(-14,-2), r'$\log\ \mathrm{CH_4}$'], 
-#    'log_NH3':     [(-14,-2), r'$\log\ \mathrm{NH_3}$'], 
-#    'log_H2S':     [(-14,-2), r'$\log\ \mathrm{H_2S}$'], 
-#    'log_HF':      [(-14,-2), r'$\log\ \mathrm{HF}$'], 
-
-    'C/O': [(0.1,1.0), r'C/O'], 
-    #'N/O': [(0.05,0.5), r'N/O'], 
-    'Fe/H': [(-1.0,1.0), r'Fe/H'], 
-
-    'log_13CO_ratio': [(0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
-    'log_C18O_ratio': [(0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
-    'log_H2(18)O_ratio': [(0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
-    'log_Kzz_chem': [(5,15), r'$\log\ K_\mathrm{zz}$'], 
+    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
+    'log_C18O_ratio':    ['U', (0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
+    'log_H2(18)O_ratio': ['U', (0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
+    'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
     # PT profile    
-    'dlnT_dlnP_0': [(0.10,0.34), r'$\nabla_0$'], 
-    'dlnT_dlnP_1': [(0.10,0.34), r'$\nabla_1$'], 
-    'dlnT_dlnP_2': [(0.05,0.34), r'$\nabla_2$'], 
-    'dlnT_dlnP_3': [(0.,0.34), r'$\nabla_3$'], 
-    'dlnT_dlnP_4': [(0.,0.34), r'$\nabla_4$'], 
+    'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
+    'dlnT_dlnP_1': ['U', (0.10,0.34), r'$\nabla_1$'], 
+    'dlnT_dlnP_2': ['U', (0.05,0.34), r'$\nabla_2$'], 
+    'dlnT_dlnP_3': ['U', (0.,0.34), r'$\nabla_3$'], 
+    'dlnT_dlnP_4': ['U', (0.,0.34), r'$\nabla_4$'], 
 
-    'T_phot':         [(900.,1900.), r'$T_\mathrm{phot}$'], 
-    'log_P_phot':     [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
-    'd_log_P_phot+1': [(0.5,2.5), r'$\Delta\ P_\mathrm{+1}$'], 
-    'd_log_P_phot-1': [(0.5,2.), r'$\Delta\ P_\mathrm{-1}$'], 
+    'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
+    'log_P_phot':     ['U', (-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
+    'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta\ P_\mathrm{+1}$'], 
+    'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta\ P_\mathrm{-1}$'], 
 }
 
 # Constants to use if prior is not given
@@ -123,7 +110,7 @@ constant_params = {
     'lbl_opacity_sampling': 3, 
 
     # Data resolution
-    'res': 60000, 
+    #'res': 60000, 
 
     # General properties
     'parallax': 496,  # +/- 37 mas
@@ -203,7 +190,7 @@ cov_kwargs = dict(
 
 if free_params.get('log_l') is not None:
     cov_kwargs['max_separation'] = \
-        cov_kwargs['trunc_dist'] * 10**np.max(free_params['log_l'][0])
+        cov_kwargs['trunc_dist'] * 10**np.max(free_params['log_l'][1])
 
 ####################################################################################
 # PT parameters
