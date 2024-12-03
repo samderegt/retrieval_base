@@ -1,11 +1,9 @@
 import scipy.stats as stats
-import scipy.constants as sc
 
 import pandas as pd
 import numpy as np
 
-sc.r_jup_mean = 69911.0e3 # [m]
-sc.m_jup      = 1.899e27  # [kg]
+from .utils import sc
 
 class Parameter:
 
@@ -154,6 +152,11 @@ class ParameterTable:
         cols = ['name', 'm_set', 'Param', 'val']
         self.table = pd.DataFrame(columns=cols)
 
+        # Convert parallax to distance
+        parallax = constant_params.get('parallax')
+        if parallax is not None:
+            constant_params['distance'] = 1e3/parallax
+
         # Add parameters to the table
         self.add_params_dictionary(constant_params, is_free=False)
         self.add_params_dictionary(free_params, is_free=True)
@@ -183,7 +186,6 @@ class ParameterTable:
         R_p = self.get('R_p')
         if None in [M_p, R_p]:
             return
-            #raise ValueError('Mass and radius not set')
         
         # Compute the surface gravity
         M_p *= (sc.m_jup*1e3)
@@ -195,11 +197,11 @@ class ParameterTable:
         # Add the parameter to the table
         self.add_param(name='log_g', m_set=m_set, val=log_g)
 
-    def update_Chem_params(self):
-        raise NotImplementedError
+    #def update_Chem_params(self):
+    #    raise NotImplementedError
     
-    def update_Cloud_params(self):
-        raise NotImplementedError
+    #def update_Cloud_params(self):
+    #    raise NotImplementedError
 
     def update_secondary_params(self, m_set):
         

@@ -34,8 +34,8 @@ class RetrievalSetup:
         # Get a parameters object
         self.get_parameters(config)
 
-        # TODO: Generate pRT_model object
-        # Save
+        # Generate model components
+        self.get_model()
         pass
 
     def create_output_dir(self, file_params):
@@ -103,7 +103,12 @@ class RetrievalSetup:
 
         # Create the model object
         from .model.model import Model
-        model = Model(self.ParamTable, self.d_spec_target)
+        self.model = Model(
+            ParamTable=self.ParamTable, 
+            d_spec=self.d_spec_target, 
+            model_settings=self.model_settings, 
+            evaluation=False
+            )
 
         pass
 

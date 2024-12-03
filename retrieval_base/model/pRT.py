@@ -1,7 +1,5 @@
 import numpy as np
-import scipy.constants as sc
-
-sc.r_jup_mean = 69911.0e3
+from ..utils import sc
 
 class pRT:
     def __init__(self, ParamTable, d_spec, m_set, pressure, callback=False, **kwargs):
@@ -131,7 +129,7 @@ class pRT:
 
         self.wave, self.flux = [], []
         # Loop over all chips
-        for i, atm_i in enumerate(self.atm):
+        for atm_i in self.atm:
             
             # Skip if no incidence angles are set
             if len(atm_i.mu) == 0:
@@ -152,25 +150,12 @@ class pRT:
             # Apply rotational broadening
             wave_i, flux_i = Rotation(wave_i, flux_i)
 
-            # Apply RV-shift
+            # Apply radial-velocity shift
             wave_i *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
 
             # Convert to observation by scaling with the radius
-            flux_i *= (ParamTable.get('R_p',1)*sc.r_jup_mean / ParamTable.get('d')*sc.parsec)**2
+            flux_i *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / ParamTable.get('distance')*sc.parsec)**2
 
+            # Store the model spectrum
             self.wave.append(wave_i)
             self.flux.append(flux_i)
-
-            # TODO: Apply rv-shift
-            # ...
-            
-            # TODO: Rotational broadening
-            # ...
-
-            # TODO: Convert to observation by scaling with the radius
-            # ...
-
-            # TODO: Store model spectrum
-            # ...
-
-        pass

@@ -1,4 +1,6 @@
 
+from .PT_profile import get_PT_profile_class
+
 class Model:
 
     def __init__(self, ParamTable, d_spec, model_settings, evaluation=False):
@@ -18,8 +20,10 @@ class Model:
         self.LineOpacity     = {}
         self.InstrBroadening = {}
 
-        from .pRT import pRT
-        #self.pRT = pRT(ParamTable, d_spec, m_set, pressure, callback=False)
+        for m_set in model_settings:
+            self.PT[m_set] = get_PT_profile_class(ParamTable, **ParamTable.PT_kwargs[m_set])
+
+            #self.pRT[m_set] = pRT(ParamTable, d_spec, m_set, pressure, callback=False)
         pass
 
     def forward(self, x):
