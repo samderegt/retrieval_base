@@ -65,8 +65,8 @@ free_params = {
 
     # General properties
     'K2166_B': {
-    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
-    }, 
+        'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
+        }, 
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
@@ -83,13 +83,19 @@ free_params = {
     # Chemistry
     'C/O':  ['U', (0.1,1.0), r'C/O'], 
     'Fe/H': ['U', (-1.0,1.0), r'Fe/H'], 
-
     'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
     'log_C18O_ratio':    ['U', (0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
     'log_H2(18)O_ratio': ['U', (0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
     'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
-    # PT profile    
+    #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
+    #'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
+    #'log_12CO': ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
+    #'log_13CO': ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
+    #'log_C18O': ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
+    #'log_HF': ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
+
+    # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
     'dlnT_dlnP_1': ['U', (0.10,0.34), r'$\nabla_1$'], 
     'dlnT_dlnP_2': ['U', (0.05,0.34), r'$\nabla_2$'], 
@@ -104,23 +110,8 @@ free_params = {
 
 # Constants to use if prior is not given
 constant_params = {
-    # Define pRT's log-pressure grid
-    'log_P_range': (-5,3), 
-    'n_atm_layers': 50, 
-
-    # Down-sample opacities for faster radiative transfer
-    'lbl_opacity_sampling': 3, 
-
-    # Data resolution
-    #'res': 60000, 
-
     # General properties
     'parallax': 496,  # +/- 37 mas
-    'inclination': 18, # degrees
-
-    'do_scat_emis': False, 
-
-    #'R_p': 1.0, 
 }
 
 ####################################################################################
@@ -129,17 +120,7 @@ constant_params = {
 
 sum_m_spec = len(config_data) > 1
 
-scale_flux = True; scale_rel_to_ij = (3,0)
-#scale_flux = False
-scale_err  = True
 apply_high_pass_filter = False
-
-cloud_kwargs = {
-    'cloud_mode': 'gray', 
-    'wave_cloud_0': 2.0, 
-}
-
-rotation_mode = 'convolve' # 'integrate'
 
 ####################################################################################
 # Chemistry parameters
@@ -179,20 +160,20 @@ species_to_plot_CCF = species_to_plot_VMR
 ####################################################################################
 
 cov_kwargs = dict(
-    cov_mode = 'GP', #None, 
-    
-    trunc_dist   = 3, 
-    scale_GP_amp = True, 
-
-    # Prepare the wavelength separation and
-    # average squared error arrays and keep 
-    # in memory
-    prepare_for_covariance = True, #False, 
+    trunc_dist = 3, 
+    scale_amp  = True, 
+    max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
 )
 
-if free_params.get('log_l') is not None:
-    cov_kwargs['max_separation'] = \
-        cov_kwargs['trunc_dist'] * 10**np.max(free_params['log_l'][1])
+####################################################################################
+# Log-likelihood parameters
+####################################################################################
+
+loglike_kwargs = dict(
+    scale_flux = True, 
+    #scale_relative_to_chip = 9, 
+    scale_err = True
+)
 
 ####################################################################################
 # PT parameters
@@ -203,11 +184,57 @@ PT_kwargs = dict(
     n_T_knots = 5, 
     PT_interp_mode = 'linear', 
     symmetric_around_P_phot = False, 
+
+    log_P_range = (-5.,3.), 
+    n_atm_layers = 50,
+)
+
+####################################################################################
+# Cloud parameters
+####################################################################################
+
+cloud_kwargs = {
+    'cloud_mode': 'gray', 
+    'wave_cloud_0': 2.0, 
+}
+
+####################################################################################
+# Rotation-profile parameters
+####################################################################################
+
+rotation_kwargs = dict(
+    rotation_mode = 'integrate', 
+    inclination   = 18, # Degreees
+)
+
+####################################################################################
+# pRT Radtrans parameters
+####################################################################################
+
+pRT_Radtrans_kwargs = dict(
+    line_species        = chem_kwargs['line_species'],
+    rayleigh_species    = ['H2','He'],
+    continuum_opacities = ['H2-H2','H2-He'],
+    cloud_species       = cloud_kwargs.get('cloud_species'), 
+    
+    mode                 = 'lbl',
+    lbl_opacity_sampling = 3, # Faster radiative transfer by down-sampling
+    do_scat_emis         = False, 
 )
 
 ####################################################################################
 # Multinest parameters
 ####################################################################################
+
+all_model_kwargs = dict(
+    PT_kwargs=PT_kwargs, 
+    chem_kwargs=chem_kwargs, 
+    cloud_kwargs=cloud_kwargs, 
+    cov_kwargs=cov_kwargs, 
+    loglike_kwargs=loglike_kwargs,
+    rotation_kwargs=rotation_kwargs,
+    pRT_Radtrans_kwargs=pRT_Radtrans_kwargs, 
+)
 
 const_efficiency_mode = True
 sampling_efficiency = 0.05

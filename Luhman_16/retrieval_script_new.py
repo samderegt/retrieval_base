@@ -1,5 +1,6 @@
+import importlib
 import argparse
-from retrieval_base.retrieval_setup import RetrievalSetup
+from retrieval_base.retrieval import RetrievalSetup, RetrievalRun
 
 if __name__ == '__main__':
 
@@ -8,10 +9,22 @@ if __name__ == '__main__':
     parser.add_argument(
         'config_file', type=str, help='Name of configuration file', 
         )
+    
+    parser.add_argument('--setup', '-s', action='store_true')
+    parser.add_argument('--run', '-r', action='store_true')
+    parser.add_argument('--evaluation', '-e', action='store_true')
     args = parser.parse_args()
 
     # Import input file as 'conf'
-    conf_string = str(args.config_file).replace('.py', '').replace('/', '.')
-    conf = __import__(conf_string, fromlist=[''])
+    config_string = str(args.config_file).replace('.py', '')
+    config = importlib.import_module(config_string)
 
-    RetrievalSetup(conf)
+    if args.setup:
+        ret = RetrievalSetup(config)
+        import sys; sys.exit()
+
+    ret = RetrievalRun(config, evaluation=args.evaluation)
+    if args.run:
+        ret.run()
+    if args.evaluation:
+        ret.evaluation()

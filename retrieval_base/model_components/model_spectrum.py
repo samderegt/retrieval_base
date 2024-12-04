@@ -1,29 +1,29 @@
 import numpy as np
 from ..utils import sc
 
+def get_class(**kwargs):
+    return pRT(**kwargs)
+    
 class pRT:
-    def __init__(self, ParamTable, d_spec, m_set, pressure, callback=False, **kwargs):
+    def __init__(self, ParamTable, d_spec, m_set, pressure, evaluation=False):
 
-        # Set the model setting
-        self.m_set = m_set
-        ParamTable.queried_m_set = self.m_set
-
-        # Set the pressure
+        self.m_set    = m_set
         self.pressure = pressure
 
         # Set some info from the data
-        #self.d_wave_range = (d_spec.wave.min(), d_spec.wave.max())
-        self.d_resolution = d_spec.resolution
+        self.d_resolution        = d_spec.resolution
         self.d_wave_ranges_chips = d_spec.wave_ranges_chips
 
         # Set the wavelength ranges of the model
-        self.set_wave_ranges(ParamTable, callback)
+        self.set_wave_ranges(ParamTable, evaluation)
+
+        # Create Radtrans objects
         self.set_Radtrans(ParamTable)
 
-    def set_wave_ranges(self, ParamTable, callback):
+    def set_wave_ranges(self, ParamTable, evaluation):
         
         rv_max = 1001
-        if not callback:
+        if not evaluation:
             rv_prior    = ParamTable.get('rv', key='Param').prior_params
             vsini_prior = ParamTable.get('rv', key='Param').prior_params
             
@@ -31,24 +31,24 @@ class pRT:
             rv_max += np.array([-1,1]) * max(vsini_prior)
             rv_max = np.max(np.abs(rv_max))
 
-        wave_pad = 1.1 * rv_max/(sc.c*1e-3) * np.max(self.d_wave_range_chips[1])
+        wave_pad = 1.1 * rv_max/(sc.c*1e-3) * np.max(self.d_wave_ranges_chips)
         
         # Wavelength ranges of model
-        self.wave_range = [
-            (wave_min-wave_pad, wave_max+wave_pad) \
+        self.wave_ranges = np.array([
+            [wave_min-wave_pad, wave_max+wave_pad] \
             for (wave_min, wave_max) in self.d_wave_ranges_chips
-            ]
+            ])
 
     def set_Radtrans(self, ParamTable):
         
         from petitRADTRANS import Radtrans
 
         self.atm = []
-        for wave_range_i in self.wave_range:
+        for wave_range_i in self.wave_ranges:
             # Make a Radtrans object per chip
             atm_i = Radtrans(
-                wlen_bords_micron=wave_range_i, 
-                **ParamTable.pRT_kwargs[self.m_set].copy()
+                wlen_bords_micron=wave_range_i*1e-3, 
+                **ParamTable.pRT_Radtrans_kwargs[self.m_set].copy()
                 )
             
             # Set up the atmospheric layers
@@ -122,7 +122,9 @@ class pRT:
             'give_absorption_opacity': abs_opacity, 
             'give_scattering_opacity': scat_opacity, 
 
-            **Cloud.call_kwargs, 
+            'Kzz': getattr(Cloud, 'K_zz', None),
+            'fsed': getattr(Cloud, 'f_sed', None),
+            'sigma_lnorm': getattr(Cloud, 'sigma_g', None),
         }
         if hasattr(Rotation, 'unique_mu_included'):
             pRT_call_kwargs['return_per_mu'] = True

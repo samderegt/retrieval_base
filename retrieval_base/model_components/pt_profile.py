@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-def get_PT_profile_class(ParamTable, PT_mode='free_gradient', **kwargs):
+def get_class(PT_mode='free_gradient', **kwargs):
     """
     Get the PT profile class based on the mode.
 
@@ -18,16 +18,18 @@ def get_PT_profile_class(ParamTable, PT_mode='free_gradient', **kwargs):
         Instance of the PT profile class.
     """
     if PT_mode == 'free_gradient':
-        return PT_profile_free_gradient(ParamTable, **kwargs)
-    if PT_mode in ['static','constant']:
-        return PT_profile(ParamTable, **kwargs)
+        return PT_profile_free_gradient(**kwargs)
+    elif PT_mode in ['static','constant']:
+        return PT_profile(**kwargs)
+    else:
+        raise ValueError(f'PT mode {PT_mode} not recognized.')
 
 class PT_profile:
     """
     Base class for PT profiles.
     """
 
-    def __init__(self, ParamTable):
+    def __init__(self, **kwargs):
         """
         Initialize the PT_profile class.
 
@@ -38,12 +40,12 @@ class PT_profile:
             Additional keyword arguments.
         """
         # Set the pressure levels
-        self.set_pressures(ParamTable)
+        self.set_pressures(**kwargs)
         self.n_atm_layers = len(self.pressure)
 
         self.log_pressure = np.log10(self.pressure)
 
-    def set_pressures(self, ParamTable):
+    def set_pressures(self, **kwargs):
         """
         Set the pressure levels.
 
@@ -51,12 +53,12 @@ class PT_profile:
         ParamTable: 
             Parameter table.
         """
-        self.pressure = ParamTable.get('pressure')
+        self.pressure = kwargs.get('pressure')
         if self.pressure is not None:
             return
         
-        log_P_range  = ParamTable.get('log_P_range')
-        n_atm_layers = ParamTable.get('n_atm_layers')
+        log_P_range  = kwargs.get('log_P_range')
+        n_atm_layers = kwargs.get('n_atm_layers')
         if None not in [log_P_range, n_atm_layers]:
             self.pressure = np.logspace(*log_P_range, n_atm_layers, dtype=float)
             self.pressure = np.sort(self.pressure)
@@ -80,9 +82,9 @@ class PT_profile_free_gradient(PT_profile):
     Class for free gradient PT profiles.
     """
 
-    def __init__(self, ParamTable, PT_interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
+    def __init__(self, PT_interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
         # Give arguments to the parent class
-        super().__init__(ParamTable)
+        super().__init__(**kwargs)
 
         self.ln_pressure = np.log(self.pressure)
         self.flipped_ln_pressure = self.ln_pressure[::-1]
