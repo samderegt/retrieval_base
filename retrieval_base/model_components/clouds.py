@@ -93,6 +93,11 @@ class Gray(Cloud):
         # Give arguments to parent class
         super().__init__(pressure)
 
+        # Anchor point for non-gray power-law (1 um)
+        self.wave_cloud_0 = kwargs.get('wave_cloud_0', 1.)
+
+        self.n_clouds_max = kwargs.get('n_clouds_max', 10)
+
     def abs_opacity(self, wave_micron, pressure):
 
         # Create gray cloud opacity, i.e. independent of wavelength
@@ -104,7 +109,6 @@ class Gray(Cloud):
             self.opa_base, 
             self.f_sed_gray, 
             self.cloud_slope, 
-            self.omega, 
             )
         for P_base_i, opa_base_i, f_sed_gray_i, cloud_slope_i in iterables:
 
@@ -132,20 +136,14 @@ class Gray(Cloud):
         opacity = 1/(1-self.omega) * self.abs_opacity(wave_micron, pressure)
         return opacity * self.omega
             
-    def __call__(self, ParamTable, n_clouds_max=10, **kwargs):
-
-        # Anchor point for non-gray power-law (1 um)
-        self.wave_cloud_0 = kwargs.get('wave_cloud_0', 1.)
-
-        # Single-scattering albedo
-        self.omega = ParamTable.get('omega', 0.)
+    def __call__(self, ParamTable, **kwargs):
     
         self.P_base      = []
         self.opa_base    = []
         self.f_sed_gray  = []
         self.cloud_slope = []
 
-        for i in [None, *range(n_clouds_max)]:
+        for i in [None, *range(self.n_clouds_max)]:
 
             suffix = f'_{i}' if i!=None else ''
             P_base_i     = ParamTable.get(f'P_base_gray{suffix}')   # Base pressure
@@ -162,3 +160,6 @@ class Gray(Cloud):
             self.opa_base.append(opa_base_i)
             self.f_sed_gray.append(f_sed_gray_i)
             self.cloud_slope.append(cloud_slope_i)
+
+        # Single-scattering albedo
+        self.omega = ParamTable.get('omega', 0.)

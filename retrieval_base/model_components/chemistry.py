@@ -121,7 +121,7 @@ class Chemistry:
         if info_key in ['C','O','H']:
             return cls.species_info.loc[species,info_key]
 
-        if info_key == 'c' or info_key == 'color':
+        if info_key in ['c','color']:
             return cls.species_info.loc[species,'color']
         if info_key == 'label':
             return cls.species_info.loc[species,'mathtext_name']

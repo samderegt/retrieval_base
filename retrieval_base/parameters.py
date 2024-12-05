@@ -18,6 +18,8 @@ class Parameter:
         self.prior_params = prior_params
         self.set_prior()
 
+        self.apply_prior = True
+
     def set_prior(self):
 
         # Prior range or loc/scale
@@ -33,14 +35,17 @@ class Parameter:
         else:
             raise ValueError(f'prior_type={self.prior_type} not recognized')
 
-        # Function to apply the prior
-        self.apply_prior = self.prior.ppf
-
     def __call__(self, val_01):
         
-        # Convert from [0,1] to the parameter space
+        # val_01 is in [0,1]
         self.val_01 = val_01
-        self.val    = self.apply_prior(self.val_01)
+
+        if not self.apply_prior:
+            # val_01 is already in parameter space
+            self.val_01 = self.prior.cdf(self.val_01)
+
+        # Apply the prior
+        self.val = self.prior.ppf(self.val_01)
 
         return self.val
     
@@ -57,6 +62,19 @@ class ParameterTable:
             return value
         
         return queried_table[key].values[0]
+    
+    def get_mathtext(self):
+        
+        mathtext = []
+        for idx, (idx_free) in enumerate(self.table['idx_free']):
+            if pd.isna(idx_free):
+                # Not a free parameter
+                continue
+
+            # Get the mathtext of parameter
+            mathtext.append(self.table.loc[idx]['Param'].mathtext)
+
+        return mathtext
         
     def expand_per_model_setting(self, d, is_kwargs=False):
         
@@ -145,8 +163,6 @@ class ParameterTable:
 
     def __init__(self, free_params, constant_params, model_settings, all_model_kwargs):
                  
-        #PT_kwargs={}, chem_kwargs={}, cloud_kwargs={}, cov_kwargs={}, pRT_Radtrans_kwargs={}, **kwargs):
-
         self.model_settings = model_settings
 
         # Create the table
@@ -165,7 +181,9 @@ class ParameterTable:
         # Add indices for free parameters
         self.table['idx_free'] = None
         mask = ~pd.isna(self.table['Param'])
-        self.table.loc[mask,'idx_free'] = range(mask.sum())
+        self.n_free_params = mask.sum()
+
+        self.table.loc[mask,'idx_free'] = range(self.n_free_params)
 
         # Set queried model setting
         self.queried_m_set = 'all'
@@ -185,9 +203,10 @@ class ParameterTable:
             if model_kwargs is None:
                 raise ValueError(f'{key} not found in all_model_kwargs')
             
-            # Expand the kwargs to each model setting
-            model_kwargs = self.expand_per_model_setting(model_kwargs, is_kwargs=True)
-            
+            if key not in ['cov_kwargs', 'loglike_kwargs']:
+                # Expand the kwargs to each model setting
+                model_kwargs = self.expand_per_model_setting(model_kwargs, is_kwargs=True)
+                
             # Make attribute of ParameterTable class
             setattr(self, key, model_kwargs)
 
@@ -212,8 +231,27 @@ class ParameterTable:
         # Add the parameter to the table
         self.add_param(name='log_g', m_set=m_set, val=log_g)
 
+    def update_coverage_fraction(self, m_set):
+        
+        # Default assumes full coverage (e.g. binary)
+        cf = self.get('coverage_fraction', 1.)
+
+        # Add the coverage fraction of this model setting
+        self.add_param(name='coverage_fraction', m_set=m_set, val=cf)
+
     def update_secondary_params(self, m_set):
         self.update_log_g(m_set)
+        self.update_coverage_fraction(m_set)
+
+    def set_apply_prior(self, apply_prior=True):
+
+        for idx, (idx_free) in enumerate(self.table['idx_free']):
+            if pd.isna(idx_free):
+                # Not a free parameter
+                continue
+
+            Param = self.table.loc[idx]['Param']
+            Param.apply_prior = apply_prior
 
     def __call__(self, cube, ndim=None, nparams=None):
 

@@ -44,7 +44,7 @@ config_data = dict(
         kwargs={
             # Observation info
             #'wave_range': (1900, 2500), 'w_set': 'K2166', 
-            'wave_range': (2300, 2450), 'w_set': 'K2166', 
+            'wave_range': (2300, 2350), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -75,17 +75,17 @@ free_params = {
     'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    'log_opa_base_gray_0': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-    'log_P_base_gray_0':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-    'f_sed_gray_0':        ['U', (1,20), r'$f_\mathrm{sed,1}$'], 
-    'cloud_slope_0':       ['U', (-6,1), r'$\xi_\mathrm{cl,1}$'], 
+    #'log_opa_base_gray_0': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    #'log_P_base_gray_0':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    #'f_sed_gray_0':        ['U', (1,20), r'$f_\mathrm{sed,1}$'], 
+    #'cloud_slope_0':       ['U', (-6,1), r'$\xi_\mathrm{cl,1}$'], 
 
     # Chemistry
     'C/O':  ['U', (0.1,1.0), r'C/O'], 
     'Fe/H': ['U', (-1.0,1.0), r'Fe/H'], 
-    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
-    'log_C18O_ratio':    ['U', (0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
-    'log_H2(18)O_ratio': ['U', (0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
+    #'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
+    #'log_C18O_ratio':    ['U', (0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
+    #'log_H2(18)O_ratio': ['U', (0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
     'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
     #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
@@ -104,8 +104,8 @@ free_params = {
 
     'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
     'log_P_phot':     ['U', (-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
-    'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta\ P_\mathrm{+1}$'], 
-    'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta\ P_\mathrm{-1}$'], 
+    'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta P_\mathrm{+1}$'], 
+    'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta P_\mathrm{-1}$'], 
 }
 
 # Constants to use if prior is not given
@@ -117,8 +117,6 @@ constant_params = {
 ####################################################################################
 #
 ####################################################################################
-
-sum_m_spec = len(config_data) > 1
 
 apply_high_pass_filter = False
 
@@ -137,11 +135,11 @@ chem_kwargs = {
 
     'line_species': [
         'H2O_pokazatel_main_iso_Sam_new', 
-        'H2O_181_HotWat78', 
+        #'H2O_181_HotWat78', 
 
         'CO_high_Sam', 
-        'CO_36_high_Sam', 
-        'CO_28_high_Sam', 
+        #'CO_36_high_Sam', 
+        #'CO_28_high_Sam', 
 
         'CH4_MM_main_iso', #'CH4_hargreaves_main_iso_Sam', 
         'NH3_coles_main_iso_Sam', 
@@ -172,7 +170,8 @@ cov_kwargs = dict(
 loglike_kwargs = dict(
     scale_flux = True, 
     #scale_relative_to_chip = 9, 
-    scale_err = True
+    scale_err = True, 
+    sum_model_settings = True,
 )
 
 ####################################################################################
@@ -182,7 +181,7 @@ loglike_kwargs = dict(
 PT_kwargs = dict(
     PT_mode   = 'free_gradient', 
     n_T_knots = 5, 
-    PT_interp_mode = 'linear', 
+    interp_mode = 'linear', 
     symmetric_around_P_phot = False, 
 
     log_P_range = (-5.,3.), 
@@ -194,7 +193,8 @@ PT_kwargs = dict(
 ####################################################################################
 
 cloud_kwargs = {
-    'cloud_mode': 'gray', 
+    #'cloud_mode': 'gray', 
+    'cloud_mode': None, 
     'wave_cloud_0': 2.0, 
 }
 
@@ -203,7 +203,7 @@ cloud_kwargs = {
 ####################################################################################
 
 rotation_kwargs = dict(
-    rotation_mode = 'integrate', 
+    rotation_mode = 'convolve', 
     inclination   = 18, # Degreees
 )
 
@@ -222,22 +222,28 @@ pRT_Radtrans_kwargs = dict(
     do_scat_emis         = False, 
 )
 
-####################################################################################
-# Multinest parameters
-####################################################################################
-
 all_model_kwargs = dict(
     PT_kwargs=PT_kwargs, 
     chem_kwargs=chem_kwargs, 
     cloud_kwargs=cloud_kwargs, 
-    cov_kwargs=cov_kwargs, 
-    loglike_kwargs=loglike_kwargs,
     rotation_kwargs=rotation_kwargs,
     pRT_Radtrans_kwargs=pRT_Radtrans_kwargs, 
+
+    cov_kwargs=cov_kwargs, 
+    loglike_kwargs=loglike_kwargs,
 )
 
-const_efficiency_mode = True
-sampling_efficiency = 0.05
-evidence_tolerance = 0.5
-n_live_points = 100
-n_iter_before_update = 400
+####################################################################################
+# Multinest parameters
+####################################################################################
+
+pymultinest_kwargs = dict(    
+    resume  = False, 
+    verbose = True, 
+
+    const_efficiency_mode = True, 
+    sampling_efficiency   = 0.05, 
+    evidence_tolerance    = 0.5, 
+    n_live_points         = 50, 
+    n_iter_before_update  = 1, 
+)

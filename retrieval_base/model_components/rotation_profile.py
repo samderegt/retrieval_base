@@ -17,12 +17,10 @@ class ConvolveRotationProfile:
         from PyAstronomy.pyasl import fastRotBroad
         self.broad_func = fastRotBroad
 
-    def update_parameters(self, ParamTable, **kwargs):
-
-        self.vsini        = ParamTable.get('vsini', 0.)
-        self.epsilon_limb = ParamTable.get('epsilon_limb', 0.)
-
-    def __call__(self, wave, flux):
+    def broaden(self, wave, flux, **kwargs):
+        
+        wave = wave[0]
+        flux = flux[0]
         
         # Evenly spaced wavelength grid
         wave_even = np.linspace(wave.min(), wave.max(), len(wave))
@@ -37,6 +35,11 @@ class ConvolveRotationProfile:
             epsilon=self.epsilon_limb
             )
         return wave_even, flux_rot_broad
+    
+    def __call__(self, ParamTable, **kwargs):
+
+        self.vsini        = ParamTable.get('vsini', 0.)
+        self.epsilon_limb = ParamTable.get('epsilon_limb', 0.)
     
 class SurfaceMap:
     def __init__(self, inclination=0, lon_0=0, n_c=15, n_theta=150, is_inside_patch=False, is_outside_patch=False, **kwargs):
@@ -123,7 +126,7 @@ class SurfaceMap:
         band_velocity  = ParamTable.get(f'band_velocity{suffix}', self.vsini)
 
         if None in [lat_band_width]:
-            return
+            return np.zeros_like(self.r_grid, dtype=bool)
 
         # Mask for latitude band
         lat_band_cen   = np.deg2rad(lat_band_cen)
@@ -151,7 +154,7 @@ class SurfaceMap:
         spot_contrast = ParamTable.get(f'spot_contrast{suffix}', 1.)
         
         if None in [lat_spot, lon_spot, spot_radius]:
-            return
+            return np.zeros_like(self.r_grid, dtype=bool)
 
         # Mask for circular spot
         lat_spot = np.deg2rad(lat_spot)
@@ -182,7 +185,7 @@ class SurfaceMap:
 
         self.patch_mask = np.zeros_like(self.r_grid, dtype=bool)
 
-        for idx in [None, range(n_max_features)]:
+        for idx in [None, *range(n_max_features)]:
             # Add multiple spots or bands
             suffix = f'_{idx+1}' if idx is not None else ''
 
@@ -193,7 +196,7 @@ class SurfaceMap:
 
         self.integrated_brightness = np.sum(self.brightness)
 
-    def get_included_segments(self, ParamTable):
+    def get_included_segments(self):
 
         # Include all segments by default
         self.included_segments = np.ones_like(self.r_grid, dtype=bool)
@@ -208,13 +211,13 @@ class SurfaceMap:
         # Update the incidence angles included in current patch
         self.unique_mu_included = np.unique(self.mu_grid[self.included_segments])
 
-    def update_parameters(self, ParamTable, **kwargs):
+    def __call__(self, ParamTable, **kwargs):
 
         # Brightness and velocity maps
         self.get_brightness_and_velocity_maps(ParamTable)
         
         # Get the segments included in the current patch
-        self.get_included_segments(ParamTable)
+        self.get_included_segments()
 
 class IntegrateRotationProfile(SurfaceMap):
     def __init__(self, **kwargs):
@@ -267,7 +270,7 @@ class IntegrateRotationProfile(SurfaceMap):
 
         return integrated_flux_mu
 
-    def __call__(self, wave, flux, get_integrated_flux=False):
+    def broaden(self, wave, flux, get_integrated_flux=False, **kwargs):
         
         self.get_integrated_flux = get_integrated_flux
 

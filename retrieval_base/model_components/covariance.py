@@ -1,14 +1,20 @@
 import numpy as np
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
-def get_class(d_spec, **kwargs):
+def get_class(d_spec, sum_model_settings=False, **kwargs):
     
     Cov = []
-    for d_wave, d_err in zip(d_spec.wave, d_spec.err):
-        mask = np.isfinite(d_err)
-        Cov.append(Covariance(d_wave[mask], d_err[mask], **kwargs))
+    for m_set in d_spec.keys():
+        # Loop over each chip
+        for d_wave, d_err in zip(d_spec[m_set].wave, d_spec[m_set].err):
+            mask = np.isfinite(d_err)
+            Cov.append(Covariance(d_wave[mask], d_err[mask], **kwargs))
 
-    return np.array(Cov, dtype=object)
+        if sum_model_settings:
+            # Only compare to one model setting
+            break
+
+    return Cov
 
 class Covariance:
     

@@ -1,14 +1,26 @@
+import os
+os.environ['OMP_NUM_THREADS'] = '1'
+
 from pathlib import Path
+import time
+
+import numpy as np
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+import pymultinest
 
 from . import utils
 
 class Retrieval:
     def __init__(self, config):
         # Create output directory
-        self.create_output_dir(config.prefix, config.file_params)
+        self.prefix = config.prefix
+        self.create_output_dir(config.file_params)
         self.model_settings = list(config.config_data.keys())
 
-    def create_output_dir(self, prefix, file_params):
+    def create_output_dir(self, file_params):
         """
         Create output directories for data and plots, and copy the config file.
 
@@ -17,10 +29,10 @@ class Retrieval:
             file_params (str): Path to the configuration file.
         """
         # Create output directory
-        self.data_dir = Path(f'{prefix}data')
+        self.data_dir = Path(f'{self.prefix}data')
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        self.plots_dir = Path(f'{prefix}plots')
+        self.plots_dir = Path(f'{self.prefix}plots')
         self.plots_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy config-file to output directory
@@ -28,13 +40,16 @@ class Retrieval:
         destination = self.data_dir / config_file.name
         destination.write_bytes(config_file.read_bytes())
 
-    def save_all_components(self):
+    def save_all_components(self, non_dict_names=[]):
 
         for name, component in vars(self).items():
+
+            if name in non_dict_names:
+                utils.save_pickle(component, self.data_dir/f'{name}.pkl')
+
             if not isinstance(component, dict):
                 # Skip non-dictionary attributes
                 continue
-
             for m_set, comp in component.items():
                 utils.save_pickle(comp, self.data_dir/f'{name}_{m_set}.pkl')
 
@@ -42,11 +57,15 @@ class Retrieval:
         
         for name in component_names:
             # Load the component, if it exists
-            component = {}
-            for m_set in self.model_settings:
-                component[m_set] = utils.load_pickle(
-                    self.data_dir/f'{name}_{m_set}.pkl'
-                    )
+            file = self.data_dir/f'{name}.pkl'
+            if file.exists():
+                component = utils.load_pickle(file)
+            else:
+                component = {}
+                for m_set in self.model_settings:
+                    file = self.data_dir/f'{name}_{m_set}.pkl'
+                    component[m_set] = utils.load_pickle(file)
+
             # Make attribute
             setattr(self, name, component)
 
@@ -69,7 +88,6 @@ class RetrievalSetup(Retrieval):
         if hasattr(config, 'config_data'):
             self.get_data_spectrum(config.config_data)
         elif hasattr(config, 'config_synthetic_spectrum'):
-            raise NotImplementedError
             self.get_synthetic_spectrum(config.config_synthetic_spectrum)
         else:
             raise ValueError('config must have either config_data or config_synthetic_spectrum')
@@ -77,7 +95,7 @@ class RetrievalSetup(Retrieval):
         # Get parameters and model components
         self.get_parameters(config)
         self.get_model_components()
-        self.save_all_components()
+        self.save_all_components(non_dict_names=['LogLike','Cov','ParamTable'])
 
     def get_data_spectrum(self, config_data):
         """
@@ -139,9 +157,6 @@ class RetrievalSetup(Retrieval):
             all_model_kwargs=config.all_model_kwargs,
             )
 
-        # Save the Parameter instance
-        utils.save_pickle(self.ParamTable, self.data_dir/'ParamTable.pkl')
-
     def get_model_components(self, evaluation=False):
         """
         Generate model components for the retrieval process.
@@ -155,9 +170,7 @@ class RetrievalSetup(Retrieval):
         self.Cloud = {}
         self.Rotation = {}
         self.m_spec = {}
-        self.LogLike = {}
-        self.Cov = {}
-        
+
         for m_set in self.model_settings:
 
             # Query the right model settings
@@ -202,18 +215,21 @@ class RetrievalSetup(Retrieval):
                 evaluation=evaluation
                 )
             
-            # Set the observation model components
-            from .model_components import log_likelihood
-            self.LogLike[m_set] = log_likelihood.get_class(
-                d_spec=self.d_spec[m_set], 
-                **self.ParamTable.loglike_kwargs[m_set]
-                )
-            
-            from .model_components import covariance
-            self.Cov[m_set] = covariance.get_class(
-                d_spec=self.d_spec[m_set], 
-                **self.ParamTable.cov_kwargs[m_set]
-                )
+        # Set the observation model components
+        sum_model_settings = self.ParamTable.loglike_kwargs.get('sum_model_settings', False)
+
+        from .model_components import covariance
+        self.Cov = covariance.get_class(
+            d_spec=self.d_spec, 
+            sum_model_settings=sum_model_settings, 
+            **self.ParamTable.cov_kwargs
+            )
+
+        from .model_components import log_likelihood
+        self.LogLike = log_likelihood.get_class(
+            d_spec=self.d_spec, 
+            **self.ParamTable.loglike_kwargs
+            )
 
         self.ParamTable.queried_m_set = 'all'
 
@@ -243,21 +259,126 @@ class RetrievalRun(Retrieval):
         else:
             component_names += ['m_spec']
         '''
+        self.evaluation = evaluation
         self.load_components(component_names)
-    
-        # Initiate the retrieval
-        self.run()
+
+        self.pymultinest_kwargs = config.pymultinest_kwargs
+
+        self.elapsed_times = []
 
     def run(self):
         """
         Run the retrieval process.
         """
-        # TODO: call pymultinest
-        pass
+        pymultinest.run(
+            LogLikelihood=self.get_likelihood, 
+            Prior=self.ParamTable, 
+            n_dims=self.ParamTable.n_free_params,
 
-    def evaluation(self):
-        """
-        Evaluate the results of the retrieval process.
-        """
-        # TODO: Evaluate the results
-        pass
+            outputfiles_basename=self.prefix, 
+            dump_callback=self.callback,
+
+            **self.pymultinest_kwargs
+        )
+
+    def get_likelihood(self, cube=None, ndim=None, nparams=None):
+        
+        time_A = time.time()
+
+        # ParamTable is updated
+
+        for m_set in self.model_settings:
+
+            self.ParamTable.queried_m_set = ['all', m_set]
+
+            # Update the PT profile
+            flag = self.PT[m_set](self.ParamTable)
+            if flag == -np.inf:
+                # Invalid temperature profile
+                return -np.inf
+            
+            # Update the chemistry
+            self.Chem[m_set](self.ParamTable, self.PT[m_set].temperature)
+            if flag == -np.inf:
+                # Invalid chemistry
+                return -np.inf
+
+            # Update the cloud
+            self.Cloud[m_set](self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set])
+
+            # TODO: Update the line opacity
+            # ...
+
+            # Update the rotation profile
+            self.Rotation[m_set](self.ParamTable)
+
+            # Update the model spectrum
+            self.m_spec[m_set](
+                self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set], 
+                Cloud=self.Cloud[m_set], Rotation=self.Rotation[m_set], 
+                LineOpacity=self.LineOpacity[m_set], 
+                )
+
+        self.ParamTable.queried_m_set = 'all'
+
+        sum_model_settings = self.ParamTable.loglike_kwargs.get('sum_model_settings', False)
+        m_set_first, *m_set_others = self.model_settings
+
+        other_m_spec = [self.m_spec[m_set] for m_set in m_set_others]
+        wave, flux, flux_binned = self.m_spec[m_set_first].combine_model_settings(
+            *other_m_spec, sum_model_settings=sum_model_settings
+            )
+        
+        # Update the covariance
+        for Cov_i in self.Cov:
+            Cov_i(self.ParamTable)
+
+        # Update the log-likelihood
+        self.LogLike(m_flux=flux_binned, Cov=self.Cov)
+
+        time_B = time.time()
+        self.elapsed_times.append(time_B - time_A)
+
+        return self.LogLike.ln_L
+
+    def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
+
+        if rank != 0:
+            # Only the master process should save the data
+            return
+        
+        ln_L = posterior[:,-2]
+        posterior = posterior[:,:-2]
+
+        bestfit_parameters = posterior[np.argmax(ln_L)]
+
+        # Use only the last n samples
+        n_samples_to_plot = len(posterior)
+        if not self.evaluation:
+            n_samples_to_plot = min(n_samples_to_plot, 2000)
+        posterior = posterior[-n_samples_to_plot:]
+
+        # Evaluate the model with the best-fit parameters
+        self.ParamTable.set_apply_prior(False)
+        self.ParamTable(cube=bestfit_parameters)
+        self.ParamTable.set_apply_prior(True)
+
+        # Update the model components
+        self.get_likelihood()
+
+        labels = self.ParamTable.get_mathtext()
+
+        # Make summarising figures
+        from .model_components import figures_model
+        figures_model.plot_summary(
+            plots_dir=self.plots_dir,
+            posterior=posterior, 
+            bestfit_parameters=bestfit_parameters, 
+            labels=labels, 
+            PT=self.PT, Chem=self.Chem, Cloud=self.Cloud, 
+            )
+        
+        # TODO: corner plot + vertical profiles
+        # TODO: best-fitting spectrum
+
+        # TODO: Save best-fitting model components

@@ -68,28 +68,27 @@ class PT_profile:
 
     def __call__(self, ParamTable):        
         
-        # Get a constant temperature profile
-        self.temperature = ParamTable.get('temperature')
-
-        if self.temperature is None:
+        if ParamTable.get('temperature') is not None:
+            # Get a constant temperature profile
+            self.temperature = ParamTable.get('temperature')
+        
+        if (self.temperature < 0.).any():
             # Not a valid temperature profile
             return -np.inf
-        
-        return self.temperature
-    
+                    
 class PT_profile_free_gradient(PT_profile):
     """
     Class for free gradient PT profiles.
     """
 
-    def __init__(self, PT_interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
+    def __init__(self, interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
         # Give arguments to the parent class
         super().__init__(**kwargs)
 
         self.ln_pressure = np.log(self.pressure)
         self.flipped_ln_pressure = self.ln_pressure[::-1]
 
-        self.PT_interp_mode = PT_interp_mode
+        self.interp_mode = interp_mode
         self.symmetric_around_P_phot = symmetric_around_P_phot
 
     def set_pressure_knots(self, ParamTable):
@@ -136,9 +135,9 @@ class PT_profile_free_gradient(PT_profile):
                 low_i = up_i
 
             if up_i is not None:
-                self.log_P_knots.append(log_P_base+up_i)
+                self.log_P_knots.append(log_P_base-up_i)
             if low_i is not None:
-                self.log_P_knots.append(log_P_base-low_i)
+                self.log_P_knots.append(log_P_base+low_i)
 
         # Ascending pressure
         self.log_P_knots = np.sort(np.array(self.log_P_knots))
@@ -154,7 +153,7 @@ class PT_profile_free_gradient(PT_profile):
 
         # Interpolate onto each pressure level
         interp_func = interp1d(
-            self.log_P_knots, self.dlnT_dlnP_knots, kind=self.PT_interp_mode
+            self.log_P_knots, self.dlnT_dlnP_knots, kind=self.interp_mode
             )
         # Ascending in pressure
         self.dlnT_dlnP = interp_func(self.log_pressure)
@@ -174,7 +173,8 @@ class PT_profile_free_gradient(PT_profile):
             if not mask.any():
                 continue
 
-            dlnT_dlnP = self.dlnT_dlnP[::-1][mask]
+            #dlnT_dlnP = self.dlnT_dlnP[::-1][mask]
+            dlnT_dlnP = self.dlnT_dlnP[mask]
             ln_P = np.log(self.pressure)[mask]
             
             # Sort relative to base pressure
@@ -213,4 +213,4 @@ class PT_profile_free_gradient(PT_profile):
         self.get_temperature_gradients(ParamTable)
         self.get_temperature(ParamTable)
 
-        return self.temperature
+        super().__call__(ParamTable)

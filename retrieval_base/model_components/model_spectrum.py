@@ -11,8 +11,12 @@ class pRT:
         self.pressure = pressure
 
         # Set some info from the data
-        self.d_resolution        = d_spec.resolution
-        self.d_wave_ranges_chips = d_spec.wave_ranges_chips
+        self.d_wave                  = d_spec.wave
+        self.d_resolution            = d_spec.resolution
+        self.d_wave_ranges_chips     = d_spec.wave_ranges_chips
+        self.instrumental_broadening = d_spec.instrumental_broadening
+
+        self.m_resolution = 1e6/ParamTable.get('lbl_opacity_sampling', 1.)
 
         # Set the wavelength ranges of the model
         self.set_wave_ranges(ParamTable, evaluation)
@@ -59,11 +63,11 @@ class pRT:
     def set_absorption_opacity(self, Cloud, LineOpacity=None):
         
         # Check if custom opacities are set
-        cloud_abs_opacity = getattr(Cloud, 'abs_opacity')
+        cloud_abs_opacity = getattr(Cloud, 'abs_opacity', None)
         
         line_abs_opacity = None
         if LineOpacity is not None:
-            line_abs_opacity = getattr(LineOpacity, 'abs_opacity')
+            line_abs_opacity = getattr(LineOpacity, 'abs_opacity', None)
 
         if (not cloud_abs_opacity) and (not line_abs_opacity):
             # No custom opacities
@@ -85,13 +89,13 @@ class pRT:
     def set_scattering_opacity(self, Cloud):
         
         # Check if custom opacities are set
-        cloud_scat_opacity = getattr(Cloud, 'scat_opacity')
+        cloud_scat_opacity = getattr(Cloud, 'scat_opacity', None)
         return cloud_scat_opacity
     
     def set_incidence_angles(self, Rotation):
         
-        mu = getattr(Rotation, 'unique_mu_included')
-        if not mu:
+        mu = getattr(Rotation, 'unique_mu_included', None)
+        if mu is None:
             # Do not update
             return
         
@@ -101,6 +105,31 @@ class pRT:
             atm_i.w_gauss_mu = np.ones_like(mu) / len(mu)
 
             self.atm[i] = atm_i
+
+    def convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave):
+        
+        # Apply rotational broadening
+        wave, flux = Rotation.broaden(wave, flux)
+        
+        # Apply radial-velocity shift
+        wave *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
+
+        # Convert to observation by scaling with the radius
+        flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
+
+        # Apply coverage fraction for this model setting
+        flux *= ParamTable.get('coverage_fraction')
+
+        # Apply instrumental broadening
+        flux = self.instrumental_broadening(
+            wave, flux, resolution=self.d_resolution, 
+            initial_resolution=self.m_resolution
+            )
+                
+        # Rebin to data wavelength grid
+        flux_binned = np.interp(d_wave, xp=wave, fp=flux)
+
+        return wave, flux, flux_binned
 
     def __call__(self, ParamTable, Chem, PT, Cloud, Rotation, LineOpacity=None, **kwargs):
 
@@ -128,10 +157,10 @@ class pRT:
         }
         if hasattr(Rotation, 'unique_mu_included'):
             pRT_call_kwargs['return_per_mu'] = True
-
-        self.wave, self.flux = [], []
+        
+        self.wave, self.flux, self.flux_binned = [], [], []
         # Loop over all chips
-        for atm_i in self.atm:
+        for i, atm_i in enumerate(self.atm):
             
             # Skip if no incidence angles are set
             if len(atm_i.mu) == 0:
@@ -143,21 +172,44 @@ class pRT:
             atm_i.calc_flux(**pRT_call_kwargs)
 
             # Convert to the right units
-            wave_i = sc.c*1e9 / atm_i.freq[None,:]  # [nm]
+            wave_i = sc.c*1e9 / atm_i.freq[None,:] # [nm]
 
             # Get the flux per incidence angle or integrated
             flux_i = getattr(atm_i, 'flux_mu', atm_i.flux[None,:]) # [erg cm^{-2} s^{-1} Hz^{-1}]
             flux_i *= sc.c*1e9 / wave_i**2 # [erg cm^{-2} s^{-1} nm^{-1}]
 
-            # Apply rotational broadening
-            wave_i, flux_i = Rotation(wave_i, flux_i)
-
-            # Apply radial-velocity shift
-            wave_i *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
-
-            # Convert to observation by scaling with the radius
-            flux_i *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / ParamTable.get('distance')*sc.parsec)**2
+            wave_i, flux_i, flux_binned_i = self.convert_to_observation(
+                ParamTable, Rotation, wave_i, flux_i, self.d_wave[i]
+                )
 
             # Store the model spectrum
             self.wave.append(wave_i)
             self.flux.append(flux_i)
+            self.flux_binned.append(flux_binned_i)
+
+        self.flux_binned = np.array(self.flux_binned)
+
+    def combine_model_settings(self, *other_m_spec, sum_model_settings=False):
+        
+        if sum_model_settings:
+            # Combine the fluxes of all model settings
+            wave = self.wave.copy()
+            flux = self.flux.copy()
+            flux_binned = self.flux_binned.copy()
+
+            for m_spec in list(other_m_spec):
+                flux += m_spec.flux
+                flux_binned += m_spec.flux_binned
+            return wave, flux, flux_binned
+        
+        # Consider all model settings separately
+        wave = []
+        flux = []
+        flux_binned = []
+        for m_spec in [self, *other_m_spec]:
+            # Loop over all chips
+            for i in range(len(m_spec.wave)):
+                wave.append(m_spec.wave[i])
+                flux.append(m_spec.flux[i])
+                flux_binned.append(m_spec.flux_binned[i])
+        return wave, flux, flux_binned
