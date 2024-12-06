@@ -100,6 +100,8 @@ class Gray(Cloud):
 
     def abs_opacity(self, wave_micron, pressure):
 
+        wave_micron = np.atleast_1d(wave_micron)
+
         # Create gray cloud opacity, i.e. independent of wavelength
         opacity = np.zeros((len(wave_micron), len(pressure)), dtype=np.float64)
 
@@ -136,7 +138,7 @@ class Gray(Cloud):
         opacity = 1/(1-self.omega) * self.abs_opacity(wave_micron, pressure)
         return opacity * self.omega
             
-    def __call__(self, ParamTable, **kwargs):
+    def __call__(self, ParamTable, mean_wave_micron=None, **kwargs):
     
         self.P_base      = []
         self.opa_base    = []
@@ -163,3 +165,9 @@ class Gray(Cloud):
 
         # Single-scattering albedo
         self.omega = ParamTable.get('omega', 0.)
+
+        if mean_wave_micron is None:
+            return
+        self.total_opacity = self.abs_opacity(mean_wave_micron, self.pressure) + \
+            self.scat_opacity(mean_wave_micron, self.pressure)
+        self.total_opacity = np.squeeze(self.total_opacity)

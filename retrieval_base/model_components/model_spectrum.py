@@ -10,6 +10,8 @@ class pRT:
         self.m_set    = m_set
         self.pressure = pressure
 
+        self.evaluation = evaluation
+
         # Set some info from the data
         self.d_wave                  = d_spec.wave
         self.d_resolution            = d_spec.resolution
@@ -19,15 +21,15 @@ class pRT:
         self.m_resolution = 1e6/ParamTable.get('lbl_opacity_sampling', 1.)
 
         # Set the wavelength ranges of the model
-        self.set_wave_ranges(ParamTable, evaluation)
+        self.set_wave_ranges(ParamTable)
 
         # Create Radtrans objects
         self.set_Radtrans(ParamTable)
 
-    def set_wave_ranges(self, ParamTable, evaluation):
+    def set_wave_ranges(self, ParamTable):
         
         rv_max = 1001
-        if not evaluation:
+        if not self.evaluation:
             rv_prior    = ParamTable.get('rv', key='Param').prior_params
             vsini_prior = ParamTable.get('rv', key='Param').prior_params
             
@@ -106,7 +108,7 @@ class pRT:
 
             self.atm[i] = atm_i
 
-    def convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave):
+    def convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave, apply_scaling=True):
         
         # Apply rotational broadening
         wave, flux = Rotation.broaden(wave, flux)
@@ -114,22 +116,43 @@ class pRT:
         # Apply radial-velocity shift
         wave *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
 
-        # Convert to observation by scaling with the radius
-        flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
+        if apply_scaling:
+            # Convert to observation by scaling with the radius
+            flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
 
-        # Apply coverage fraction for this model setting
-        flux *= ParamTable.get('coverage_fraction')
+            # Apply coverage fraction for this model setting
+            flux *= ParamTable.get('coverage_fraction')
 
         # Apply instrumental broadening
         flux = self.instrumental_broadening(
-            wave, flux, resolution=self.d_resolution, 
-            initial_resolution=self.m_resolution
+            wave, flux, resolution=self.d_resolution, initial_resolution=self.m_resolution
             )
                 
         # Rebin to data wavelength grid
         flux_binned = np.interp(d_wave, xp=wave, fp=flux)
 
         return wave, flux, flux_binned
+    
+    def get_emission_contribution(self, ParamTable, Rotation, wave, contr, d_wave, flux_binned):
+
+        contr_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
+        integrated_contr = np.nan * np.ones_like(self.pressure)
+        
+        # Loop over each pressure level
+        for i, contr_i in enumerate(contr):
+
+            # Apply rv-shift and broadening to emission contribution
+            wave_i, contr_i, contr_binned_i = self.convert_to_observation(
+                ParamTable, Rotation, wave.copy(), contr_i[None,:], d_wave, apply_scaling=False, 
+                )
+            contr_per_wave[i] = contr_binned_i
+
+            # Spectrally weighted integration
+            integrand1 = np.trapz(x=d_wave, y=d_wave*flux_binned*contr_binned_i)
+            integrand2 = np.trapz(x=d_wave, y=d_wave*flux_binned)
+            integrated_contr[i] = integrand1 / integrand2
+
+        return contr_per_wave, integrated_contr
 
     def __call__(self, ParamTable, Chem, PT, Cloud, Rotation, LineOpacity=None, **kwargs):
 
@@ -154,11 +177,15 @@ class pRT:
             'Kzz': getattr(Cloud, 'K_zz', None),
             'fsed': getattr(Cloud, 'f_sed', None),
             'sigma_lnorm': getattr(Cloud, 'sigma_g', None),
+
+            'contribution': self.evaluation, 
         }
         if hasattr(Rotation, 'unique_mu_included'):
             pRT_call_kwargs['return_per_mu'] = True
         
         self.wave, self.flux, self.flux_binned = [], [], []
+        self.contr_per_wave, self.integrated_contr = [], []
+
         # Loop over all chips
         for i, atm_i in enumerate(self.atm):
             
@@ -172,22 +199,35 @@ class pRT:
             atm_i.calc_flux(**pRT_call_kwargs)
 
             # Convert to the right units
-            wave_i = sc.c*1e9 / atm_i.freq[None,:] # [nm]
+            wave_init_i = sc.c*1e9 / atm_i.freq[None,:] # [nm]
 
             # Get the flux per incidence angle or integrated
             flux_i = getattr(atm_i, 'flux_mu', atm_i.flux[None,:]) # [erg cm^{-2} s^{-1} Hz^{-1}]
-            flux_i *= sc.c*1e9 / wave_i**2 # [erg cm^{-2} s^{-1} nm^{-1}]
+            flux_i *= sc.c*1e9 / wave_init_i**2 # [erg cm^{-2} s^{-1} nm^{-1}]
 
             wave_i, flux_i, flux_binned_i = self.convert_to_observation(
-                ParamTable, Rotation, wave_i, flux_i, self.d_wave[i]
+                ParamTable, Rotation, wave_init_i.copy(), flux_i, self.d_wave[i]
                 )
 
+            if self.evaluation:
+                # Get the shifted/broadened + integrated emission contribution
+                contr_per_wave_i, integrated_contr_i = self.get_emission_contribution(
+                    ParamTable, Rotation, wave_init_i.copy(), atm_i.contr_em, 
+                    self.d_wave[i], flux_binned_i, 
+                    )
+                self.contr_per_wave.append(contr_per_wave_i)
+                self.integrated_contr.append(integrated_contr_i)
+                
             # Store the model spectrum
             self.wave.append(wave_i)
             self.flux.append(flux_i)
             self.flux_binned.append(flux_binned_i)
 
         self.flux_binned = np.array(self.flux_binned)
+
+        if self.evaluation:
+            self.contr_per_wave   = np.array(self.contr_per_wave)
+            self.integrated_contr = np.array(self.integrated_contr)
 
     def combine_model_settings(self, *other_m_spec, sum_model_settings=False):
         

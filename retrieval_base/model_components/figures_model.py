@@ -3,15 +3,21 @@ import matplotlib as mpl
 
 import numpy as np
 
+def get_env_colors(color):
+
+    env_cmap = mpl.colors.LinearSegmentedColormap.from_list('', ['w',color])
+    env_colors = env_cmap([0.,1./3,2./3,1.])
+    env_colors[:,3] = 0.5
+    env_colors[0,3] = 0.0
+
+    return env_cmap, env_colors
+
 q = 0.5 + 1/2*np.array([-0.997, -0.95, -0.68, 0., 0.68, 0.95, 0.997])
 
-bestfit_color = 'C1'
+bestfit_color   = 'C1'
 posterior_color = 'C0'
+env_cmap, env_colors = get_env_colors(posterior_color)
 
-env_cmap = mpl.colors.LinearSegmentedColormap.from_list('', ['w',posterior_color])
-env_colors = env_cmap([0.,1./3,2./3,1.])
-env_colors[:,3] = 0.5
-env_colors[0,3] = 0.0
 
 def plot_corner(fig, posterior, bestfit_parameters, labels=None):
 
@@ -86,15 +92,30 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None):
     #plt.subplots_adjust()
     return fig, ax
 
-def plot_PT(PT, ax=None, ax_gradient=None):
+
+def plot_envelopes(ax, y, env_x, indices=[(0,6),(1,5),(2,4)], colors=env_colors[:3], median_kwargs={'c':posterior_color}):
+    
+    for i, (idx_l, idx_u) in enumerate(indices):
+        ax.fill_betweenx(y=y, x1=env_x[idx_l], x2=env_x[idx_u], fc=colors[i], ec='none')
+
+    if median_kwargs is None:
+        return
+    ax.plot(env_x[3], y, **median_kwargs)
+
+def plot_PT(PT, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
     
     ax.set(
         yscale='log', ylabel='P (bar)', ylim=(PT.pressure.max(), PT.pressure.min()), 
-        xlabel='T (K)', xlim=(0,3700)
+        xlabel='T (K)', xlim=(0,3900)
         )
     
+    temperature_posterior = getattr(PT, 'temperature_posterior', None)
+    if temperature_posterior is not None:
+        env = np.quantile(temperature_posterior, q=q, axis=0)
+        plot_envelopes(ax, y=PT.pressure, env_x=env)
+
     ax.plot(PT.temperature, PT.pressure, c=bestfit_color)
     
     log_P_knots = getattr(PT, 'log_P_knots', [])
@@ -102,57 +123,101 @@ def plot_PT(PT, ax=None, ax_gradient=None):
         ax.axhline(10**log_P, xmax=0.02, c=bestfit_color)
         ax.axhline(10**log_P, xmin=1-0.02, c=bestfit_color)
 
-    if ax_gradient is None:
+def plot_gradient(PT, ax=None):
+    if ax is None:
         return
+
+    ax.set(
+        ylim=(PT.pressure.max(), PT.pressure.min()), yscale='log', yticks=[],
+        xlim=(0,0.4), xticks=[0,0.2,0.4], xlabel=r'$\nabla_T$'
+        )
+        
+    ax.set_facecolor('none')
+    ax.spines[['left','top','bottom']].set_visible(False)
+    ax.spines['right'].set_alpha(0.2)
+    ax.xaxis.set_label_position('top')
+    ax.xaxis.tick_top()
 
     y = PT.pressure[1:] + (PT.pressure[:-1]-PT.pressure[1:])/2
     dlnT_dlnP = np.diff(np.log(PT.temperature)) / np.diff(np.log(PT.pressure))
-    ax_gradient.plot(dlnT_dlnP, y, c=bestfit_color, ls=':')
+    ax.plot(dlnT_dlnP, y, c=bestfit_color, ls=':')
 
-    ax_gradient.set(
-        ylim=ax.get_ylim(), yscale='log', yticks=[],
-        xlim=(0,0.4), xticks=[0,0.2,0.4], xlabel=r'$\nabla_T$'
+def plot_contribution(m_spec, ax=None):
+
+    ax.set(
+        ylim=(m_spec.pressure.max(), m_spec.pressure.min()), 
+        yscale='log', yticks=[], xlim=(1,0), xticks=[], 
         )
-    ax_gradient.set_facecolor('none')
-    ax_gradient.spines[['left','top','bottom']].set_visible(False)
-    ax_gradient.spines['right'].set_alpha(0.2)
-    ax_gradient.xaxis.set_label_position('top')
-    ax_gradient.xaxis.tick_top()
+    ax.set_facecolor('none')
+    ax.spines[['left','right','top','bottom']].set_visible(False)
+
+    integrated_contr = np.nansum(m_spec.integrated_contr, axis=0)
+
+    ax.plot(
+        integrated_contr/integrated_contr.max(), m_spec.pressure, 
+        c=bestfit_color, ls='-', alpha=0.5
+        )
+
 
 def plot_chemistry(Chem, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
 
-    for species_i, VMR_i in Chem.VMRs.items():
-        if species_i in ['H2', 'He']:
-            continue
-
-        color = Chem.read_species_info(species_i, 'color')
-        label = Chem.read_species_info(species_i, 'label')
-
-        ax.plot(VMR_i, Chem.pressure, c=color, label=label)
-
-    ax.legend(
-        loc='upper right', bbox_to_anchor=(-0.25,1), frameon=False, 
-        handlelength=0.8, labelcolor='linecolor', fontsize=11
-        )
     ax.set(
         yscale='log', ylabel='P (bar)', ylim=(Chem.pressure.max(), Chem.pressure.min()), 
         xscale='log', xlabel='VMR', xlim=(1e-10,1e-2)
         )
+
+    for species_i, VMR_i in Chem.VMRs.items():
+        if species_i in ['H2', 'He']:
+            continue
+        color = Chem.read_species_info(species_i, 'color')
+        label = Chem.read_species_info(species_i, 'label')
+
+        VMRs_posterior = getattr(Chem, 'VMRs_posterior', None)
+        if VMRs_posterior is not None:
+            env = np.quantile(VMRs_posterior[species_i], q=q, axis=0)
+            _, VMR_env_colors = get_env_colors(color=color)
+            plot_envelopes(
+                ax, y=Chem.pressure, env_x=env, indices=[(2,4)], 
+                colors=[VMR_env_colors[2]], median_kwargs={'c':color, 'label':label}
+                )
+
+            continue # Skip the best-fit
     
+        ax.plot(VMR_i, Chem.pressure, c=color, label=label)
+
+    ax.legend(
+        loc='upper right', bbox_to_anchor=(-0.28,1), frameon=False, 
+        handlelength=0.8, labelcolor='linecolor', fontsize=11, markerfirst=False
+        )
+
+
 def plot_clouds(Cloud, ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
 
     ax.set(
         yscale='log', ylabel='P (bar)', ylim=(Cloud.pressure.max(), Cloud.pressure.min()), 
-        xscale='log', xlabel=r'$\kappa_\mathrm{cl}\ (\mathrm{cm^2\ g^{-1}})$', xlim=(1e2,1e-4)
+        xscale='log', xlabel=r'$\kappa_\mathrm{cl}\ (\mathrm{cm^2\ g^{-1}})$', 
+        xlim=(3e2,1e-4), xticks=[1e2,1e-1,1e-4], 
         )
 
-def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud):
+    total_opacity = getattr(Cloud, 'total_opacity', None)
+    if total_opacity is None:
+        return
+    
+    total_opacity_posterior = getattr(Cloud, 'total_opacity_posterior', None)
+    if total_opacity_posterior is not None:
+        env = np.quantile(total_opacity_posterior, q=q, axis=0)
+        plot_envelopes(ax, y=Cloud.pressure, env_x=env)
+        
+    ax.plot(total_opacity, Cloud.pressure, c=bestfit_color)    
 
-    fig = plt.figure(figsize=(12,12))
+
+def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud, m_spec):
+
+    fig = plt.figure(figsize=(13,13))
     fig, ax = plot_corner(fig, posterior, bestfit_parameters, labels=labels)
 
     width, height = 0.5, 0.3
@@ -164,9 +229,13 @@ def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Clo
     ax_VMR = fig.add_axes([right-width, top-height, widths[0], height])
 
     ax_gradient = fig.add_axes([right-widths[2]-widths[1],top-height,widths[1]/3,height])
+    ax_contr    = fig.add_axes([right-widths[2]-widths[1]/3,top-height,widths[1]/3,height])
 
     for m_set, ls in zip(PT.keys(), ['-', '--', ':']):
-        plot_PT(PT[m_set], ax=ax_PT, ax_gradient=ax_gradient)
+        plot_PT(PT[m_set], ax=ax_PT)
+        plot_gradient(PT[m_set], ax=ax_gradient)
+        plot_contribution(m_spec[m_set], ax=ax_contr)
+
         plot_chemistry(Chem[m_set], ax=ax_VMR)
         plot_clouds(Cloud[m_set], ax=ax_cl)
 
@@ -175,7 +244,8 @@ def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Clo
         if i!=0:
             ax_i.set(yticklabels=[])
 
+    for ax_i in [ax_gradient, ax_contr]:
+        ax_i.tick_params(left=False, right=False, which='both')
+
     fig.savefig(plots_dir / 'live_summary.pdf')
     plt.close(fig)
-
-    pass

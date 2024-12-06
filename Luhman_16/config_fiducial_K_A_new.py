@@ -45,6 +45,7 @@ config_data = dict(
             # Observation info
             #'wave_range': (1900, 2500), 'w_set': 'K2166', 
             'wave_range': (2300, 2350), 'w_set': 'K2166', 
+            #'wave_range': (2300, 2500), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -75,10 +76,10 @@ free_params = {
     'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray_0': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-    #'log_P_base_gray_0':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-    #'f_sed_gray_0':        ['U', (1,20), r'$f_\mathrm{sed,1}$'], 
-    #'cloud_slope_0':       ['U', (-6,1), r'$\xi_\mathrm{cl,1}$'], 
+    'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
+    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
+    #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
     'C/O':  ['U', (0.1,1.0), r'C/O'], 
@@ -193,8 +194,8 @@ PT_kwargs = dict(
 ####################################################################################
 
 cloud_kwargs = {
-    #'cloud_mode': 'gray', 
-    'cloud_mode': None, 
+    'cloud_mode': 'gray', 
+    #'cloud_mode': None, 
     'wave_cloud_0': 2.0, 
 }
 
@@ -238,7 +239,6 @@ all_model_kwargs = dict(
 ####################################################################################
 
 pymultinest_kwargs = dict(    
-    resume  = False, 
     verbose = True, 
 
     const_efficiency_mode = True, 

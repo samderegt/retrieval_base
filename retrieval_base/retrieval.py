@@ -58,13 +58,18 @@ class Retrieval:
         for name in component_names:
             # Load the component, if it exists
             file = self.data_dir/f'{name}.pkl'
+            file_m_set = self.data_dir/f'{name}_{m_set}.pkl'
+
             if file.exists():
                 component = utils.load_pickle(file)
-            else:
+            elif file_m_set.exists():
                 component = {}
                 for m_set in self.model_settings:
                     file = self.data_dir/f'{name}_{m_set}.pkl'
                     component[m_set] = utils.load_pickle(file)
+            else:
+                # No file found
+                continue
 
             # Make attribute
             setattr(self, name, component)
@@ -122,12 +127,13 @@ class RetrievalSetup(Retrieval):
             
             # Pre-process the data
             d_spec_target.telluric_correction(d_spec_std)
-            d_spec_target.flux_calibration(**config_data_m_set['target_kwargs'])
             d_spec_target.sigma_clip(**config_data_m_set['kwargs'])
+
+            d_spec_target.flux_calibration(**config_data_m_set['target_kwargs'])
             d_spec_target.savgol_filter()
 
             # Summarise in figures and store in dictionary
-            d_spec_target.make_figures(plots_dir=self.plots_dir)
+            d_spec_target.plot_pre_processing(plots_dir=self.plots_dir)
             self.d_spec[m_set] = d_spec_target
 
     def get_synthetic_spectrum(self, config_synthetic_spectrum, m_set):
@@ -157,7 +163,7 @@ class RetrievalSetup(Retrieval):
             all_model_kwargs=config.all_model_kwargs,
             )
 
-    def get_model_components(self, evaluation=False):
+    def get_model_components(self):
         """
         Generate model components for the retrieval process.
 
@@ -212,7 +218,6 @@ class RetrievalSetup(Retrieval):
                 d_spec=self.d_spec[m_set], 
                 m_set=m_set,
                 pressure=pressure, 
-                evaluation=evaluation
                 )
             
         # Set the observation model components
@@ -239,7 +244,7 @@ class RetrievalRun(Retrieval):
     and initiating the retrieval.
     """
 
-    def __init__(self, config, evaluation=False):
+    def __init__(self, config, resume=True, evaluation=False):
         
         """
         Initialize the RetrievalRun instance.
@@ -259,17 +264,52 @@ class RetrievalRun(Retrieval):
         else:
             component_names += ['m_spec']
         '''
+        self.resume     = resume
         self.evaluation = evaluation
+        
         self.load_components(component_names)
 
         self.pymultinest_kwargs = config.pymultinest_kwargs
-
         self.elapsed_times = []
 
+    def run_evaluation(self):
+
+        # Try loading the evaluation model
+        self.load_components(['m_spec_eval'])
+        
+        if not hasattr(self, 'm_spec_eval') and (rank == 0):
+            # Set up the evaluation model (only for master process)
+            self.m_spec_eval = {}
+
+            from .model_components import model_spectrum
+            for m_set in self.model_settings:
+                self.ParamTable.queried_m_set = ['all', m_set]
+
+                self.m_spec_eval[m_set] = model_spectrum.get_class(
+                    ParamTable=self.ParamTable, 
+                    d_spec=self.d_spec[m_set], 
+                    m_set=m_set,
+                    pressure=self.PT[m_set].pressure, 
+                    evaluation=self.evaluation
+                    )
+                
+                # Save to a pickle
+                utils.save_pickle(
+                    self.m_spec_eval[m_set], self.data_dir/f'm_spec_eval_{m_set}.pkl'
+                    )
+                
+            self.ParamTable.queried_m_set = 'all'
+
+        # Pause until master process has caught up
+        comm.Barrier()
+
+        # Load the evaluation model for all processes
+        self.load_components(['m_spec_eval'])
+
+        # Run the callback function
+        self.callback(*[None,]*10)
+        
     def run(self):
-        """
-        Run the retrieval process.
-        """
         pymultinest.run(
             LogLikelihood=self.get_likelihood, 
             Prior=self.ParamTable, 
@@ -277,14 +317,14 @@ class RetrievalRun(Retrieval):
 
             outputfiles_basename=self.prefix, 
             dump_callback=self.callback,
-
+            
+            resume=self.resume, 
             **self.pymultinest_kwargs
         )
 
-    def get_likelihood(self, cube=None, ndim=None, nparams=None):
+    def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=True, skip_radtrans=False):
         
         time_A = time.time()
-
         # ParamTable is updated
 
         for m_set in self.model_settings:
@@ -298,13 +338,19 @@ class RetrievalRun(Retrieval):
                 return -np.inf
             
             # Update the chemistry
-            self.Chem[m_set](self.ParamTable, self.PT[m_set].temperature)
+            self.Chem[m_set](self.ParamTable, temperature=self.PT[m_set].temperature)
             if flag == -np.inf:
                 # Invalid chemistry
                 return -np.inf
 
             # Update the cloud
-            self.Cloud[m_set](self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set])
+            self.Cloud[m_set](
+                self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set], 
+                mean_wave_micron=np.nanmean(self.d_spec[m_set].wave)*1e-3
+                )
+            
+            if skip_radtrans:
+                continue
 
             # TODO: Update the line opacity
             # ...
@@ -313,13 +359,21 @@ class RetrievalRun(Retrieval):
             self.Rotation[m_set](self.ParamTable)
 
             # Update the model spectrum
+            self.m_spec[m_set].evaluation = evaluation
             self.m_spec[m_set](
-                self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set], 
-                Cloud=self.Cloud[m_set], Rotation=self.Rotation[m_set], 
+                self.ParamTable, 
+                Chem=self.Chem[m_set], 
+                PT=self.PT[m_set], 
+                Cloud=self.Cloud[m_set], 
+                Rotation=self.Rotation[m_set], 
                 LineOpacity=self.LineOpacity[m_set], 
                 )
+            self.m_spec[m_set].evaluation = False
 
         self.ParamTable.queried_m_set = 'all'
+
+        if skip_radtrans:
+            return
 
         sum_model_settings = self.ParamTable.loglike_kwargs.get('sum_model_settings', False)
         m_set_first, *m_set_others = self.model_settings
@@ -340,23 +394,30 @@ class RetrievalRun(Retrieval):
         self.elapsed_times.append(time_B - time_A)
 
         return self.LogLike.ln_L
+    
+    def load_posterior_and_bestfit(self, posterior, n_samples_max=2000):
 
-    def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
+        if self.evaluation:
+            # Read the equally-weighted posterior
+            analyzer = pymultinest.Analyzer(
+                n_params=self.ParamTable.n_free_params, 
+                outputfiles_basename=self.prefix
+                )
+            posterior = analyzer.get_equal_weighted_posterior()
+            posterior = posterior[:,:-1]
+            
+            # Read best-fit parameters
+            stats = analyzer.get_stats()
+            bestfit_parameters = np.array(stats['modes'][0]['maximum a posterior'])
 
-        if rank != 0:
-            # Only the master process should save the data
-            return
-        
-        ln_L = posterior[:,-2]
-        posterior = posterior[:,:-2]
+        else:
+            # Read best-fit parameters
+            ln_L = posterior[:,-2]
+            bestfit_parameters = posterior[np.argmax(ln_L),:-2]
 
-        bestfit_parameters = posterior[np.argmax(ln_L)]
-
-        # Use only the last n samples
-        n_samples_to_plot = len(posterior)
-        if not self.evaluation:
-            n_samples_to_plot = min(n_samples_to_plot, 2000)
-        posterior = posterior[-n_samples_to_plot:]
+            # Use only the last n_samples
+            n_samples = min(len(posterior), n_samples_max)
+            posterior = posterior[-n_samples:,:-2]
 
         # Evaluate the model with the best-fit parameters
         self.ParamTable.set_apply_prior(False)
@@ -364,9 +425,64 @@ class RetrievalRun(Retrieval):
         self.ParamTable.set_apply_prior(True)
 
         # Update the model components
-        self.get_likelihood()
+        self.get_likelihood(evaluation=True, skip_radtrans=False)
 
+        return posterior, bestfit_parameters
+    
+    def get_profile_posterior(self, posterior):
+
+        n_samples = posterior.shape[0]
+
+        for m_set in self.model_settings:
+            # Number of pressure levels
+            n_atm_layers = self.PT[m_set].n_atm_layers
+
+            # Set up posterior definitions
+            self.PT[m_set].temperature_posterior = np.nan * np.ones((n_samples, n_atm_layers))
+            
+            self.Chem[m_set].VMRs_posterior = {
+                species_i: np.nan * np.ones((n_samples, n_atm_layers)) \
+                for species_i in self.Chem[m_set].keys()
+                }
+            
+            if not hasattr(self.Cloud[m_set], 'total_opacity'):
+                continue
+            self.Cloud[m_set].total_opacity_posterior = np.nan * np.ones((n_samples, n_atm_layers))
+    
+        for i, sample in enumerate(posterior):
+            # Evaluate the model for this sample
+            self.ParamTable.set_apply_prior(False)
+            self.ParamTable(cube=sample)
+            self.ParamTable.set_apply_prior(True)
+
+            # Update the model components, avoid radiative transfer
+            self.get_likelihood(evaluation=True, skip_radtrans=True)
+
+            for m_set in self.model_settings:
+
+                # Add to the posterior profiles
+                self.PT[m_set].temperature_posterior[i] = self.PT[m_set].temperature
+
+                for species_j, VMR_j in self.Chem[m_set].VMRs.items():
+                    self.Chem[m_set].VMRs_posterior[species_j][i] = VMR_j
+
+                if not hasattr(self.Cloud[m_set], 'total_opacity_posterior'):
+                    continue
+                self.Cloud[m_set].total_opacity_posterior[i] = self.Cloud[m_set].total_opacity
+
+    def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
+
+        if (rank != 0) and (not self.evaluation):
+            # Only the master process should make the live plots
+            return
+
+        # Update the model components to the best-fit
+        posterior, bestfit_parameters = self.load_posterior_and_bestfit(posterior)
         labels = self.ParamTable.get_mathtext()
+
+        if self.evaluation:
+            # Get the vertical profile posteriors
+            self.get_profile_posterior(posterior)
 
         # Make summarising figures
         from .model_components import figures_model
@@ -375,10 +491,22 @@ class RetrievalRun(Retrieval):
             posterior=posterior, 
             bestfit_parameters=bestfit_parameters, 
             labels=labels, 
-            PT=self.PT, Chem=self.Chem, Cloud=self.Cloud, 
+            PT=self.PT, 
+            Chem=self.Chem, 
+            Cloud=self.Cloud, 
+            m_spec=self.m_spec
             )
         
-        # TODO: corner plot + vertical profiles
-        # TODO: best-fitting spectrum
+        # Plot best-fitting spectrum
+        for m_set in self.model_settings:
+            self.d_spec[m_set].plot_bestfit(
+                plots_dir=self.plots_dir, 
+                LogLike=self.LogLike,
+            )
 
-        # TODO: Save best-fitting model components
+        #print(np.mean(self.elapsed_times))
+        self.elapsed_times = []
+
+        if self.evaluation:
+            # Save best-fitting model components
+            self.save_all_components(non_dict_names=['LogLike','Cov','ParamTable'])

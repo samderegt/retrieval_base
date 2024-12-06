@@ -82,9 +82,9 @@ class LogLikelihood:
             self.m_flux_phi[i] = m_flux_i
             if apply_scaling:
                 # Find optimal flux-scaling to match observations
-                self.m_flux_phi[i][mask], self.phi[i] = \
-                    self.get_flux_scaling(d_flux_i[mask], m_flux_i[mask], Cov_i)
-                
+                _, self.phi[i] = self.get_flux_scaling(d_flux_i[mask], m_flux_i[mask], Cov_i)
+                self.m_flux_phi[i] = np.dot(m_flux_i, self.phi[i])
+
             # Residuals compared to scaled model
             residuals = d_flux_i - self.m_flux_phi[i]
 
