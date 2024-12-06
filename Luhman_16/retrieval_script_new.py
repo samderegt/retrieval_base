@@ -12,6 +12,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--setup', '-s', action='store_true')
     parser.add_argument('--run', '-r', action='store_true')
+    parser.add_argument('--restart', action='store_true', default=False)
     parser.add_argument('--evaluation', '-e', action='store_true')
     args = parser.parse_args()
 
@@ -23,7 +24,7 @@ if __name__ == '__main__':
         ret = RetrievalSetup(config)
         import sys; sys.exit()
 
-    ret = RetrievalRun(config, evaluation=args.evaluation)
+    ret = RetrievalRun(config, resume=(not args.restart), evaluation=args.evaluation)
     if args.run:
         ret.run()
     if args.evaluation:
