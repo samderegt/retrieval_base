@@ -3,6 +3,8 @@ import scipy.stats as stats
 import pandas as pd
 import numpy as np
 
+import warnings
+
 from .utils import sc
 
 class Parameter:
@@ -194,14 +196,16 @@ class ParameterTable:
     def add_model_kwargs(self, all_model_kwargs):
 
         kwarg_keys = [
-            'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 
-            'cov_kwargs', 'loglike_kwargs',
+            'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 'line_opacity_kwargs', 
             'rotation_kwargs', 'pRT_Radtrans_kwargs', 
+            'cov_kwargs', 'loglike_kwargs', 
             ]
         for key in kwarg_keys:
-            model_kwargs = all_model_kwargs.get(key)
-            if model_kwargs is None:
-                raise ValueError(f'{key} not found in all_model_kwargs')
+            
+            model_kwargs = all_model_kwargs.get(key, {})
+            
+            if len(model_kwargs) == 0:
+                warnings.warn(f'{key} not found in all_model_kwargs')
             
             if key not in ['cov_kwargs', 'loglike_kwargs']:
                 # Expand the kwargs to each model setting

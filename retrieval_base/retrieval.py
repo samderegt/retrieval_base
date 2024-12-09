@@ -177,11 +177,13 @@ class RetrievalSetup(Retrieval):
         Args:
             evaluation (bool): Flag to indicate if it's for evaluation. Default is False.
         """
-        self.LineOpacity = {}
+
         self.PT = {}
         self.Chem = {}
         self.Cloud = {}
         self.Rotation = {}
+
+        self.LineOpacity = {}
         self.m_spec = {}
 
         for m_set in self.model_settings:
@@ -196,8 +198,19 @@ class RetrievalSetup(Retrieval):
                 )
             pressure = self.PT[m_set].pressure
 
+            from .model_components import model_spectrum
+            self.m_spec[m_set] = model_spectrum.get_class(
+                ParamTable=self.ParamTable, 
+                d_spec=self.d_spec[m_set], 
+                m_set=m_set,
+                pressure=pressure, 
+                )
+            
             from .model_components import line_opacity
-            self.LineOpacity[m_set] = line_opacity.get_class()
+            self.LineOpacity[m_set] = line_opacity.get_class(
+                m_spec=self.m_spec[m_set],
+                line_opacity_kwargs=self.ParamTable.line_opacity_kwargs[m_set], 
+                )
 
             from .model_components import chemistry
             self.Chem[m_set] = chemistry.get_class(
@@ -217,14 +230,6 @@ class RetrievalSetup(Retrieval):
             from .model_components import rotation_profile
             self.Rotation[m_set] = rotation_profile.get_class(
                 **self.ParamTable.rotation_kwargs[m_set]
-                )
-
-            from .model_components import model_spectrum
-            self.m_spec[m_set] = model_spectrum.get_class(
-                ParamTable=self.ParamTable, 
-                d_spec=self.d_spec[m_set], 
-                m_set=m_set,
-                pressure=pressure, 
                 )
             
         # Set the observation model components
@@ -266,8 +271,8 @@ class RetrievalRun(Retrieval):
         # Load a list of components
         component_names = [
             'd_spec', 'ParamTable', 
-            'LineOpacity', 'PT', 'Chem', 'Cloud', 
-            'Rotation', 'm_spec', 'LogLike', 'Cov'
+            'LineOpacity', 'PT', 'Chem', 'Cloud', 'Rotation', 'm_spec', 
+            'LogLike', 'Cov'
         ]
         self.load_components(component_names)
 
@@ -321,9 +326,6 @@ class RetrievalRun(Retrieval):
             resume=self.resume, 
             **self.config.pymultinest_kwargs
             )
-        
-        #self.evaluation = True
-        #self.run_evaluation()
 
     def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=True, skip_radtrans=False):
         
