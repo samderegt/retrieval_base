@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 import pickle
@@ -29,3 +30,24 @@ def get_subfigures_per_chip(N):
     subfig = np.array([fig.add_subfigure(gs[i]) for i in range(N)])
 
     return fig, subfig
+
+def print_bestfit_params(ParamTable, LogLike):
+    """Print the best-fit parameters."""
+
+    print('\nBest-fitting free parameters:')
+    for idx, (idx_free) in enumerate(ParamTable.table['idx_free']):
+        if pd.isna(idx_free):
+            # Not a free parameter
+            continue
+
+        name, m_set, val = ParamTable.table.loc[idx][['name','m_set','val']]
+        print(f'{name} ({m_set})'.ljust(30,' ') + f' = {val:.2f}')
+
+    print('\nChi-squared (w/o covariance-scaling): {:.2f}'.format(LogLike.chi_squared_0_red))
+    if not LogLike.scale_flux:
+        return
+    print('\nOptimal flux-scaling parameters:')
+    print(LogLike.phi.round(2))
+    
+    print('R_p (R_Jup):')
+    print(np.sqrt(LogLike.phi).round(2))

@@ -29,6 +29,18 @@ class PT_profile:
     Base class for PT profiles.
     """
 
+    @staticmethod
+    def get_dlnT_dlnP(temperature, pressure):
+
+        # Log pressure between layers
+        log_pressure = np.log10(pressure)
+        mean_log_pressure = 1/2*(log_pressure[1:] + log_pressure[:-1])
+
+        # Temperature gradient
+        dlnT_dlnP = np.diff(np.log(temperature)) / np.diff(np.log(pressure))
+
+        return dlnT_dlnP, 10**mean_log_pressure
+    
     def __init__(self, **kwargs):
         """
         Initialize the PT_profile class.

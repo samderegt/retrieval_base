@@ -17,21 +17,34 @@ class LogLikelihood:
         self.N_phi = N_phi
         self.scale_relative_to_chip = scale_relative_to_chip
 
-    def combine_model_settings(self, d_spec, sum_model_settings=False):
+    def combine_model_settings(self, d_spec, sum_model_settings=True):
         
         # All model settings
         self.model_settings = list(d_spec.keys())
         self.sum_model_settings = sum_model_settings
 
+        if self.sum_model_settings:
+            wave = d_spec[self.model_settings[0]].wave
+            for m_set in self.model_settings[1:]:
+                assert np.array_equal(d_spec[m_set].wave, wave), "Wavelength arrays are not the same across all model settings"
+
+        self.indices_per_model_setting = {
+            m_set: np.arange(d_spec[m_set].n_chips) \
+                for m_set in self.model_settings
+            }
         self.d_flux = []
         for m_set in self.model_settings:
+
             for d_flux_i in d_spec[m_set].flux:
                 # Add each chip
                 self.d_flux.append(d_flux_i)
 
             if self.sum_model_settings:
-                # Only compare to one model setting
+                # Only compare to sum of model settings
                 break
+
+            self.indices_per_model_setting[m_set] += \
+                len(self.d_flux)-len(d_spec[m_set].flux)
         
         self.n_chips = len(self.d_flux)
 

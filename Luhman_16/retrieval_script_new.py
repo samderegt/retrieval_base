@@ -28,4 +28,4 @@ if __name__ == '__main__':
     if args.run:
         ret.run()
     if args.evaluation:
-        ret.evaluation()
+        ret.run_evaluation()

@@ -15,12 +15,13 @@ from . import utils
 
 class Retrieval:
     def __init__(self, config):
-        # Create output directory
-        self.prefix = config.prefix
-        self.create_output_dir(config.file_params)
-        self.model_settings = list(config.config_data.keys())
 
-    def create_output_dir(self, file_params):
+        # Create output directory
+        self.config = config
+        self.create_output_dir()
+        self.model_settings = list(self.config.config_data.keys())
+
+    def create_output_dir(self):
         """
         Create output directories for data and plots, and copy the config file.
 
@@ -29,14 +30,14 @@ class Retrieval:
             file_params (str): Path to the configuration file.
         """
         # Create output directory
-        self.data_dir = Path(f'{self.prefix}data')
+        self.data_dir = Path(f'{self.config.prefix}data')
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        self.plots_dir = Path(f'{self.prefix}plots')
+        self.plots_dir = Path(f'{self.config.prefix}plots')
         self.plots_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy config-file to output directory
-        config_file = Path(file_params)
+        config_file = Path(self.config.file_params)
         destination = self.data_dir / config_file.name
         destination.write_bytes(config_file.read_bytes())
 
@@ -55,19 +56,24 @@ class Retrieval:
 
     def load_components(self, component_names):
         
+        # Pause the process to not overload memory on start-up
+        time.sleep(0.3*rank)
+        
         for name in component_names:
+            component = {}
+
             # Load the component, if it exists
             file = self.data_dir/f'{name}.pkl'
-            file_m_set = self.data_dir/f'{name}_{m_set}.pkl'
-
             if file.exists():
                 component = utils.load_pickle(file)
-            elif file_m_set.exists():
-                component = {}
-                for m_set in self.model_settings:
-                    file = self.data_dir/f'{name}_{m_set}.pkl'
+
+            for m_set in self.model_settings:
+                # Load the component, if it exists
+                file = self.data_dir/f'{name}_{m_set}.pkl'
+                if file.exists():
                     component[m_set] = utils.load_pickle(file)
-            else:
+
+            if not component:
                 # No file found
                 continue
 
@@ -90,15 +96,15 @@ class RetrievalSetup(Retrieval):
         super().__init__(config)
         
         # Pre-process the data or generate synthetic spectrum
-        if hasattr(config, 'config_data'):
-            self.get_data_spectrum(config.config_data)
-        elif hasattr(config, 'config_synthetic_spectrum'):
-            self.get_synthetic_spectrum(config.config_synthetic_spectrum)
+        if hasattr(self.config, 'config_data'):
+            self.get_data_spectrum(self.config.config_data)
+        elif hasattr(self.config, 'config_synthetic_spectrum'):
+            self.get_synthetic_spectrum(self.config.config_synthetic_spectrum)
         else:
             raise ValueError('config must have either config_data or config_synthetic_spectrum')
 
         # Get parameters and model components
-        self.get_parameters(config)
+        self.get_parameters()
         self.get_model_components()
         self.save_all_components(non_dict_names=['LogLike','Cov','ParamTable'])
 
@@ -117,6 +123,7 @@ class RetrievalSetup(Retrieval):
 
             # Load the target and standard-star spectra
             d_spec_target = SpectrumCRIRES(
+                m_set=m_set, 
                 **config_data_m_set['target_kwargs'], 
                 **config_data_m_set['kwargs']
                 )
@@ -146,7 +153,7 @@ class RetrievalSetup(Retrieval):
         """
         raise NotImplementedError
     
-    def get_parameters(self, config):
+    def get_parameters(self):
         """
         Get parameters for the retrieval process.
 
@@ -157,10 +164,10 @@ class RetrievalSetup(Retrieval):
 
         # Create a Parameter instance
         self.ParamTable = ParameterTable(
-            free_params=config.free_params, 
-            constant_params=config.constant_params, 
+            free_params=self.config.free_params, 
+            constant_params=getattr(self.config, 'constant_params', {}), 
             model_settings=self.model_settings, 
-            all_model_kwargs=config.all_model_kwargs,
+            all_model_kwargs=self.config.all_model_kwargs,
             )
 
     def get_model_components(self):
@@ -252,40 +259,32 @@ class RetrievalRun(Retrieval):
         # Give arguments to the parent class
         super().__init__(config)
 
+        self.resume     = resume
+        self.evaluation = evaluation
+        self.elapsed_times = []
+        
         # Load a list of components
         component_names = [
             'd_spec', 'ParamTable', 
             'LineOpacity', 'PT', 'Chem', 'Cloud', 
             'Rotation', 'm_spec', 'LogLike', 'Cov'
         ]
-        '''
-        if evaluation:
-            component_names += ['m_spec_eval']
-        else:
-            component_names += ['m_spec']
-        '''
-        self.resume     = resume
-        self.evaluation = evaluation
-        
         self.load_components(component_names)
-
-        self.pymultinest_kwargs = config.pymultinest_kwargs
-        self.elapsed_times = []
 
     def run_evaluation(self):
 
         # Try loading the evaluation model
-        self.load_components(['m_spec_eval'])
+        self.load_components(['m_spec_broad'])
         
-        if not hasattr(self, 'm_spec_eval') and (rank == 0):
+        if not hasattr(self, 'm_spec_broad') and (rank == 0):
             # Set up the evaluation model (only for master process)
-            self.m_spec_eval = {}
+            self.m_spec_broad = {}
 
             from .model_components import model_spectrum
             for m_set in self.model_settings:
                 self.ParamTable.queried_m_set = ['all', m_set]
 
-                self.m_spec_eval[m_set] = model_spectrum.get_class(
+                self.m_spec_broad[m_set] = model_spectrum.get_class(
                     ParamTable=self.ParamTable, 
                     d_spec=self.d_spec[m_set], 
                     m_set=m_set,
@@ -295,7 +294,7 @@ class RetrievalRun(Retrieval):
                 
                 # Save to a pickle
                 utils.save_pickle(
-                    self.m_spec_eval[m_set], self.data_dir/f'm_spec_eval_{m_set}.pkl'
+                    self.m_spec_broad[m_set], self.data_dir/f'm_spec_broad_{m_set}.pkl'
                     )
                 
             self.ParamTable.queried_m_set = 'all'
@@ -304,23 +303,27 @@ class RetrievalRun(Retrieval):
         comm.Barrier()
 
         # Load the evaluation model for all processes
-        self.load_components(['m_spec_eval'])
+        self.load_components(['m_spec_broad'])
 
         # Run the callback function
         self.callback(*[None,]*10)
         
     def run(self):
+
         pymultinest.run(
             LogLikelihood=self.get_likelihood, 
             Prior=self.ParamTable, 
             n_dims=self.ParamTable.n_free_params,
 
-            outputfiles_basename=self.prefix, 
+            outputfiles_basename=self.config.prefix, 
             dump_callback=self.callback,
             
             resume=self.resume, 
-            **self.pymultinest_kwargs
-        )
+            **self.config.pymultinest_kwargs
+            )
+        
+        #self.evaluation = True
+        #self.run_evaluation()
 
     def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=True, skip_radtrans=False):
         
@@ -370,6 +373,21 @@ class RetrievalRun(Retrieval):
                 )
             self.m_spec[m_set].evaluation = False
 
+            if not self.evaluation:
+                continue
+
+            # Update the broadened model spectrum too
+            self.m_spec_broad[m_set].evaluation = evaluation
+            self.m_spec_broad[m_set](
+                self.ParamTable, 
+                Chem=self.Chem[m_set], 
+                PT=self.PT[m_set], 
+                Cloud=self.Cloud[m_set], 
+                Rotation=self.Rotation[m_set], 
+                LineOpacity=self.LineOpacity[m_set], 
+                )
+            self.m_spec_broad[m_set].evaluation = False
+            
         self.ParamTable.queried_m_set = 'all'
 
         if skip_radtrans:
@@ -401,7 +419,7 @@ class RetrievalRun(Retrieval):
             # Read the equally-weighted posterior
             analyzer = pymultinest.Analyzer(
                 n_params=self.ParamTable.n_free_params, 
-                outputfiles_basename=self.prefix
+                outputfiles_basename=self.config.prefix
                 )
             posterior = analyzer.get_equal_weighted_posterior()
             posterior = posterior[:,:-1]
@@ -442,7 +460,7 @@ class RetrievalRun(Retrieval):
             
             self.Chem[m_set].VMRs_posterior = {
                 species_i: np.nan * np.ones((n_samples, n_atm_layers)) \
-                for species_i in self.Chem[m_set].keys()
+                for species_i in self.Chem[m_set].VMRs.keys()
                 }
             
             if not hasattr(self.Cloud[m_set], 'total_opacity'):
@@ -472,13 +490,29 @@ class RetrievalRun(Retrieval):
 
     def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
 
+        '''
         if (rank != 0) and (not self.evaluation):
             # Only the master process should make the live plots
             return
-
+        '''
+        if (rank != 0):
+            # Only the master process should make the live plots
+            return
+        
         # Update the model components to the best-fit
         posterior, bestfit_parameters = self.load_posterior_and_bestfit(posterior)
         labels = self.ParamTable.get_mathtext()
+
+        # Print the best-fit parameters
+        print('\n'+'='*50+'\n')
+
+        mode = 'evaluation' if self.evaluation else 'callback'
+        print('Mode: {}'.format(mode))
+        print('Time per evaluation: {:.2f} s'.format(np.mean(self.elapsed_times)))
+        self.elapsed_times = [] # Reset the timer
+
+        utils.print_bestfit_params(self.ParamTable, self.LogLike)
+        print('\n'+'='*50+'\n')
 
         if self.evaluation:
             # Get the vertical profile posteriors
@@ -494,7 +528,8 @@ class RetrievalRun(Retrieval):
             PT=self.PT, 
             Chem=self.Chem, 
             Cloud=self.Cloud, 
-            m_spec=self.m_spec
+            m_spec=self.m_spec, 
+            evaluation=self.evaluation,
             )
         
         # Plot best-fitting spectrum
@@ -502,10 +537,9 @@ class RetrievalRun(Retrieval):
             self.d_spec[m_set].plot_bestfit(
                 plots_dir=self.plots_dir, 
                 LogLike=self.LogLike,
-            )
-
-        #print(np.mean(self.elapsed_times))
-        self.elapsed_times = []
+                )
+            if self.LogLike.sum_model_settings:
+                break
 
         if self.evaluation:
             # Save best-fitting model components

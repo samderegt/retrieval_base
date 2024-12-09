@@ -1,5 +1,4 @@
 import numpy as np
-import os
 
 file_params = 'config_fiducial_K_A_new.py'
 
@@ -11,7 +10,7 @@ prefix = 'test'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    K2166_B = dict(
+    K2166_1 = dict(
         target_kwargs={
             # Data filenames
             'file':      './data/Luhman_16A_K.dat', 
@@ -44,7 +43,7 @@ config_data = dict(
         kwargs={
             # Observation info
             #'wave_range': (1900, 2500), 'w_set': 'K2166', 
-            'wave_range': (2300, 2350), 'w_set': 'K2166', 
+            'wave_range': (2300, 2338), 'w_set': 'K2166', 
             #'wave_range': (2300, 2500), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
@@ -53,6 +52,9 @@ config_data = dict(
         },
     )
 )
+#import copy
+#config_data['K2166_2'] = copy.deepcopy(config_data['K2166_1'])
+#config_data['K2166_2']['kwargs']['wave_range'] = (2200, 2300)
 
 ####################################################################################
 # Model parameters
@@ -65,36 +67,27 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'K2166_B': {
-        'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
-        }, 
+    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
-    'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
+
+    'rv':     ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
+    'T_phot': ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
 
     # Broadening
     'vsini':        ['U', (10.,30.), r'$v\ \sin\ i$'], 
     'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
+    #'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
+    #'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    #'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
     #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    'C/O':  ['U', (0.1,1.0), r'C/O'], 
-    'Fe/H': ['U', (-1.0,1.0), r'Fe/H'], 
-    #'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
-    #'log_C18O_ratio':    ['U', (0,5), r'$\mathrm{C^{18}/^{16}O}$'], 
-    #'log_H2(18)O_ratio': ['U', (0,5), r'$\mathrm{H_2^{18}/^{16}O}$'], 
-    'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
-
-    #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    #'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    #'log_12CO': ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    #'log_13CO': ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    #'log_C18O': ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    #'log_HF': ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
+    'C/O':            ['U', (0.1,1.0), r'C/O'], 
+    'Fe/H':           ['U', (-1.0,1.0), r'Fe/H'], 
+    #'log_13CO_ratio': ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
+    'log_Kzz_chem':   ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
     # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
@@ -103,7 +96,7 @@ free_params = {
     'dlnT_dlnP_3': ['U', (0.,0.34), r'$\nabla_3$'], 
     'dlnT_dlnP_4': ['U', (0.,0.34), r'$\nabla_4$'], 
 
-    'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
+    #'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
     'log_P_phot':     ['U', (-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
     'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta P_\mathrm{+1}$'], 
     'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta P_\mathrm{-1}$'], 
@@ -119,98 +112,46 @@ constant_params = {
 #
 ####################################################################################
 
-apply_high_pass_filter = False
+#apply_high_pass_filter = False
 
 ####################################################################################
-# Chemistry parameters
-####################################################################################
-
-chem_kwargs = {
-    #'chem_mode': 'free', 
-    'chem_mode': 'fastchem_table', 'path_fastchem_tables': '/net/lem/data2/regt/fastchem_tables/', 
-    #'chem_mode': 'pRT_table', 
-    #'chem_mode': 'fastchem', 
-    #'abundance_file': '/net/lem/data1/regt/fastchem/input/element_abundances/asplund_2020_extended.dat', 
-    #'gas_data_file': '/net/lem/data1/regt/fastchem/input/logK/logK_extended.dat', 
-    #'cond_data_file': '/net/lem/data1/regt/fastchem/input/logK/logK_condensates.dat', 
-
-    'line_species': [
-        'H2O_pokazatel_main_iso_Sam_new', 
-        #'H2O_181_HotWat78', 
-
-        'CO_high_Sam', 
-        #'CO_36_high_Sam', 
-        #'CO_28_high_Sam', 
-
-        'CH4_MM_main_iso', #'CH4_hargreaves_main_iso_Sam', 
-        'NH3_coles_main_iso_Sam', 
-        'H2S_Sid_main_iso', 
-        'HF_main_iso_new', 
-    ], 
-}
-
-species_to_plot_VMR = [
-    'H2O', 'H2(18)O', '12CO', '13CO', 'C18O', 'CH4', 'NH3', 'H2S', 'HF', 
-    ]
-species_to_plot_CCF = species_to_plot_VMR
-
-####################################################################################
-# Covariance parameters
-####################################################################################
-
-cov_kwargs = dict(
-    trunc_dist = 3, 
-    scale_amp  = True, 
-    max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
-)
-
-####################################################################################
-# Log-likelihood parameters
-####################################################################################
-
-loglike_kwargs = dict(
-    scale_flux = True, 
-    #scale_relative_to_chip = 9, 
-    scale_err = True, 
-    sum_model_settings = True,
-)
-
-####################################################################################
-# PT parameters
+# Physical model keyword-arguments
 ####################################################################################
 
 PT_kwargs = dict(
     PT_mode   = 'free_gradient', 
     n_T_knots = 5, 
     interp_mode = 'linear', 
-    symmetric_around_P_phot = False, 
 
     log_P_range = (-5.,3.), 
     n_atm_layers = 50,
 )
 
-####################################################################################
-# Cloud parameters
-####################################################################################
+chem_kwargs = dict(
+    chem_mode = 'fastchem_table', path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
 
-cloud_kwargs = {
-    'cloud_mode': 'gray', 
-    #'cloud_mode': None, 
-    'wave_cloud_0': 2.0, 
-}
+    line_species = [
+        'H2O_pokazatel_main_iso_Sam_new', 
+        'CO_high_Sam', 
+        #'CO_36_high_Sam',
 
-####################################################################################
-# Rotation-profile parameters
-####################################################################################
+        'CH4_MM_main_iso', 
+        'NH3_coles_main_iso_Sam', 
+        'H2S_Sid_main_iso', 
+        'HF_main_iso_new', 
+    ], 
+)
+
+cloud_kwargs = dict(
+    cloud_mode = None, 
+    #cloud_mode = 'gray', 
+    wave_cloud_0 = 2.0, 
+)
 
 rotation_kwargs = dict(
     rotation_mode = 'convolve', 
     inclination   = 18, # Degreees
 )
-
-####################################################################################
-# pRT Radtrans parameters
-####################################################################################
 
 pRT_Radtrans_kwargs = dict(
     line_species        = chem_kwargs['line_species'],
@@ -221,6 +162,23 @@ pRT_Radtrans_kwargs = dict(
     mode                 = 'lbl',
     lbl_opacity_sampling = 3, # Faster radiative transfer by down-sampling
     do_scat_emis         = False, 
+)
+
+####################################################################################
+# Log-likelihood, covariance keyword-arguments
+####################################################################################
+
+loglike_kwargs = dict(
+    scale_flux = True, #scale_relative_to_chip = 9, 
+    scale_err = True, 
+    sum_model_settings = True, 
+    #sum_model_settings = False, 
+)
+
+cov_kwargs = dict(
+    trunc_dist = 3, 
+    scale_amp  = True, 
+    max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
 )
 
 all_model_kwargs = dict(
@@ -245,5 +203,5 @@ pymultinest_kwargs = dict(
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
     n_live_points         = 50, 
-    n_iter_before_update  = 1, 
+    n_iter_before_update  = 200, 
 )

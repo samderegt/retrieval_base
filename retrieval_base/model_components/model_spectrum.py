@@ -238,8 +238,16 @@ class pRT:
             flux_binned = self.flux_binned.copy()
 
             for m_spec in list(other_m_spec):
-                flux += m_spec.flux
+                
+                # Loop over all chips (flux is a list)
+                for i, (wave_other_i, flux_other_i) in enumerate(zip(m_spec.wave, m_spec.flux)):
+                    # Interpolate to the same wavelengths (flux_binned already is)
+                    flux_other_i = np.interp(wave[i], xp=wave_other_i, fp=flux_other_i)
+                    flux[i] += flux_other_i
+
+                # flux_binned is an array
                 flux_binned += m_spec.flux_binned
+
             return wave, flux, flux_binned
         
         # Consider all model settings separately
