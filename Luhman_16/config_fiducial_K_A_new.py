@@ -44,8 +44,8 @@ config_data = dict(
             # Observation info
             #'wave_range': (1900, 2500), 'w_set': 'K2166', 
             #'wave_range': (2300, 2338), 'w_set': 'K2166', 
-            'wave_range': (2300, 2400), 'w_set': 'K2166', 
-            #'wave_range': (2300, 2500), 'w_set': 'K2166', 
+            #'wave_range': (2300, 2400), 'w_set': 'K2166', 
+            'wave_range': (2140, 2190), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -166,21 +166,22 @@ pRT_Radtrans_kwargs = dict(
 )
 
 line_opacity_kwargs = dict(
-    states_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_states.txt', 
-    transitions_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_transitions_Kurucz.txt',
+    K_wo_J_doublets = dict(
+        states_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_states.txt', 
+        transitions_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_transitions_Kurucz.txt',
 
-    custom_transitions = [
-        {'nu_0':4310.3, 'log_gf':-0.063, 'E_low':12985.186, 'log_gamma_N':7.83, 'log_gamma_vdW':-7.46}, 
-        {'nu_0':7983.655}, 
-        {'nu_0':8041.365}, 
-        ], 
-    log_gf_cutoff = -2., 
-    line_cutoff = 1000, 
-    log_gf_cutoff_exact = -0.5, 
-    
-    is_alkali = True, 
-    mass = 39.0983, E_ion = 35009.8140, 
-    line_species = 'K_wo_J_doublets', 
+        custom_transitions = [
+            {'nu_0':4310.3, 'log_gf':-0.063, 'E_low':12985.186, 'log_gamma_N':7.83, 'log_gamma_vdW':-7.46}, 
+            {'nu_0':7983.655}, 
+            {'nu_0':8041.365}, 
+            ], 
+        log_gf_cutoff = -2., 
+        line_cutoff = 1000, 
+        log_gf_cutoff_exact = -0.5, 
+        
+        is_alkali = True, 
+        mass = 39.0983, E_ion = 35009.8140, 
+    )
 )
 
 ####################################################################################

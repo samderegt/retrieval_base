@@ -89,13 +89,13 @@ class ParameterTable:
                 d_expanded[m_set] = {}
 
         for name, val in d.items():
-            if not isinstance(val, dict):
-                # Is a single parameter
-                d_expanded['all'][name] = val
+            if name in self.model_settings:
+                # Set of parameters for a model setting
+                d_expanded[name] = val
                 continue
 
-            # Set of parameters for a model setting
-            d_expanded[name] = val
+            # Applies to all model settings
+            d_expanded['all'][name] = val
 
         if not is_kwargs:
             # No need to adopt default values
@@ -196,7 +196,8 @@ class ParameterTable:
     def add_model_kwargs(self, all_model_kwargs):
 
         kwarg_keys = [
-            'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 'line_opacity_kwargs', 
+            'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 
+            'line_opacity_kwargs', 
             'rotation_kwargs', 'pRT_Radtrans_kwargs', 
             'cov_kwargs', 'loglike_kwargs', 
             ]

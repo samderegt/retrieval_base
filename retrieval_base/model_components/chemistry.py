@@ -51,7 +51,7 @@ class Chemistry:
 
         # Custom line-opacities
         if LineOpacity is not None:
-            self.line_species += [LineOpacity_i.pRT_name for LineOpacity_i in LineOpacity]
+            self.line_species += [LineOpacity_i.line_species for LineOpacity_i in LineOpacity]
         
         # Store the regular name and hill-notations too
         self.species, self.hill = [], []

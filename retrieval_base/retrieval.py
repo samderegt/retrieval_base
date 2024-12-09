@@ -218,7 +218,7 @@ class RetrievalSetup(Retrieval):
                 LineOpacity=self.LineOpacity[m_set], 
                 **self.ParamTable.chem_kwargs[m_set]
                 )
-            
+
             from .model_components import clouds
             self.Cloud[m_set] = clouds.get_class(
                 pressure=pressure, 
@@ -285,7 +285,8 @@ class RetrievalRun(Retrieval):
             # Set up the evaluation model (only for master process)
             self.m_spec_broad = {}
 
-            from .model_components import model_spectrum
+            from .model_components import model_spectrum, line_opacity
+
             for m_set in self.model_settings:
                 self.ParamTable.queried_m_set = ['all', m_set]
 
@@ -296,10 +297,16 @@ class RetrievalRun(Retrieval):
                     pressure=self.PT[m_set].pressure, 
                     evaluation=self.evaluation
                     )
-                
-                # Save to a pickle
                 utils.save_pickle(
                     self.m_spec_broad[m_set], self.data_dir/f'm_spec_broad_{m_set}.pkl'
+                    )
+                
+                self.LineOpacity_broad[m_set] = line_opacity.get_class(
+                    m_spec=self.m_spec_broad[m_set],
+                    line_opacity_kwargs=self.ParamTable.line_opacity_kwargs[m_set], 
+                    )
+                utils.save_pickle(
+                    self.LineOpacity_broad[m_set], self.data_dir/f'LineOpacity_broad_{m_set}.pkl'
                     )
                 
             self.ParamTable.queried_m_set = 'all'
@@ -357,8 +364,10 @@ class RetrievalRun(Retrieval):
             if skip_radtrans:
                 continue
 
-            # TODO: Update the line opacity
-            # ...
+            # Update the line opacity
+            self.LineOpacity[m_set](
+                self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set]
+                )
 
             # Update the rotation profile
             self.Rotation[m_set](self.ParamTable)
@@ -378,6 +387,11 @@ class RetrievalRun(Retrieval):
             if not self.evaluation:
                 continue
 
+            # Update the broadened line opacity too
+            self.LineOpacity_broad[m_set](
+                self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set]
+                )
+            
             # Update the broadened model spectrum too
             self.m_spec_broad[m_set].evaluation = evaluation
             self.m_spec_broad[m_set](

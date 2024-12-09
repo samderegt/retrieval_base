@@ -8,9 +8,17 @@ from ..utils import sc
 def get_class(m_spec, line_opacity_kwargs, **kwargs):
 
     if len(line_opacity_kwargs) == 0:
+        # No species to include as a custom opacity
         return None
     
-    return LineOpacity(m_spec=m_spec, **line_opacity_kwargs, **kwargs)
+    all_LineOpacity = []
+    for line_species, line_opacity_kwargs_species in line_opacity_kwargs.items():
+        LineOpacity_i = LineOpacity(
+            m_spec=m_spec, line_species=line_species, **line_opacity_kwargs_species, **kwargs
+            )
+        all_LineOpacity.append(LineOpacity_i)
+
+    return all_LineOpacity
 
 class LineData:
     def __init__(self, **kwargs):
@@ -177,8 +185,6 @@ class LineOpacity(LineData):
         self.get_precomputed_opacity_table()
         self.status = 'combine'
 
-        import sys; sys.exit()
-
     def set_grid(self, m_spec):
         
         # Define the wavenumber grid
@@ -231,7 +237,7 @@ class LineOpacity(LineData):
             for idx_P in range(len(self.P_grid)):
 
                 self.interp_table[idx_order,idx_P] = interp1d(
-                    self.T_grid, np.log10(opacity_of_order[:,idx_order,idx_P]), 
+                    self.T_grid, np.log10(opacity_of_order[:,:,idx_P]), axis=0, 
                     kind='linear', assume_sorted=True, bounds_error=False, 
                     fill_value=(
                         np.log10(opacity_of_order[0,idx_order,idx_P]), 
@@ -262,10 +268,11 @@ class LineOpacity(LineData):
         alpha_He = 0.204956 # 10^{-24} cm^3
 
         # Eq. 23 from Sharp & Burrows (2007)
-        gamma_vdW *= (
-            self.VMR_H2 * (red_mass_H_X/red_mass_H2_X)**(3/10) * (alpha_H2/alpha_H)**(2/5) + \
-            self.VMR_He * (red_mass_H_X/red_mass_He_X)**(3/10) * (alpha_He/alpha_H)**(2/5)
-            )
+        gamma_vdW = 10**self.log_gamma_vdW[None,:] / (4*np.pi*(sc.c*1e2)) * \
+            self.n_density[:,None] * (self.temperature[:,None]/10000)**(3/10) * (
+                self.VMR_H2[:,None] * (red_mass_H_X/red_mass_H2_X)**(3/10) * (alpha_H2/alpha_H)**(2/5) + \
+                self.VMR_He[:,None] * (red_mass_H_X/red_mass_He_X)**(3/10) * (alpha_He/alpha_H)**(2/5)
+                )
 
         # Schweitzer et al. (1995) [cm^6 s^-1]
         E_H = self.kwargs.get('E_H', 13.6*8065.73) # [cm^-1]
@@ -273,14 +280,12 @@ class LineOpacity(LineData):
         E_ion = self.kwargs['E_ion'] # [cm^-1]
 
         C_6_H2 = 1.01e-32 * alpha_H2/alpha_H * (Z+1)**2 * (
-            (E_H / (E_ion-self.E_low))**2 - \
-            (E_H / (E_ion-self.E_high))**2
+            (E_H/(E_ion-self.E_low))**2 - (E_H/(E_ion-self.E_high))**2
             )
         C_6_H2 = np.abs(C_6_H2)[None,:]
 
         C_6_He = 1.01e-32 * alpha_He/alpha_H * (Z+1)**2 * (
-            (E_H / (E_ion-self.E_low))**2 - \
-            (E_H / (E_ion-self.E_high))**2
+            (E_H/(E_ion-self.E_low))**2 - (E_H/(E_ion-self.E_high))**2
             )
         C_6_He = np.abs(C_6_He)[None,:]
 
@@ -308,7 +313,7 @@ class LineOpacity(LineData):
 
         term1 = (self.gf[None,:]*np.pi*e**2) / ((sc.m_e*1e3)*(sc.c*1e2)**2)
         term2 = np.exp(-(sc.c2*1e2)*self.E_low[None,:] / self.temperature[:,None]) / Q
-        term3 = (1 - np.exp((sc.c2*1e2)*self.nu_0[None,:]/self.temperature[:,None]))
+        term3 = (1 - np.exp(-(sc.c2*1e2)*self.nu_0[None,:]/self.temperature[:,None]))
         
         S = term1 * term2 * term3 # [cm^1]
         return S
@@ -396,8 +401,8 @@ class LineOpacity(LineData):
                     # Ignore all non-"on-the-fly" transitions
                     continue
 
-                nu_0_ij = self.nu_0[j].copy()
-                gamma_vdW_ij    = self.gamma_vdW[i,j].copy()
+                nu_0_ij      = self.nu_0[j].copy()
+                gamma_vdW_ij = self.gamma_vdW[i,j].copy()
                 if self.has_impact_parameters[j]:
                     # Shift the line core
                     nu_0_ij += self.d[i,j]
@@ -422,7 +427,16 @@ class LineOpacity(LineData):
 
             # Combine the interpolated and on-the-fly opacities
             opacity[:,i] += 10**self.interp_table[idx_chip,i](self.temperature[i])
-        
+
         # Scale the opacity by the abundance profile
         opacity *= self.mass_fraction[None,:]
         return opacity # [cm^2 g^-1]
+
+    def __call__(self, ParamTable, PT, Chem):
+        
+        self.update_parameters(
+            T=PT.temperature, 
+            VMRs=Chem.VMRs, 
+            mass_fractions=Chem.mass_fractions, 
+            ParamTable=ParamTable, 
+            )
