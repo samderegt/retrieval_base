@@ -100,11 +100,12 @@ class LogLikelihood:
 
             # Residuals compared to scaled model
             residuals = d_flux_i - self.m_flux_phi[i]
-
+            
             # Chi-squared for optimal linear scaling
             chi_squared_0 = np.dot(residuals[mask].T, Cov_i.solve(residuals[mask]))
             self.chi_squared_0 += chi_squared_0
 
+            logdet_MT_inv_cov_0_M = 0
             if apply_scaling:
                 # Covariance matrix of phi
                 MT_inv_cov_0_M = np.dot(m_flux_i[mask].T, Cov_i.solve(m_flux_i[mask]))

@@ -19,7 +19,7 @@ posterior_color = 'C0'
 env_cmap, env_colors = get_env_colors(posterior_color)
 
 
-def plot_corner(fig, posterior, bestfit_parameters, labels=None):
+def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints=False):
 
     # Get the range (4*sigma) to plot between
     posterior_range = np.quantile(posterior, q=q[[2,4]], axis=0)
@@ -34,7 +34,7 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None):
 
         bins=20, 
         fill_contours=True, 
-        plot_datapoints=False,
+        plot_datapoints=plot_datapoints,
         labels=labels, 
         labelpad=0.018*n_params, 
         max_n_ticks=3,
@@ -236,7 +236,9 @@ def plot_clouds(Cloud, ax=None, ls='-'):
 def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud, m_spec, evaluation=False):
 
     fig = plt.figure(figsize=(13,13))
-    fig, ax = plot_corner(fig, posterior, bestfit_parameters, labels=labels)
+    fig, ax = plot_corner(
+        fig, posterior, bestfit_parameters, labels=labels, plot_datapoints=evaluation
+        )
 
     width, height = 0.5, 0.3
     widths  = np.array([(width-height)*0.7,height,(width-height)*0.3])

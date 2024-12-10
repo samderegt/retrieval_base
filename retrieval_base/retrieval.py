@@ -115,29 +115,18 @@ class RetrievalSetup(Retrieval):
         Args:
             config_data (dict): Configuration data for the spectrum.
         """
-        from .data.crires import SpectrumCRIRES
-
         self.d_spec = {}
-
         for m_set, config_data_m_set in config_data.items():
 
-            # Load the target and standard-star spectra
-            d_spec_target = SpectrumCRIRES(
-                m_set=m_set, 
-                **config_data_m_set['target_kwargs'], 
-                **config_data_m_set['kwargs']
-                )
-            d_spec_std = SpectrumCRIRES(
-                **config_data_m_set['std_kwargs'], 
-                **config_data_m_set['kwargs']
-                )
-            
-            # Pre-process the data
-            d_spec_target.telluric_correction(d_spec_std)
-            d_spec_target.sigma_clip(**config_data_m_set['kwargs'])
+            if config_data_m_set['instrument'] == 'CRIRES':
+                from .observation import crires as data
+            elif config_data_m_set['instrument'] == 'JWST':
+                from .observation import jwst as data
+            else:
+                raise ValueError('Instrument not recognised.')
 
-            d_spec_target.flux_calibration(**config_data_m_set['target_kwargs'])
-            d_spec_target.savgol_filter()
+            # Load and pre-process the target data
+            d_spec_target = data.get_class(m_set, config_data_m_set)
 
             # Summarise in figures and store in dictionary
             d_spec_target.plot_pre_processing(plots_dir=self.plots_dir)
@@ -197,7 +186,7 @@ class RetrievalSetup(Retrieval):
                 **self.ParamTable.PT_kwargs[m_set]
                 )
             pressure = self.PT[m_set].pressure
-
+        
             from .model_components import model_spectrum
             self.m_spec[m_set] = model_spectrum.get_class(
                 ParamTable=self.ParamTable, 
@@ -279,11 +268,12 @@ class RetrievalRun(Retrieval):
     def run_evaluation(self):
 
         # Try loading the evaluation model
-        self.load_components(['m_spec_broad'])
+        self.load_components(['m_spec_broad', 'LineOpacity_broad'])
         
         if not hasattr(self, 'm_spec_broad') and (rank == 0):
             # Set up the evaluation model (only for master process)
             self.m_spec_broad = {}
+            self.LineOpacity_broad = {}
 
             from .model_components import model_spectrum, line_opacity
 
@@ -315,7 +305,7 @@ class RetrievalRun(Retrieval):
         comm.Barrier()
 
         # Load the evaluation model for all processes
-        self.load_components(['m_spec_broad'])
+        self.load_components(['m_spec_broad', 'LineOpacity_broad'])
 
         # Run the callback function
         self.callback(*[None,]*10)
@@ -334,9 +324,9 @@ class RetrievalRun(Retrieval):
             **self.config.pymultinest_kwargs
             )
 
-    def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=True, skip_radtrans=False):
+    def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=False, skip_radtrans=False):
         
-        time_A = time.time()
+        time_start = time.time()
         # ParamTable is updated
 
         for m_set in self.model_settings:
@@ -348,13 +338,13 @@ class RetrievalRun(Retrieval):
             if flag == -np.inf:
                 # Invalid temperature profile
                 return -np.inf
-            
+                        
             # Update the chemistry
             self.Chem[m_set](self.ParamTable, temperature=self.PT[m_set].temperature)
             if flag == -np.inf:
                 # Invalid chemistry
                 return -np.inf
-
+            
             # Update the cloud
             self.Cloud[m_set](
                 self.ParamTable, Chem=self.Chem[m_set], PT=self.PT[m_set], 
@@ -364,10 +354,10 @@ class RetrievalRun(Retrieval):
             if skip_radtrans:
                 continue
 
-            # Update the line opacity
-            self.LineOpacity[m_set](
-                self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set]
-                )
+            # Update the line opacities
+            if self.LineOpacity[m_set] is not None:
+                for LineOpacity_i in self.LineOpacity[m_set]:
+                    LineOpacity_i(self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set])
 
             # Update the rotation profile
             self.Rotation[m_set](self.ParamTable)
@@ -388,9 +378,9 @@ class RetrievalRun(Retrieval):
                 continue
 
             # Update the broadened line opacity too
-            self.LineOpacity_broad[m_set](
-                self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set]
-                )
+            if self.LineOpacity_broad[m_set] is not None:
+                for LineOpacity_i in self.LineOpacity_broad[m_set]:
+                    LineOpacity_i(self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set])
             
             # Update the broadened model spectrum too
             self.m_spec_broad[m_set].evaluation = evaluation
@@ -400,7 +390,7 @@ class RetrievalRun(Retrieval):
                 PT=self.PT[m_set], 
                 Cloud=self.Cloud[m_set], 
                 Rotation=self.Rotation[m_set], 
-                LineOpacity=self.LineOpacity[m_set], 
+                LineOpacity=self.LineOpacity_broad[m_set], 
                 )
             self.m_spec_broad[m_set].evaluation = False
             
@@ -424,9 +414,9 @@ class RetrievalRun(Retrieval):
         # Update the log-likelihood
         self.LogLike(m_flux=flux_binned, Cov=self.Cov)
 
-        time_B = time.time()
-        self.elapsed_times.append(time_B - time_A)
-
+        time_end = time.time()
+        self.elapsed_times.append(time_end - time_start)
+        
         return self.LogLike.ln_L
     
     def load_posterior_and_bestfit(self, posterior, n_samples_max=2000):

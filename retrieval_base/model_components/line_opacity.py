@@ -381,7 +381,7 @@ class LineOpacity(LineData):
 
         # Determine which chip is being computed
         idx_chip = np.argmin(np.abs(
-            np.mean(wave_micron) - np.mean(self.wave_ranges, axis=1)
+            np.mean(wave_micron) - np.mean(self.wave_ranges*1e-3, axis=1)
             ))
         nu = 1e4/wave_micron
 
@@ -404,11 +404,17 @@ class LineOpacity(LineData):
                 nu_0_ij      = self.nu_0[j].copy()
                 gamma_vdW_ij = self.gamma_vdW[i,j].copy()
                 if self.has_impact_parameters[j]:
-                    # Shift the line core
-                    nu_0_ij += self.d[i,j]
-                    # Use the impact width
-                    gamma_vdW_ij = self.w[i,j]
+                    
+                    # Find the impact width/shift index
+                    idx_impact = np.sum(self.has_impact_parameters[:j])
 
+                    # Shift the line core
+                    nu_0_ij += self.d[i,idx_impact]
+                    
+                    if self.w[i,idx_impact] != 0.:
+                        # Use the impact width
+                        gamma_vdW_ij = self.w[i,idx_impact]
+                    
                 # Lorentz-wing cutoff
                 mask_nu_j = np.abs(nu-nu_0_ij) < self.line_cutoff
                 nu_j = nu[mask_nu_j]

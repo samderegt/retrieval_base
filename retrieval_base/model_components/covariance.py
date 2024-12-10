@@ -41,7 +41,7 @@ class Covariance:
         # Convert to array for scipy
         return np.asarray(banded_array)
 
-    def __init__(self, d_wave, d_err, trunc_dist=5, max_wave_sep=np.inf, scale_amp=False, **kwargs):
+    def __init__(self, d_wave, d_err, trunc_dist=5, max_wave_sep=None, scale_amp=False, **kwargs):
 
         # Set up the covariance matrix
         self.var = d_err**2
@@ -52,24 +52,34 @@ class Covariance:
 
         # Convert wavelength separation to a banded matrix
         self.wave_sep = np.abs(d_wave[None,:] - d_wave[:,None])
-        self.wave_sep = self.get_banded(
-            self.wave_sep, max_value=max_wave_sep, pad_value=1000
-            )
+        if max_wave_sep is None:
+            max_wave_sep = np.max(np.diff(d_wave))
+
+        self.wave_sep = self.get_banded(self.wave_sep, max_value=max_wave_sep, pad_value=1000)
 
         self.reset_cov()
 
     def reset_cov(self):
         self.cov = np.zeros_like(self.wave_sep)
         self.cov[0] = self.var.copy()
-
+        
     def get_cholesky(self):
 
-        self.cov = self.cov[(self.cov!=0).any(axis=1),:]
-        # Compute the banded Cholesky decomposition
-        self.cov_cholesky = cholesky_banded(
-            self.cov, lower=True, check_finite=False
-            )
+        mask_nonzero_diag = (self.cov != 0).any(axis=1)
+
+        if mask_nonzero_diag.sum()==1:
+            # Only the diagonal is non-zero
+            self.cov = self.cov[0]
+            self.cov_cholesky = np.sqrt(self.cov)
+
+            # Log determinant of the covariance matrix
+            self.logdet = 2*np.sum(np.log(self.cov_cholesky))
+            return
         
+        # Compute banded Cholesky decomposition on non-zero diagonals
+        self.cov = self.cov[mask_nonzero_diag,:]
+        self.cov_cholesky = cholesky_banded(self.cov, lower=True, check_finite=False)
+
         # Log determinant of the covariance matrix
         self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
 
@@ -85,6 +95,9 @@ class Covariance:
         np.ndarray: 
             Solution x for the equation cov*x = b.
         """
+        if self.cov.ndim == 1:
+            return b / self.cov
+        
         return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
 
     def add_radial_basis_function_kernel(self, amp, length):
@@ -102,7 +115,10 @@ class Covariance:
     def __call__(self, ParamTable, **kwargs):
 
         self.reset_cov()
-        self.add_radial_basis_function_kernel(
-            amp=ParamTable.get('a'), length=ParamTable.get('l')
-            )
+        
+        amp    = ParamTable.get('a')
+        length = ParamTable.get('l')
+        if None not in [amp, length]:
+            self.add_radial_basis_function_kernel(amp=amp, length=length)
+            
         self.get_cholesky()

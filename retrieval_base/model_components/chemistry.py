@@ -32,7 +32,7 @@ class Chemistry:
     Base class for handling chemical species and their properties.
     """
 
-    species_info = pd.read_csv(directory_path/'species_info.csv', index_col=0)
+    species_info = pd.read_csv(directory_path/'chemistry_info.csv', index_col=0)
     neglect_species = {key_i: False for key_i in species_info.index}
 
     def __init__(self, pressure, line_species, LineOpacity=None):

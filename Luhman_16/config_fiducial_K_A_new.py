@@ -6,11 +6,13 @@ file_params = 'config_fiducial_K_A_new.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'test2'
+prefix = 'new_fiducial_K_A_ret_14'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     K2166_1 = dict(
+        instrument='CRIRES',
+        
         target_kwargs={
             # Data filenames
             'file':      './data/Luhman_16A_K.dat', 
@@ -42,10 +44,7 @@ config_data = dict(
 
         kwargs={
             # Observation info
-            #'wave_range': (1900, 2500), 'w_set': 'K2166', 
-            #'wave_range': (2300, 2338), 'w_set': 'K2166', 
-            #'wave_range': (2300, 2400), 'w_set': 'K2166', 
-            'wave_range': (2140, 2190), 'w_set': 'K2166', 
+            'wave_range': (1900, 2500), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -70,25 +69,25 @@ free_params = {
     # General properties
     'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
-
-    'rv':     ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
-    'T_phot': ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
+    'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
     'vsini':        ['U', (10.,30.), r'$v\ \sin\ i$'], 
     'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    #'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    #'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
+    'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
+    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
+    'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    'C/O':            ['U', (0.1,1.0), r'C/O'], 
-    'Fe/H':           ['U', (-1.0,1.0), r'Fe/H'], 
-    #'log_13CO_ratio': ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
-    'log_Kzz_chem':   ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
+    'C/O':               ['U', (0.1,1.0), r'C/O'], 
+    'Fe/H':              ['U', (-1.0,1.0), r'Fe/H'], 
+    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
+    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
+    'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
     # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
@@ -97,7 +96,7 @@ free_params = {
     'dlnT_dlnP_3': ['U', (0.,0.34), r'$\nabla_3$'], 
     'dlnT_dlnP_4': ['U', (0.,0.34), r'$\nabla_4$'], 
 
-    #'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
+    'T_phot':         ['U', (900.,1900.), r'$T_\mathrm{phot}$'], 
     'log_P_phot':     ['U', (-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
     'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta P_\mathrm{+1}$'], 
     'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta P_\mathrm{-1}$'], 
@@ -133,8 +132,11 @@ chem_kwargs = dict(
 
     line_species = [
         'H2O_pokazatel_main_iso_Sam_new', 
+        'H2O_181_HotWat78', 
+
         'CO_high_Sam', 
-        #'CO_36_high_Sam',
+        'CO_36_high_Sam',
+        'CO_28_high_Sam',
 
         'CH4_MM_main_iso', 
         'NH3_coles_main_iso_Sam', 
@@ -144,8 +146,8 @@ chem_kwargs = dict(
 )
 
 cloud_kwargs = dict(
-    cloud_mode = None, 
-    #cloud_mode = 'gray', 
+    #cloud_mode = None, 
+    cloud_mode = 'gray', 
     wave_cloud_0 = 2.0, 
 )
 
@@ -165,31 +167,12 @@ pRT_Radtrans_kwargs = dict(
     do_scat_emis         = False, 
 )
 
-line_opacity_kwargs = dict(
-    K_wo_J_doublets = dict(
-        states_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_states.txt', 
-        transitions_file = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/K_I_transitions_Kurucz.txt',
-
-        custom_transitions = [
-            {'nu_0':4310.3, 'log_gf':-0.063, 'E_low':12985.186, 'log_gamma_N':7.83, 'log_gamma_vdW':-7.46}, 
-            {'nu_0':7983.655}, 
-            {'nu_0':8041.365}, 
-            ], 
-        log_gf_cutoff = -2., 
-        line_cutoff = 1000, 
-        log_gf_cutoff_exact = -0.5, 
-        
-        is_alkali = True, 
-        mass = 39.0983, E_ion = 35009.8140, 
-    )
-)
-
 ####################################################################################
 # Log-likelihood, covariance keyword-arguments
 ####################################################################################
 
 loglike_kwargs = dict(
-    scale_flux = True, #scale_relative_to_chip = 9, 
+    scale_flux = True, scale_relative_to_chip = 9, 
     scale_err = True, 
     sum_model_settings = True, 
 )
@@ -206,7 +189,6 @@ all_model_kwargs = dict(
     cloud_kwargs=cloud_kwargs, 
     rotation_kwargs=rotation_kwargs,
     pRT_Radtrans_kwargs=pRT_Radtrans_kwargs, 
-    line_opacity_kwargs=line_opacity_kwargs,
 
     cov_kwargs=cov_kwargs, 
     loglike_kwargs=loglike_kwargs,
@@ -222,6 +204,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 50, 
+    n_live_points         = 100, 
     n_iter_before_update  = 200, 
 )

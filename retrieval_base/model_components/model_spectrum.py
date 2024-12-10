@@ -67,9 +67,14 @@ class pRT:
         # Check if custom opacities are set
         cloud_abs_opacity = getattr(Cloud, 'abs_opacity', None)
         
-        line_abs_opacity = None
         if LineOpacity is not None:
-            line_abs_opacity = getattr(LineOpacity, 'abs_opacity', None)
+            def line_abs_opacity(wave_micron, pressure):
+                opacity = 0
+                for LineOpacity_i in LineOpacity:
+                    opacity += LineOpacity_i.abs_opacity(wave_micron, pressure)
+                return opacity
+        else:
+            line_abs_opacity = None
 
         if (not cloud_abs_opacity) and (not line_abs_opacity):
             # No custom opacities

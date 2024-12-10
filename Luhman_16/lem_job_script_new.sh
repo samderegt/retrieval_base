@@ -1,7 +1,7 @@
 #!/bin/bash
 
-output_file=logs/test.out
-NTASKS=50
+output_file=logs/new_fiducial_K_A_ret_14.out
+NTASKS=100
 
 # Run the pre-processing, retrieval and evaluation
 config_file=config_fiducial_K_A_new
