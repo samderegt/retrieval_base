@@ -11,17 +11,42 @@ sc.amu = sc.m_u # [kg]
 sc.c2  = sc.h*sc.c/sc.k # [m K]
     
 def save_pickle(obj, filename):
-    """Save an object to a pickle file."""
+    """
+    Save an object to a pickle file.
+
+    Args:
+        obj: The object to be saved.
+        filename (str): The name of the file where the object will be saved.
+    """
     with open(filename, 'wb') as f:
         pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 def load_pickle(filename):
-    """Load an object from a pickle file."""
+    """
+    Load an object from a pickle file.
+
+    Args:
+        filename (str): The name of the file from which the object will be loaded.
+
+    Returns:
+        The object loaded from the pickle file.
+    """
     with open(filename, 'rb') as f:
         return pickle.load(f)
     
 def parallel_mpi_for_loop(func, iterables, *args, **kwargs):
-    """Parallelize a for-loop using MPI."""
+    """
+    Parallelize a for-loop using MPI.
+
+    Args:
+        func (callable): The function to be applied to each element of iterables.
+        iterables (iterable): The iterable to be processed in parallel.
+        *args: Additional arguments to pass to func.
+        **kwargs: Additional keyword arguments to pass to func.
+
+    Returns:
+        list: The results of the function applied to each element of iterables.
+    """
     
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
@@ -56,8 +81,15 @@ def parallel_mpi_for_loop(func, iterables, *args, **kwargs):
     return returned
 
 def get_subfigures_per_chip(N):
-    """Get subfigures for plotting multiple chips."""
+    """
+    Get subfigures for plotting multiple chips.
 
+    Args:
+        N (int): The number of subfigures.
+
+    Returns:
+        tuple: A tuple containing the figure and an array of subfigures.
+    """
     plt.rcParams['savefig.bbox'] = 'tight'
     plt.rcParams['savefig.pad_inches'] = 0.3
 
@@ -68,8 +100,13 @@ def get_subfigures_per_chip(N):
     return fig, subfig
 
 def print_bestfit_params(ParamTable, LogLike):
-    """Print the best-fit parameters."""
+    """
+    Print the best-fit parameters.
 
+    Args:
+        ParamTable (pandas.DataFrame): The table containing parameter information.
+        LogLike: The log-likelihood object containing chi-squared and scaling parameters.
+    """
     print('\nBest-fitting free parameters:')
     for idx, (idx_free) in enumerate(ParamTable.table['idx_free']):
         if pd.isna(idx_free):

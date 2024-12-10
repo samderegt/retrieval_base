@@ -1,7 +1,17 @@
 import numpy as np
 
 def get_class(pressure, cloud_mode=None, **kwargs):
+    """
+    Factory function to get the appropriate Cloud class based on the cloud_mode.
 
+    Args:
+        pressure (np.ndarray): Pressure levels.
+        cloud_mode (str, optional): Mode of the cloud. Defaults to None.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        Cloud: An instance of a Cloud subclass.
+    """
     if cloud_mode in [None, 'none']:
         return Cloud(pressure, **kwargs)
     if cloud_mode == 'gray':
@@ -12,14 +22,42 @@ def get_class(pressure, cloud_mode=None, **kwargs):
         raise ValueError(f'Cloud mode {cloud_mode} not recognized.')
     
 class Cloud:
+    """
+    Base class for handling cloud models.
+    """
     def __init__(self, pressure, **kwargs):
+        """
+        Initialize the Cloud class.
+
+        Args:
+            pressure (np.ndarray): Pressure levels.
+            **kwargs: Additional keyword arguments.
+        """
         self.pressure = pressure
 
     def __call__(self, ParamTable, **kwargs):
+        """
+        Evaluate the cloud model with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional keyword arguments.
+        """
         return
     
 class EddySed(Cloud):
+    """
+    Class for handling EddySed cloud models.
+    """
     def __init__(self, pressure, cloud_species=['MgSiO3(c)'], **kwargs):
+        """
+        Initialize the EddySed class.
+
+        Args:
+            pressure (np.ndarray): Pressure levels.
+            cloud_species (list, optional): List of cloud species. Defaults to ['MgSiO3(c)'].
+            **kwargs: Additional keyword arguments.
+        """
         # Give arguments to parent class
         super().__init__(pressure)
 
@@ -33,7 +71,17 @@ class EddySed(Cloud):
             self.cloud_species.append(species_i)
 
     def get_cloud_base(self, Chem, PT, species):
+        """
+        Get the cloud base pressure and equilibrium mass fraction.
 
+        Args:
+            Chem (Chemistry): Chemistry object.
+            PT (PressureTemperature): Pressure-Temperature profile.
+            species (str): Cloud species.
+
+        Returns:
+            tuple: Base pressure and equilibrium mass fraction.
+        """
         from petitRADTRANS.retrieval import cloud_cond
 
         # Intersection between condensation curve and PT profile
@@ -52,7 +100,15 @@ class EddySed(Cloud):
         return P_base, mf_eq
 
     def get_mass_fraction_profile(self, ParamTable, Chem, PT, species):
+        """
+        Get the mass fraction profile for a cloud species.
 
+        Args:
+            ParamTable (dict): Parameters for the model.
+            Chem (Chemistry): Chemistry object.
+            PT (PressureTemperature): Pressure-Temperature profile.
+            species (str): Cloud species.
+        """
         P_base = ParamTable.get(f'P_base_{species}') # Base pressure
         mf_eq  = ParamTable.get(f'X_base_{species}')  # Equilibrium mass fraction
 
@@ -79,7 +135,15 @@ class EddySed(Cloud):
         self.f_sed[species] = f_sed
 
     def __call__(self, ParamTable, Chem, PT, **kwargs):
+        """
+        Evaluate the EddySed cloud model with given parameters.
 
+        Args:
+            ParamTable (dict): Parameters for the model.
+            Chem (Chemistry): Chemistry object.
+            PT (PressureTemperature): Pressure-Temperature profile.
+            **kwargs: Additional keyword arguments.
+        """
         # Mixing and particle size
         self.K_zz    = ParamTable.get('K_zz') * np.ones_like(self.pressure)
         self.sigma_g = ParamTable.get('sigma_g')
@@ -89,7 +153,17 @@ class EddySed(Cloud):
             self.get_mass_fraction_profile(ParamTable, Chem, PT, species)
 
 class Gray(Cloud):
+    """
+    Class for handling Gray cloud models.
+    """
     def __init__(self, pressure, **kwargs):
+        """
+        Initialize the Gray class.
+
+        Args:
+            pressure (np.ndarray): Pressure levels.
+            **kwargs: Additional keyword arguments.
+        """
         # Give arguments to parent class
         super().__init__(pressure)
 
@@ -99,7 +173,16 @@ class Gray(Cloud):
         self.n_clouds_max = kwargs.get('n_clouds_max', 10)
 
     def abs_opacity(self, wave_micron, pressure):
+        """
+        Calculate the absorption opacity.
 
+        Args:
+            wave_micron (np.ndarray): Wavelengths in microns.
+            pressure (np.ndarray): Pressure levels.
+
+        Returns:
+            np.ndarray: Absorption opacity.
+        """
         wave_micron = np.atleast_1d(wave_micron)
 
         # Create gray cloud opacity, i.e. independent of wavelength
@@ -133,13 +216,29 @@ class Gray(Cloud):
         return opacity * (1-self.omega)
 
     def scat_opacity(self, wave_micron, pressure):
+        """
+        Calculate the scattering opacity.
 
+        Args:
+            wave_micron (np.ndarray): Wavelengths in microns.
+            pressure (np.ndarray): Pressure levels.
+
+        Returns:
+            np.ndarray: Scattering opacity.
+        """
         # Total cloud opacity
         opacity = 1/(1-self.omega) * self.abs_opacity(wave_micron, pressure)
         return opacity * self.omega
             
     def __call__(self, ParamTable, mean_wave_micron=None, **kwargs):
-    
+        """
+        Evaluate the Gray cloud model with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+            mean_wave_micron (float, optional): Mean wavelength in microns. Defaults to None.
+            **kwargs: Additional keyword arguments.
+        """
         self.P_base      = []
         self.opa_base    = []
         self.f_sed_gray  = []

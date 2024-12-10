@@ -2,7 +2,17 @@ import numpy as np
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
 def get_class(d_spec, sum_model_settings=False, **kwargs):
-    
+    """
+    Get a list of Covariance objects for each chip in the dataset.
+
+    Args:
+        d_spec (dict): Dictionary containing spectral data.
+        sum_model_settings (bool, optional): If True, only compare to one model setting. Defaults to False.
+        **kwargs: Additional keyword arguments for Covariance initialization.
+
+    Returns:
+        list: List of Covariance objects.
+    """
     Cov = []
     for m_set in d_spec.keys():
         # Loop over each chip
@@ -17,10 +27,23 @@ def get_class(d_spec, sum_model_settings=False, **kwargs):
     return Cov
 
 class Covariance:
+    """
+    Class to handle covariance matrix operations.
+    """
     
     @staticmethod
     def get_banded(array, max_value=np.inf, pad_value=0):
-        
+        """
+        Convert a full matrix to a banded matrix.
+
+        Args:
+            array (np.ndarray): Input full matrix.
+            max_value (float, optional): Maximum value to consider for banding. Defaults to np.inf.
+            pad_value (float, optional): Value to pad the diagonals with. Defaults to 0.
+
+        Returns:
+            np.ndarray: Banded matrix.
+        """
         banded_array = []
         for k in range(array.shape[0]):
             # Retrieve the k-th diagonal
@@ -42,7 +65,17 @@ class Covariance:
         return np.asarray(banded_array)
 
     def __init__(self, d_wave, d_err, trunc_dist=5, max_wave_sep=None, scale_amp=False, **kwargs):
+        """
+        Initialize the Covariance object.
 
+        Args:
+            d_wave (np.ndarray): Wavelength data.
+            d_err (np.ndarray): Error data.
+            trunc_dist (int, optional): Truncation distance for the covariance matrix. Defaults to 5.
+            max_wave_sep (float, optional): Maximum wavelength separation. Defaults to None.
+            scale_amp (bool, optional): If True, scale the amplitude. Defaults to False.
+            **kwargs: Additional keyword arguments.
+        """
         # Set up the covariance matrix
         self.var = d_err**2
 
@@ -60,11 +93,16 @@ class Covariance:
         self.reset_cov()
 
     def reset_cov(self):
+        """
+        Reset the covariance matrix to its initial state.
+        """
         self.cov = np.zeros_like(self.wave_sep)
         self.cov[0] = self.var.copy()
         
     def get_cholesky(self):
-
+        """
+        Compute the Cholesky decomposition of the covariance matrix.
+        """
         mask_nonzero_diag = (self.cov != 0).any(axis=1)
 
         if mask_nonzero_diag.sum()==1:
@@ -87,13 +125,11 @@ class Covariance:
         """
         Solve the system cov*x = b for x (x = cov^{-1}*b).
 
-        Parameters:
-        b (np.ndarray): 
-            Right-hand side of cov*x = b.
+        Args:
+            b (np.ndarray): Right-hand side of cov*x = b.
 
         Returns:
-        np.ndarray: 
-            Solution x for the equation cov*x = b.
+            np.ndarray: Solution x for the equation cov*x = b.
         """
         if self.cov.ndim == 1:
             return b / self.cov
@@ -101,7 +137,13 @@ class Covariance:
         return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
 
     def add_radial_basis_function_kernel(self, amp, length):
+        """
+        Add a radial basis function kernel to the covariance matrix.
 
+        Args:
+            amp (float): Amplitude of the kernel.
+            length (float): Length scale of the kernel.
+        """
         # Hann window function to ensure sparsity
         w_ij = (self.wave_sep < self.trunc_dist*length)
 
@@ -113,7 +155,13 @@ class Covariance:
         self.cov[w_ij] += amp * np.exp(-(self.wave_sep[w_ij])**2/(2*length**2))
 
     def __call__(self, ParamTable, **kwargs):
+        """
+        Evaluate the covariance matrix with given parameters.
 
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional keyword arguments.
+        """
         self.reset_cov()
         
         amp    = ParamTable.get('a')

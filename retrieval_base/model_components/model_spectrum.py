@@ -2,11 +2,32 @@ import numpy as np
 from ..utils import sc
 
 def get_class(**kwargs):
+    """
+    Get the pRT class.
+
+    Args:
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        pRT: Instance of the pRT class.
+    """
     return pRT(**kwargs)
     
 class pRT:
+    """
+    Class for pRT model spectrum.
+    """
     def __init__(self, ParamTable, d_spec, m_set, pressure, evaluation=False):
+        """
+        Initialize the pRT class.
 
+        Args:
+            ParamTable (dict): Parameter table.
+            d_spec (object): Data spectrum object.
+            m_set (str): Model set.
+            pressure (array): Pressure array.
+            evaluation (bool): Flag for evaluation mode.
+        """
         self.m_set    = m_set
         self.pressure = pressure
 
@@ -27,7 +48,12 @@ class pRT:
         self.set_Radtrans(ParamTable)
 
     def set_wave_ranges(self, ParamTable):
-        
+        """
+        Set the wavelength ranges for the model.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         rv_max = 1001
         if not self.evaluation:
             rv_prior    = ParamTable.get('rv', key='Param').prior_params
@@ -46,7 +72,12 @@ class pRT:
             ])
 
     def set_Radtrans(self, ParamTable):
-        
+        """
+        Set the Radtrans objects for the model.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         from petitRADTRANS import Radtrans
 
         self.atm = []
@@ -63,7 +94,16 @@ class pRT:
             self.atm.append(atm_i)
 
     def set_absorption_opacity(self, Cloud, LineOpacity=None):
-        
+        """
+        Set the absorption opacity for the model.
+
+        Args:
+            Cloud (object): Cloud object.
+            LineOpacity (list): List of line opacity objects.
+
+        Returns:
+            function: Absorption opacity function.
+        """
         # Check if custom opacities are set
         cloud_abs_opacity = getattr(Cloud, 'abs_opacity', None)
         
@@ -94,13 +134,26 @@ class pRT:
             line_abs_opacity(wave_micron, pressure)
     
     def set_scattering_opacity(self, Cloud):
-        
+        """
+        Set the scattering opacity for the model.
+
+        Args:
+            Cloud (object): Cloud object.
+
+        Returns:
+            function: Scattering opacity function.
+        """
         # Check if custom opacities are set
         cloud_scat_opacity = getattr(Cloud, 'scat_opacity', None)
         return cloud_scat_opacity
     
     def set_incidence_angles(self, Rotation):
-        
+        """
+        Set the incidence angles for the model.
+
+        Args:
+            Rotation (object): Rotation object.
+        """
         mu = getattr(Rotation, 'unique_mu_included', None)
         if mu is None:
             # Do not update
@@ -114,7 +167,20 @@ class pRT:
             self.atm[i] = atm_i
 
     def convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave, apply_scaling=True):
-        
+        """
+        Convert the model spectrum to observation.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            Rotation (object): Rotation object.
+            wave (array): Wavelength array.
+            flux (array): Flux array.
+            d_wave (array): Data wavelength array.
+            apply_scaling (bool): Flag to apply scaling.
+
+        Returns:
+            tuple: Wavelength, flux, and binned flux arrays.
+        """
         # Apply rotational broadening
         wave, flux = Rotation.broaden(wave, flux)
         
@@ -139,7 +205,20 @@ class pRT:
         return wave, flux, flux_binned
     
     def get_emission_contribution(self, ParamTable, Rotation, wave, contr, d_wave, flux_binned):
+        """
+        Get the emission contribution for the model.
 
+        Args:
+            ParamTable (dict): Parameter table.
+            Rotation (object): Rotation object.
+            wave (array): Wavelength array.
+            contr (array): Contribution array.
+            d_wave (array): Data wavelength array.
+            flux_binned (array): Binned flux array.
+
+        Returns:
+            tuple: Contribution per wavelength and integrated contribution arrays.
+        """
         contr_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
         integrated_contr = np.nan * np.ones_like(self.pressure)
         
@@ -160,7 +239,18 @@ class pRT:
         return contr_per_wave, integrated_contr
 
     def __call__(self, ParamTable, Chem, PT, Cloud, Rotation, LineOpacity=None, **kwargs):
+        """
+        Run the radiative transfer to obtain a model spectrum.
 
+        Args:
+            ParamTable (dict): Parameter table.
+            Chem (object): Chemistry object.
+            PT (object): PT profile object.
+            Cloud (object): Cloud object.
+            Rotation (object): Rotation object.
+            LineOpacity (list): List of line opacity objects.
+            **kwargs: Additional keyword arguments.
+        """
         # Get the custom opacity functions
         abs_opacity  = self.set_absorption_opacity(Cloud, LineOpacity)
         scat_opacity = self.set_scattering_opacity(Cloud)
@@ -235,7 +325,16 @@ class pRT:
             self.integrated_contr = np.array(self.integrated_contr)
 
     def combine_model_settings(self, *other_m_spec, sum_model_settings=False):
-        
+        """
+        Combine the model settings.
+
+        Args:
+            *other_m_spec: Other model spectrum objects.
+            sum_model_settings (bool): Flag to sum model settings.
+
+        Returns:
+            tuple: Combined wavelength, flux, and binned flux arrays.
+        """
         if sum_model_settings:
             # Combine the fluxes of all model settings
             wave = self.wave.copy()

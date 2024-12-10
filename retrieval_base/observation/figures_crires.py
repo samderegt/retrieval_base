@@ -3,7 +3,13 @@ import matplotlib.pyplot as plt
 from .. import utils
 
 def plot_telluric_correction(plots_dir, d_spec):
+    """
+    Plot the telluric correction.
 
+    Args:
+        plots_dir (str): Directory to save the plots.
+        d_spec (object): Spectrum object containing data.
+    """
     # Plot per order
     fig, subfig = utils.get_subfigures_per_chip(d_spec.n_orders)
     for i, subfig_i in enumerate(subfig):
@@ -65,7 +71,13 @@ def plot_telluric_correction(plots_dir, d_spec):
     plt.close(fig)
 
 def plot_sigma_clip(plots_dir, d_spec):
+    """
+    Plot the sigma clipping results for each order.
 
+    Args:
+        plots_dir (str): Directory to save the plots.
+        d_spec (object): Spectrum object containing data.
+    """
     valid_residuals = d_spec.residuals.copy()
     valid_residuals[d_spec.mask_sigma_clipped] = np.nan
 
@@ -115,7 +127,13 @@ def plot_sigma_clip(plots_dir, d_spec):
     plt.close(fig)
 
 def plot_spectrum_to_fit(plots_dir, d_spec):
+    """
+    Plot the spectrum to be fitted for each order.
 
+    Args:
+        plots_dir (str): Directory to save the plots.
+        d_spec (object): Spectrum object containing data.
+    """
     # Plot per order
     fig, subfig = utils.get_subfigures_per_chip(d_spec.n_orders)
     for i, subfig_i in enumerate(subfig):
@@ -144,7 +162,15 @@ def plot_spectrum_to_fit(plots_dir, d_spec):
     plt.close(fig)
 
 def plot_bestfit(plots_dir, d_spec, LogLike, **kwargs):
-    
+    """
+    Plot the best-fit spectrum for each order.
+
+    Args:
+        plots_dir (str): Directory to save the plots.
+        d_spec (object): Spectrum object containing data.
+        LogLike (object): Log-likelihood object containing fit results.
+        **kwargs: Additional keyword arguments.
+    """
     # Plot per order
     fig, subfig = utils.get_subfigures_per_chip(d_spec.n_orders)
     for i, subfig_i in enumerate(subfig):

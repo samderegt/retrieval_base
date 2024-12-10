@@ -4,7 +4,15 @@ import matplotlib as mpl
 import numpy as np
 
 def get_env_colors(color):
+    """
+    Generates envelope colors.
 
+    Args:
+        color (str): Base color.
+
+    Returns:
+        tuple: Colormap and envelope colors.
+    """
     env_cmap = mpl.colors.LinearSegmentedColormap.from_list('', ['w',color])
     env_colors = env_cmap([0.,1./3,2./3,1.])
     env_colors[:,-1] = 0.5
@@ -20,7 +28,19 @@ env_cmap, env_colors = get_env_colors(posterior_color)
 
 
 def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints=False):
+    """
+    Plots a corner plot.
 
+    Args:
+        fig (Figure): Matplotlib figure.
+        posterior (array): Posterior samples.
+        bestfit_parameters (array): Best-fit parameters.
+        labels (list, optional): Parameter labels. Defaults to None.
+        plot_datapoints (bool, optional): Whether to plot data points. Defaults to False.
+
+    Returns:
+        tuple: Figure and axes.
+    """
     # Get the range (4*sigma) to plot between
     posterior_range = np.quantile(posterior, q=q[[2,4]], axis=0)
     median = np.median(posterior, axis=0)
@@ -94,7 +114,18 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints
 
 
 def plot_envelopes(ax, y, env_x, indices=[(0,6),(1,5),(2,4)], colors=env_colors[:3], median_kwargs={'c':posterior_color}, **kwargs):
-    
+    """
+    Plots envelopes.
+
+    Args:
+        ax (Axes): Matplotlib axes.
+        y (array): Y-axis values.
+        env_x (array): Envelope X-axis values.
+        indices (list, optional): Indices for envelopes. Defaults to [(0,6),(1,5),(2,4)].
+        colors (list, optional): Colors for envelopes. Defaults to env_colors[:3].
+        median_kwargs (dict, optional): Keyword arguments for median line. Defaults to {'c':posterior_color}.
+        **kwargs: Arbitrary keyword arguments.
+    """
     for i, (idx_l, idx_u) in enumerate(indices):
         ax.fill_betweenx(
             y=y, x1=env_x[idx_l], x2=env_x[idx_u], fc=colors[i], 
@@ -106,6 +137,14 @@ def plot_envelopes(ax, y, env_x, indices=[(0,6),(1,5),(2,4)], colors=env_colors[
     ax.plot(env_x[3], y, **median_kwargs)
 
 def plot_PT(PT, ax=None, ls='-'):
+    """
+    Plots the PT profile.
+
+    Args:
+        PT (object): PT profile object.
+        ax (Axes, optional): Matplotlib axes. Defaults to None.
+        ls (str, optional): Line style. Defaults to '-'.
+    """
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
     
@@ -129,6 +168,14 @@ def plot_PT(PT, ax=None, ls='-'):
         ax.axhline(10**log_P, xmin=1-0.02, c=bestfit_color)
 
 def plot_gradient(PT, ax=None, ls='-'):
+    """
+    Plots the temperature gradient.
+
+    Args:
+        PT (object): PT profile object.
+        ax (Axes, optional): Matplotlib axes. Defaults to None.
+        ls (str, optional): Line style. Defaults to '-'.
+    """
     if ax is None:
         return
 
@@ -159,7 +206,14 @@ def plot_gradient(PT, ax=None, ls='-'):
     ax.plot(dlnT_dlnP, y, c=bestfit_color, ls=ls, alpha=0.5)
 
 def plot_contribution(m_spec, ax=None, ls='-'):
+    """
+    Plots the contribution function.
 
+    Args:
+        m_spec (object): Spectral model object.
+        ax (Axes, optional): Matplotlib axes. Defaults to None.
+        ls (str, optional): Line style. Defaults to '-'.
+    """
     ax.set(
         ylim=(m_spec.pressure.max(), m_spec.pressure.min()), 
         yscale='log', yticks=[], xlim=(1,0), xticks=[], 
@@ -176,6 +230,14 @@ def plot_contribution(m_spec, ax=None, ls='-'):
 
 
 def plot_chemistry(Chem, ax=None, ls='-'):
+    """
+    Plots the chemistry profile.
+
+    Args:
+        Chem (object): Chemistry profile object.
+        ax (Axes, optional): Matplotlib axes. Defaults to None.
+        ls (str, optional): Line style. Defaults to '-'.
+    """
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
 
@@ -210,6 +272,14 @@ def plot_chemistry(Chem, ax=None, ls='-'):
 
 
 def plot_clouds(Cloud, ax=None, ls='-'):
+    """
+    Plots the cloud opacity.
+
+    Args:
+        Cloud (object): Cloud profile object.
+        ax (Axes, optional): Matplotlib axes. Defaults to None.
+        ls (str, optional): Line style. Defaults to '-'.
+    """
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
 
@@ -234,7 +304,20 @@ def plot_clouds(Cloud, ax=None, ls='-'):
 
 
 def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud, m_spec, evaluation=False):
+    """
+    Plots the summary figure.
 
+    Args:
+        plots_dir (Path): Directory to save plots.
+        posterior (array): Posterior samples.
+        bestfit_parameters (array): Best-fit parameters.
+        labels (list): Parameter labels.
+        PT (dict): PT profiles.
+        Chem (dict): Chemistry profiles.
+        Cloud (dict): Cloud profiles.
+        m_spec (dict): Spectral models.
+        evaluation (bool, optional): Whether it is an evaluation plot. Defaults to False.
+    """
     fig = plt.figure(figsize=(13,13))
     fig, ax = plot_corner(
         fig, posterior, bestfit_parameters, labels=labels, plot_datapoints=evaluation

@@ -8,8 +8,17 @@ import warnings
 from .utils import sc
 
 class Parameter:
+    """Represents a parameter with a prior distribution."""
 
     def __init__(self, name, prior_type, prior_params, mathtext, m_set):
+        """
+        Args:
+            name (str): Name of the parameter.
+            prior_type (str): Type of the prior distribution.
+            prior_params (tuple): Parameters of the prior distribution.
+            mathtext (str): Mathematical representation of the parameter.
+            m_set (str): Model setting associated with the parameter.
+        """
         
         self.name  = name
         self.m_set = m_set
@@ -23,7 +32,7 @@ class Parameter:
         self.apply_prior = True
 
     def set_prior(self):
-
+        """Sets the prior distribution based on the prior type and parameters."""
         # Prior range or loc/scale
         loc, scale = self.prior_params
 
@@ -38,7 +47,15 @@ class Parameter:
             raise ValueError(f'prior_type={self.prior_type} not recognized')
 
     def __call__(self, val_01):
-        
+        """
+        Applies the prior to a value in [0,1] and returns the parameter value.
+
+        Args:
+            val_01 (float): Value in the range [0,1].
+
+        Returns:
+            float: Parameter value after applying the prior.
+        """
         # val_01 is in [0,1]
         self.val_01 = val_01
 
@@ -52,9 +69,20 @@ class Parameter:
         return self.val
     
 class ParameterTable:
+    """Manages a table of parameters and their values."""
 
     def get(self, name, value=None, key='val'):
+        """
+        Retrieves the value of a parameter from the table.
 
+        Args:
+            name (str): Name of the parameter.
+            value (optional): Default value if the parameter is not found.
+            key (str): Column name to retrieve the value from.
+
+        Returns:
+            The value of the parameter or the default value if not found.
+        """
         queried_m_set = list(np.array(self.queried_m_set).flatten())
         query = 'm_set=={} and name=={}'.format(queried_m_set, [name])
         queried_table = self.table.query(query)
@@ -66,7 +94,12 @@ class ParameterTable:
         return queried_table[key].values[0]
     
     def get_mathtext(self):
-        
+        """
+        Retrieves the mathtext representations of free parameters.
+
+        Returns:
+            list: List of mathtext strings for free parameters.
+        """
         mathtext = []
         for idx, (idx_free) in enumerate(self.table['idx_free']):
             if pd.isna(idx_free):
@@ -79,7 +112,16 @@ class ParameterTable:
         return mathtext
         
     def expand_per_model_setting(self, d, is_kwargs=False):
-        
+        """
+        Expands a dictionary to include all model settings.
+
+        Args:
+            d (dict): Dictionary to expand.
+            is_kwargs (bool): Whether the dictionary contains keyword arguments.
+
+        Returns:
+            dict: Expanded dictionary with all model settings.
+        """
         # Expand dictionary to have all model settings
         d_expanded = {'all': {}}
 
@@ -111,7 +153,12 @@ class ParameterTable:
         return d_expanded
     
     def add_param(self, **kwargs):
+        """
+        Adds or updates a parameter in the table.
 
+        Args:
+            **kwargs: Parameter attributes to add or update.
+        """
         m_set = kwargs['m_set']
         name  = kwargs['name']
 
@@ -121,14 +168,13 @@ class ParameterTable:
 
         if queried_table.empty:
             # Add parameter to the table
-            idx = len(self.table)            
+            idx = len(self.table)
+            self.table.loc[idx,:] = None
         else:
             # Update the parameter in the table
             idx = queried_table.index[0]
 
         cols = list(kwargs.keys())
-
-        self.table.loc[idx,:] = None
         self.table.loc[idx,cols] = list(kwargs.values())
 
         # Add linear parameter if log
@@ -146,7 +192,13 @@ class ParameterTable:
         self.table.loc[idx+1,cols] = name.replace('log_',''), m_set, 10**val
     
     def add_params_dictionary(self, params, is_free=False):
+        """
+        Adds parameters from a dictionary to the table.
 
+        Args:
+            params (dict): Dictionary of parameters to add.
+            is_free (bool): Whether the parameters are free parameters.
+        """
         # Expand dictionary to have all model settings
         params_expanded = self.expand_per_model_setting(params)
         for m_set, dictionary in params_expanded.items():
@@ -164,7 +216,15 @@ class ParameterTable:
                 self.add_param(name=name, m_set=m_set, Param=Param, val=val)
 
     def __init__(self, free_params, constant_params, model_settings, all_model_kwargs):
-                 
+        """
+        Initializes the ParameterTable.
+
+        Args:
+            free_params (dict): Dictionary of free parameters.
+            constant_params (dict): Dictionary of constant parameters.
+            model_settings (list): List of model settings.
+            all_model_kwargs (dict): Dictionary of model keyword arguments.
+        """
         self.model_settings = model_settings
 
         # Create the table
@@ -194,7 +254,12 @@ class ParameterTable:
         self.add_model_kwargs(all_model_kwargs)
 
     def add_model_kwargs(self, all_model_kwargs):
+        """
+        Adds model keyword arguments to the table.
 
+        Args:
+            all_model_kwargs (dict): Dictionary of all model keyword arguments.
+        """
         kwarg_keys = [
             'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 
             'line_opacity_kwargs', 
@@ -216,7 +281,12 @@ class ParameterTable:
             setattr(self, key, model_kwargs)
 
     def update_log_g(self, m_set):
+        """
+        Updates the surface gravity parameter for a model setting.
 
+        Args:
+            m_set (str): Model setting to update.
+        """
         if self.get('log_g', key='idx_free') is not None:
             # log_g is a free parameter
             return
@@ -237,19 +307,52 @@ class ParameterTable:
         self.add_param(name='log_g', m_set=m_set, val=log_g)
 
     def update_coverage_fraction(self, m_set):
-        
+        """
+        Updates the coverage fraction parameter for a model setting.
+
+        Args:
+            m_set (str): Model setting to update.
+        """
         # Default assumes full coverage (e.g. binary)
         cf = self.get('coverage_fraction', 1.)
 
-        # Add the coverage fraction of this model setting
+        if cf != 1.:
+            # Coverage fraction is set
+
+            if len(self.model_settings) != 2:
+                # Not 2 patches
+                return
+            if m_set != self.model_settings[0]:
+                # Not the first of 2 model settings
+                return
+            
+            # Add remainder of coverage fraction to the other model setting, 
+            # which is read next in the loop (see __call__())
+            self.add_param(name='coverage_fraction', m_set=self.model_settings[1], val=1.-cf)
+            return
+
+        # Coverage fraction is not set, add it
         self.add_param(name='coverage_fraction', m_set=m_set, val=cf)
 
     def update_secondary_params(self, m_set):
+        """
+        Updates secondary parameters for a model setting.
+
+        Args:
+            m_set (str): Model setting to update.
+        """
         self.update_log_g(m_set)
+        
+        # Update the coverage fraction of this model setting
         self.update_coverage_fraction(m_set)
 
     def set_apply_prior(self, apply_prior=True):
+        """
+        Sets whether to apply the prior distribution to parameters.
 
+        Args:
+            apply_prior (bool): Whether to apply the prior distribution.
+        """
         for idx, (idx_free) in enumerate(self.table['idx_free']):
             if pd.isna(idx_free):
                 # Not a free parameter
@@ -259,7 +362,17 @@ class ParameterTable:
             Param.apply_prior = apply_prior
 
     def __call__(self, cube, ndim=None, nparams=None):
+        """
+        Applies the priors to a unit cube and updates the parameter table.
 
+        Args:
+            cube (list): List of parameter values in the unit cube.
+            ndim (int, optional): Number of dimensions.
+            nparams (int, optional): Number of parameters.
+
+        Returns:
+            list: Updated cube with parameter values after applying priors.
+        """
         # Convert to a numpy array
         cube_np = np.array(cube[:ndim])
         cube_init = cube_np.copy()

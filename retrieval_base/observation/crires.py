@@ -5,7 +5,16 @@ from .spectrum import Spectrum
 from ..utils import sc
 
 def get_class(m_set, config_data_m_set):
+    """
+    Get the SpectrumCRIRES class instance.
 
+    Args:
+        m_set (str): Model set identifier.
+        config_data_m_set (dict): Configuration data for the model set.
+
+    Returns:
+        SpectrumCRIRES: Instance of SpectrumCRIRES class.
+    """
     # Load the target and standard-star spectra
     d_spec_target = SpectrumCRIRES(
         m_set=m_set, **config_data_m_set['target_kwargs'], **config_data_m_set['kwargs']
@@ -24,6 +33,7 @@ def get_class(m_set, config_data_m_set):
     return d_spec_target
 
 class SpectrumCRIRES(Spectrum):
+    """Class for handling CRIRES spectrum data."""
 
     wavelength_settings = {
         'J1226': np.array([
@@ -58,7 +68,18 @@ class SpectrumCRIRES(Spectrum):
 
     @staticmethod
     def instrumental_broadening(wave, flux, resolution, initial_resolution):
+        """
+        Apply instrumental broadening to the spectrum.
 
+        Args:
+            wave (numpy.ndarray): Wavelength array.
+            flux (numpy.ndarray): Flux array.
+            resolution (float): Target resolution.
+            initial_resolution (float): Initial resolution.
+
+        Returns:
+            numpy.ndarray: Broadened flux array.
+        """
         # Delta lambda of resolution element is FWHM of the LSF's standard deviation
         sigma_LSF = np.sqrt(1/resolution**2 - 1/initial_resolution**2) / \
                     (2*np.sqrt(2*np.log(2)))
@@ -76,12 +97,37 @@ class SpectrumCRIRES(Spectrum):
     
     @staticmethod
     def clip_detector_edges(array, n_pixels=30):
+        """
+        Clip the edges of the detector array.
+
+        Args:
+            array (numpy.ndarray): Array to be clipped.
+            n_pixels (int, optional): Number of pixels to clip. Defaults to 30.
+
+        Returns:
+            numpy.ndarray: Clipped array.
+        """
         array[:,:n_pixels]  = np.nan
         array[:,-n_pixels:] = np.nan
         return array
     
     def __init__(self, file, file_wave, wave_range, w_set, slit, ra, dec, mjd, resolution=None, m_set=None, **kwargs):
+        """
+        Initialize the SpectrumCRIRES instance.
 
+        Args:
+            file (str): File path to the spectrum data.
+            file_wave (str): File path to the wavelength data.
+            wave_range (tuple): Wavelength range to consider.
+            w_set (str): Wavelength setting identifier.
+            slit (str): Slit identifier.
+            ra (float): Right ascension.
+            dec (float): Declination.
+            mjd (float): Modified Julian Date.
+            resolution (float, optional): Spectral resolution. Defaults to None.
+            m_set (str, optional): Model set identifier. Defaults to None.
+            **kwargs: Additional keyword arguments.
+        """
         # Read info from wavelength settings
         self.m_set = m_set
         self.w_set = w_set
@@ -129,7 +175,16 @@ class SpectrumCRIRES(Spectrum):
         self.n_orders = self.wave_ranges_orders_dets.shape[0]
 
     def set_resolution(self, slit, resolution):
-        
+        """
+        Set the spectral resolution.
+
+        Args:
+            slit (str): Slit identifier.
+            resolution (float, optional): Spectral resolution. Defaults to None.
+
+        Raises:
+            ValueError: If slit-width is not recognized.
+        """
         self.slit = slit
         self.resolution = resolution
 
@@ -145,7 +200,13 @@ class SpectrumCRIRES(Spectrum):
             raise ValueError('Slit-width not recognized')
         
     def load_spectrum_excalibuhr(self, file, file_wave):
+        """
+        Load the spectrum data reduced with excalibuhr.
 
+        Args:
+            file (str): File path to the spectrum data.
+            file_wave (str): File path to the wavelength data.
+        """
         # Load in the data of the target
         _, self.flux, self.err = np.loadtxt(file).T
         # Load in (different) wavelength solution
@@ -159,10 +220,31 @@ class SpectrumCRIRES(Spectrum):
         self.err  /= self.wave
 
     def load_spectrum_pycrires(self, file):
+        """
+        Load the spectrum data reduced with PyCRIRES.
+
+        Args:
+            file (str): File path to the spectrum data.
+
+        Raises:
+            NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError
     
     def load_molecfit_transmission(self, file_molecfit_transm, file_molecfit_continuum=None, T_BB=None, telluric_threshold=0.8, **kwargs):
+        """
+        Load the Molecfit transmission data.
 
+        Args:
+            file_molecfit_transm (str): File path to the Molecfit transmission data.
+            file_molecfit_continuum (str, optional): File path to the Molecfit continuum data. Defaults to None.
+            T_BB (float, optional): Blackbody temperature. Defaults to None.
+            telluric_threshold (float, optional): Telluric threshold. Defaults to 0.8.
+            **kwargs: Additional keyword arguments.
+
+        Raises:
+            ValueError: If the wavelength solution of Molecfit and observation do not match.
+        """
         # Load the pre-computed molecfit transmission
         self.wave_mf, self.transm_mf = np.loadtxt(file_molecfit_transm).T
         self.transm_mf = self.transm_mf.reshape(self.n_chips, self.n_pixels)
@@ -204,7 +286,12 @@ class SpectrumCRIRES(Spectrum):
         self.throughput_mf = self.throughput_mf[self.non_empty_chips]
 
     def telluric_correction(self, std_spectrum):
+        """
+        Apply telluric correction to the spectrum.
 
+        Args:
+            std_spectrum (object): Standard star spectrum object.
+        """
         # Correct for the instrumental response
         self.throughput_mf = std_spectrum.throughput_mf
         self.flux /= self.throughput_mf
@@ -223,7 +310,14 @@ class SpectrumCRIRES(Spectrum):
         self.err[mask]  = np.nan
 
     def flux_calibration(self, filter_name, magnitude, **kwargs):
+        """
+        Calibrate the flux using a filter and magnitude.
 
+        Args:
+            filter_name (str): Name of the filter.
+            magnitude (float): Magnitude of the target.
+            **kwargs: Additional keyword arguments.
+        """
         from species import SpeciesInit
         from species.phot.syn_phot import SyntheticPhotometry
         #from species import SpeciesInit, SyntheticPhotometry
@@ -253,7 +347,14 @@ class SpectrumCRIRES(Spectrum):
         self.err  *= scaling_factor
 
     def sigma_clip(self, sigma_clip_sigma=3, sigma_clip_width=5, **kwargs):
-        
+        """
+        Apply sigma clipping to the spectrum.
+
+        Args:
+            sigma_clip_sigma (int, optional): Sigma threshold for clipping. Defaults to 3.
+            sigma_clip_width (int, optional): Width of the running median filter. Defaults to 5.
+            **kwargs: Additional keyword arguments.
+        """
         from scipy.ndimage import generic_filter
 
         # Apply a running median filter to the flux
@@ -273,10 +374,22 @@ class SpectrumCRIRES(Spectrum):
         self.err[self.mask_sigma_clipped]  = np.nan
 
     def savgol_filter(self, **kwargs):
+        """
+        Apply Savitzky-Golay filter to the spectrum.
+
+        Args:
+            **kwargs: Additional keyword arguments.
+        """
         #raise NotImplementedError
         return
     
     def plot_pre_processing(self, plots_dir):
+        """
+        Plot the pre-processed spectrum.
+
+        Args:
+            plots_dir (str): Directory to save the plots.
+        """
         # Make some summary figures
         from . import figures_crires
         figures_crires.plot_telluric_correction(plots_dir, self)
@@ -292,6 +405,12 @@ class SpectrumCRIRES(Spectrum):
         )
 
     def plot_bestfit(self, plots_dir, LogLike):
+        """
+        Plot the best-fit spectrum.
 
+        Args:
+            plots_dir (str): Directory to save the plots.
+            LogLike (object): Log-likelihood object containing fit results.
+        """
         from . import figures_crires
         figures_crires.plot_bestfit(plots_dir, self, LogLike=LogLike)

@@ -6,7 +6,17 @@ from scipy.special import wofz as Faddeeva
 from ..utils import sc
 
 def get_class(m_spec, line_opacity_kwargs, **kwargs):
+    """
+    Returns a list of LineOpacity instances.
 
+    Args:
+        m_spec (object): Spectral model object.
+        line_opacity_kwargs (dict): Dictionary of line opacity keyword arguments.
+        **kwargs: Arbitrary keyword arguments.
+
+    Returns:
+        list: List of LineOpacity instances.
+    """
     if len(line_opacity_kwargs) == 0:
         # No species to include as a custom opacity
         return None
@@ -22,7 +32,12 @@ def get_class(m_spec, line_opacity_kwargs, **kwargs):
 
 class LineData:
     def __init__(self, **kwargs):
+        """
+        Initializes the LineData class.
 
+        Args:
+            **kwargs: Arbitrary keyword arguments.
+        """
         self._load_NIST_states(kwargs['states_file'])
         
         if kwargs.get('states_file') is not None:
@@ -54,7 +69,12 @@ class LineData:
         self.gamma_N[mask] = 0.22 * self.nu_0[mask]**2 / (4*np.pi*(sc.c*1e2)) # [cm^-1]
 
     def _load_NIST_states(self, states_file):
+        """
+        Loads NIST states from a file.
 
+        Args:
+            states_file (str): Path to the states file.
+        """
         # Load data from the NIST states
         d = np.loadtxt(states_file, dtype=str, skiprows=1, usecols=(0,2))
 
@@ -70,6 +90,15 @@ class LineData:
         self.E = np.array(E) # [cm^-1]
 
     def _get_partition_function(self, T):
+        """
+        Calculates the partition function.
+
+        Args:
+            T (array): Temperature array.
+
+        Returns:
+            array: Partition function values.
+        """
         # Partition function per temperature
         Q = np.sum(
             self.g[None,:] * np.exp(-(sc.c2*1e2)*self.E[None,:]/T[:,None]), 
@@ -78,7 +107,12 @@ class LineData:
         return Q
 
     def _load_Kurucz_transitions(self, trans_file):
-        
+        """
+        Loads Kurucz transitions from a file.
+
+        Args:
+            trans_file (str): Path to the transitions file.
+        """
         d = np.array(
             pd.read_fwf(trans_file, widths=(11,7,6,12,5,1,10,12,5,1,10,6,6,6), header=None)
             )
@@ -96,7 +130,12 @@ class LineData:
         self.log_gamma_vdW = d[:,13].astype(np.float64)
     
     def _load_custom_transitions(self, custom_transitions):
+        """
+        Loads custom transitions.
 
+        Args:
+            custom_transitions (list): List of custom transitions.
+        """
         def replace_or_append(dictionary, key, idx):
 
             # Read Kurucz array (if available)
@@ -144,7 +183,12 @@ class LineData:
         self.is_onthefly = np.isin(np.arange(len(self.nu_0)), indices)
 
     def _mask_transitions(self, **kwargs):
-        
+        """
+        Masks transitions based on given criteria.
+
+        Args:
+            **kwargs: Arbitrary keyword arguments.
+        """
         # Select transitions that affect modelled wavelengths
         self.line_cutoff = kwargs.get('line_cutoff', 60) # [cm^-1]
         mask = (self.nu_0 > self.nu_ranges.min()-self.line_cutoff) & \
@@ -169,7 +213,13 @@ class LineData:
 class LineOpacity(LineData):
 
     def __init__(self, m_spec, **kwargs):
+        """
+        Initializes the LineOpacity class.
 
+        Args:
+            m_spec (object): Spectral model object.
+            **kwargs: Arbitrary keyword arguments.
+        """
         # Define the wavenumber and PT grids
         self.set_grid(m_spec)
 
@@ -186,7 +236,12 @@ class LineOpacity(LineData):
         self.status = 'combine'
 
     def set_grid(self, m_spec):
-        
+        """
+        Sets the wavenumber and PT grids.
+
+        Args:
+            m_spec (object): Spectral model object.
+        """
         # Define the wavenumber grid
         self.wave_ranges = m_spec.wave_ranges   # [nm]
         self.nu_ranges   = 1e7/self.wave_ranges # [cm^-1]
@@ -211,7 +266,7 @@ class LineOpacity(LineData):
             ])
         
     def get_precomputed_opacity_table(self):
-
+        """Precomputes the opacity table."""
         # Table of interpolation functions
         from scipy.interpolate import interp1d
         self.interp_table = np.empty((len(self.nu_grid),len(self.P_grid)), dtype=object)
@@ -246,7 +301,12 @@ class LineOpacity(LineData):
                     )
 
     def _get_gamma_vdW(self):
+        """
+        Calculates the van der Waals broadening coefficient.
 
+        Returns:
+            array: Van der Waals broadening coefficients.
+        """
         mask = (self.log_gamma_vdW == 0.)
 
         # Provided van-der-Waals broadening coefficients (Sharp & Burrows 2007)
@@ -298,14 +358,24 @@ class LineOpacity(LineData):
         return gamma_vdW
 
     def _get_gamma_G(self):
+        """
+        Calculates the thermal broadening coefficient.
 
+        Returns:
+            array: Thermal broadening coefficients.
+        """
         # Thermal broadening coefficient
         gamma_G = self.nu_0[None,:]/(sc.c*1e2) * \
             np.sqrt((2*(sc.k*1e7)*self.temperature[:,None])/self.mass)
         return gamma_G
     
     def _get_oscillator_strength(self):
+        """
+        Calculates the oscillator strength.
 
+        Returns:
+            array: Oscillator strengths.
+        """
         # Partition function
         Q = self._get_partition_function(T=self.temperature)
 
@@ -319,7 +389,15 @@ class LineOpacity(LineData):
         return S
     
     def _get_impact_width_shift(self, ParamTable={}):
-        
+        """
+        Calculates the impact width and shift.
+
+        Args:
+            ParamTable (dict, optional): Parameter table. Defaults to {}.
+
+        Returns:
+            tuple: Impact width and shift.
+        """
         # Power-law for the impact width/shift
         w = np.zeros((len(self.P_grid), self.has_impact_parameters.sum()), dtype=np.float64)
         d = w.copy()
@@ -352,7 +430,20 @@ class LineOpacity(LineData):
         return w, d
 
     def _line_profile(self, nu, nu_0, gamma_N, gamma_vdW, gamma_G, S):
+        """
+        Calculates the line profile.
 
+        Args:
+            nu (array): Wavenumber array.
+            nu_0 (float): Line center wavenumber.
+            gamma_N (float): Natural broadening coefficient.
+            gamma_vdW (float): Van der Waals broadening coefficient.
+            gamma_G (float): Thermal broadening coefficient.
+            S (float): Oscillator strength.
+
+        Returns:
+            array: Line profile values.
+        """
         # Gandhi et al. (2020b)
         u = (nu - nu_0) / gamma_G
         a = (gamma_vdW + gamma_N) / gamma_G
@@ -362,7 +453,15 @@ class LineOpacity(LineData):
         return f*S/self.mass # [cm^2 g^-1]
 
     def update_parameters(self, T, VMRs={}, mass_fractions={}, ParamTable={}):
-        
+        """
+        Updates the line opacity parameters.
+
+        Args:
+            T (float): Temperature.
+            VMRs (dict, optional): Volume mixing ratios. Defaults to {}.
+            mass_fractions (dict, optional): Mass fractions. Defaults to {}.
+            ParamTable (dict, optional): Parameter table. Defaults to {}.
+        """
         self.temperature = np.ones_like(self.P_grid) * T
         self.n_density   = self.P_grid*1e6 / ((sc.k*1e7)*self.temperature) # [cm^-3]
 
@@ -378,7 +477,16 @@ class LineOpacity(LineData):
         self.w, self.d = self._get_impact_width_shift(ParamTable=ParamTable)
         
     def abs_opacity(self, wave_micron, pressure):
+        """
+        Calculates the absorption opacity.
 
+        Args:
+            wave_micron (array): Wavelength array in microns.
+            pressure (array): Pressure array.
+
+        Returns:
+            array: Absorption opacity values.
+        """
         # Determine which chip is being computed
         idx_chip = np.argmin(np.abs(
             np.mean(wave_micron) - np.mean(self.wave_ranges*1e-3, axis=1)
@@ -439,7 +547,14 @@ class LineOpacity(LineData):
         return opacity # [cm^2 g^-1]
 
     def __call__(self, ParamTable, PT, Chem):
-        
+        """
+        Calculates the line opacity.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            PT (object): PT profile object.
+            Chem (object): Chemistry profile object.
+        """
         self.update_parameters(
             T=PT.temperature, 
             VMRs=Chem.VMRs, 

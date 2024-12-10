@@ -10,11 +10,14 @@ def get_class(pressure, line_species, chem_mode='free', **kwargs):
     """
     Factory function to get the appropriate Chemistry class based on the chem_mode.
 
-    Parameters:
+    Args:
+        pressure (np.ndarray): Pressure levels.
+        line_species (list): List of line species.
+        chem_mode (str, optional): Mode of the chemistry. Defaults to 'free'.
+        **kwargs: Additional keyword arguments.
 
     Returns:
-    Chemistry: 
-        An instance of a Chemistry subclass.
+        Chemistry: An instance of a Chemistry subclass.
     """
     if chem_mode == 'free':
         return FreeChemistry(pressure, line_species, **kwargs)
@@ -39,13 +42,10 @@ class Chemistry:
         """
         Initialize the Chemistry class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
+        Args:
+            pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
         """
         self.line_species = [*line_species, 'H2', 'He']
 
@@ -97,15 +97,12 @@ class Chemistry:
         """
         Read species information from the species_info DataFrame.
 
-        Parameters:
-        species (str): 
-            Species name.
-        info_key (str): 
-            Key to retrieve specific information.
+        Args:
+            species (str): Species name.
+            info_key (str): Key to retrieve specific information.
 
         Returns:
-        Various: 
-            Information based on the info_key.
+            Various: Information based on the info_key.
         """
         if info_key == 'pRT_name':
             return cls.species_info.loc[species,info_key]
@@ -137,9 +134,8 @@ class Chemistry:
         """
         Calculate the volume mixing ratios (VMRs) for isotopologues.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters including isotope ratios.
+        Args:
+            ParamTable (dict): Parameters including isotope ratios.
         """
         # If true, eq-chem abundances should be split into isotopologues
         conserve_tot_VMR = isinstance(self, EquilibriumChemistry)
@@ -236,15 +232,12 @@ class Chemistry:
         """
         Evaluate the chemistry model with given parameters and temperature.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
-        temperature (array): 
-            Temperature profile.
+        Args:
+            ParamTable (dict): Parameters for the model.
+            temperature (np.ndarray): Temperature profile.
 
         Returns:
-        dict: 
-            Mass fractions.
+            dict: Mass fractions.
         """
         self.temperature = temperature
         
@@ -300,15 +293,11 @@ class FreeChemistry(Chemistry):
         """
         Initialize the FreeChemistry class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
+            **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
@@ -317,17 +306,13 @@ class FreeChemistry(Chemistry):
         """
         Apply a power-law drop-off to the volume mixing ratio (VMR).
 
-        Parameters:
-        VMR (array): 
-            Volume mixing ratio.
-        P0 (float): 
-            Reference pressure.
-        alpha (float): 
-            Power-law exponent.
+        Args:
+            VMR (np.ndarray): Volume mixing ratio.
+            P0 (float): Reference pressure.
+            alpha (float): Power-law exponent.
 
         Returns:
-        array: 
-            Modified VMR.
+            np.ndarray: Modified VMR.
         """
         if P0 is None:
             # No drop-off
@@ -346,11 +331,9 @@ class FreeChemistry(Chemistry):
         """
         Get volume mixing ratios (VMRs) for the free chemistry model.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional arguments.
         """
         # Constant He abundance
         self.VMRs = {'He':0.15*np.ones(self.n_atm_layers)}
@@ -422,13 +405,10 @@ class EquilibriumChemistry(Chemistry):
         """
         Initialize the EquilibriumChemistry class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
@@ -443,11 +423,9 @@ class EquilibriumChemistry(Chemistry):
         """
         Calculate the quench pressure from the eddy diffusion coefficient (Kzz).
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters including Kzz.
-        alpha (float): 
-            Mixing length factor.
+        Args:
+            ParamTable (dict): Parameters including Kzz.
+            alpha (float, optional): Mixing length factor. Defaults to 1.
         """
         # Metallicity
         m = 10**self.FeH
@@ -515,9 +493,8 @@ class EquilibriumChemistry(Chemistry):
         """
         Quench the volume mixing ratios (VMRs) based on the quench settings.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
+        Args:
+            ParamTable (dict): Parameters for the model.
         """
         # Update the parameters
         for key_q in list(self.quench_settings):
@@ -561,17 +538,12 @@ class FastChemistryTable(EquilibriumChemistry):
         """
         Initialize the FastChemistryTable class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
-        path_fastchem_tables (str): 
-            Path to the fast chemistry tables.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
+            path_fastchem_tables (str, optional): Path to the fast chemistry tables. Defaults to './fastchem_tables'.
+            **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
@@ -589,9 +561,8 @@ class FastChemistryTable(EquilibriumChemistry):
         """
         Load the interpolation tables for fast chemistry.
 
-        Parameters:
-        path_tables (Path): 
-            Path to the tables.
+        Args:
+            path_tables (Path): Path to the tables.
         """
         import h5py
         def load_hdf5(file, key):
@@ -627,11 +598,9 @@ class FastChemistryTable(EquilibriumChemistry):
         """
         Get volume mixing ratios (VMRs) using interpolation tables.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional arguments.
         """
         def apply_bounds(val, grid):
             val[val > grid.max()] = grid.max()
@@ -668,15 +637,11 @@ class pRTChemistryTable(EquilibriumChemistry):
         """
         Initialize the pRTChemistryTable class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
+            **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
@@ -695,11 +660,9 @@ class pRTChemistryTable(EquilibriumChemistry):
         """
         Get volume mixing ratios (VMRs) using pRT interpolation tables.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional arguments.
         """
         # Update the parameters
         self.CO  = ParamTable.get('C/O')
@@ -750,15 +713,11 @@ class FastChemistry(EquilibriumChemistry):
         """
         Initialize the FastChemistry class.
 
-        Parameters:
-        line_species (list): 
-            List of line species.
-        pressure (array): 
-            Pressure levels.
-        LineOpacity (list, optional): 
-            Custom opacity objects.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
+            **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
@@ -851,11 +810,9 @@ class FastChemistry(EquilibriumChemistry):
         """
         Get volume mixing ratios (VMRs) using the FastChem library.
 
-        Parameters:
-        ParamTable (dict): 
-            Parameters for the model.
-        **kwargs: 
-            Additional arguments.
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional arguments.
         """
         # Flip to order by increasing altitude
         self.input.pressure = self.pressure[::-1]

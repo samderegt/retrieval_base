@@ -5,17 +5,12 @@ def get_class(PT_mode='free_gradient', **kwargs):
     """
     Get the PT profile class based on the mode.
 
-    Parameters:
-    ParamTable: 
-        Parameter table.
-    PT_mode (str): 
-        Mode for the PT profile.
-    **kwargs: 
-        Additional keyword arguments.
+    Args:
+        PT_mode (str): Mode for the PT profile.
+        **kwargs: Additional keyword arguments.
 
     Returns:
-    PT_profile: 
-        Instance of the PT profile class.
+        PT_profile: Instance of the PT profile class.
     """
     if PT_mode == 'free_gradient':
         return PT_profile_free_gradient(**kwargs)
@@ -31,7 +26,16 @@ class PT_profile:
 
     @staticmethod
     def get_dlnT_dlnP(temperature, pressure):
+        """
+        Get the temperature gradient with respect to pressure.
 
+        Args:
+            temperature (array): Temperature array.
+            pressure (array): Pressure array.
+
+        Returns:
+            tuple: Temperature gradient and mean log pressure.
+        """
         # Log pressure between layers
         log_pressure = np.log10(pressure)
         mean_log_pressure = 1/2*(log_pressure[1:] + log_pressure[:-1])
@@ -45,11 +49,8 @@ class PT_profile:
         """
         Initialize the PT_profile class.
 
-        Parameters:
-        ParamTable: 
-            Parameter table.
-        **kwargs: 
-            Additional keyword arguments.
+        Args:
+            **kwargs: Additional keyword arguments.
         """
         # Set the pressure levels
         self.set_pressures(**kwargs)
@@ -61,9 +62,8 @@ class PT_profile:
         """
         Set the pressure levels.
 
-        Parameters:
-        ParamTable: 
-            Parameter table.
+        Args:
+            **kwargs: Additional keyword arguments.
         """
         self.pressure = kwargs.get('pressure')
         if self.pressure is not None:
@@ -79,7 +79,12 @@ class PT_profile:
         raise ValueError('Could not set pressure levels.')
 
     def __call__(self, ParamTable):        
-        
+        """
+        Set the parameters for the PT profile.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         if ParamTable.get('temperature') is not None:
             # Get a constant temperature profile
             self.temperature = ParamTable.get('temperature')
@@ -92,8 +97,15 @@ class PT_profile_free_gradient(PT_profile):
     """
     Class for free gradient PT profiles.
     """
-
     def __init__(self, interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
+        """
+        Initialize the PT_profile_free_gradient class.
+
+        Args:
+            interp_mode (str): Interpolation mode.
+            symmetric_around_P_phot (bool): Flag for symmetry around photospheric pressure.
+            **kwargs: Additional keyword arguments.
+        """
         # Give arguments to the parent class
         super().__init__(**kwargs)
 
@@ -104,7 +116,12 @@ class PT_profile_free_gradient(PT_profile):
         self.symmetric_around_P_phot = symmetric_around_P_phot
 
     def set_pressure_knots(self, ParamTable):
-        
+        """
+        Set the pressure knots for the PT profile.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         self.log_P_knots = ParamTable.get('log_P_knots')
         if self.log_P_knots is not None:
             # Constant knots
@@ -155,7 +172,12 @@ class PT_profile_free_gradient(PT_profile):
         self.log_P_knots = np.sort(np.array(self.log_P_knots))
 
     def get_temperature_gradients(self, ParamTable):
-        
+        """
+        Get the temperature gradients for the PT profile.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         # Get the temperature gradients at each knot
         self.dlnT_dlnP_knots = np.array([
             ParamTable.get(f'dlnT_dlnP_{i}') for i in range(self.n_knots)
@@ -171,7 +193,12 @@ class PT_profile_free_gradient(PT_profile):
         self.dlnT_dlnP = interp_func(self.log_pressure)
 
     def get_temperature(self, ParamTable):
-            
+        """
+        Get the temperature profile.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         # Compute the temperatures relative to a base pressure
         P_base = ParamTable.get('P_phot', self.pressure.max())
         T_base = ParamTable.get('T_phot', ParamTable.get('T_0'))
@@ -215,7 +242,12 @@ class PT_profile_free_gradient(PT_profile):
             self.temperature[mask] = np.exp(np.array(ln_T)[idx])
 
     def __call__(self, ParamTable):
+        """
+        Set the parameters for the PT profile.
 
+        Args:
+            ParamTable (dict): Parameter table.
+        """
         self.set_pressure_knots(ParamTable)
         self.P_knots     = 10**self.log_P_knots
         self.ln_P_knots  = np.log(self.P_knots)

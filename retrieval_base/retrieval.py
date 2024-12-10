@@ -14,8 +14,23 @@ import pymultinest
 from . import utils
 
 class Retrieval:
-    def __init__(self, config):
+    """
+    A class to handle the retrieval process.
 
+    Attributes:
+        config (object): Configuration object containing necessary parameters.
+        model_settings (list): List of model settings.
+        data_dir (Path): Directory for data output.
+        plots_dir (Path): Directory for plots output.
+    """
+
+    def __init__(self, config):
+        """
+        Initialize the Retrieval instance.
+
+        Args:
+            config (object): Configuration object containing necessary parameters.
+        """
         # Create output directory
         self.config = config
         self.create_output_dir()
@@ -24,10 +39,6 @@ class Retrieval:
     def create_output_dir(self):
         """
         Create output directories for data and plots, and copy the config file.
-
-        Args:
-            prefix (str): Prefix for the directory names.
-            file_params (str): Path to the configuration file.
         """
         # Create output directory
         self.data_dir = Path(f'{self.config.prefix}data')
@@ -42,7 +53,12 @@ class Retrieval:
         destination.write_bytes(config_file.read_bytes())
 
     def save_all_components(self, non_dict_names=[]):
+        """
+        Save all components to pickle files.
 
+        Args:
+            non_dict_names (list): List of non-dictionary attribute names to save.
+        """
         for name, component in vars(self).items():
 
             if name in non_dict_names:
@@ -55,7 +71,12 @@ class Retrieval:
                 utils.save_pickle(comp, self.data_dir/f'{name}_{m_set}.pkl')
 
     def load_components(self, component_names):
-        
+        """
+        Load components from pickle files.
+
+        Args:
+            component_names (list): List of component names to load.
+        """
         # Pause the process to not overload memory on start-up
         time.sleep(0.3*rank)
         
@@ -83,6 +104,9 @@ class Retrieval:
 class RetrievalSetup(Retrieval):
     """
     A class to set up the retrieval.
+
+    Attributes:
+        config (object): Configuration object containing necessary parameters.
     """
 
     def __init__(self, config):
@@ -145,9 +169,6 @@ class RetrievalSetup(Retrieval):
     def get_parameters(self):
         """
         Get parameters for the retrieval process.
-
-        Args:
-            config (object): Configuration object containing necessary parameters.
         """
         from .parameters import ParameterTable
 
@@ -162,11 +183,7 @@ class RetrievalSetup(Retrieval):
     def get_model_components(self):
         """
         Generate model components for the retrieval process.
-
-        Args:
-            evaluation (bool): Flag to indicate if it's for evaluation. Default is False.
         """
-
         self.PT = {}
         self.Chem = {}
         self.Cloud = {}
@@ -243,12 +260,22 @@ class RetrievalRun(Retrieval):
     """
     A class to run the retrieval process, including loading data, parameters, and models,
     and initiating the retrieval.
+
+    Attributes:
+        config (object): Configuration object containing necessary parameters.
+        resume (bool): Flag to indicate if the retrieval should resume from a previous run.
+        evaluation (bool): Flag to indicate if it's for evaluation.
+        elapsed_times (list): List to store elapsed times for evaluations.
     """
 
     def __init__(self, config, resume=True, evaluation=False):
-        
         """
         Initialize the RetrievalRun instance.
+
+        Args:
+            config (object): Configuration object containing necessary parameters.
+            resume (bool): Flag to indicate if the retrieval should resume from a previous run.
+            evaluation (bool): Flag to indicate if it's for evaluation.
         """
         # Give arguments to the parent class
         super().__init__(config)
@@ -266,7 +293,9 @@ class RetrievalRun(Retrieval):
         self.load_components(component_names)
 
     def run_evaluation(self):
-
+        """
+        Run the evaluation process.
+        """
         # Try loading the evaluation model
         self.load_components(['m_spec_broad', 'LineOpacity_broad'])
         
@@ -311,7 +340,9 @@ class RetrievalRun(Retrieval):
         self.callback(*[None,]*10)
         
     def run(self):
-
+        """
+        Run the retrieval process using pymultinest.
+        """
         pymultinest.run(
             LogLikelihood=self.get_likelihood, 
             Prior=self.ParamTable, 
@@ -325,7 +356,19 @@ class RetrievalRun(Retrieval):
             )
 
     def get_likelihood(self, cube=None, ndim=None, nparams=None, evaluation=False, skip_radtrans=False):
-        
+        """
+        Calculate the likelihood for the retrieval process.
+
+        Args:
+            cube (array): Parameter cube.
+            ndim (int): Number of dimensions.
+            nparams (int): Number of parameters.
+            evaluation (bool): Flag to indicate if it's for evaluation.
+            skip_radtrans (bool): Flag to skip radiative transfer calculations.
+
+        Returns:
+            float: Log-likelihood value.
+        """
         time_start = time.time()
         # ParamTable is updated
 
@@ -420,7 +463,16 @@ class RetrievalRun(Retrieval):
         return self.LogLike.ln_L
     
     def load_posterior_and_bestfit(self, posterior, n_samples_max=2000):
+        """
+        Load the posterior and best-fit parameters.
 
+        Args:
+            posterior (array): Posterior samples.
+            n_samples_max (int): Maximum number of samples to load.
+
+        Returns:
+            tuple: Posterior samples and best-fit parameters.
+        """
         if self.evaluation:
             # Read the equally-weighted posterior
             analyzer = pymultinest.Analyzer(
@@ -454,7 +506,12 @@ class RetrievalRun(Retrieval):
         return posterior, bestfit_parameters
     
     def get_profile_posterior(self, posterior):
+        """
+        Get the posterior profiles for temperature, VMRs, and cloud opacity.
 
+        Args:
+            posterior (array): Posterior samples.
+        """
         n_samples = posterior.shape[0]
 
         for m_set in self.model_settings:
@@ -495,12 +552,21 @@ class RetrievalRun(Retrieval):
                 self.Cloud[m_set].total_opacity_posterior[i] = self.Cloud[m_set].total_opacity
 
     def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
+        """
+        Callback function for pymultinest.
 
-        '''
-        if (rank != 0) and (not self.evaluation):
-            # Only the master process should make the live plots
-            return
-        '''
+        Args:
+            n_samples (int): Number of samples.
+            n_live (int): Number of live points.
+            n_params (int): Number of parameters.
+            live_points (array): Live points.
+            posterior (array): Posterior samples.
+            stats (dict): Statistics.
+            max_ln_L (float): Maximum log-likelihood.
+            ln_Z (float): Log-evidence.
+            ln_Z_err (float): Log-evidence error.
+            nullcontext (object): Null context.
+        """
         if (rank != 0):
             # Only the master process should make the live plots
             return

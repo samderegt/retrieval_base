@@ -2,11 +2,32 @@ import numpy as np
 from scipy.special import loggamma
 
 def get_class(**kwargs):
+    """
+    Returns an instance of LogLikelihood class.
+
+    Args:
+        **kwargs: Arbitrary keyword arguments.
+
+    Returns:
+        LogLikelihood: An instance of LogLikelihood class.
+    """
     return LogLikelihood(**kwargs)
 
 class LogLikelihood:
     def __init__(self, d_spec, sum_model_settings=True, scale_flux=False, scale_err=False, alpha=2, N_phi=1, scale_relative_to_chip=-1, **kwargs):
+        """
+        Initializes the LogLikelihood class.
 
+        Args:
+            d_spec (dict): Dictionary of spectral data.
+            sum_model_settings (bool, optional): Whether to sum model settings. Defaults to True.
+            scale_flux (bool, optional): Whether to scale flux. Defaults to False.
+            scale_err (bool, optional): Whether to scale error. Defaults to False.
+            alpha (int, optional): Alpha parameter. Defaults to 2.
+            N_phi (int, optional): Number of phi. Defaults to 1.
+            scale_relative_to_chip (int, optional): Scale relative to chip. Defaults to -1.
+            **kwargs: Arbitrary keyword arguments.
+        """
         # Combine all model settings
         self.combine_model_settings(d_spec, sum_model_settings)
 
@@ -18,7 +39,13 @@ class LogLikelihood:
         self.scale_relative_to_chip = scale_relative_to_chip
 
     def combine_model_settings(self, d_spec, sum_model_settings=True):
-        
+        """
+        Combines model settings.
+
+        Args:
+            d_spec (dict): Dictionary of spectral data.
+            sum_model_settings (bool, optional): Whether to sum model settings. Defaults to True.
+        """
         # All model settings
         self.model_settings = list(d_spec.keys())
         self.sum_model_settings = sum_model_settings
@@ -49,7 +76,17 @@ class LogLikelihood:
         self.n_chips = len(self.d_flux)
 
     def get_flux_scaling(self, d, M, Cov):
-        
+        """
+        Calculates the optimal flux scaling.
+
+        Args:
+            d (array): Data array.
+            M (array): Model array.
+            Cov (object): Covariance object.
+
+        Returns:
+            tuple: Scaled flux and phi.
+        """
         # Left- and right-hand sides
         lhs = np.dot(M.T, Cov.solve(M))
         rhs = np.dot(M.T, Cov.solve(d))
@@ -66,11 +103,31 @@ class LogLikelihood:
         return np.dot(M, phi), phi
 
     def get_err_scaling(self, chi_squared, N_d):
+        """
+        Calculates the optimal error scaling.
+
+        Args:
+            chi_squared (float): Chi-squared value.
+            N_d (int): Number of data points.
+
+        Returns:
+            float: Scaled error.
+        """
         s_squared = np.sqrt(1/N_d * chi_squared)
         return s_squared
     
     def __call__(self, m_flux, Cov, **kwargs):
+        """
+        Calculates the log-likelihood.
 
+        Args:
+            m_flux (array): Model flux array.
+            Cov (array): Covariance array.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            float: Log-likelihood value.
+        """
         self.ln_L = 0.
         self.chi_squared_0 = 0.
 
