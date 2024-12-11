@@ -97,7 +97,7 @@ class PT_profile_free_gradient(PT_profile):
     """
     Class for free gradient PT profiles.
     """
-    def __init__(self, interp_mode='quadratic', symmetric_around_P_phot=False, **kwargs):
+    def __init__(self, interp_mode='quadratic', symmetric_around_P_phot=False, n_knots=2, **kwargs):
         """
         Initialize the PT_profile_free_gradient class.
 
@@ -114,6 +114,7 @@ class PT_profile_free_gradient(PT_profile):
 
         self.interp_mode = interp_mode
         self.symmetric_around_P_phot = symmetric_around_P_phot
+        self.n_knots = n_knots
 
     def set_pressure_knots(self, ParamTable):
         """
@@ -127,14 +128,11 @@ class PT_profile_free_gradient(PT_profile):
             # Constant knots
             self.log_P_knots = np.sort(self.log_P_knots)
             return
-        
-        n_knots = ParamTable.get('n_knots', 2)
-        #if n_knots is None:
-        #    raise ValueError('Parameter "n_knots" not defined.')
-        
+        #n_knots = ParamTable.get('n_knots', 2)
+
         # Equally-spaced knots
         self.log_P_knots = np.linspace(
-            self.log_pressure.min(), self.log_pressure.max(), n_knots
+            self.log_pressure.min(), self.log_pressure.max(), self.n_knots
             )
         
         log_P_base = ParamTable.get('log_P_phot')
@@ -150,9 +148,9 @@ class PT_profile_free_gradient(PT_profile):
         if log_P_base is None:
             return
         
-        for i in range(1, n_knots):
+        for i in range(1, self.n_knots):
             # Upper and lower separations
-            up_i  = ParamTable.get(f'd_log_P_phot+{i}')
+            up_i = ParamTable.get(f'd_log_P_phot+{i}')
             if up_i is None:
                 up_i = ParamTable.get(f'd_log_P_0+{i}')
 

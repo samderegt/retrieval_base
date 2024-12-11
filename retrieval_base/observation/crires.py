@@ -3,6 +3,9 @@ from scipy.ndimage import gaussian_filter
 
 from .spectrum import Spectrum
 from ..utils import sc
+from .. import utils
+
+import matplotlib.pyplot as plt
 
 def get_class(m_set, config_data_m_set):
     """
@@ -391,26 +394,225 @@ class SpectrumCRIRES(Spectrum):
             plots_dir (str): Directory to save the plots.
         """
         # Make some summary figures
-        from . import figures_crires
-        figures_crires.plot_telluric_correction(plots_dir, self)
-        figures_crires.plot_sigma_clip(plots_dir, self)
-        figures_crires.plot_spectrum_to_fit(plots_dir, self)
+        self.plot_telluric_correction(plots_dir)
+        self.plot_sigma_clip(plots_dir)
+        self.plot_spectrum_to_fit(plots_dir)
 
         # Only needed for figures
-        del (
-            self.running_median_flux,
-            self.mask_sigma_clipped, 
-            self.residuals, 
-            self.sigma_clip_sigma
-        )
+        del self.running_median_flux, self.mask_sigma_clipped, self.residuals, self.sigma_clip_sigma
 
-    def plot_bestfit(self, plots_dir, LogLike):
+    def plot_telluric_correction(self, plots_dir):
         """
-        Plot the best-fit spectrum.
+        Plot the telluric correction.
+
+        Args:
+            plots_dir (str): Directory to save the plots.
+        """
+        # Plot per order
+        fig, subfig = utils.get_subfigures_per_chip(self.n_orders)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, (None, None)
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = (r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 'Transm.')
+
+            # Add some padding
+            xlim = (self.wave_ranges_orders_dets[i].min()-0.5, self.wave_ranges_orders_dets[i].max()+0.5)
+            
+            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+            ax_flux   = subfig_i.add_subplot(gs[0])
+            ax_transm = subfig_i.add_subplot(gs[1])
+
+            for idx in range(i*self.n_dets, (i+1)*self.n_dets):
+                if idx == self.n_chips:
+                    break
+                ax_flux.plot(self.wave[idx], self.uncorrected_flux[idx], 'k-', lw=0.5, alpha=0.4)
+                ax_flux.plot(self.wave[idx], self.flux[idx], 'k-', lw=0.7)
+                
+                ax_transm.plot(self.wave[idx], self.transm_mf[idx], 'k-', lw=0.5)
+            
+            ax_transm.axhline(self.telluric_threshold, c='r', ls='--')
+            
+            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
+            ax_transm.set(xlim=xlim, xlabel=xlabel, ylim=(0,1.1), ylabel=ylabel[1])
+
+        fig.savefig(plots_dir / f'telluric_correction_per_order_{self.m_set}.pdf')
+        plt.close(fig)
+
+        # Plot for full spectrum
+        fig = plt.figure(figsize=(10,4))
+        gs = fig.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+        ax_flux   = fig.add_subplot(gs[0])
+        ax_transm = fig.add_subplot(gs[1])
+
+        xlim = (self.wave_ranges_orders_dets.min()-15, self.wave_ranges_orders_dets.max()+15)
+
+        for idx in range(self.n_chips):
+            ax_flux.plot(self.wave[idx], self.uncorrected_flux[idx], 'k-', lw=0.5, alpha=0.4)
+            ax_flux.plot(self.wave[idx], self.flux[idx], 'k-', lw=0.7)
+
+            ax_transm.plot(self.wave[idx], self.transm_mf[idx], 'k-', lw=0.5)
+        
+        ax_transm.axhline(self.telluric_threshold, c='r', ls='--')
+        
+        ax_flux.set(xlim=xlim, ylabel=r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$')
+        ax_transm.set(xlim=xlim, xlabel='Wavelength (nm)', ylim=(0,1.1), ylabel='Transm.')
+
+        fig.savefig(plots_dir / f'telluric_correction_{self.m_set}.pdf')
+        plt.close(fig)
+
+    def plot_sigma_clip(self, plots_dir):
+        """
+        Plot the sigma clipping results for each order.
+
+        Args:
+            plots_dir (str): Directory to save the plots.
+        """
+        valid_residuals = self.residuals.copy()
+        valid_residuals[self.mask_sigma_clipped] = np.nan
+
+        # Plot per order
+        fig, subfig = utils.get_subfigures_per_chip(self.n_orders)
+        for i, subfig_i in enumerate(subfig):
+            
+            xlabel, ylabel = None, (None, None)
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = (r'$F\ (\mathrm{arb.\ units})$', 'Res.')
+
+            # Add some padding
+            xlim = (self.wave_ranges_orders_dets[i].min()-0.5, self.wave_ranges_orders_dets[i].max()+0.5)
+
+            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_res  = subfig_i.add_subplot(gs[1])
+
+            for idx in range(i*self.n_dets, (i+1)*self.n_dets):
+                if idx == self.n_chips:
+                    break
+                ax_flux.plot(self.wave[idx], self.residuals[idx]+self.running_median_flux[idx], 'k-', lw=0.5)
+                ax_flux.plot(self.wave[idx], self.running_median_flux[idx], 'r-', lw=0.7)
+
+                ax_res.plot(self.wave[idx], self.residuals[idx], 'r-', lw=0.5)
+                ax_res.plot(self.wave[idx], valid_residuals[idx], 'k-', lw=0.7)
+
+                sigma = self.sigma_clip_sigma*np.nanstd(self.residuals[idx])
+                ax_res.plot(self.wave[idx], -sigma*np.ones_like(self.wave[idx]), 'r--', lw=0.5)
+                ax_res.plot(self.wave[idx], +sigma*np.ones_like(self.wave[idx]), 'r--', lw=0.5)
+
+            ax_res.axhline(0, c='r', ls='-', lw=0.5)
+
+            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
+            
+            ylim = ax_res.get_ylim()
+            ylim_max = np.max(np.abs(ylim))
+            ylim = (-ylim_max, +ylim_max)
+            ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
+
+        fig.savefig(plots_dir / f'sigma_clipping_{self.m_set}.pdf')
+        plt.close(fig)
+    
+    def plot_spectrum_to_fit(self, plots_dir):
+        """
+        Plot the spectrum to be fitted for each order.
+
+        Args:
+            plots_dir (str): Directory to save the plots.
+            d_spec (object): Spectrum object containing data.
+        """
+        # Plot per order
+        fig, subfig = utils.get_subfigures_per_chip(self.n_orders)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, None
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+
+            # Add some padding
+            xlim = (self.wave_ranges_orders_dets[i].min()-0.5, self.wave_ranges_orders_dets[i].max()+0.5)
+
+            gs = subfig_i.add_gridspec(nrows=1)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            for idx in range(i*self.n_dets, (i+1)*self.n_dets):
+                if idx == self.n_chips:
+                    break
+                ax_flux.plot(self.wave[idx], self.flux[idx], 'k-', lw=0.7)
+
+            ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
+
+        fig.savefig(plots_dir / f'pre_processed_spectrum_{self.m_set}.pdf')
+        plt.close(fig)
+
+    def plot_bestfit(self, plots_dir, LogLike, Cov):
+        """
+        Plot the best-fit spectrum for each order.
 
         Args:
             plots_dir (str): Directory to save the plots.
             LogLike (object): Log-likelihood object containing fit results.
+            **kwargs: Additional keyword arguments.
         """
-        from . import figures_crires
-        figures_crires.plot_bestfit(plots_dir, self, LogLike=LogLike)
+        # Plot per order
+        fig, subfig = utils.get_subfigures_per_chip(self.n_orders)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, (None, None)
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = (r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 'Res.')
+
+            # Add some padding
+            xlim = (self.wave_ranges_orders_dets[i].min()-0.5, self.wave_ranges_orders_dets[i].max()+0.5)
+            
+            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_res  = subfig_i.add_subplot(gs[1])
+
+            diagonal_i, err_i = [], []
+            for idx in range(i*self.n_dets, (i+1)*self.n_dets):
+                if idx == self.n_chips:
+                    break
+
+                label = None
+                if i==0 and idx==i*self.n_dets:
+                    label = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
+
+                ax_flux.plot(self.wave[idx], self.flux[idx], 'k-', lw=0.5)
+
+                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][idx]
+                ax_flux.plot(self.wave[idx], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+
+                ax_res.plot(self.wave[idx], self.flux[idx]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                ax_res.axhline(0, c='C1', ls='-', lw=0.5)
+
+                diagonal_i.append(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
+                err_i.append(self.err[idx])
+
+            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
+
+            sigma_scaled = np.nanmean(np.sqrt(diagonal_i))
+            sigma_data   = np.nanmean(err_i)
+            err_kwargs = dict(clip_on=False, capsize=1.7, lw=1., capthick=1.)
+
+            # Plot an errorbar in the axes
+            ylim = ax_flux.get_ylim()
+            y = ylim[0] + 0.1*np.diff(ylim)[0]
+            for x, c, sigma in zip([1.01,1.02], ['C1','k'], [sigma_scaled,sigma_data]):
+                ax_flux.errorbar(x, y, yerr=sigma, c=c, transform=ax_flux.get_yaxis_transform(), **err_kwargs)
+                ax_res.errorbar(x, 0., yerr=sigma, c=c, transform=ax_res.get_yaxis_transform(), **err_kwargs)
+
+            ylim = ax_res.get_ylim()
+            ylim_max = np.max(np.abs(ylim))
+            ylim = (-ylim_max, +ylim_max)
+            ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
+
+            if i == 0:
+                ax_flux.legend()
+
+        if LogLike.sum_model_settings:
+            fig.savefig(plots_dir / f'bestfit_spectrum.pdf')
+        else:
+            fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
+        plt.close(fig)

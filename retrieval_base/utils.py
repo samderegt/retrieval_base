@@ -93,7 +93,7 @@ def get_subfigures_per_chip(N):
     plt.rcParams['savefig.bbox'] = 'tight'
     plt.rcParams['savefig.pad_inches'] = 0.3
 
-    fig = plt.figure(figsize=(10,3*N))
+    fig = plt.figure(figsize=(10,4*N))
     gs = fig.add_gridspec(nrows=N)
     subfig = np.array([fig.add_subfigure(gs[i]) for i in range(N)])
 

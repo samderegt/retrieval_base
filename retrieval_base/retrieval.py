@@ -586,11 +586,21 @@ class RetrievalRun(Retrieval):
         utils.print_bestfit_params(self.ParamTable, self.LogLike)
         print('\n'+'='*50+'\n')
 
+        # Plot best-fitting spectrum
+        for m_set in self.model_settings:
+            self.d_spec[m_set].plot_bestfit(
+                plots_dir=self.plots_dir, 
+                LogLike=self.LogLike,
+                Cov=self.Cov, 
+                )
+            if self.LogLike.sum_model_settings:
+                break
+        
         if self.evaluation:
             # Get the vertical profile posteriors
             self.get_profile_posterior(posterior)
 
-        # Make summarising figures
+        # Make summarising figure
         from .model_components import figures_model
         figures_model.plot_summary(
             plots_dir=self.plots_dir,
@@ -603,15 +613,6 @@ class RetrievalRun(Retrieval):
             m_spec=self.m_spec, 
             evaluation=self.evaluation,
             )
-        
-        # Plot best-fitting spectrum
-        for m_set in self.model_settings:
-            self.d_spec[m_set].plot_bestfit(
-                plots_dir=self.plots_dir, 
-                LogLike=self.LogLike,
-                )
-            if self.LogLike.sum_model_settings:
-                break
 
         if self.evaluation:
             # Save best-fitting model components

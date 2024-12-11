@@ -134,7 +134,7 @@ class SpectrumJWST(Spectrum):
         fig.savefig(plots_dir / f'pre_processed_spectrum_{self.m_set}.pdf')
         plt.close(fig)
 
-    def plot_bestfit(self, plots_dir, LogLike):
+    def plot_bestfit(self, plots_dir, LogLike, Cov):
         """
         Plot the best-fit spectrum.
 
@@ -169,6 +169,18 @@ class SpectrumJWST(Spectrum):
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
+
+            # First column of banded covariance matrix is the diagonal
+            sigma_scaled = np.nanmean(np.sqrt(Cov[i].cov[idx_LogLike]*LogLike.s_squared[idx_LogLike]))
+            sigma_data   = np.nanmean(self.err[i])
+            err_kwargs = dict(clip_on=False, capsize=1.7, lw=1., capthick=1.)
+
+            # Plot an errorbar in the axes
+            ylim = ax_flux.get_ylim()
+            y = ylim[0] + 0.1*np.diff(ylim)[0]
+            for x, c, sigma in zip([1.01,1.02], ['C1','k'], [sigma_scaled,sigma_data]):
+                ax_flux.errorbar(x, y, yerr=sigma, c=c, transform=ax_flux.get_yaxis_transform(), **err_kwargs)
+                ax_res.errorbar(x, 0., yerr=sigma, c=c, transform=ax_res.get_yaxis_transform(), **err_kwargs)
 
             ylim = ax_res.get_ylim()
             ylim_max = np.max(np.abs(ylim))

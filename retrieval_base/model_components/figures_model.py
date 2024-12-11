@@ -246,11 +246,15 @@ def plot_chemistry(Chem, ax=None, ls='-'):
         xscale='log', xlabel='VMR', xlim=(1e-10,1e-2)
         )
 
+    _, labels = ax.get_legend_handles_labels()
     for species_i, VMR_i in Chem.VMRs.items():
         if species_i in ['H2', 'He']:
             continue
         color = Chem.read_species_info(species_i, 'color')
+        
         label = Chem.read_species_info(species_i, 'label')
+        if label in labels:
+            label = None
 
         VMRs_posterior = getattr(Chem, 'VMRs_posterior', None)
         if VMRs_posterior is not None:
@@ -265,9 +269,12 @@ def plot_chemistry(Chem, ax=None, ls='-'):
     
         ax.plot(VMR_i, Chem.pressure, c=color, ls=ls, label=label)
 
+    _, labels = ax.get_legend_handles_labels()
+    ncols = 1 if len(labels)<=12 else 2
     ax.legend(
-        loc='upper right', bbox_to_anchor=(-0.28,1), frameon=False, 
-        handlelength=0.8, labelcolor='linecolor', fontsize=11, markerfirst=False
+        loc='upper right', bbox_to_anchor=(-0.3,1), frameon=False, 
+        ncols=ncols, handletextpad=0.5, handlelength=0.8, 
+        labelcolor='linecolor', fontsize=11, markerfirst=False
         )
 
 
@@ -334,7 +341,7 @@ def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Clo
     ax_gradient = fig.add_axes([right-widths[2]-widths[1],top-height,widths[1]/3,height])
     ax_contr    = fig.add_axes([right-widths[2]-widths[1]/3,top-height,widths[1]/3,height])
 
-    for m_set, ls in zip(PT.keys(), ['-', '--', ':']):
+    for m_set, ls in zip(PT.keys(), ['-', '--', ':', '-.']):
         plot_contribution(m_spec[m_set], ax=ax_contr, ls=ls)
         plot_gradient(PT[m_set], ax=ax_gradient, ls=ls)
         plot_PT(PT[m_set], ax=ax_PT, ls=ls)        

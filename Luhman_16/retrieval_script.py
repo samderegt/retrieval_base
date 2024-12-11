@@ -1,5 +1,6 @@
+import importlib
 import argparse
-from retrieval_base.retrieval import pre_processing, Retrieval
+from retrieval_base.retrieval import RetrievalSetup, RetrievalRun
 
 if __name__ == '__main__':
 
@@ -9,49 +10,22 @@ if __name__ == '__main__':
         'config_file', type=str, help='Name of configuration file', 
         )
     
-    parser.add_argument('--pre_processing', '-p', action='store_true')
-    parser.add_argument('--retrieval', '-r', action='store_true')
+    parser.add_argument('--setup', '-s', action='store_true')
+    parser.add_argument('--run', '-r', action='store_true')
+    parser.add_argument('--restart', action='store_true', default=False)
     parser.add_argument('--evaluation', '-e', action='store_true')
-    parser.add_argument('--synthetic', action='store_true')
     args = parser.parse_args()
 
     # Import input file as 'conf'
-    conf_string = str(args.config_file).replace('.py', '').replace('/', '.')
-    conf = __import__(conf_string, fromlist=[''])
+    config_string = str(args.config_file).replace('.py', '')
+    config = importlib.import_module(config_string)
 
-    if args.pre_processing:
-        for w_set_i, conf_data_i in conf.config_data.items():
-            pre_processing(conf, conf_data_i, w_set_i)
+    if args.setup:
+        ret = RetrievalSetup(config)
+        import sys; sys.exit()
 
-    if args.retrieval:
-        ret = Retrieval(
-            conf=conf, 
-            evaluation=args.evaluation
-            )
-        ret.PMN_run()
-
+    ret = RetrievalRun(config, resume=(not args.restart), evaluation=args.evaluation)
+    if args.run:
+        ret.run()
     if args.evaluation:
-        ret = Retrieval(
-            conf=conf, 
-            evaluation=args.evaluation
-            )
-        ret.PMN_callback_func(
-            n_samples=None, 
-            n_live=None, 
-            n_params=None, 
-            live_points=None, 
-            posterior=None, 
-            stats=None,
-            max_ln_L=None, 
-            ln_Z=None, 
-            ln_Z_err=None, 
-            nullcontext=None
-            )
-
-    if args.synthetic:
-        ret = Retrieval(
-            conf=conf, 
-            evaluation=args.evaluation
-            )
-        ret.synthetic_spectrum()
-
+        ret.run_evaluation()
