@@ -90,16 +90,48 @@ class Covariance:
 
         self.wave_sep = self.get_banded(self.wave_sep, max_value=max_wave_sep, pad_value=1000)
 
-        self.reset_cov()
+        self._reset_cov()
 
-    def reset_cov(self):
+    def __call__(self, ParamTable, **kwargs):
+        """
+        Evaluate the covariance matrix with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+            **kwargs: Additional keyword arguments.
+        """
+        self._reset_cov()
+        
+        amp    = ParamTable.get('a')
+        length = ParamTable.get('l')
+        if None not in [amp, length]:
+            self._add_radial_basis_function_kernel(amp=amp, length=length)
+            
+        self._get_cholesky()
+
+    def solve(self, b):
+        """
+        Solve the system cov*x = b for x (x = cov^{-1}*b).
+
+        Args:
+            b (np.ndarray): Right-hand side of cov*x = b.
+
+        Returns:
+            np.ndarray: Solution x for the equation cov*x = b.
+        """
+        if self.cov.ndim == 1:
+            return b / self.cov
+        
+        return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
+    
+    def _reset_cov(self):
         """
         Reset the covariance matrix to its initial state.
         """
         self.cov = np.zeros_like(self.wave_sep)
         self.cov[0] = self.var.copy()
         
-    def get_cholesky(self):
+    def _get_cholesky(self):
         """
         Compute the Cholesky decomposition of the covariance matrix.
         """
@@ -121,22 +153,7 @@ class Covariance:
         # Log determinant of the covariance matrix
         self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
 
-    def solve(self, b):
-        """
-        Solve the system cov*x = b for x (x = cov^{-1}*b).
-
-        Args:
-            b (np.ndarray): Right-hand side of cov*x = b.
-
-        Returns:
-            np.ndarray: Solution x for the equation cov*x = b.
-        """
-        if self.cov.ndim == 1:
-            return b / self.cov
-        
-        return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
-
-    def add_radial_basis_function_kernel(self, amp, length):
+    def _add_radial_basis_function_kernel(self, amp, length):
         """
         Add a radial basis function kernel to the covariance matrix.
 
@@ -153,20 +170,3 @@ class Covariance:
 
         # Gaussian radial-basis function kernel
         self.cov[w_ij] += amp * np.exp(-(self.wave_sep[w_ij])**2/(2*length**2))
-
-    def __call__(self, ParamTable, **kwargs):
-        """
-        Evaluate the covariance matrix with given parameters.
-
-        Args:
-            ParamTable (dict): Parameters for the model.
-            **kwargs: Additional keyword arguments.
-        """
-        self.reset_cov()
-        
-        amp    = ParamTable.get('a')
-        length = ParamTable.get('l')
-        if None not in [amp, length]:
-            self.add_radial_basis_function_kernel(amp=amp, length=length)
-            
-        self.get_cholesky()

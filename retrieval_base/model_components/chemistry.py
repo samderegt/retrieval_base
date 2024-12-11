@@ -327,13 +327,12 @@ class FreeChemistry(Chemistry):
         VMR[mask_TOA] *= (self.pressure[mask_TOA]/P0)**alpha
         return VMR
 
-    def get_VMRs(self, ParamTable, **kwargs):
+    def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) for the free chemistry model.
 
         Args:
             ParamTable (dict): Parameters for the model.
-            **kwargs: Additional arguments.
         """
         # Constant He abundance
         self.VMRs = {'He':0.15*np.ones(self.n_atm_layers)}
@@ -519,9 +518,6 @@ class EquilibriumChemistry(Chemistry):
                 if species_i not in self.species:
                     continue
                 
-                #if (self.VMRs[species_i]==0.).any():
-                #    print(species_i, self.VMRs[species_i])
-
                 # Quench the VMRs of specific species
                 log_VMR_i = np.log10(self.VMRs[species_i])
                 log_VMR_i[mask_TOA] = np.interp(
@@ -594,13 +590,12 @@ class FastChemistryTable(EquilibriumChemistry):
                 #bounds_error=False, fill_value=None
                 )        
 
-    def get_VMRs(self, ParamTable, **kwargs):
+    def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) using interpolation tables.
 
         Args:
             ParamTable (dict): Parameters for the model.
-            **kwargs: Additional arguments.
         """
         def apply_bounds(val, grid):
             val[val > grid.max()] = grid.max()
@@ -656,13 +651,12 @@ class pRTChemistryTable(EquilibriumChemistry):
             'N2_NH3': [('N2','NH3'), None], 
         }
 
-    def get_VMRs(self, ParamTable, **kwargs):
+    def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) using pRT interpolation tables.
 
         Args:
             ParamTable (dict): Parameters for the model.
-            **kwargs: Additional arguments.
         """
         # Update the parameters
         self.CO  = ParamTable.get('C/O')
@@ -806,13 +800,12 @@ class FastChemistry(EquilibriumChemistry):
         self.el_abund[self.idx['N']] *= tot_abund_ratio
         self.el_abund[self.idx['O']] *= tot_abund_ratio
 
-    def get_VMRs(self, ParamTable, **kwargs):
+    def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) using the FastChem library.
 
         Args:
             ParamTable (dict): Parameters for the model.
-            **kwargs: Additional arguments.
         """
         # Flip to order by increasing altitude
         self.input.pressure = self.pressure[::-1]

@@ -42,201 +42,10 @@ class pRT:
         self.m_resolution = 1e6/ParamTable.get('lbl_opacity_sampling', 1.)
 
         # Set the wavelength ranges of the model
-        self.set_wave_ranges(ParamTable)
+        self._set_wave_ranges(ParamTable)
 
         # Create Radtrans objects
-        self.set_Radtrans(ParamTable)
-
-    def set_wave_ranges(self, ParamTable):
-        """
-        Set the wavelength ranges for the model.
-
-        Args:
-            ParamTable (dict): Parameter table.
-        """
-        rv_max = 1001
-        if not self.evaluation:
-            rv_prior    = ParamTable.get('rv', key='Param').prior_params
-            vsini_prior = ParamTable.get('rv', key='Param').prior_params
-            
-            rv_max = np.array(list(rv_prior))
-            rv_max += np.array([-1,1]) * max(vsini_prior)
-            rv_max = np.max(np.abs(rv_max))
-
-        wave_pad = 1.1 * rv_max/(sc.c*1e-3) * np.max(self.d_wave_ranges_chips)
-        
-        # Wavelength ranges of model
-        self.wave_ranges = np.array([
-            [wave_min-wave_pad, wave_max+wave_pad] \
-            for (wave_min, wave_max) in self.d_wave_ranges_chips
-            ])
-
-    def set_Radtrans(self, ParamTable):
-        """
-        Set the Radtrans objects for the model.
-
-        Args:
-            ParamTable (dict): Parameter table.
-        """
-        from petitRADTRANS import Radtrans
-
-        self.atm = []
-        for wave_range_i in self.wave_ranges:
-            # Make a Radtrans object per chip
-            atm_i = Radtrans(
-                wlen_bords_micron=wave_range_i*1e-3, 
-                **ParamTable.pRT_Radtrans_kwargs[self.m_set].copy()
-                )
-            
-            # Set up the atmospheric layers
-            atm_i.setup_opa_structure(self.pressure)
-            
-            self.atm.append(atm_i)
-
-    def set_absorption_opacity(self, Cloud, LineOpacity=None):
-        """
-        Set the absorption opacity for the model.
-
-        Args:
-            Cloud (object): Cloud object.
-            LineOpacity (list): List of line opacity objects.
-
-        Returns:
-            function: Absorption opacity function.
-        """
-        # Check if custom opacities are set
-        cloud_abs_opacity = getattr(Cloud, 'abs_opacity', None)
-        
-        if LineOpacity is not None:
-            def line_abs_opacity(wave_micron, pressure):
-                opacity = 0
-                for LineOpacity_i in LineOpacity:
-                    opacity += LineOpacity_i.abs_opacity(wave_micron, pressure)
-                return opacity
-        else:
-            line_abs_opacity = None
-
-        if (not cloud_abs_opacity) and (not line_abs_opacity):
-            # No custom opacities
-            return None
-        
-        if cloud_abs_opacity and (not line_abs_opacity):
-            # Only cloud opacity
-            return cloud_abs_opacity
-        
-        if (not cloud_abs_opacity) and line_abs_opacity:
-            # Only line opacity
-            return line_abs_opacity
-        
-        # Both cloud and line opacity
-        return lambda wave_micron, pressure: \
-            cloud_abs_opacity(wave_micron, pressure) + \
-            line_abs_opacity(wave_micron, pressure)
-    
-    def set_scattering_opacity(self, Cloud):
-        """
-        Set the scattering opacity for the model.
-
-        Args:
-            Cloud (object): Cloud object.
-
-        Returns:
-            function: Scattering opacity function.
-        """
-        # Check if custom opacities are set
-        cloud_scat_opacity = getattr(Cloud, 'scat_opacity', None)
-        return cloud_scat_opacity
-    
-    def set_incidence_angles(self, Rotation):
-        """
-        Set the incidence angles for the model.
-
-        Args:
-            Rotation (object): Rotation object.
-        """
-        mu = getattr(Rotation, 'unique_mu_included', None)
-        if mu is None:
-            # Do not update
-            return
-        
-        for i, atm_i in enumerate(self.atm):
-            # Update the incidence angles to compute
-            atm_i.mu = mu
-            atm_i.w_gauss_mu = np.ones_like(mu) / len(mu)
-
-            self.atm[i] = atm_i
-
-    def convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave, apply_scaling=True):
-        """
-        Convert the model spectrum to observation.
-
-        Args:
-            ParamTable (dict): Parameter table.
-            Rotation (object): Rotation object.
-            wave (array): Wavelength array.
-            flux (array): Flux array.
-            d_wave (array): Data wavelength array.
-            apply_scaling (bool): Flag to apply scaling.
-
-        Returns:
-            tuple: Wavelength, flux, and binned flux arrays.
-        """
-        # Apply rotational broadening
-        wave, flux = Rotation.broaden(wave, flux)
-        
-        # Apply radial-velocity shift
-        wave *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
-
-        if apply_scaling:
-            # Convert to observation by scaling with the radius
-            flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
-
-            # Apply coverage fraction for this model setting
-            flux *= ParamTable.get('coverage_fraction')
-
-        # Apply instrumental broadening
-        flux = self.instrumental_broadening(
-            wave, flux, resolution=self.d_resolution, initial_resolution=self.m_resolution
-            )
-                
-        # Rebin to data wavelength grid
-        flux_binned = np.interp(d_wave, xp=wave, fp=flux)
-
-        return wave, flux, flux_binned
-    
-    def get_emission_contribution(self, ParamTable, Rotation, wave, contr, d_wave, flux_binned):
-        """
-        Get the emission contribution for the model.
-
-        Args:
-            ParamTable (dict): Parameter table.
-            Rotation (object): Rotation object.
-            wave (array): Wavelength array.
-            contr (array): Contribution array.
-            d_wave (array): Data wavelength array.
-            flux_binned (array): Binned flux array.
-
-        Returns:
-            tuple: Contribution per wavelength and integrated contribution arrays.
-        """
-        contr_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
-        integrated_contr = np.nan * np.ones_like(self.pressure)
-        
-        # Loop over each pressure level
-        for i, contr_i in enumerate(contr):
-
-            # Apply rv-shift and broadening to emission contribution
-            wave_i, contr_i, contr_binned_i = self.convert_to_observation(
-                ParamTable, Rotation, wave.copy(), contr_i[None,:], d_wave, apply_scaling=False, 
-                )
-            contr_per_wave[i] = contr_binned_i
-
-            # Spectrally weighted integration
-            integrand1 = np.trapz(x=d_wave, y=d_wave*flux_binned*contr_binned_i)
-            integrand2 = np.trapz(x=d_wave, y=d_wave*flux_binned)
-            integrated_contr[i] = integrand1 / integrand2
-
-        return contr_per_wave, integrated_contr
+        self._setup_Radtrans(ParamTable)
 
     def __call__(self, ParamTable, Chem, PT, Cloud, Rotation, LineOpacity=None, **kwargs):
         """
@@ -252,11 +61,11 @@ class pRT:
             **kwargs: Additional keyword arguments.
         """
         # Get the custom opacity functions
-        abs_opacity  = self.set_absorption_opacity(Cloud, LineOpacity)
-        scat_opacity = self.set_scattering_opacity(Cloud)
+        abs_opacity  = self._set_absorption_opacity(Cloud, LineOpacity)
+        scat_opacity = self._set_scattering_opacity(Cloud)
 
         # Update the incidence angles
-        self.set_incidence_angles(Rotation)
+        self._setup_incidence_angles(Rotation)
 
         # Update the pRT call kwargs
         pRT_call_kwargs = {
@@ -300,13 +109,13 @@ class pRT:
             flux_i = getattr(atm_i, 'flux_mu', atm_i.flux[None,:]) # [erg cm^{-2} s^{-1} Hz^{-1}]
             flux_i *= sc.c*1e9 / wave_init_i**2 # [erg cm^{-2} s^{-1} nm^{-1}]
 
-            wave_i, flux_i, flux_binned_i = self.convert_to_observation(
+            wave_i, flux_i, flux_binned_i = self._convert_to_observation(
                 ParamTable, Rotation, wave_init_i.copy(), flux_i, self.d_wave[i]
                 )
 
             if self.evaluation:
                 # Get the shifted/broadened + integrated emission contribution
-                contr_per_wave_i, integrated_contr_i = self.get_emission_contribution(
+                contr_per_wave_i, integrated_contr_i = self._get_emission_contribution(
                     ParamTable, Rotation, wave_init_i.copy(), atm_i.contr_em, 
                     self.d_wave[i], flux_binned_i, 
                     )
@@ -365,3 +174,194 @@ class pRT:
                 flux.append(m_spec.flux[i])
                 flux_binned.append(m_spec.flux_binned[i])
         return wave, flux, flux_binned
+    
+    def _set_wave_ranges(self, ParamTable):
+        """
+        Set the wavelength ranges for the model.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
+        rv_max = 1001
+        if not self.evaluation:
+            rv_prior    = ParamTable.get('rv', key='Param').prior_params
+            vsini_prior = ParamTable.get('rv', key='Param').prior_params
+            
+            rv_max = np.array(list(rv_prior))
+            rv_max += np.array([-1,1]) * max(vsini_prior)
+            rv_max = np.max(np.abs(rv_max))
+
+        wave_pad = 1.1 * rv_max/(sc.c*1e-3) * np.max(self.d_wave_ranges_chips)
+        
+        # Wavelength ranges of model
+        self.wave_ranges = np.array([
+            [wave_min-wave_pad, wave_max+wave_pad] \
+            for (wave_min, wave_max) in self.d_wave_ranges_chips
+            ])
+
+    def _setup_Radtrans(self, ParamTable):
+        """
+        Setup the Radtrans objects for the model.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
+        from petitRADTRANS import Radtrans
+
+        self.atm = []
+        for wave_range_i in self.wave_ranges:
+            # Make a Radtrans object per chip
+            atm_i = Radtrans(
+                wlen_bords_micron=wave_range_i*1e-3, 
+                **ParamTable.pRT_Radtrans_kwargs[self.m_set].copy()
+                )
+            
+            # Set up the atmospheric layers
+            atm_i.setup_opa_structure(self.pressure)
+            
+            self.atm.append(atm_i)
+
+    def _setup_incidence_angles(self, Rotation):
+        """
+        Setup the incidence angles for the model.
+
+        Args:
+            Rotation (object): Rotation object.
+        """
+        mu = getattr(Rotation, 'unique_mu_included', None)
+        if mu is None:
+            # Do not update
+            return
+        
+        for i, atm_i in enumerate(self.atm):
+            # Update the incidence angles to compute
+            atm_i.mu = mu
+            atm_i.w_gauss_mu = np.ones_like(mu) / len(mu)
+
+            self.atm[i] = atm_i
+            
+    def _set_absorption_opacity(self, Cloud, LineOpacity=None):
+        """
+        Set the absorption opacity for the model.
+
+        Args:
+            Cloud (object): Cloud object.
+            LineOpacity (list): List of line opacity objects.
+
+        Returns:
+            function: Absorption opacity function.
+        """
+        # Check if custom opacities are set
+        cloud_abs_opacity = getattr(Cloud, 'abs_opacity', None)
+        
+        if LineOpacity is not None:
+            def line_abs_opacity(wave_micron, pressure):
+                opacity = 0
+                for LineOpacity_i in LineOpacity:
+                    opacity += LineOpacity_i.abs_opacity(wave_micron, pressure)
+                return opacity
+        else:
+            line_abs_opacity = None
+
+        if (not cloud_abs_opacity) and (not line_abs_opacity):
+            # No custom opacities
+            return None
+        
+        if cloud_abs_opacity and (not line_abs_opacity):
+            # Only cloud opacity
+            return cloud_abs_opacity
+        
+        if (not cloud_abs_opacity) and line_abs_opacity:
+            # Only line opacity
+            return line_abs_opacity
+        
+        # Both cloud and line opacity
+        return lambda wave_micron, pressure: \
+            cloud_abs_opacity(wave_micron, pressure) + \
+            line_abs_opacity(wave_micron, pressure)
+    
+    def _set_scattering_opacity(self, Cloud):
+        """
+        Set the scattering opacity for the model.
+
+        Args:
+            Cloud (object): Cloud object.
+
+        Returns:
+            function: Scattering opacity function.
+        """
+        # Check if custom opacities are set
+        cloud_scat_opacity = getattr(Cloud, 'scat_opacity', None)
+        return cloud_scat_opacity
+
+    def _convert_to_observation(self, ParamTable, Rotation, wave, flux, d_wave, apply_scaling=True):
+        """
+        Convert the model spectrum to observation.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            Rotation (object): Rotation object.
+            wave (array): Wavelength array.
+            flux (array): Flux array.
+            d_wave (array): Data wavelength array.
+            apply_scaling (bool): Flag to apply scaling.
+
+        Returns:
+            tuple: Wavelength, flux, and binned flux arrays.
+        """
+        # Apply rotational broadening
+        wave, flux = Rotation.broaden(wave, flux)
+        
+        # Apply radial-velocity shift
+        wave *= (1 + ParamTable.get('rv')/(sc.c*1e-3))
+
+        if apply_scaling:
+            # Convert to observation by scaling with the radius
+            flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
+
+            # Apply coverage fraction for this model setting
+            flux *= ParamTable.get('coverage_fraction')
+
+        # Apply instrumental broadening
+        flux = self.instrumental_broadening(
+            wave, flux, resolution=self.d_resolution, initial_resolution=self.m_resolution
+            )
+                
+        # Rebin to data wavelength grid
+        flux_binned = np.interp(d_wave, xp=wave, fp=flux)
+
+        return wave, flux, flux_binned
+    
+    def _get_emission_contribution(self, ParamTable, Rotation, wave, contr, d_wave, flux_binned):
+        """
+        Get the emission contribution for the model.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            Rotation (object): Rotation object.
+            wave (array): Wavelength array.
+            contr (array): Contribution array.
+            d_wave (array): Data wavelength array.
+            flux_binned (array): Binned flux array.
+
+        Returns:
+            tuple: Contribution per wavelength and integrated contribution arrays.
+        """
+        contr_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
+        integrated_contr = np.nan * np.ones_like(self.pressure)
+        
+        # Loop over each pressure level
+        for i, contr_i in enumerate(contr):
+
+            # Apply rv-shift and broadening to emission contribution
+            wave_i, contr_i, contr_binned_i = self._convert_to_observation(
+                ParamTable, Rotation, wave.copy(), contr_i[None,:], d_wave, apply_scaling=False, 
+                )
+            contr_per_wave[i] = contr_binned_i
+
+            # Spectrally weighted integration
+            integrand1 = np.trapz(x=d_wave, y=d_wave*flux_binned*contr_binned_i)
+            integrand2 = np.trapz(x=d_wave, y=d_wave*flux_binned)
+            integrated_contr[i] = integrand1 / integrand2
+
+        return contr_per_wave, integrated_contr

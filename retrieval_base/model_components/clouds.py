@@ -70,7 +70,25 @@ class EddySed(Cloud):
             species_i = species_i.replace('_cd','')
             self.cloud_species.append(species_i)
 
-    def get_cloud_base(self, Chem, PT, species):
+    def __call__(self, ParamTable, Chem, PT, **kwargs):
+        """
+        Evaluate the EddySed cloud model with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+            Chem (Chemistry): Chemistry object.
+            PT (PressureTemperature): Pressure-Temperature profile.
+            **kwargs: Additional keyword arguments.
+        """
+        # Mixing and particle size
+        self.K_zz    = ParamTable.get('K_zz') * np.ones_like(self.pressure)
+        self.sigma_g = ParamTable.get('sigma_g')
+        self.f_sed = {}
+
+        for species in self.cloud_species:
+            self._get_mass_fraction_profile(ParamTable, Chem, PT, species)
+
+    def _get_cloud_base(self, Chem, PT, species):
         """
         Get the cloud base pressure and equilibrium mass fraction.
 
@@ -99,7 +117,7 @@ class EddySed(Cloud):
 
         return P_base, mf_eq
 
-    def get_mass_fraction_profile(self, ParamTable, Chem, PT, species):
+    def _get_mass_fraction_profile(self, ParamTable, Chem, PT, species):
         """
         Get the mass fraction profile for a cloud species.
 
@@ -114,7 +132,7 @@ class EddySed(Cloud):
 
         if None in [P_base, mf_eq]:
             # Get cloud base and equilibrium mass fraction
-            P_base, mf_eq = self.get_cloud_base(Chem, PT, species)
+            P_base, mf_eq = self._get_cloud_base(Chem, PT, species)
 
         # Scaling factor for mass fraction profile
         X = ParamTable.get(f'X_{species}', 1.)
@@ -134,24 +152,6 @@ class EddySed(Cloud):
 
         self.f_sed[species] = f_sed
 
-    def __call__(self, ParamTable, Chem, PT, **kwargs):
-        """
-        Evaluate the EddySed cloud model with given parameters.
-
-        Args:
-            ParamTable (dict): Parameters for the model.
-            Chem (Chemistry): Chemistry object.
-            PT (PressureTemperature): Pressure-Temperature profile.
-            **kwargs: Additional keyword arguments.
-        """
-        # Mixing and particle size
-        self.K_zz    = ParamTable.get('K_zz') * np.ones_like(self.pressure)
-        self.sigma_g = ParamTable.get('sigma_g')
-        self.f_sed = {}
-
-        for species in self.cloud_species:
-            self.get_mass_fraction_profile(ParamTable, Chem, PT, species)
-
 class Gray(Cloud):
     """
     Class for handling Gray cloud models.
@@ -169,8 +169,49 @@ class Gray(Cloud):
 
         # Anchor point for non-gray power-law (1 um)
         self.wave_cloud_0 = kwargs.get('wave_cloud_0', 1.)
-
+        # Maximum number of cloud layers
         self.n_clouds_max = kwargs.get('n_clouds_max', 10)
+
+    def __call__(self, ParamTable, mean_wave_micron=None, **kwargs):
+        """
+        Evaluate the Gray cloud model with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+            mean_wave_micron (float, optional): Mean wavelength in microns. Defaults to None.
+            **kwargs: Additional keyword arguments.
+        """
+        self.P_base      = []
+        self.opa_base    = []
+        self.f_sed_gray  = []
+        self.cloud_slope = []
+
+        for i in [None, *range(self.n_clouds_max)]:
+
+            suffix = f'_{i}' if i!=None else ''
+            P_base_i     = ParamTable.get(f'P_base_gray{suffix}')   # Base pressure
+            opa_base_i   = ParamTable.get(f'opa_base_gray{suffix}') # Opacity at the base
+            f_sed_gray_i = ParamTable.get(f'f_sed_gray{suffix}')    # Power-law drop-off
+
+            if (None in [P_base_i, opa_base_i, f_sed_gray_i]) and (i!=-1):
+                break
+
+            # Non-gray cloud slope
+            cloud_slope_i = ParamTable.get(f'cloud_slope{suffix}', 0.)
+
+            self.P_base.append(P_base_i)
+            self.opa_base.append(opa_base_i)
+            self.f_sed_gray.append(f_sed_gray_i)
+            self.cloud_slope.append(cloud_slope_i)
+
+        # Single-scattering albedo
+        self.omega = ParamTable.get('omega', 0.)
+
+        if mean_wave_micron is None:
+            return
+        self.total_opacity = self.abs_opacity(mean_wave_micron, self.pressure) + \
+            self.scat_opacity(mean_wave_micron, self.pressure)
+        self.total_opacity = np.squeeze(self.total_opacity)
 
     def abs_opacity(self, wave_micron, pressure):
         """
@@ -229,44 +270,3 @@ class Gray(Cloud):
         # Total cloud opacity
         opacity = 1/(1-self.omega) * self.abs_opacity(wave_micron, pressure)
         return opacity * self.omega
-            
-    def __call__(self, ParamTable, mean_wave_micron=None, **kwargs):
-        """
-        Evaluate the Gray cloud model with given parameters.
-
-        Args:
-            ParamTable (dict): Parameters for the model.
-            mean_wave_micron (float, optional): Mean wavelength in microns. Defaults to None.
-            **kwargs: Additional keyword arguments.
-        """
-        self.P_base      = []
-        self.opa_base    = []
-        self.f_sed_gray  = []
-        self.cloud_slope = []
-
-        for i in [None, *range(self.n_clouds_max)]:
-
-            suffix = f'_{i}' if i!=None else ''
-            P_base_i     = ParamTable.get(f'P_base_gray{suffix}')   # Base pressure
-            opa_base_i   = ParamTable.get(f'opa_base_gray{suffix}') # Opacity at the base
-            f_sed_gray_i = ParamTable.get(f'f_sed_gray{suffix}')    # Power-law drop-off
-
-            if (None in [P_base_i, opa_base_i, f_sed_gray_i]) and (i!=-1):
-                break
-
-            # Non-gray cloud slope
-            cloud_slope_i = ParamTable.get(f'cloud_slope{suffix}', 0.)
-
-            self.P_base.append(P_base_i)
-            self.opa_base.append(opa_base_i)
-            self.f_sed_gray.append(f_sed_gray_i)
-            self.cloud_slope.append(cloud_slope_i)
-
-        # Single-scattering albedo
-        self.omega = ParamTable.get('omega', 0.)
-
-        if mean_wave_micron is None:
-            return
-        self.total_opacity = self.abs_opacity(mean_wave_micron, self.pressure) + \
-            self.scat_opacity(mean_wave_micron, self.pressure)
-        self.total_opacity = np.squeeze(self.total_opacity)

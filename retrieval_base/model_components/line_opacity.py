@@ -31,6 +31,10 @@ def get_class(m_spec, line_opacity_kwargs, **kwargs):
     return all_LineOpacity
 
 class LineData:
+    """
+    Class for handling line data.
+    """
+    
     def __init__(self, **kwargs):
         """
         Initializes the LineData class.
@@ -68,6 +72,23 @@ class LineData:
         self.gamma_N       = 10**self.log_gamma_N / (4*np.pi*(sc.c*1e2))      # [cm^-1]
         self.gamma_N[mask] = 0.22 * self.nu_0[mask]**2 / (4*np.pi*(sc.c*1e2)) # [cm^-1]
 
+    def get_partition_function(self, T):
+        """
+        Calculates the partition function.
+
+        Args:
+            T (array): Temperature array.
+
+        Returns:
+            array: Partition function values.
+        """
+        # Partition function per temperature
+        Q = np.sum(
+            self.g[None,:] * np.exp(-(sc.c2*1e2)*self.E[None,:]/T[:,None]), 
+            axis=1, keepdims=True
+            )
+        return Q
+    
     def _load_NIST_states(self, states_file):
         """
         Loads NIST states from a file.
@@ -88,23 +109,6 @@ class LineData:
         
         self.g = np.array(g)
         self.E = np.array(E) # [cm^-1]
-
-    def _get_partition_function(self, T):
-        """
-        Calculates the partition function.
-
-        Args:
-            T (array): Temperature array.
-
-        Returns:
-            array: Partition function values.
-        """
-        # Partition function per temperature
-        Q = np.sum(
-            self.g[None,:] * np.exp(-(sc.c2*1e2)*self.E[None,:]/T[:,None]), 
-            axis=1, keepdims=True
-            )
-        return Q
 
     def _load_Kurucz_transitions(self, trans_file):
         """
@@ -221,7 +225,7 @@ class LineOpacity(LineData):
             **kwargs: Arbitrary keyword arguments.
         """
         # Define the wavenumber and PT grids
-        self.set_grid(m_spec)
+        self._set_grid(m_spec)
 
         # Give arguments to the parent class
         super().__init__(**kwargs)
@@ -232,10 +236,96 @@ class LineOpacity(LineData):
 
         # Precompute the opacity table for non-"on-the-fly" transitions
         self.status = 'pre-compute'
-        self.get_precomputed_opacity_table()
+        self._get_precomputed_opacity_table()
         self.status = 'combine'
 
-    def set_grid(self, m_spec):
+    def __call__(self, ParamTable, PT, Chem):
+        """
+        Calculates the line opacity.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            PT (object): PT profile object.
+            Chem (object): Chemistry profile object.
+        """
+        self._update_parameters(
+            T=PT.temperature, 
+            VMRs=Chem.VMRs, 
+            mass_fractions=Chem.mass_fractions, 
+            ParamTable=ParamTable, 
+            )
+        
+    def abs_opacity(self, wave_micron, pressure):
+        """
+        Calculates the absorption opacity.
+
+        Args:
+            wave_micron (array): Wavelength array in microns.
+            pressure (array): Pressure array.
+
+        Returns:
+            array: Absorption opacity values.
+        """
+        # Determine which chip is being computed
+        idx_chip = np.argmin(np.abs(
+            np.mean(wave_micron) - np.mean(self.wave_ranges*1e-3, axis=1)
+            ))
+        nu = 1e4/wave_micron
+
+        # Create line opacity array
+        opacity = 1e-250 * np.ones((len(wave_micron), len(pressure)), dtype=np.float64)
+
+        # Loop over atmospheric layers
+        for i in range(opacity.shape[1]):
+
+            # Loop over all transitions
+            for j in range(len(self.nu_0)):
+
+                if (self.status == 'pre-compute') and self.is_onthefly[j]:
+                    # Ignore the on-the-fly transitions
+                    continue
+                elif (self.status == 'combine') and (not self.is_onthefly[j]):
+                    # Ignore all non-"on-the-fly" transitions
+                    continue
+
+                nu_0_ij      = self.nu_0[j].copy()
+                gamma_vdW_ij = self.gamma_vdW[i,j].copy()
+                if self.has_impact_parameters[j]:
+                    
+                    # Find the impact width/shift index
+                    idx_impact = np.sum(self.has_impact_parameters[:j])
+
+                    # Shift the line core
+                    nu_0_ij += self.d[i,idx_impact]
+                    
+                    if self.w[i,idx_impact] != 0.:
+                        # Use the impact width
+                        gamma_vdW_ij = self.w[i,idx_impact]
+                    
+                # Lorentz-wing cutoff
+                mask_nu_j = np.abs(nu-nu_0_ij) < self.line_cutoff
+                nu_j = nu[mask_nu_j]
+
+                # Calculate the line profile
+                opacity[mask_nu_j,i] += self._line_profile(
+                    nu=nu_j, nu_0=nu_0_ij, gamma_N=self.gamma_N[j], gamma_vdW=gamma_vdW_ij, 
+                    gamma_G=self.gamma_G[i,j], S=self.S[i,j]
+                    )
+                
+            # Skip the interpolation step
+            if self.status != 'combine':
+                continue
+            if not hasattr(self, 'interp_table'):
+                continue
+
+            # Combine the interpolated and on-the-fly opacities
+            opacity[:,i] += 10**self.interp_table[idx_chip,i](self.temperature[i])
+
+        # Scale the opacity by the abundance profile
+        opacity *= self.mass_fraction[None,:]
+        return opacity # [cm^2 g^-1]
+
+    def _set_grid(self, m_spec):
         """
         Sets the wavenumber and PT grids.
 
@@ -264,41 +354,6 @@ class LineOpacity(LineData):
             2217.17775249, 
             2995., 
             ])
-        
-    def get_precomputed_opacity_table(self):
-        """Precomputes the opacity table."""
-        # Table of interpolation functions
-        from scipy.interpolate import interp1d
-        self.interp_table = np.empty((len(self.nu_grid),len(self.P_grid)), dtype=object)
-
-        # Loop over chips
-        for idx_order, nu in enumerate(self.nu_grid):
-            
-            opacity_of_order = np.ones(
-                (len(self.T_grid), len(nu), len(self.P_grid)), dtype=np.float64
-                )
-
-            # Loop over temperature
-            for idx_T, T in enumerate(self.T_grid):
-
-                # Update the PT-dependent parameters
-                self.update_parameters(T)
-
-                # Calculate the opacity
-                wave_micron = 1e4/nu
-                opacity_of_order[idx_T,:,:] = self.abs_opacity(wave_micron, self.P_grid)
-
-            # Set up interpolation functions
-            for idx_P in range(len(self.P_grid)):
-
-                self.interp_table[idx_order,idx_P] = interp1d(
-                    self.T_grid, np.log10(opacity_of_order[:,:,idx_P]), axis=0, 
-                    kind='linear', assume_sorted=True, bounds_error=False, 
-                    fill_value=(
-                        np.log10(opacity_of_order[0,idx_order,idx_P]), 
-                        np.log10(opacity_of_order[-1,idx_order,idx_P])
-                        )
-                    )
 
     def _get_gamma_vdW(self):
         """
@@ -377,7 +432,7 @@ class LineOpacity(LineData):
             array: Oscillator strengths.
         """
         # Partition function
-        Q = self._get_partition_function(T=self.temperature)
+        Q = self.get_partition_function(T=self.temperature)
 
         e = 4.80320425e-10 # [cm^3/2 g^1/2 s^-1]
 
@@ -429,30 +484,7 @@ class LineOpacity(LineData):
 
         return w, d
 
-    def _line_profile(self, nu, nu_0, gamma_N, gamma_vdW, gamma_G, S):
-        """
-        Calculates the line profile.
-
-        Args:
-            nu (array): Wavenumber array.
-            nu_0 (float): Line center wavenumber.
-            gamma_N (float): Natural broadening coefficient.
-            gamma_vdW (float): Van der Waals broadening coefficient.
-            gamma_G (float): Thermal broadening coefficient.
-            S (float): Oscillator strength.
-
-        Returns:
-            array: Line profile values.
-        """
-        # Gandhi et al. (2020b)
-        u = (nu - nu_0) / gamma_G
-        a = (gamma_vdW + gamma_N) / gamma_G
-
-        # Voigt profile
-        f = Faddeeva(u + 1j*a).real / (gamma_G*np.sqrt(np.pi))  # [cm]
-        return f*S/self.mass # [cm^2 g^-1]
-
-    def update_parameters(self, T, VMRs={}, mass_fractions={}, ParamTable={}):
+    def _update_parameters(self, T, VMRs={}, mass_fractions={}, ParamTable={}):
         """
         Updates the line opacity parameters.
 
@@ -475,89 +507,62 @@ class LineOpacity(LineData):
         self.S = self._get_oscillator_strength()
         
         self.w, self.d = self._get_impact_width_shift(ParamTable=ParamTable)
-        
-    def abs_opacity(self, wave_micron, pressure):
+
+    def _get_precomputed_opacity_table(self):
+        """Precomputes the opacity table."""
+        # Table of interpolation functions
+        from scipy.interpolate import interp1d
+        self.interp_table = np.empty((len(self.nu_grid),len(self.P_grid)), dtype=object)
+
+        # Loop over chips
+        for idx_order, nu in enumerate(self.nu_grid):
+            
+            opacity_of_order = np.ones(
+                (len(self.T_grid), len(nu), len(self.P_grid)), dtype=np.float64
+                )
+
+            # Loop over temperature
+            for idx_T, T in enumerate(self.T_grid):
+
+                # Update the PT-dependent parameters
+                self._update_parameters(T)
+
+                # Calculate the opacity
+                wave_micron = 1e4/nu
+                opacity_of_order[idx_T,:,:] = self.abs_opacity(wave_micron, self.P_grid)
+
+            # Set up interpolation functions
+            for idx_P in range(len(self.P_grid)):
+
+                self.interp_table[idx_order,idx_P] = interp1d(
+                    self.T_grid, np.log10(opacity_of_order[:,:,idx_P]), axis=0, 
+                    kind='linear', assume_sorted=True, bounds_error=False, 
+                    fill_value=(
+                        np.log10(opacity_of_order[0,idx_order,idx_P]), 
+                        np.log10(opacity_of_order[-1,idx_order,idx_P])
+                        )
+                    )
+
+    def _line_profile(self, nu, nu_0, gamma_N, gamma_vdW, gamma_G, S):
         """
-        Calculates the absorption opacity.
+        Calculates the line profile.
 
         Args:
-            wave_micron (array): Wavelength array in microns.
-            pressure (array): Pressure array.
+            nu (array): Wavenumber array.
+            nu_0 (float): Line center wavenumber.
+            gamma_N (float): Natural broadening coefficient.
+            gamma_vdW (float): Van der Waals broadening coefficient.
+            gamma_G (float): Thermal broadening coefficient.
+            S (float): Oscillator strength.
 
         Returns:
-            array: Absorption opacity values.
+            array: Line profile values.
         """
-        # Determine which chip is being computed
-        idx_chip = np.argmin(np.abs(
-            np.mean(wave_micron) - np.mean(self.wave_ranges*1e-3, axis=1)
-            ))
-        nu = 1e4/wave_micron
+        # Gandhi et al. (2020b)
+        u = (nu - nu_0) / gamma_G
+        a = (gamma_vdW + gamma_N) / gamma_G
 
-        # Create line opacity array
-        opacity = 1e-250 * np.ones((len(wave_micron), len(pressure)), dtype=np.float64)
-
-        # Loop over atmospheric layers
-        for i in range(opacity.shape[1]):
-
-            # Loop over all transitions
-            for j in range(len(self.nu_0)):
-
-                if (self.status == 'pre-compute') and self.is_onthefly[j]:
-                    # Ignore the on-the-fly transitions
-                    continue
-                elif (self.status == 'combine') and (not self.is_onthefly[j]):
-                    # Ignore all non-"on-the-fly" transitions
-                    continue
-
-                nu_0_ij      = self.nu_0[j].copy()
-                gamma_vdW_ij = self.gamma_vdW[i,j].copy()
-                if self.has_impact_parameters[j]:
-                    
-                    # Find the impact width/shift index
-                    idx_impact = np.sum(self.has_impact_parameters[:j])
-
-                    # Shift the line core
-                    nu_0_ij += self.d[i,idx_impact]
-                    
-                    if self.w[i,idx_impact] != 0.:
-                        # Use the impact width
-                        gamma_vdW_ij = self.w[i,idx_impact]
-                    
-                # Lorentz-wing cutoff
-                mask_nu_j = np.abs(nu-nu_0_ij) < self.line_cutoff
-                nu_j = nu[mask_nu_j]
-
-                # Calculate the line profile
-                opacity[mask_nu_j,i] += self._line_profile(
-                    nu=nu_j, nu_0=nu_0_ij, gamma_N=self.gamma_N[j], gamma_vdW=gamma_vdW_ij, 
-                    gamma_G=self.gamma_G[i,j], S=self.S[i,j]
-                    )
-                
-            # Skip the interpolation step
-            if self.status != 'combine':
-                continue
-            if not hasattr(self, 'interp_table'):
-                continue
-
-            # Combine the interpolated and on-the-fly opacities
-            opacity[:,i] += 10**self.interp_table[idx_chip,i](self.temperature[i])
-
-        # Scale the opacity by the abundance profile
-        opacity *= self.mass_fraction[None,:]
-        return opacity # [cm^2 g^-1]
-
-    def __call__(self, ParamTable, PT, Chem):
-        """
-        Calculates the line opacity.
-
-        Args:
-            ParamTable (dict): Parameter table.
-            PT (object): PT profile object.
-            Chem (object): Chemistry profile object.
-        """
-        self.update_parameters(
-            T=PT.temperature, 
-            VMRs=Chem.VMRs, 
-            mass_fractions=Chem.mass_fractions, 
-            ParamTable=ParamTable, 
-            )
+        # Voigt profile
+        f = Faddeeva(u + 1j*a).real / (gamma_G*np.sqrt(np.pi))  # [cm]
+        return f*S/self.mass # [cm^2 g^-1]
+        

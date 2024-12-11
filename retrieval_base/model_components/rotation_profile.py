@@ -35,6 +35,17 @@ class ConvolveRotationProfile:
         from PyAstronomy.pyasl import fastRotBroad
         self.broad_func = fastRotBroad
 
+    def __call__(self, ParamTable, **kwargs):
+        """
+        Set the parameters for the rotation profile.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            **kwargs: Additional keyword arguments.
+        """
+        self.vsini        = ParamTable.get('vsini', 0.)
+        self.epsilon_limb = ParamTable.get('epsilon_limb', 0.)
+
     def broaden(self, wave, flux, **kwargs):
         """
         Apply rotational broadening to the flux.
@@ -64,17 +75,6 @@ class ConvolveRotationProfile:
             )
         return wave_even, flux_rot_broad
     
-    def __call__(self, ParamTable, **kwargs):
-        """
-        Set the parameters for the rotation profile.
-
-        Args:
-            ParamTable (dict): Parameter table.
-            **kwargs: Additional keyword arguments.
-        """
-        self.vsini        = ParamTable.get('vsini', 0.)
-        self.epsilon_limb = ParamTable.get('epsilon_limb', 0.)
-    
 class SurfaceMap:
     """
     Class for surface map.
@@ -96,13 +96,27 @@ class SurfaceMap:
         self.lon_0 = np.deg2rad(lon_0)
 
         # Define grid to integrate over
-        self.set_coords(n_c, n_theta)
+        self._set_coords(n_c, n_theta)
 
         # Which segments to include for this model setting
         self.is_inside_patch  = is_inside_patch
         self.is_outside_patch = is_outside_patch
 
-    def set_coords(self, n_c, n_theta):
+    def __call__(self, ParamTable, **kwargs):
+        """
+        Set the parameters for the surface map.
+
+        Args:
+            ParamTable (dict): Parameter table.
+            **kwargs: Additional keyword arguments.
+        """
+        # Brightness and velocity maps
+        self._get_brightness_and_velocity_maps(ParamTable)
+        
+        # Get the segments included in the current patch
+        self._get_included_segments()
+
+    def _set_coords(self, n_c, n_theta):
         """
         Set the coordinates for the surface map.
 
@@ -149,10 +163,10 @@ class SurfaceMap:
         self.area_grid = np.concatenate(self.area_grid)
         self.integrated_area = np.sum(self.area_grid)
 
-        self.set_cartesian_coords()
-        self.set_latlon_coords()
+        self._set_cartesian_coords()
+        self._set_latlon_coords()
 
-    def set_cartesian_coords(self):
+    def _set_cartesian_coords(self):
         """
         Set the Cartesian coordinates for the surface map.
         """
@@ -160,7 +174,7 @@ class SurfaceMap:
         self.x_grid = self.r_grid * np.sin(self.theta_grid)
         self.y_grid = self.r_grid * np.cos(self.theta_grid)
 
-    def set_latlon_coords(self):
+    def _set_latlon_coords(self):
         """
         Set the latitude and longitude coordinates for the surface map.
         """
@@ -175,7 +189,7 @@ class SurfaceMap:
                 self.y_grid * np.sin(self.c_grid)*np.sin(self.inclination)
             )
         
-    def get_zonal_band(self, ParamTable, suffix=''):
+    def _add_zonal_band(self, ParamTable, suffix=''):
         """
         Get a zonal band for the surface map.
 
@@ -212,7 +226,7 @@ class SurfaceMap:
 
         return lat_band_mask
     
-    def get_latlon_circular_spot(self, ParamTable, suffix=''):
+    def _add_latlon_circular_spot(self, ParamTable, suffix=''):
         """
         Get a circular spot for the surface map.
 
@@ -250,7 +264,7 @@ class SurfaceMap:
 
         return spot_mask
     
-    def get_brightness_and_velocity_maps(self, ParamTable, n_max_features=5):
+    def _get_brightness_and_velocity_maps(self, ParamTable, n_max_features=5):
         """
         Get the brightness and velocity maps for the surface map.
 
@@ -271,14 +285,14 @@ class SurfaceMap:
             # Add multiple spots or bands
             suffix = f'_{idx+1}' if idx is not None else ''
 
-            spot_mask = self.get_latlon_circular_spot(ParamTable, suffix=suffix)
-            band_mask = self.get_zonal_band(ParamTable, suffix=suffix)
+            spot_mask = self._add_latlon_circular_spot(ParamTable, suffix=suffix)
+            band_mask = self._add_zonal_band(ParamTable, suffix=suffix)
 
             self.patch_mask[spot_mask|band_mask] = True
 
         self.integrated_brightness = np.sum(self.brightness)
 
-    def get_included_segments(self):
+    def _get_included_segments(self):
         """
         Get the included segments for the surface map.
         """
@@ -295,20 +309,6 @@ class SurfaceMap:
         # Update the incidence angles included in current patch
         self.unique_mu_included = np.unique(self.mu_grid[self.included_segments])
 
-    def __call__(self, ParamTable, **kwargs):
-        """
-        Set the parameters for the surface map.
-
-        Args:
-            ParamTable (dict): Parameter table.
-            **kwargs: Additional keyword arguments.
-        """
-        # Brightness and velocity maps
-        self.get_brightness_and_velocity_maps(ParamTable)
-        
-        # Get the segments included in the current patch
-        self.get_included_segments()
-
 class IntegrateRotationProfile(SurfaceMap):
     """
     Class for integrate rotation profile.
@@ -323,7 +323,36 @@ class IntegrateRotationProfile(SurfaceMap):
         # Initialize the surface map
         super().__init__(**kwargs)
 
-    def integrate_over_wavelength(self, wave, flux_shifted, idx_segments):
+    def broaden(self, wave, flux, get_integrated_flux=False, **kwargs):
+        """
+        Apply rotational broadening to the flux.
+
+        Args:
+            wave (array): Wavelength array.
+            flux (array): Flux array.
+            get_integrated_flux (bool): Flag to get integrated flux.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            tuple: Broadened wavelength and flux arrays.
+        """
+        self.get_integrated_flux = get_integrated_flux
+
+        # Store global flux, integrated over the surface
+        flux_rot_broad = np.zeros_like(wave[0])
+
+        # Integrate over all incidence angles
+        for mu, flux_mu in zip(self.unique_mu_included, flux):
+            
+            # Integrate over all velocities in annulus
+            flux_rot_broad += self._integrate_over_velocity(wave[0], flux_mu, mu)
+
+        # Normalise to account for over/under-estimation of total flux
+        flux_rot_broad *= self.integrated_area / self.integrated_brightness
+
+        return wave[0], flux_rot_broad
+    
+    def _integrate_over_wavelength(self, wave, flux_shifted, idx_segments):
         """
         Integrate the flux over the wavelength.
 
@@ -346,7 +375,7 @@ class IntegrateRotationProfile(SurfaceMap):
             # Integrate over wavelengths
             self.integrated_flux[idx] = np.trapz(x=wave_i, y=flux_i) / np.trapz(x=wave_i, y=wave_i)
 
-    def integrate_over_velocity(self, wave, flux_mu, mu):
+    def _integrate_over_velocity(self, wave, flux_mu, mu):
         """
         Integrate the flux over the velocity.
 
@@ -379,38 +408,9 @@ class IntegrateRotationProfile(SurfaceMap):
         flux_shifted *= self.area_grid[idx_segments][:,None]
 
         if self.get_integrated_flux:
-            self.integrate_over_wavelength(wave, flux_shifted, idx_segments)
+            self._integrate_over_wavelength(wave, flux_shifted, idx_segments)
 
         # Integrate over all velocities
         integrated_flux_mu = np.sum(flux_shifted, axis=0)
 
         return integrated_flux_mu
-
-    def broaden(self, wave, flux, get_integrated_flux=False, **kwargs):
-        """
-        Apply rotational broadening to the flux.
-
-        Args:
-            wave (array): Wavelength array.
-            flux (array): Flux array.
-            get_integrated_flux (bool): Flag to get integrated flux.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            tuple: Broadened wavelength and flux arrays.
-        """
-        self.get_integrated_flux = get_integrated_flux
-
-        # Store global flux, integrated over the surface
-        flux_rot_broad = np.zeros_like(wave[0])
-
-        # Integrate over all incidence angles
-        for mu, flux_mu in zip(self.unique_mu_included, flux):
-            
-            # Integrate over all velocities in annulus
-            flux_rot_broad += self.integrate_over_velocity(wave[0], flux_mu, mu)
-
-        # Normalise to account for over/under-estimation of total flux
-        flux_rot_broad *= self.integrated_area / self.integrated_brightness
-
-        return wave[0], flux_rot_broad
