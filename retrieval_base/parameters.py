@@ -1,473 +1,413 @@
+import scipy.stats as stats
+
+import pandas as pd
 import numpy as np
-from scipy.stats import invgamma, norm
 
-from petitRADTRANS.retrieval import cloud_cond as fc
+import warnings
 
-from .chemistry import Chemistry
+from .utils import sc
 
-class ParameterWaveSetting:
+class Parameter:
+    """Represents a parameter with a prior distribution."""
 
-    @classmethod
-    def log_to_linear(cls, param_dict, key_log, key_lin=None):
-
-        if not isinstance(key_log, (list, tuple, np.ndarray)):
-            key_log = [key_log]
-            
-        if not isinstance(key_lin, (list, tuple, np.ndarray)):
-            key_lin = [key_lin]
+    def __init__(self, name, prior_type, prior_params, mathtext, m_set):
+        """
+        Args:
+            name (str): Name of the parameter.
+            prior_type (str): Type of the prior distribution.
+            prior_params (tuple): Parameters of the prior distribution.
+            mathtext (str): Mathematical representation of the parameter.
+            m_set (str): Model setting associated with the parameter.
+        """
         
-        for key_log_i, key_lin_i in zip(key_log, key_lin):
-
-            if key_lin_i is None:
-                key_lin_i = key_log_i.replace('log_', '')
-
-            # Value of the logarithmic parameter
-            val_log = param_dict[key_log_i]
-
-            if isinstance(val_log, (float, int, np.ndarray)):
-                # Convert from log to linear if float or integer
-                param_dict[key_lin_i] = 10**val_log
-            elif isinstance(val_log, list):
-                param_dict[key_log_i] = np.array(val_log, dtype=np.float64)
-                param_dict[key_lin_i] = 10**np.array(val_log, dtype=np.float64)
-
-            elif val_log is None:
-                # Set linear parameter to None as well
-                param_dict[key_lin_i] = None
-
-        return param_dict
-
-    def __init__(self, 
-            free_params, 
-            constant_params, 
-            m_set, 
-            n_orders=7, 
-            n_dets=3, 
-            PT_kwargs={}, 
-            chem_kwargs={}, 
-            cov_kwargs={}, 
-            cloud_kwargs={}, 
-            **kwargs, 
-            ):
+        self.name  = name
+        self.m_set = m_set
+        self.mathtext = mathtext
         
-        self.m_set    = m_set
-        self.n_orders = n_orders
-        self.n_dets   = n_dets
-        
-        # Separate the prior range from the mathtext label
-        self.param_priors, self.param_mathtext, self.param_idx = {}, {}, {}
-        for key_i, (prior_i, mathtext_i, idx_i) in free_params.items():
-            self.param_priors[key_i]   = prior_i
-            self.param_mathtext[key_i] = mathtext_i
-            self.param_idx[key_i]      = idx_i
+        # Configure prior
+        self.prior_type   = prior_type
+        self.prior_params = prior_params
+        self.set_prior()
 
-        self.param_keys = np.array(list(self.param_priors.keys()))
-        self.n_params = len(self.param_keys)
+        self.apply_prior = True
 
-        # Create dictionary with constant parameter-values
-        self.params = constant_params.copy()
+    def set_prior(self):
+        """Sets the prior distribution based on the prior type and parameters."""
+        # Prior range or loc/scale
+        loc, scale = self.prior_params
 
-        for key_i in list(self.params.keys()):
-            if key_i.startswith('log_'):
-                self.params = self.log_to_linear(self.params, key_i)
-
-        # Check the used PT profile
-        self.PT_kwargs = PT_kwargs
-        self.PT_mode   = self.PT_kwargs.get('PT_mode', 'free_gradient')
-        self.n_T_knots = self.PT_kwargs.get('n_T_knots')
-        assert(self.PT_mode in ['free', 'free_gradient', 'grid'])
-
-        # Check the used chemistry type
-        self.chem_kwargs = chem_kwargs
-        self.chem_mode   = self.chem_kwargs.get('chem_mode', 'free')
-        assert(self.chem_mode in ['pRT_table', 'free', 'fastchem', 'fastchem_table'])
-        
-        # Check the used cloud type
-        self.cloud_kwargs = cloud_kwargs
-        self.cloud_mode   = self.cloud_kwargs.get('cloud_mode', None)
-        if self.cloud_mode == 'grey':
-            self.cloud_mode = 'gray'
-        assert(self.cloud_mode in ['gray', 'EddySed', None])
-
-        # Check the used covariance definition
-        self.cov_kwargs = cov_kwargs
-        self.cov_mode   = self.cov_kwargs.get('cov_mode', None)
-        assert(self.cov_mode in ['GP', None])
-
-    def read_PT_params(self, cube=None):
-
-        if self.params.get('temperature') is not None:
-            return cube
-
-        if self.PT_mode == 'grid':
-            return cube
-
-        # If free, or free-gradient, define the pressure knots
-        if self.params.get('log_P_knots') is None:
-            self.params['log_P_knots'] = np.zeros(self.PT_kwargs.get('n_T_knots'), dtype=np.float64)
+        if self.prior_type in ['U', 'uniform']:
+            # Uniform prior
+            scale = self.prior_params[1] - self.prior_params[0]
+            self.prior = stats.uniform(loc=loc, scale=scale)
+        elif self.prior_type in ['N', 'G', 'normal', 'gaussian']:
+            # Gaussian prior
+            self.prior = stats.norm(loc=loc, scale=scale)
         else:
-            self.params['log_P_knots'] = np.array(self.params.get('log_P_knots'), dtype=np.float64)
+            raise ValueError(f'prior_type={self.prior_type} not recognized')
 
-        if self.params.get('d_log_P_01') is not None:
-            # Separations are given relative to bottom knot
-            log_P_knots = [self.params['log_P_range'][1], ]
+    def __call__(self, val_01):
+        """
+        Applies the prior to a value in [0,1] and returns the parameter value.
 
-            for i in range(self.n_T_knots-1):
+        Args:
+            val_01 (float): Value in the range [0,1].
 
-                up_i = self.param.get(f'd_log_P_{i}{i+1}')
-                if up_i is not None:
-                    # Add knot above previous knot
-                    log_P_knots.append(log_P_knots[-1]-up_i)
-            
-            log_P_knots.append(self.params['log_P_range'][0])
-            
-            self.params['log_P_knots'] = np.sort(np.array(log_P_knots))
+        Returns:
+            float: Parameter value after applying the prior.
+        """
+        # val_01 is in [0,1]
+        self.val_01 = val_01
 
-        if self.params.get('log_P_phot') is not None:
-            # Separations are given relative to photospheric knot
-            log_P_phot  = self.params['log_P_phot']
-            log_P_knots = [
-                log_P_phot, self.params['log_P_range'][1], 
-                self.params['log_P_range'][0], 
-                ]
+        if not self.apply_prior:
+            # val_01 is already in parameter space
+            self.val_01 = self.prior.cdf(self.val_01)
 
-            for i in range(1, self.n_T_knots-1):
-                up_i  = self.params.get(f'd_log_P_phot+{i}')
-                low_i = self.params.get(f'd_log_P_phot-{i}')
-                if self.PT_kwargs.get('symmetric_around_P_phot', False):
-                    low_i = up_i
-                
-                if up_i is not None:
-                    # Add knot above P_phot-knot
-                    log_P_knots.append(log_P_phot-up_i)
-                if low_i is not None:
-                    # Add knot below P_phot-knot
-                    log_P_knots.append(log_P_phot+low_i)
+        # Apply the prior
+        self.val = self.prior.ppf(self.val_01)
 
-            self.params['log_P_knots'] = np.sort(np.array(log_P_knots))
-
-        self.params['P_knots']     = 10**self.params['log_P_knots']
-        self.params['ln_P_knots']  = np.log(self.params['P_knots'])
-
-        if self.PT_mode == 'free':
-
-            # Following De Regt et al. (2024)
-            # TODO: this doesn't work with the photospheric-knot method
-            
-            # Combine the upper temperature knots into an array
-            self.params['T_knots'] = []
-            for i in range(self.n_T_knots-1):
-
-                T_i = self.params[f'T_{i+1}']
-
-                if (cube is not None) and self.PT_kwargs.get('enforce_PT_corr', False):
-                    # Temperature knot is product of previous knots
-                    T_i = np.prod([self.params[f'T_{j}'] for j in range(i+2)])
-                    
-                    idx = np.argwhere(self.param_keys==f'T_{i+1}').flatten()[0]
-                    cube[idx] = T_i
-
-                self.params['T_knots'].append(T_i)
-
-            self.params['T_knots'] = np.array(self.params['T_knots'])[::-1]
-
-        if self.PT_mode == 'free_gradient':
-
-            # Following Zhang et al. (2023)
-
-            # Define the temperature gradients at each knot
-            self.params['dlnT_dlnP_knots'] = np.array([
-                self.params[f'dlnT_dlnP_{i}'] for i in range(self.n_T_knots)
-                ])
-            self.params['dlnT_dlnP_knots'] = self.params['dlnT_dlnP_knots'][::-1]
-            
-        return cube
+        return self.val
     
-    def read_uncertainty_params(self):
+class ParameterTable:
+    """Manages a table of parameters and their values."""
 
-        for key_i in ['beta', 'a', 'l']:
+    def get(self, name, value=None, key='val'):
+        """
+        Retrieves the value of a parameter from the table.
 
-            if (self.params.get(key_i) is None) and (self.params.get(f'{key_i}_1') is None):
+        Args:
+            name (str): Name of the parameter.
+            value (optional): Default value if the parameter is not found.
+            key (str): Column name to retrieve the value from.
+
+        Returns:
+            The value of the parameter or the default value if not found.
+        """
+        queried_m_set = list(np.array(self.queried_m_set).flatten())
+        query = 'm_set=={} and name=={}'.format(queried_m_set, [name])
+        queried_table = self.table.query(query)
+        
+        if queried_table.empty:
+            # Parameter not found
+            return value
+        
+        return queried_table[key].values[0]
+    
+    def get_mathtext(self):
+        """
+        Retrieves the mathtext representations of free parameters.
+
+        Returns:
+            list: List of mathtext strings for free parameters.
+        """
+        mathtext = []
+        for idx, (idx_free) in enumerate(self.table['idx_free']):
+            if pd.isna(idx_free):
+                # Not a free parameter
                 continue
 
-            # Reshape to values for each order and detector
-            self.params[key_i] *= np.ones((self.n_orders, self.n_dets))
+            # Get the mathtext of parameter
+            mathtext.append(self.table.loc[idx]['Param'].mathtext)
 
-            for j in range(self.n_orders):
-                
-                if self.params.get(f'{key_i}_{j+1}') is None:
-                    continue
-
-                # Replace the constant with a free parameter for each order
-                self.params[key_i][j,:] = self.params[f'{key_i}_{j+1}']
-
-    def read_chemistry_params(self):
-
-        if self.chem_mode in ['pRT_table', 'fastchem', 'fastchem_table']:
-            # Use chemical equilibrium
-            self.VMR_species = None
-
-        elif self.chem_mode == 'free':
-            # Use free chemistry
-            self.params['C/O'], self.params['Fe/H'] = None, None
-
-            # Loop over all possible species
-            self.VMR_species = {}
-            for species_i in Chemistry.species_info.index:
-
-                '''
-                # If multiple VMRs are given
-                for j in range(3):
-                    if f'log_{species_i}_{j}' in self.param_keys:
-                        self.VMR_species[f'{species_i}_{j}'] = self.params[f'{species_i}_{j}']
-                '''
-
-                if f'log_{species_i}' in self.param_keys:
-                    self.VMR_species[f'{species_i}'] = self.params[f'{species_i}']
-                    continue
-
-                '''
-                if species_i == '13CO' and ('log_13C/12C_ratio' in self.param_keys):
-                    # Use isotope ratio to retrieve the VMR
-                    self.VMR_species[species_i] = self.params['13C/12C_ratio'] * self.params['12CO']
-
-                if species_i == '13CH4' and ('log_13C/12C_ratio' in self.param_keys):
-                    # Use isotope ratio to retrieve the VMR
-                    self.VMR_species[species_i] = self.params['13C/12C_ratio'] * self.params['CH4']
-
-                if species_i == 'C18O' and ('log_18O/16O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['18O/16O_ratio'] * self.params['12CO']
-                if species_i == 'C17O' and ('log_17O/16O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['12CO']
-
-                if species_i == 'H2O_181' and ('log_18O/16O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['18O/16O_ratio'] * self.params['H2O']
-                if species_i == 'H2O_171' and ('log_17O/16O_ratio' in self.param_keys):
-                    self.VMR_species[species_i] = self.params['17O/16O_ratio'] * self.params['H2O']
-                '''
-
-    def __call__(self, cube, apply_prior=True):
-
-        # Loop over all parameters
-        for key_i, i in self.param_idx.items():
-
-            if apply_prior:
-                if key_i.startswith('invgamma_'):
-                    # Get the two parameters defining the inverse gamma pdf
-                    invgamma_a, invgamma_b = self.param_priors[key_i]
-                    
-                    # Sample from the inverse gamma prior
-                    cube[i] = invgamma.ppf(cube[i], a=invgamma_a, loc=0, scale=invgamma_b)
-
-                elif key_i.startswith('gaussian_'):
-                    # Get the two parameters defining the Gaussian pdf
-                    mu, sigma = self.param_priors[key_i]
-                    
-                    # Sample from the Gaussian prior
-                    cube[i] = norm.ppf(cube[i], loc=mu, scale=sigma)
-                
-                else:
-                    # Sample within the boundaries
-                    low, high = self.param_priors[key_i]
-                    cube[i] = low + (high-low)*cube[i]
-
-            self.params[key_i] = cube[i]
-
-            if key_i.startswith('log_'):
-                self.params = self.log_to_linear(self.params, key_i)
-
-            if key_i.startswith('invgamma_'):
-                self.params[key_i.replace('invgamma_', '')] = self.params[key_i]
-
-            if key_i.startswith('gaussian_'):
-                self.params[key_i.replace('gaussian_', '')] = self.params[key_i]
-
-        # Read the parameters for the model's segments
-        cube = self.read_PT_params(cube)
-        self.read_uncertainty_params()
-        self.read_chemistry_params()
-
-        if (self.params.get('M_p') is not None) and (self.params.get('R_p') is not None):
-            G = 6.6743e-8 # cm^3 g^-1 s^-2
-            M_p = self.params['M_p'] * 1.899e30 # g
-            R_p = self.params['R_p'] * 7.149e9 # cm
-
-            g = G*M_p/R_p**2
-            self.params['log_g'] = np.log10(g)
-
-        idx = list(self.param_idx.values())
-        return cube[idx]
-
-class Parameters:
-
-    @classmethod
-    def expand_per_setting(cls, d, model_settings, return_indices=False):
-
-        is_dict = isinstance(d, dict)
-        if is_dict:
-            new_d = {m_set: {} for m_set in model_settings}
-            items = d.items()
-        else:
-            new_d = {m_set: [] for m_set in model_settings}
-            if not isinstance(d, (np.ndarray, list, tuple)):
-                # Only a single value given
-                items = [d]
-            else:
-                # Multiple values given
-                items = d
+        return mathtext
         
-        unique_d = []
-        for res_i in items:
+    def expand_per_model_setting(self, d, is_kwargs=False):
+        """
+        Expands a dictionary to include all model settings.
 
-            # Other items
-            val_i = res_i
+        Args:
+            d (dict): Dictionary to expand.
+            is_kwargs (bool): Whether the dictionary contains keyword arguments.
 
-            if is_dict:
-                # Dictionary items
-                key_i, val_i = res_i
+        Returns:
+            dict: Expanded dictionary with all model settings.
+        """
+        # Expand dictionary to have all model settings
+        d_expanded = {'all': {}}
 
-                if key_i not in model_settings:
-                    # Parameter applies to all settings
-                    for m_set in model_settings:
-                        new_d[m_set][key_i] = val_i
-                    unique_d.append(f'{key_i}')
-                    continue
-                else:
-                    # Parameter for specific setting
-                    if not isinstance(val_i, dict):
-                        # Only one value for this setting (should only 
-                        # occur for modes, not free/constant parameters)
-                        new_d[key_i] = val_i
-                        continue
+        if is_kwargs:
+            # Make (empty) entry for each model setting
+            for m_set in self.model_settings:
+                d_expanded[m_set] = {}
 
-                    for key_j, val_j in val_i.items():
-                        # val_i is dictionary too
-                        # Add to existing dictionary for this setting
-                        new_d[key_i][key_j] = val_j
+        for name, val in d.items():
+            if name in self.model_settings:
+                # Set of parameters for a model setting
+                d_expanded[name] = val
+                continue
 
-                        # Is a unique free-parameter
-                        unique_d.append(f'{key_j}_{key_i}')
-                    continue
-            
-            # Parameter applies to all settings
-            for m_set in model_settings:
-                # Add to each setting-dictionary
-                new_d[m_set] = val_i
+            # Applies to all model settings
+            d_expanded['all'][name] = val
 
-        if not return_indices:
-            return new_d
-
-        # All free-parameters to be retrieved
-        unique_d = np.array(unique_d)
-        n_params = len(unique_d)
+        if not is_kwargs:
+            # No need to adopt default values
+            return d_expanded
         
-        # Assign an index to each parameter
-        new_idx_d = new_d.copy()
-        for i, (m_set, val_i) in enumerate(new_d.items()):
+        # Use the default parameters from the main model setting
+        for m_set, val in d_expanded.items():
+            d_expanded[m_set].update(d_expanded['all'])
 
-            for key_i in val_i.keys():
+        # Remove the main model setting
+        d_expanded.pop('all')
 
-                # Parameter applies to all settings
-                mask = (unique_d == key_i)
-                if mask.any() and (i != 0):
-                    continue
-
-                if not mask.any():
-                    # Parameter is specific to one setting
-                    mask = (unique_d == f'{key_i}_{m_set}')
-
-                idx = np.argwhere(mask).flatten()[0]
-                new_idx_d[m_set][key_i].append(idx)
-
-        return new_idx_d, n_params, unique_d
-
-    def __init__(
-            self, 
-            free_params, 
-            constant_params, 
-            model_settings, 
-            **kwargs, 
-            ):
-        
-        self.apply_prior = True
-        
-        self.model_settings = model_settings
-        self.model_settings_names = list(self.model_settings.keys())
-
-        # Re-structure dictionaries so that each setting has necessary parameters
-        free_params, self.n_params, self.unique_param_keys = self.expand_per_setting(
-            free_params, self.model_settings_names, return_indices=True
-            )
-        constant_params = self.expand_per_setting(
-            constant_params, self.model_settings_names
-            )
-        kwargs = {
-            key_i: self.expand_per_setting(val_i, self.model_settings_names) \
-            for key_i, val_i in kwargs.items()
-            }
-        
-        # Create ParamWaveSetting instances per wavelength-setting
-        self.Params_m_set = {}
-        self.param_mathtext = np.array([None]*self.n_params)
-        self.param_keys     = np.array([None]*self.n_params)
-        for m_set in self.model_settings_names:
-
-            # Give only kwargs for this setting
-            kwargs_i = {
-                key_i: val_i[m_set] for key_i, val_i in kwargs.items()
-                }
-
-            self.Params_m_set[m_set] = ParameterWaveSetting(
-                free_params[m_set], 
-                constant_params[m_set], 
-                m_set=m_set,
-                n_orders=self.model_settings[m_set][0], 
-                n_dets=self.model_settings[m_set][1], 
-                **kwargs_i
-                )
-            
-            idx = list(self.Params_m_set[m_set].param_idx.values())
-            keys     = self.Params_m_set[m_set].param_mathtext.keys()
-            mathtext = self.Params_m_set[m_set].param_mathtext.values()
-            self.param_mathtext[idx] = list(mathtext)
-            self.param_keys[idx]     = list(keys)
-                    
-        self.PT_kwargs    = kwargs.get('PT_kwargs')
-        self.chem_kwargs  = kwargs.get('chem_kwargs')
-        self.cov_kwargs   = kwargs.get('cov_kwargs')
-        self.cloud_kwargs = kwargs.get('cloud_kwargs')
-
-    def get_sorted_kwargs(self):
-
-        list_to_return = [
-            self.PT_kwargs.copy(), self.chem_kwargs.copy(), 
-            self.cov_kwargs.copy(), self.cloud_kwargs.copy(),
-            ]
-        del self.PT_kwargs, self.chem_kwargs, self.cov_kwargs, self.cloud_kwargs
-        return list_to_return
-            
-    def __call__(self, cube, ndim=None, nparams=None):
-
-        # Convert to numpy array
-        cube_copy = np.array(cube[:ndim])
-        cube_init = cube_copy.copy()
-
-        # Loop over each wavelength-setting
-        for Param_i in self.Params_m_set.values():
-
-            # Select indices relevant for this setting
-            idx = list(Param_i.param_idx.values())
-
-            # Run through priors and update the dictionaries
-            cube_copy[idx] = Param_i(cube_init.copy(), apply_prior=self.apply_prior)
-
-        for i, cube_i in enumerate(cube_copy):
-            # Keep 'cube' as c-type array
-            cube[i] = cube_i
-        
-        self.cube = cube_copy
+        return d_expanded
     
+    def add_param(self, **kwargs):
+        """
+        Adds or updates a parameter in the table.
+
+        Args:
+            **kwargs: Parameter attributes to add or update.
+        """
+        m_set = kwargs['m_set']
+        name  = kwargs['name']
+
+        # Check if parameter already exists
+        query = f'm_set=="{m_set}" and name=="{name}"'
+        queried_table = self.table.query(query)
+
+        if queried_table.empty:
+            # Add parameter to the table
+            idx = len(self.table)
+            self.table.loc[idx,:] = None
+        else:
+            # Update the parameter in the table
+            idx = queried_table.index[0]
+
+        cols = list(kwargs.keys())
+        self.table.loc[idx,cols] = list(kwargs.values())
+
+        # Add linear parameter if log
+        if not name.startswith('log_'):
+            return
+        
+        val = kwargs.get('val')        
+        if not isinstance(val, (float, int)):
+            # Cannot take power 10
+            return
+        
+        # Add the linear parameter
+        cols = ['name', 'm_set', 'val']
+        self.table.loc[idx+1,:] = None
+        self.table.loc[idx+1,cols] = name.replace('log_',''), m_set, 10**val
+    
+    def add_params_dictionary(self, params, is_free=False):
+        """
+        Adds parameters from a dictionary to the table.
+
+        Args:
+            params (dict): Dictionary of parameters to add.
+            is_free (bool): Whether the parameters are free parameters.
+        """
+        # Expand dictionary to have all model settings
+        params_expanded = self.expand_per_model_setting(params)
+        for m_set, dictionary in params_expanded.items():
+            
+            # Set of parameters for a model setting
+            for name, val in dictionary.items():
+
+                Param = None
+                if is_free:
+                    # Is a free parameter
+                    Param = Parameter(name, *val, m_set)
+                    val = np.nan
+
+                # Add the parameter to the table
+                self.add_param(name=name, m_set=m_set, Param=Param, val=val)
+
+    def __init__(self, free_params, constant_params, model_settings, all_model_kwargs):
+        """
+        Initializes the ParameterTable.
+
+        Args:
+            free_params (dict): Dictionary of free parameters.
+            constant_params (dict): Dictionary of constant parameters.
+            model_settings (list): List of model settings.
+            all_model_kwargs (dict): Dictionary of model keyword arguments.
+        """
+        self.model_settings = model_settings
+
+        # Create the table
+        cols = ['name', 'm_set', 'Param', 'val']
+        self.table = pd.DataFrame(columns=cols)
+
+        # Convert parallax to distance
+        parallax = constant_params.get('parallax')
+        if parallax is not None:
+            constant_params['distance'] = 1e3/parallax
+
+        # Add parameters to the table
+        self.add_params_dictionary(constant_params, is_free=False)
+        self.add_params_dictionary(free_params, is_free=True)
+
+        # Add indices for free parameters
+        self.table['idx_free'] = None
+        mask = ~pd.isna(self.table['Param'])
+        self.n_free_params = mask.sum()
+
+        self.table.loc[mask,'idx_free'] = range(self.n_free_params)
+
+        # Set queried model setting
+        self.queried_m_set = 'all'
+
+        # Add model kwargs
+        self.add_model_kwargs(all_model_kwargs)
+
+    def add_model_kwargs(self, all_model_kwargs):
+        """
+        Adds model keyword arguments to the table.
+
+        Args:
+            all_model_kwargs (dict): Dictionary of all model keyword arguments.
+        """
+        kwarg_keys = [
+            'PT_kwargs', 'chem_kwargs', 'cloud_kwargs', 
+            'line_opacity_kwargs', 
+            'rotation_kwargs', 'pRT_Radtrans_kwargs', 
+            'cov_kwargs', 'loglike_kwargs', 
+            ]
+        for key in kwarg_keys:
+            
+            model_kwargs = all_model_kwargs.get(key, {})
+            
+            if len(model_kwargs) == 0:
+                warnings.warn(f'{key} not found in all_model_kwargs')
+            
+            if key not in ['cov_kwargs', 'loglike_kwargs']:
+                # Expand the kwargs to each model setting
+                model_kwargs = self.expand_per_model_setting(model_kwargs, is_kwargs=True)
+                
+            # Make attribute of ParameterTable class
+            setattr(self, key, model_kwargs)
+
+    def update_log_g(self, m_set):
+        """
+        Updates the surface gravity parameter for a model setting.
+
+        Args:
+            m_set (str): Model setting to update.
+        """
+        if self.get('log_g', key='idx_free') is not None:
+            # log_g is a free parameter
+            return
+        
+        M_p = self.get('M_p')
+        R_p = self.get('R_p')
+        if None in [M_p, R_p]:
+            return
+        
+        # Compute the surface gravity
+        M_p *= (sc.m_jup*1e3)
+        R_p *= (sc.r_jup_mean*1e2)
+
+        g = (sc.G*1e3) * M_p/R_p**2
+        log_g = np.log10(g)
+        
+        # Add the parameter to the table
+        self.add_param(name='log_g', m_set=m_set, val=log_g)
+
+    def update_coverage_fraction(self, m_set):
+        """
+        Updates the coverage fraction parameter for a model setting.
+
+        Args:
+            m_set (str): Model setting to update.
+        """
+        # Default assumes full coverage (e.g. binary)
+        cf = self.get('coverage_fraction', 1.)
+
+        if cf != 1.:
+            # Coverage fraction is set
+
+            if len(self.model_settings) != 2:
+                # Not 2 patches
+                return
+            if m_set != self.model_settings[0]:
+                # Not the first of 2 model settings
+                return
+            
+            # Add remainder of coverage fraction to the other model setting, 
+            # which is read next in the loop (see __call__())
+            self.add_param(name='coverage_fraction', m_set=self.model_settings[1], val=1.-cf)
+            return
+
+        # Coverage fraction is not set, add it
+        self.add_param(name='coverage_fraction', m_set=m_set, val=cf)
+
+    def update_secondary_params(self, m_set):
+        """
+        Updates secondary parameters for a model setting.
+
+        Args:
+            m_set (str): Model setting to update.
+        """
+        self.update_log_g(m_set)
+        
+        # Update the coverage fraction of this model setting
+        self.update_coverage_fraction(m_set)
+
+    def set_apply_prior(self, apply_prior=True):
+        """
+        Sets whether to apply the prior distribution to parameters.
+
+        Args:
+            apply_prior (bool): Whether to apply the prior distribution.
+        """
+        for idx, (idx_free) in enumerate(self.table['idx_free']):
+            if pd.isna(idx_free):
+                # Not a free parameter
+                continue
+
+            Param = self.table.loc[idx]['Param']
+            Param.apply_prior = apply_prior
+
+    def __call__(self, cube, ndim=None, nparams=None):
+        """
+        Applies the priors to a unit cube and updates the parameter table.
+
+        Args:
+            cube (list): List of parameter values in the unit cube.
+            ndim (int, optional): Number of dimensions.
+            nparams (int, optional): Number of parameters.
+
+        Returns:
+            list: Updated cube with parameter values after applying priors.
+        """
+        # Convert to a numpy array
+        cube_np = np.array(cube[:ndim])
+        cube_init = cube_np.copy()
+
+        # Run unit cube through the priors
+        for idx, (idx_free) in enumerate(self.table['idx_free']):
+            if pd.isna(idx_free):
+                # Not a free parameter
+                continue
+
+            # Apply prior of parameter
+            Param = self.table.loc[idx]['Param']
+            val = Param(cube_init[idx_free])
+
+            # Update the cube and table
+            cube_np[idx_free] = val
+            self.table.loc[idx,'val'] = val
+
+            # Keep cube as c-type array
+            cube[idx_free] = val
+
+            name = self.table.loc[idx,'name']
+            if name.startswith('log_'):
+                # Update the linear parameter too
+                self.table.loc[idx+1,'val'] = 10**val
+
+        # Update secondary parameters, consider shared parameters initially
+        for m_set in ['all', *self.model_settings]:
+            # Query parameters specific to or shared between model settings
+            self.queried_m_set = [m_set, 'all']
+            self.update_secondary_params(m_set)
+        self.queried_m_set = 'all'
+
+        # Make attribute
+        self.cube = cube_np
+
         if (ndim is None) and (nparams is None):
             return cube
-        else:
-            return
