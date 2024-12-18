@@ -212,6 +212,18 @@ class pRT:
             ParamTable (dict): Parameter table.
         """
         from petitRADTRANS.radtrans import Radtrans
+        from petitRADTRANS.config import petitradtrans_config_parser
+
+        old_input_data_path = petitradtrans_config_parser.get_input_data_path()
+        new_input_data_path = ParamTable.pRT_Radtrans_kwargs[self.m_set].get(
+            'pRT_input_data_path', old_input_data_path
+            )
+        if new_input_data_path != old_input_data_path:
+            # Set the new input_data path
+            petitradtrans_config_parser.set_input_data_path(new_input_data_path)
+
+        # Remove pRT_input_data_path from kwargs if it exists
+        ParamTable.pRT_Radtrans_kwargs[self.m_set].pop('pRT_input_data_path', None)
 
         self.atm = []
         for wave_range_i in self.wave_ranges:

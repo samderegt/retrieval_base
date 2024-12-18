@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_A_2columns.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_A_ret_16_2columns_n1000'
+prefix = 'fiducial_J_A_ret_18_2columns_n1000'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -78,6 +78,7 @@ free_params = {
         'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
         'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
         'FeH_alpha': [(0,20), r'$\alpha_\mathrm{FeH}$'], 
+        'omega': [(0,1), r'$\omega$'], 
     }, 
     'J1226_B': {
         # Cloud properties
@@ -87,6 +88,7 @@ free_params = {
         'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
         'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
         'FeH_alpha': [(0,20), r'$\alpha_\mathrm{FeH}$'], 
+        'omega': [(0,1), r'$\omega$'], 
     }, 
 
     # Cloud properties
@@ -151,7 +153,7 @@ constant_params = {
     'parallax': 496,  # +/- 37 mas
     'inclination': 26, # degrees
 
-    'do_scat_emis': False, 
+    'do_scat_emis': True, 
 
     # Custom line opacity
     'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
@@ -166,7 +168,8 @@ constant_params = {
 }
 
 #'''
-parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+#parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
 #old_result_dir = '/net/lem/data1/regt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_45_1column/'
 line_opacity_kwargs = [
     {

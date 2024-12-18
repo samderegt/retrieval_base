@@ -7,7 +7,7 @@ file_params = 'config_fiducial_J_A_1column.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_A_ret_17_1column_n1000'
+prefix = 'fiducial_J_A_ret_18_forced_cloud_n100'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -88,10 +88,10 @@ free_params = {
     #}, 
 
     # Cloud properties
-    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-    'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-    'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
-    'omega': [(0,1), r'$\omega$'], 
+    #'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    #'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    #'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+    #'omega': [(0,1), r'$\omega$'], 
 
     'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
     'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
@@ -162,6 +162,11 @@ constant_params = {
     'A_w_1_He': 0.121448, 'b_w_1_He': 0.531718, 
     'A_d_0_He': 0.001943820, 'b_d_0_He': 0.89691, 
     'A_d_1_He': 0.000462539, 'b_d_1_He': 1.07284, 
+
+    'log_opa_base_gray_0': 0.98, 
+    'log_P_base_gray_0': 1.46, 
+    'f_sed_gray_0': 8.36, 
+    'omega': 0.43, 
 }
 
 #'''
@@ -307,5 +312,5 @@ PT_kwargs = dict(
 const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
-n_live_points = 1000
-n_iter_before_update = 400
+n_live_points = 100
+n_iter_before_update = 200

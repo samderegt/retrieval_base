@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'new_fiducial_K_A_ret_15'
+prefix = 'eqchem_K_B_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -13,9 +13,9 @@ config_data = dict(
         
         target_kwargs={
             # Data filenames
-            'file':      './data/Luhman_16A_K.dat', 
+            'file':      './data/Luhman_16B_K.dat', 
             'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', 
-            'file_molecfit_transm': './data/Luhman_16A_K_molecfit_transm.dat', 
+            'file_molecfit_transm': './data/Luhman_16B_K_molecfit_transm.dat', 
 
             # Mask pixels with lower telluric transmission
             'telluric_threshold': 0.8, 
@@ -24,15 +24,15 @@ config_data = dict(
             'ra': 162.297895, 'dec': -53.31703, 'mjd': 59946.32563173, 
 
             # Flux-calibration filter-name
-            #'filter_name': '2MASS/2MASS.J', 'magnitude': 11.68, # Faherty et al. (2014)
-            'filter_name': '2MASS/2MASS.Ks', 'magnitude': 9.46, 
+            #'filter_name': '2MASS/2MASS.J', 'magnitude': 11.40, # Faherty et al. (2014)
+            'filter_name': '2MASS/2MASS.Ks', 'magnitude': 9.71, 
         }, 
 
         std_kwargs={
             # Data filenames
             'file':      './data/Luhman_16_std_K.dat',
             'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', 
-            'file_molecfit_transm':    './data/Luhman_16A_K_molecfit_transm.dat', 
+            'file_molecfit_transm':    './data/Luhman_16B_K_molecfit_transm.dat', 
             'file_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat',
             'T_BB': 15000., # Blackbody temperature of the standard-star
 
@@ -63,7 +63,7 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
+    'M_p': ['G', (28.6,0.3), r'$\mathrm{M_p}$'], 
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
@@ -125,7 +125,8 @@ PT_kwargs = dict(
 
 chem_kwargs = dict(
     chem_mode = 'fastchem_table', 
-    path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
+    #path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
+    path_fastchem_tables='/projects/0/prjs1096/fastchem_tables/', 
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
@@ -140,6 +141,9 @@ chem_kwargs = dict(
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
+
+        '23Na__Kurucz', 
+        '39K__Kurucz',
     ], 
 )
 
@@ -150,13 +154,8 @@ cloud_kwargs = dict(
 
 rotation_kwargs = dict(
     rotation_mode = 'convolve', 
-    inclination   = 18, # Degreees
+    inclination   = 26, # Degreees
 )
-
-from petitRADTRANS.config import petitradtrans_config_parser
-petitradtrans_config_parser.set_input_data_path(
-    '/net/schenk/data2/regt/pRT3_input_data/input_data'
-    )
 
 pRT_Radtrans_kwargs = dict(
     line_species               = chem_kwargs['line_species'],
@@ -167,6 +166,8 @@ pRT_Radtrans_kwargs = dict(
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 3, # Faster radiative transfer by down-sampling
     scattering_in_emission        = False, 
+    
+    pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data'
 )
 
 ####################################################################################
@@ -206,6 +207,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 100,
+    n_live_points         = 200,
     n_iter_before_update  = 200, 
 )

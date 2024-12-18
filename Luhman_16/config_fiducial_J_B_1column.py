@@ -165,7 +165,8 @@ constant_params = {
 }
 
 #'''
-parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+#parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
 #old_result_dir = '/net/lem/data1/regt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_45_1column/'
 line_opacity_kwargs = [
     {
