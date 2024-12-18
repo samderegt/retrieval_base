@@ -1,3 +1,6 @@
+import os
+os.environ['OMP_NUM_THREADS'] = '1'
+
 import importlib
 import argparse
 from retrieval_base.retrieval import RetrievalSetup, RetrievalRun
@@ -14,7 +17,8 @@ if __name__ == '__main__':
     parser.add_argument('--run', '-r', action='store_true')
     parser.add_argument('--restart', action='store_true', default=False)
     parser.add_argument('--evaluation', '-e', action='store_true')
-    parser.add_argument('--profiling', action='store_true')
+    parser.add_argument('--profiling', type=int, default=None, help='Run profiling and specify the number of loops')
+
     args = parser.parse_args()
 
     # Import input file as 'conf'
@@ -32,5 +36,5 @@ if __name__ == '__main__':
         ret.run()
     if args.evaluation:
         ret.run_evaluation()
-    if args.profiling:
-        ret.run_profiling()
+    if args.profiling is not None:
+        ret.run_profiling(N=args.profiling)

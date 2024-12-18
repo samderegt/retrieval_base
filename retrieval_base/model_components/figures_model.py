@@ -62,7 +62,7 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints
         show_titles=True, 
         use_math_text=True,
         title_fmt='.2f', 
-        quantiles=[0.16,0.84], 
+        title_quantiles=[0.16,0.5,0.84], 
         linewidths=0.5, 
 
         color=posterior_color, 

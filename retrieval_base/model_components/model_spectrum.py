@@ -39,7 +39,7 @@ class pRT:
         self.d_wave_ranges_chips     = d_spec.wave_ranges_chips
         self.instrumental_broadening = d_spec.instrumental_broadening
 
-        self.m_resolution = 1e6/ParamTable.get('lbl_opacity_sampling', 1.)
+        self.m_resolution = 1e6/ParamTable.get('line_by_line_opacity_sampling', 1.)
 
         # Set the wavelength ranges of the model
         self._set_wave_ranges(ParamTable)
@@ -69,20 +69,23 @@ class pRT:
 
         # Update the pRT call kwargs
         pRT_call_kwargs = {
-            'temp': PT.temperature, 
-            'abunds': Chem.mass_fractions, 
-            'mmw': Chem.mass_fractions['MMW'], 
+            'temperatures': PT.temperature, 
+            'mass_fractions': Chem.mass_fractions, 
+            'mean_molar_masses': Chem.mass_fractions['MMW'], 
 
-            'gravity': ParamTable.get('g'), 
+            'reference_gravity': ParamTable.get('g'), 
 
-            'give_absorption_opacity': abs_opacity, 
-            'give_scattering_opacity': scat_opacity, 
+            'additional_absorption_opacities_function': abs_opacity, 
+            'additional_scattering_opacities_function': scat_opacity, 
 
-            'Kzz': getattr(Cloud, 'K_zz', None),
-            'fsed': getattr(Cloud, 'f_sed', None),
-            'sigma_lnorm': getattr(Cloud, 'sigma_g', None),
+            'eddy_diffusion_coefficients': getattr(Cloud, 'K_zz', None),
+            'cloud_f_sed': getattr(Cloud, 'f_sed', None),
+            'cloud_particle_radius_distribution_std': getattr(Cloud, 'sigma_g', None),
 
-            'contribution': self.evaluation, 
+            'return_contribution': self.evaluation, 
+            'frequencies_to_wavelengths': True,
+            'fast_opacity_interpolation': True,
+            #'fast_opacity_interpolation': False,
         }
         if hasattr(Rotation, 'unique_mu_included'):
             pRT_call_kwargs['return_per_mu'] = True
@@ -94,20 +97,21 @@ class pRT:
         for i, atm_i in enumerate(self.atm):
             
             # Skip if no incidence angles are set
-            if len(atm_i.mu) == 0:
+            if len(atm_i._emission_angle_grid['cos_angles']) == 0:
                 self.wave.append(np.zeros_like(atm_i.freq))
                 self.flux.append(np.zeros_like(atm_i.freq))
                 continue
             
             # Compute the emission spectrum
-            atm_i.calc_flux(**pRT_call_kwargs)
+            wave_init_i, flux_i, additional_outputs = atm_i.calculate_flux(**pRT_call_kwargs)
 
             # Convert to the right units
-            wave_init_i = sc.c*1e9 / atm_i.freq[None,:] # [nm]
+            wave_init_i = wave_init_i[None,:] * 1e7 # [cm] -> [nm]
 
             # Get the flux per incidence angle or integrated
-            flux_i = getattr(atm_i, 'flux_mu', atm_i.flux[None,:]) # [erg cm^{-2} s^{-1} Hz^{-1}]
-            flux_i *= sc.c*1e9 / wave_init_i**2 # [erg cm^{-2} s^{-1} nm^{-1}]
+            if flux_i.ndim == 1:
+                flux_i = flux_i[None,:] # [erg cm^{-2} s^{-1} cm^{-1}]
+            flux_i *= 1e-7 # [erg cm^{-2} s^{-1} nm^{-1}]
 
             wave_i, flux_i, flux_binned_i = self._convert_to_observation(
                 ParamTable, Rotation, wave_init_i.copy(), flux_i, self.d_wave[i]
@@ -116,7 +120,8 @@ class pRT:
             if self.evaluation:
                 # Get the shifted/broadened + integrated emission contribution
                 contr_per_wave_i, integrated_contr_i = self._get_emission_contribution(
-                    ParamTable, Rotation, wave_init_i.copy(), atm_i.contr_em, 
+                    ParamTable, Rotation, wave_init_i.copy(), 
+                    additional_outputs['emission_contribution'], 
                     self.d_wave[i], flux_binned_i, 
                     )
                 self.contr_per_wave.append(contr_per_wave_i)
@@ -206,18 +211,16 @@ class pRT:
         Args:
             ParamTable (dict): Parameter table.
         """
-        from petitRADTRANS import Radtrans
+        from petitRADTRANS.radtrans import Radtrans
 
         self.atm = []
         for wave_range_i in self.wave_ranges:
             # Make a Radtrans object per chip
             atm_i = Radtrans(
-                wlen_bords_micron=wave_range_i*1e-3, 
+                pressures=self.pressure, 
+                wavelength_boundaries=wave_range_i*1e-3, 
                 **ParamTable.pRT_Radtrans_kwargs[self.m_set].copy()
                 )
-            
-            # Set up the atmospheric layers
-            atm_i.setup_opa_structure(self.pressure)
             
             self.atm.append(atm_i)
 
@@ -235,8 +238,8 @@ class pRT:
         
         for i, atm_i in enumerate(self.atm):
             # Update the incidence angles to compute
-            atm_i.mu = mu
-            atm_i.w_gauss_mu = np.ones_like(mu) / len(mu)
+            atm_i._emission_angle_grid['cos_angles'] = mu
+            atm_i._emission_angle_grid['weights'] = np.ones_like(mu) / len(mu)
 
             self.atm[i] = atm_i
             

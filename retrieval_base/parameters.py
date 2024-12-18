@@ -104,7 +104,7 @@ class ParameterTable:
         self.table.loc[mask,'idx_free'] = range(self.n_free_params)
 
         # Set queried model setting
-        self.queried_m_set = 'all'
+        self.set_queried_m_set('all')
 
         # Add model kwargs
         self._add_model_kwargs(all_model_kwargs)
@@ -121,6 +121,9 @@ class ParameterTable:
         Returns:
             list: Updated cube with parameter values after applying priors.
         """
+        # Reset whether the parameters are physical
+        self.is_physical = True
+
         # Convert to a numpy array
         cube_np = np.array(cube[:ndim])
         cube_init = cube_np.copy()
@@ -150,9 +153,9 @@ class ParameterTable:
         # Update secondary parameters, consider shared parameters initially
         for m_set in ['all', *self.model_settings]:
             # Query parameters specific to or shared between model settings
-            self.queried_m_set = [m_set, 'all']
+            self.set_queried_m_set([m_set,'all'])
             self._update_secondary_params(m_set)
-        self.queried_m_set = 'all'
+        self.set_queried_m_set('all')
 
         # Make attribute
         self.cube = cube_np
@@ -172,14 +175,12 @@ class ParameterTable:
         Returns:
             The value of the parameter or the default value if not found.
         """
-        queried_m_set = list(np.array(self.queried_m_set).flatten())
-        query = 'm_set=={} and name=={}'.format(queried_m_set, [name])
-        queried_table = self.table.query(query)
+        queried_table = self.queried_table.loc[self.queried_table.name == name]
         
         if queried_table.empty:
             # Parameter not found
             return value
-        
+            
         return queried_table[key].values[0]
     
     def get_mathtext(self):
@@ -214,6 +215,21 @@ class ParameterTable:
 
             Param = self.table.loc[idx]['Param']
             Param.apply_prior = apply_prior
+
+    def set_queried_m_set(self, m_set):
+        """
+        Sets the model setting to query parameters for.
+
+        Args:
+            m_set (str): Model setting to query.
+        """
+        self.queried_m_set = m_set
+        if isinstance(self.queried_m_set, str):
+            self.queried_m_set = [self.queried_m_set]
+
+        self.queried_table = self.table.loc[
+            self.table.m_set.isin(self.queried_m_set)
+            ]
 
     def _expand_dictionary_per_model_setting(self, d, is_kwargs=False):
         """
@@ -356,6 +372,10 @@ class ParameterTable:
         if self.get('log_g', key='idx_free') is not None:
             # log_g is a free parameter
             return
+
+        if (self.get('log_g') is not None) and (m_set != 'all'):
+            # log_g is already set for all model settings
+            return
         
         M_p = self.get('M_p')
         R_p = self.get('R_p')
@@ -367,6 +387,10 @@ class ParameterTable:
         R_p *= (sc.r_jup_mean*1e2)
 
         g = (sc.G*1e3) * M_p/R_p**2
+        if g <= 0.:
+            # Invalid surface gravity
+            self.is_physical = False
+            return
         log_g = np.log10(g)
         
         # Add the parameter to the table
@@ -379,6 +403,10 @@ class ParameterTable:
         Args:
             m_set (str): Model setting to update.
         """
+        if (self.get('coverage_fraction') is not None) and (m_set != 'all'):
+            # coverage_fraction is already set for all model settings
+            return
+
         # Default assumes full coverage (e.g. binary)
         cf = self.get('coverage_fraction', 1.)
 
@@ -407,6 +435,7 @@ class ParameterTable:
         Args:
             m_set (str): Model setting to update.
         """
+        # Update the surface gravity of this model setting
         self._update_log_g(m_set)
         
         # Update the coverage fraction of this model setting

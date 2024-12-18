@@ -1,6 +1,3 @@
-import os
-os.environ['OMP_NUM_THREADS'] = '1'
-
 from pathlib import Path
 import time
 import warnings
@@ -234,10 +231,10 @@ class RetrievalSetup(Retrieval):
         Generate model components for the retrieval.
         """
         for m_set in self.model_settings:
-            self.ParamTable.queried_m_set = ['all', m_set]
+            self.ParamTable.set_queried_m_set(['all',m_set])
             self._setup_physical_model_components(m_set)
 
-        self.ParamTable.queried_m_set = 'all'
+        self.ParamTable.set_queried_m_set('all')
 
         self._setup_observation_model_components()
 
@@ -308,7 +305,7 @@ class RetrievalSetup(Retrieval):
             **self.ParamTable.loglike_kwargs
         )
 
-        self.ParamTable.queried_m_set = 'all'
+        self.ParamTable.set_queried_m_set('all')
 
     def setup_evaluation_model_components(self):
         """
@@ -317,7 +314,7 @@ class RetrievalSetup(Retrieval):
         from .model_components import model_spectrum, line_opacity
 
         for m_set in self.model_settings:
-            self.ParamTable.queried_m_set = ['all', m_set]
+            self.ParamTable.set_queried_m_set(['all',m_set])
 
             # Generate broadened model spectrum and save as pickle
             self._read_component_from_module(
@@ -343,7 +340,7 @@ class RetrievalSetup(Retrieval):
             # Save the component
             utils.save_pickle(self.LineOpacity_broad[m_set], self.data_dir/f'LineOpacity_broad_{m_set}.pkl')
             
-        self.ParamTable.queried_m_set = 'all'
+        self.ParamTable.set_queried_m_set('all')
 
 class RetrievalRun(RetrievalSetup, Retrieval):
     """
@@ -406,15 +403,21 @@ class RetrievalRun(RetrievalSetup, Retrieval):
         # Run the callback function
         self.callback(*[None,]*10)
 
-    def run_profiling(self):
+    def run_profiling(self, N=50):
         """
         Run the profiling.
+
+        Args:
+            N (int): Number of loops for profiling.
         """
         def func():
-            # Create a sample and evaluate the model
-            sample = np.random.uniform(0, 1, self.ParamTable.n_free_params)
-            self.ParamTable(cube=sample)
-            self.get_likelihood(evaluation=False, skip_radtrans=False)
+            np.random.seed(345610)
+
+            for _ in range(N):
+                # Create a sample and evaluate the model
+                sample = np.random.uniform(0, 1, self.ParamTable.n_free_params)
+                self.ParamTable(cube=sample)
+                self.get_likelihood(evaluation=False, skip_radtrans=False)
         
         import cProfile, pstats
         
@@ -442,11 +445,15 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             float: Log-likelihood value.
         """
 
+        if not self.ParamTable.is_physical:
+            # Reject unphysical parameter values
+            return -np.inf
+
         # ParamTable is already updated by MultiNest
         time_start = time.time()
         
         for m_set in self.model_settings:
-            self.ParamTable.queried_m_set = ['all', m_set]
+            self.ParamTable.set_queried_m_set(['all',m_set])
             
             # Update all model components
             if self._update_pt_profile(m_set) == -np.inf:
@@ -454,7 +461,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             if self._update_chemistry(m_set) == -np.inf:
                 return -np.inf
             self._update_cloud(m_set)
-            
+                        
             if skip_radtrans:
                 continue # Skip radiative transfer calculations
 
@@ -462,7 +469,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             self._update_line_opacities(m_set)
             self._update_model_spectrum(m_set, evaluation)
             
-        self.ParamTable.queried_m_set = 'all'
+        self.ParamTable.set_queried_m_set('all')
 
         if skip_radtrans:
             return # Skip radiative transfer calculations

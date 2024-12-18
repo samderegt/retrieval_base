@@ -416,6 +416,8 @@ class EquilibriumChemistry(Chemistry):
         self.quench_settings = {
             'CO_CH4': [('12CO','CH4','H2O'), None], 
             'N2_NH3': [('N2','NH3'), None], 
+            'HCN': [('HCN'), None],
+            'CO2': [('CO2',), None],
         }
 
     def get_P_quench_from_Kzz(self, ParamTable, alpha=1):
@@ -547,12 +549,6 @@ class FastChemistryTable(EquilibriumChemistry):
         # Load the interpolation tables
         self._load_interp_tables(pathlib.Path(path_fastchem_tables))
 
-        # Species to quench per system
-        self.quench_settings = {
-            'CO_CH4': [('12CO','CH4','H2O'), None], 
-            'N2_NH3': [('N2','NH3'), None], 
-        }
-
     def _load_interp_tables(self, path_tables):
         """
         Load the interpolation tables for fast chemistry.
@@ -587,9 +583,8 @@ class FastChemistryTable(EquilibriumChemistry):
             # Generate interpolation functions
             self.interp_tables[species_i] = RegularGridInterpolator(
                 values=arr[:,:,:,0,:], points=points, method='linear', 
-                #bounds_error=False, fill_value=None
-                )        
-
+                )
+            
     def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) using interpolation tables.
@@ -644,12 +639,6 @@ class pRTChemistryTable(EquilibriumChemistry):
         # Load the interpolation tables
         import petitRADTRANS.poor_mans_nonequ_chem as pm
         self.interp_tables = pm.interpol_abundances
-
-        # Species to quench per system
-        self.quench_settings = {
-            'CO_CH4': [('12CO','CH4','H2O'), None], 
-            'N2_NH3': [('N2','NH3'), None], 
-        }
 
     def get_VMRs(self, ParamTable):
         """

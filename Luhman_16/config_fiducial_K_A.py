@@ -1,12 +1,10 @@
 import numpy as np
 
-file_params = 'config_fiducial_K_A.py'
-
 ####################################################################################
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'new_fiducial_K_A_ret_14'
+prefix = 'new_fiducial_K_A_ret_15'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -45,6 +43,7 @@ config_data = dict(
         kwargs={
             # Observation info
             'wave_range': (1900, 2500), 'w_set': 'K2166', 
+            #'wave_range': (2300, 2400), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -125,25 +124,26 @@ PT_kwargs = dict(
 )
 
 chem_kwargs = dict(
-    chem_mode = 'fastchem_table', path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
-
+    chem_mode = 'fastchem_table', 
+    path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
     line_species = [
-        'H2O_pokazatel_main_iso_Sam_new', 
-        'H2O_181_HotWat78', 
+        '1H2-16O__POKAZATEL', 
+        '1H2-18O__HotWat78', 
 
-        'CO_high_Sam', 
-        'CO_36_high_Sam',
-        'CO_28_high_Sam',
-
-        'CH4_MM_main_iso', 
-        'NH3_coles_main_iso_Sam', 
-        'H2S_Sid_main_iso', 
-        'HF_main_iso_new', 
+        '12C-16O__HITEMP', 
+        '13C-16O__HITEMP', 
+        '12C-18O__HITEMP', 
+        
+        '12C-1H4__MM', 
+        '12C-16O2__AMES', 
+        '14N-1H3__CoYuTe', 
+        '1H-12C-14N__Harris', 
+        '1H-19F__Coxon-Hajig', 
+        '1H2-32S__AYT2', 
     ], 
 )
 
 cloud_kwargs = dict(
-    #cloud_mode = None, 
     cloud_mode = 'gray', 
     wave_cloud_0 = 2.0, 
 )
@@ -153,15 +153,20 @@ rotation_kwargs = dict(
     inclination   = 18, # Degreees
 )
 
+from petitRADTRANS.config import petitradtrans_config_parser
+petitradtrans_config_parser.set_input_data_path(
+    '/net/schenk/data2/regt/pRT3_input_data/input_data'
+    )
+
 pRT_Radtrans_kwargs = dict(
-    line_species        = chem_kwargs['line_species'],
-    rayleigh_species    = ['H2','He'],
-    continuum_opacities = ['H2-H2','H2-He'],
-    cloud_species       = cloud_kwargs.get('cloud_species'), 
+    line_species               = chem_kwargs['line_species'],
+    rayleigh_species           = ['H2','He'],
+    gas_continuum_contributors = ['H2-H2','H2-He'],
+    cloud_species              = cloud_kwargs.get('cloud_species'), 
     
-    mode                 = 'lbl',
-    lbl_opacity_sampling = 3, # Faster radiative transfer by down-sampling
-    do_scat_emis         = False, 
+    line_opacity_mode             = 'lbl',
+    line_by_line_opacity_sampling = 3, # Faster radiative transfer by down-sampling
+    scattering_in_emission        = False, 
 )
 
 ####################################################################################
@@ -201,6 +206,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 100, 
+    n_live_points         = 100,
     n_iter_before_update  = 200, 
 )

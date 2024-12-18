@@ -592,7 +592,7 @@ class SpectrumCRIRES(Spectrum):
 
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
 
-            sigma_scaled = np.nanmean(np.sqrt(diagonal_i))
+            sigma_scaled = np.nanmean(np.sqrt(np.concatenate(diagonal_i)))
             sigma_data   = np.nanmean(err_i)
             err_kwargs = dict(clip_on=False, capsize=1.7, lw=1., capthick=1.)
 
