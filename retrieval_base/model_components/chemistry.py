@@ -414,10 +414,10 @@ class EquilibriumChemistry(Chemistry):
 
         # Species to quench per system
         self.quench_settings = {
-            'CO_CH4': [('12CO','CH4','H2O'), None], 
-            'N2_NH3': [('N2','NH3'), None], 
-            'HCN': [('HCN'), None],
-            'CO2': [('CO2',), None],
+            'CO_CH4': [['12CO','CH4','H2O'], None], 
+            'N2_NH3': [['N2','NH3'], None], 
+            'HCN': [['HCN'], None],
+            'CO2': [['CO2'], None],
         }
 
     def get_P_quench_from_Kzz(self, ParamTable, alpha=1):
