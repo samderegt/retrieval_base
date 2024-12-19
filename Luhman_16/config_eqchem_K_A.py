@@ -79,11 +79,15 @@ free_params = {
 
     # Chemistry
     'C/O':               ['U', (0.1,1.0), r'C/O'], 
+    'N/O':               ['U', (0.05,0.5), r'N/O'], 
     'Fe/H':              ['U', (-1.0,1.0), r'Fe/H'], 
-    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
-    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
-    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
     'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
+
+    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
+    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+    'log_C17O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
+    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
+    'log_H2(17)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{17}O}$'], 
 
     # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
@@ -127,21 +131,30 @@ chem_kwargs = dict(
     chem_mode = 'fastchem_table', 
     #path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
     path_fastchem_tables='/projects/0/prjs1096/fastchem_tables/', 
+    grid_ranges={
+        'P_grid': [10**PT_kwargs['log_P_range'][0], 10**PT_kwargs['log_P_range'][1]], 
+        'T_grid': [150,4000], 'CO_grid': [0.1,1.0], #'NO_grid': [0.05,0.5], 
+        },
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
+        '1H2-17O__HotWat78', 
 
         '12C-16O__HITEMP', 
         '13C-16O__HITEMP', 
         '12C-18O__HITEMP', 
+        '12C-17O__HITEMP', 
         
         '12C-1H4__MM', 
-        '12C-16O2__AMES', 
+        #'13C-1H4__HITRAN', 
+
         '14N-1H3__CoYuTe', 
+        #'15N-1H3__CoYuTe-15', 
+
+        '12C-16O2__AMES', 
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
-
         '23Na__Kurucz', 
         '39K__Kurucz',
     ], 

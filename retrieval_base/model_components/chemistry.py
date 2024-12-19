@@ -165,6 +165,10 @@ class Chemistry:
         VMRs_copy = self.VMRs.copy()
         for species_i in self.species:
 
+            if VMRs_copy.get(species_i) is not None:
+                # Already set
+                continue
+
             if species_i not in [*all_CO_ratios, *all_H2O_ratios, *all_CH4_ratios, *all_NH3_ratios]:
                 # Not a CO, H2O, CH4 or NH3 isotopologue
                 continue
@@ -532,7 +536,7 @@ class FastChemistryTable(EquilibriumChemistry):
     Class for handling fast chemistry models using interpolation tables.
     """
 
-    def __init__(self, line_species, pressure, LineOpacity=None, path_fastchem_tables='./fastchem_tables', **kwargs):
+    def __init__(self, line_species, pressure, LineOpacity=None, path_fastchem_tables='./fastchem_tables', grid_ranges={}, **kwargs):
         """
         Initialize the FastChemistryTable class.
 
@@ -541,33 +545,50 @@ class FastChemistryTable(EquilibriumChemistry):
             pressure (np.ndarray): Pressure levels.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
             path_fastchem_tables (str, optional): Path to the fast chemistry tables. Defaults to './fastchem_tables'.
+            grid_ranges (dict, optional): Custom ranges for the interpolation grid. Defaults to {}.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
 
         # Load the interpolation tables
-        self._load_interp_tables(pathlib.Path(path_fastchem_tables))
+        self._load_interp_tables(pathlib.Path(path_fastchem_tables), grid_ranges)
 
-    def _load_interp_tables(self, path_tables):
+    def _load_interp_tables(self, path_tables, grid_ranges):
         """
         Load the interpolation tables for fast chemistry.
 
         Args:
             path_tables (Path): Path to the tables.
+            grid_ranges (dict): Custom ranges for the interpolation grid.
         """
+        
         import h5py
         def load_hdf5(file, key):
             with h5py.File(f'{path_tables}/{file}', 'r') as f:
                 return f[key][...]
-        
-        # Load the interpolation grid (ignore N/O)
-        self.P_grid = load_hdf5('grid.hdf5', 'P')
-        self.T_grid = load_hdf5('grid.hdf5', 'T')
-        self.CO_grid  = load_hdf5('grid.hdf5', 'C/O')
-        self.FeH_grid = load_hdf5('grid.hdf5', 'Fe/H')
-        points = (self.P_grid, self.T_grid, self.CO_grid, self.FeH_grid)
+            
+        def load_grid(key):
+            grid = load_hdf5('MMW.hdf5', key)
+            mask = (grid >= default_ranges[key][0]) & (grid <= default_ranges[key][1])
+            return grid[mask], mask
 
+        # Load only a certain range of the grid
+        default_ranges = {
+            'P_grid': [1e-6,1e3], 'T_grid': [150,6000], 'CO_grid': [0.1,1.6], 
+            'NO_grid': [0.05,0.5], 'FeH_grid': [-1.0,1.0],
+            }
+        default_ranges.update(grid_ranges)
+
+        # Load the interpolation grid
+        self.P_grid, mask_P     = load_grid('P_grid')
+        self.T_grid, mask_T     = load_grid('T_grid')
+        self.CO_grid, mask_CO   = load_grid('CO_grid')
+        self.NO_grid, mask_NO   = load_grid('NO_grid')
+        self.FeH_grid, mask_FeH = load_grid('FeH_grid')
+
+        points = (self.P_grid, self.T_grid, self.CO_grid, self.NO_grid, self.FeH_grid)
+        
         from scipy.interpolate import RegularGridInterpolator
         self.interp_tables = {}
         for species_i, hill_i in zip([*self.species, 'MMW'], [*self.hill, 'MMW']):
@@ -579,10 +600,11 @@ class FastChemistryTable(EquilibriumChemistry):
 
             # Load the eq-chem abundance tables
             arr = load_hdf5(f'{hill_i}.hdf5', key=key)
+            arr = arr[mask_P, mask_T, mask_CO, mask_NO, mask_FeH]
 
             # Generate interpolation functions
             self.interp_tables[species_i] = RegularGridInterpolator(
-                values=arr[:,:,:,0,:], points=points, method='linear', 
+                values=arr, points=points, method='linear'
                 )
             
     def get_VMRs(self, ParamTable):
@@ -592,26 +614,24 @@ class FastChemistryTable(EquilibriumChemistry):
         Args:
             ParamTable (dict): Parameters for the model.
         """
-        def apply_bounds(val, grid):
-            val[val > grid.max()] = grid.max()
-            val[val < grid.min()] = grid.min()
-            return val
 
         # Update the parameters
         self.CO  = ParamTable.get('C/O')
+        self.NO  = ParamTable.get('N/O')
         self.FeH = ParamTable.get('Fe/H')
 
         # Apply the bounds of the grid
-        P = apply_bounds(self.pressure.copy(), grid=self.P_grid)
-        T = apply_bounds(self.temperature.copy(), grid=self.T_grid)
-        CO  = apply_bounds(np.array([self.CO]).copy(), grid=self.CO_grid)[0]
-        FeH = apply_bounds(np.array([self.FeH]).copy(), grid=self.FeH_grid)[0]
+        P   = np.clip(self.pressure, self.P_grid.min(), self.P_grid.max())
+        T   = np.clip(self.temperature, self.T_grid.min(), self.T_grid.max())
+        CO  = np.clip(np.array([self.CO]), self.CO_grid.min(), self.CO_grid.max())[0]
+        NO  = np.clip(np.array([self.NO]), self.NO_grid.min(), self.NO_grid.max())[0]
+        FeH = np.clip(np.array([self.FeH]), self.FeH_grid.min(), self.FeH_grid.max())[0]
         
         # Interpolate abundances
         for species_i, interp_func_i in self.interp_tables.items():
 
             # Interpolate the equilibrium abundances
-            arr_i = interp_func_i(xi=(P, T, CO, FeH))
+            arr_i = interp_func_i(xi=(P, T, CO, NO, FeH))
 
             if species_i != 'MMW':
                 self.VMRs[species_i] = 10**arr_i # log10(VMR)

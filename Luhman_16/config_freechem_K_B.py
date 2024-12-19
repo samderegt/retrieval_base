@@ -63,7 +63,7 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
+    'M_p': ['G', (28.6,0.3), r'$\mathrm{M_p}$'], 
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
