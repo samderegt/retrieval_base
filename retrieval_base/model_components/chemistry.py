@@ -600,7 +600,7 @@ class FastChemistryTable(EquilibriumChemistry):
 
             # Load the eq-chem abundance tables
             arr = load_hdf5(f'{hill_i}.hdf5', key=key)
-            arr = arr[mask_P, mask_T, mask_CO, mask_NO, mask_FeH]
+            arr = arr[mask_P][:,mask_T][:,:,mask_CO][:,:,:,mask_NO][:,:,:,:,mask_FeH]
 
             # Generate interpolation functions
             self.interp_tables[species_i] = RegularGridInterpolator(

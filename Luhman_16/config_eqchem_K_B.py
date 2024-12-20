@@ -79,7 +79,7 @@ free_params = {
 
     # Chemistry
     'C/O':               ['U', (0.1,1.0), r'C/O'], 
-    'N/O':               ['U', (0.05,0.5), r'N/O'], 
+    'N/O':               ['U', (0.05,0.3), r'N/O'], 
     'Fe/H':              ['U', (-1.0,1.0), r'Fe/H'], 
     'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
@@ -133,7 +133,7 @@ chem_kwargs = dict(
     path_fastchem_tables='/projects/0/prjs1096/fastchem_tables/', 
     grid_ranges={
         'P_grid': [10**PT_kwargs['log_P_range'][0], 10**PT_kwargs['log_P_range'][1]], 
-        'T_grid': [150,4000], 'CO_grid': [0.1,1.0], #'NO_grid': [0.05,0.5], 
+        'T_grid': [150,4000], 'CO_grid': [0.1,1.0], 'NO_grid': [0.05,0.3], 
         },
     line_species = [
         '1H2-16O__POKAZATEL', 

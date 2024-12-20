@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.ndimage import gaussian_filter
+import broadpy
 
 from .spectrum import Spectrum
 from .. import utils
@@ -22,36 +22,31 @@ def get_class(m_set, config_data_m_set):
 class SpectrumJWST(Spectrum):
     """Class for handling JWST spectrum data."""
 
-    @staticmethod
-    def instrumental_broadening(wave, flux, resolution, initial_resolution):
+    def instrumental_broadening(self, wave, flux, **kwargs):
         """
         Apply instrumental broadening to the spectrum.
 
         Args:
             wave (numpy.ndarray): Wavelength array.
             flux (numpy.ndarray): Flux array.
-            resolution (float): Target resolution.
-            initial_resolution (float): Initial resolution.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             numpy.ndarray: Broadened flux array.
         """
-        # Delta lambda of resolution element is FWHM of the LSF's standard deviation
-        sigma_LSF = np.sqrt(1/resolution**2 - 1/initial_resolution**2) / \
-                    (2*np.sqrt(2*np.log(2)))
-
-        spacing = np.mean(2*np.diff(wave) / (wave[1:] + wave[:-1]))
-
-        # Calculate the sigma to be used in the gauss filter in pixels
-        sigma_LSF_gauss_filter = sigma_LSF / spacing
+        IB = broadpy.InstrumentalBroadening(wave, flux)
         
-        # Apply gaussian filter to broaden with the spectral resolution
-        flux_LSF = gaussian_filter(
-            flux, sigma=sigma_LSF_gauss_filter, mode='nearest'
-            )
+        if isinstance(self.resolution, np.ndarray):
+            # Variable resolution profile
+            variable_resolution = np.interp(wave, self.resolution_wave_grid, self.resolution)
+            flux_LSF = IB(fwhm=2.998e5/variable_resolution, kernel='gaussian_variable')
+            return flux_LSF
+        
+        # Constant resolution
+        flux_LSF = IB(res=self.resolution, kernel='gaussian')
         return flux_LSF
     
-    def __init__(self, file, wave_range, m_set, resolution=2700, **kwargs):
+    def __init__(self, file, wave_range, m_set, resolution=None, grating='G395H', n_chunks=1, **kwargs):
         """
         Initialize the SpectrumJWST instance.
 
@@ -59,31 +54,60 @@ class SpectrumJWST(Spectrum):
             file (str): File path to the spectrum data.
             wave_range (tuple): Wavelength range to consider.
             m_set (str): Model set identifier.
-            resolution (int, optional): Spectral resolution. Defaults to 2700.
+            resolution (int, optional): Spectral resolution. Defaults to None.
+            grating (str, optional): Grating used. Defaults to 'G395H'.
+            n_chunks (int, optional): Number of chunks to load data in. Defaults to 1.
             **kwargs: Additional keyword arguments.
         """
         # Read info from wavelength settings
         self.m_set = m_set
         self.load_spectrum(file)
         
+        # Load a constant resolution
         self.resolution = resolution
+        if self.resolution is None:
+            # Load variable resolution profile
+            from broadpy.utils import load_nirspec_resolution_profile
+            self.resolution_wave_grid, self.resolution \
+                = load_nirspec_resolution_profile(grating=grating)
 
         # Mask user-specified wavelength ranges
         self.mask_wavelength_ranges(kwargs.get('wave_to_mask'), pad=0.)
-
-        self.n_chips  = 1
-        self.n_pixels = len(self.wave)
-
+        
         # Reshape and crop the spectrum
-        self.reshape_spectrum()
         self.crop_spectrum(wave_range)
-        self.remove_empty_chips(remove_empty_pixels=True)
+        self.reshape_spectrum(n_chunks=n_chunks)
 
         # Update the number of chips
         self.wave_ranges_chips = np.array([
             [wave.min(), wave.max()] for wave in self.wave
             ])
         self.n_chips = len(self.wave_ranges_chips)
+        self.n_pixels = len(self.wave[0])
+
+    def reshape_spectrum(self, n_chunks=1):
+        """Reshape the spectrum to a 2D array."""
+        
+        # Split the spectrum into chunks
+        split_wave = np.array_split(self.wave, n_chunks)
+        split_flux = np.array_split(self.flux, n_chunks)
+        split_err  = np.array_split(self.err, n_chunks)
+
+        # Pad unequal length arrays
+        max_len = max([len(wave) for wave in split_wave])
+
+        for i in range(n_chunks):
+            pad_len = max_len - len(split_wave[i])
+            split_wave[i] = np.pad(
+                split_wave[i], (0,pad_len), constant_values=(split_wave[i][0],split_wave[i][-1])
+                )
+            split_flux[i] = np.pad(split_flux[i], (0,pad_len), constant_values=np.nan)
+            split_err[i]  = np.pad(split_err[i], (0,pad_len), constant_values=np.nan)
+
+        # Reshape to 2D array
+        self.wave = np.array(split_wave)
+        self.flux = np.array(split_flux)
+        self.err  = np.array(split_err)
     
     def load_spectrum(self, file):
         """
@@ -93,12 +117,12 @@ class SpectrumJWST(Spectrum):
             file (str): File path to the spectrum data.
         """
         # Load in the data of the target
-        #self.wave, self.flux, self.err = np.loadtxt(file).T
         self.wave, self.flux, self.err = np.genfromtxt(file, delimiter=',').T
 
         mask_isnan = np.isnan(self.flux) | np.isnan(self.err)
-        self.flux[mask_isnan] = np.nan
-        self.err[mask_isnan]  = np.nan
+        self.wave = self.wave[~mask_isnan]
+        self.flux = self.flux[~mask_isnan]
+        self.err  = self.err[~mask_isnan]
 
         # Convert from [um] to [nm]
         self.wave *= 1e3
@@ -113,7 +137,7 @@ class SpectrumJWST(Spectrum):
         Args:
             plots_dir (str): Directory to save the plots.
         """
-        # Plot per chip
+        # Plot per chunk
         fig, subfig = utils.get_subfigures_per_chip(self.n_chips)
         for i, subfig_i in enumerate(subfig):
 
@@ -131,6 +155,27 @@ class SpectrumJWST(Spectrum):
 
             ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
 
+        fig.savefig(plots_dir / f'pre_processed_spectrum_per_chunk_{self.m_set}.pdf')
+        plt.close(fig)
+
+        # Plot for full spectrum
+        fig, subfig = utils.get_subfigures_per_chip(1)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, None
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+
+            # Add some padding
+            xlim = (self.wave_ranges_chips[:].min()-2, self.wave_ranges_chips[:].max()+2)
+
+            gs = subfig_i.add_gridspec(nrows=1)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.7)
+
+            ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
+
         fig.savefig(plots_dir / f'pre_processed_spectrum_{self.m_set}.pdf')
         plt.close(fig)
 
@@ -142,7 +187,7 @@ class SpectrumJWST(Spectrum):
             plots_dir (str): Directory to save the plots.
             LogLike (object): Log-likelihood object containing fit results.
         """
-        # Plot per chip
+        # Plot per chunk
         fig, subfig = utils.get_subfigures_per_chip(self.n_chips)
         for i, subfig_i in enumerate(subfig):
 
@@ -185,6 +230,45 @@ class SpectrumJWST(Spectrum):
             ylim = ax_res.get_ylim()
             ylim_max = np.max(np.abs(ylim))
             ylim = (-ylim_max, +ylim_max)
+            ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
+
+            if i == 0:
+                ax_flux.legend()
+
+        if LogLike.sum_model_settings:
+            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk.pdf')
+        else:
+            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
+        plt.close(fig)
+
+        # Plot for full spectrum
+        fig, subfig = utils.get_subfigures_per_chip(1)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, (None, None)
+            label = None
+            if i == 0:
+                xlabel = 'Wavelength (nm)'
+                ylabel = (r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 'Res.')
+                label  = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
+
+            # Add some padding
+            xlim = (self.wave_ranges_chips[:].min()-2, self.wave_ranges_chips[:].max()+2)
+            
+            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_res  = subfig_i.add_subplot(gs[1])
+
+            ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.5)
+
+            for j in range(self.n_chips):
+                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
+                ax_flux.plot(self.wave[j], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+                ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                
+            ax_res.axhline(0, c='C1', ls='-', lw=0.5)
+
+            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
             ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
 
             if i == 0:

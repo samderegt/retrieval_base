@@ -3,12 +3,12 @@
 # Set job requirements
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -t 05:00:00
+#SBATCH -t 02:00:00
 #SBATCH -p genoa
 #SBATCH --ntasks=192
 #SBATCH --mem=336G
 
-#SBATCH --job-name=freechem_K_A_ret_1
+#SBATCH --job-name=freechem_K_A_ret_2
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=regt@strw.leidenuniv.nl
 
@@ -20,7 +20,7 @@ echo "Number of tasks $SLURM_NTASKS"
 config_file=config_freechem_K_A.py
 
 # Run the pre-processing, retrieval and evaluation
-python -u retrieval_script.py ${config_file} --setup
+#python -u retrieval_script.py ${config_file} --setup
 mpiexec --use-hwthread-cpus --bind-to none -np $SLURM_NTASKS python -u retrieval_script.py $config_file --run
 python -u retrieval_script.py $config_file --evaluation
 

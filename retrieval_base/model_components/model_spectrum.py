@@ -39,13 +39,19 @@ class pRT:
         self.d_wave_ranges_chips     = d_spec.wave_ranges_chips
         self.instrumental_broadening = d_spec.instrumental_broadening
 
-        self.m_resolution = 1e6/ParamTable.get('line_by_line_opacity_sampling', 1.)
+        lbl_opacity_sampling = ParamTable.pRT_Radtrans_kwargs[self.m_set].get(
+            'line_by_line_opacity_sampling', 1.
+            )
+        self.m_resolution = 1e6 / lbl_opacity_sampling
+
+        # Update the input data path
+        ParamTable = self._setup_input_data_path(ParamTable)
 
         # Set the wavelength ranges of the model
         self._set_wave_ranges(ParamTable)
 
         # Create Radtrans objects
-        self._setup_Radtrans(ParamTable)
+        self._setup_Radtrans(**ParamTable.pRT_Radtrans_kwargs[self.m_set])
 
     def __call__(self, ParamTable, Chem, PT, Cloud, Rotation, LineOpacity=None, **kwargs):
         """
@@ -84,7 +90,7 @@ class pRT:
 
             'return_contribution': self.evaluation, 
             'frequencies_to_wavelengths': True,
-            'fast_opacity_interpolation': True,
+            'fast_opacity_interpolation': hasattr(self.atm[0], '_interpolate_species_opacities_fast'),
             #'fast_opacity_interpolation': False,
         }
         if hasattr(Rotation, 'unique_mu_included'):
@@ -98,8 +104,8 @@ class pRT:
             
             # Skip if no incidence angles are set
             if len(atm_i._emission_angle_grid['cos_angles']) == 0:
-                self.wave.append(np.zeros_like(atm_i.freq))
-                self.flux.append(np.zeros_like(atm_i.freq))
+                self.wave.append(np.zeros_like(atm_i.frequencies))
+                self.flux.append(np.zeros_like(atm_i.frequencies))
                 continue
             
             # Compute the emission spectrum
@@ -203,15 +209,17 @@ class pRT:
             [wave_min-wave_pad, wave_max+wave_pad] \
             for (wave_min, wave_max) in self.d_wave_ranges_chips
             ])
-
-    def _setup_Radtrans(self, ParamTable):
+                
+    def _setup_input_data_path(self, ParamTable):
         """
-        Setup the Radtrans objects for the model.
+        Setup the input data path for the model.
 
         Args:
             ParamTable (dict): Parameter table.
+        
+        Returns:
+            dict: Updated parameter table.
         """
-        from petitRADTRANS.radtrans import Radtrans
         from petitRADTRANS.config import petitradtrans_config_parser
 
         old_input_data_path = petitradtrans_config_parser.get_input_data_path()
@@ -224,6 +232,16 @@ class pRT:
 
         # Remove pRT_input_data_path from kwargs if it exists
         ParamTable.pRT_Radtrans_kwargs[self.m_set].pop('pRT_input_data_path', None)
+        return ParamTable
+
+    def _setup_Radtrans(self, **pRT_Radtrans_kwargs):
+        """
+        Setup the Radtrans objects for the model.
+
+        Args:
+            **pRT_Radtrans_kwargs: Additional keyword arguments.
+        """
+        from petitRADTRANS.radtrans import Radtrans
 
         self.atm = []
         for wave_range_i in self.wave_ranges:
@@ -231,7 +249,7 @@ class pRT:
             atm_i = Radtrans(
                 pressures=self.pressure, 
                 wavelength_boundaries=wave_range_i*1e-3, 
-                **ParamTable.pRT_Radtrans_kwargs[self.m_set].copy()
+                **pRT_Radtrans_kwargs.copy()
                 )
             
             self.atm.append(atm_i)

@@ -364,7 +364,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             evaluation (bool): Flag to indicate if it's for evaluation.
         """
         # Pause the process to not overload memory on start-up
-        time.sleep(0.3*rank)
+        time.sleep(0.1*rank)
 
         # Give arguments to the parent class
         Retrieval.__init__(self, config)

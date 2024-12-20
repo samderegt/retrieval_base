@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_1'
+prefix = 'freechem_K_A_ret_2'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -88,10 +88,10 @@ free_params = {
     'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
 
     'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
-    'log_13CH4':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CH_4}$'],
+    #'log_13CH4':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CH_4}$'],
 
     'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
-    'log_15NH3':   ['U', (-14,-2), r'$\log\ \mathrm{^{15}NH_3}$'],
+    #'log_15NH3':   ['U', (-14,-2), r'$\log\ \mathrm{^{15}NH_3}$'],
 
     'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
     'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
@@ -153,10 +153,10 @@ chem_kwargs = dict(
         '12C-17O__HITEMP', 
         
         '12C-1H4__MM', 
-        '13C-1H4__HITRAN', 
+        #'13C-1H4__HITRAN', 
 
         '14N-1H3__CoYuTe', 
-        '15N-1H3__CoYuTe-15', 
+        #'15N-1H3__CoYuTe-15', 
 
         '12C-16O2__AMES', 
         '1H-12C-14N__Harris', 
@@ -227,6 +227,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 200,
+    n_live_points         = 1000,
     n_iter_before_update  = 200, 
 )
