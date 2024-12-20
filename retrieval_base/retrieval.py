@@ -22,17 +22,24 @@ class Retrieval:
         plots_dir (Path): Directory for plots output.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, create_output_dir=False):
         """
         Initialize the Retrieval instance.
 
         Args:
             config (object): Configuration object containing necessary parameters.
+            create_output_dir (bool): Flag to indicate if the output directory should be created.
         """
-        # Create output directory
+        
         self.config = config
-        self._create_output_dir()
         self.model_settings = list(self.config.config_data.keys())
+
+        self.data_dir  = Path(f'{self.config.prefix}data')
+        self.plots_dir = Path(f'{self.config.prefix}plots')
+
+        if create_output_dir:
+            # Create output directory
+            self._create_output_dir()
 
     def save_all_components(self, non_dict_names=[]):
         """
@@ -103,11 +110,8 @@ class Retrieval:
         """
         Create output directories for data and plots, and copy the config file.
         """
-        # Create output directory
-        self.data_dir = Path(f'{self.config.prefix}data')
+        # Create output directories
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.plots_dir = Path(f'{self.config.prefix}plots')
         self.plots_dir.mkdir(parents=True, exist_ok=True)
         
         # Copy config-file to output directory
@@ -163,7 +167,7 @@ class RetrievalSetup(Retrieval):
             config (object): Configuration object containing necessary parameters.
         """
         # Give arguments to the parent class
-        super().__init__(config)
+        super().__init__(config, create_output_dir=True)
         
         # Pre-process the data or generate synthetic spectrum
         if hasattr(self.config, 'config_data'):
@@ -367,7 +371,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
         time.sleep(0.1*rank)
 
         # Give arguments to the parent class
-        Retrieval.__init__(self, config)
+        Retrieval.__init__(self, config, create_output_dir=False)
 
         self.resume     = resume
         self.evaluation = evaluation
@@ -538,6 +542,9 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             # Get the vertical profile posteriors
             self.get_profile_posterior(posterior)
 
+            # Evaluate the model with the best-fit parameters
+            self._evaluate_sample(bestfit_parameters, evaluation=True, skip_radtrans=False)
+            
         # Make summarising figure
         from .model_components import figures_model
         figures_model.plot_summary(
@@ -590,12 +597,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             posterior = posterior[-n_samples:,:-2]
 
         # Evaluate the model with the best-fit parameters
-        self.ParamTable.set_apply_prior(False)
-        self.ParamTable(cube=bestfit_parameters)
-        self.ParamTable.set_apply_prior(True)
-
-        # Update the model components
-        self.get_likelihood(evaluation=True, skip_radtrans=False)
+        self._evaluate_sample(bestfit_parameters, evaluation=True, skip_radtrans=False)
 
         return posterior, bestfit_parameters
     
@@ -625,13 +627,8 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             self.Cloud[m_set].total_opacity_posterior = np.nan * np.ones((n_samples, n_atm_layers))
     
         for i, sample in enumerate(posterior):
-            # Evaluate the model for this sample
-            self.ParamTable.set_apply_prior(False)
-            self.ParamTable(cube=sample)
-            self.ParamTable.set_apply_prior(True)
-
             # Update the model components, avoid radiative transfer
-            self.get_likelihood(evaluation=True, skip_radtrans=True)
+            self._evaluate_sample(sample, evaluation=True, skip_radtrans=True)
 
             for m_set in self.model_settings:
 
@@ -809,3 +806,18 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             *other_m_spec, sum_model_settings=sum_model_settings
             )
         return flux_binned
+
+    def _evaluate_sample(self, sample, **kwargs):
+        """
+        Evaluate a sample.
+
+        Args:
+            sample (array): Sample to evaluate.
+        """
+        # Update the parameters
+        self.ParamTable.set_apply_prior(False)
+        self.ParamTable(cube=sample)
+        self.ParamTable.set_apply_prior(True)
+        
+        # Update the model components
+        self.get_likelihood(**kwargs)
