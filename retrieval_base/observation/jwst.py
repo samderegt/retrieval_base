@@ -262,6 +262,9 @@ class SpectrumJWST(Spectrum):
             ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.5)
 
             for j in range(self.n_chips):
+                if j != 0:
+                    label = None
+
                 idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
                 ax_flux.plot(self.wave[j], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
                 ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)

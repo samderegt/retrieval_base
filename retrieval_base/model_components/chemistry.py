@@ -161,6 +161,12 @@ class Chemistry:
             'NH3':   1., 
             '15NH3': 1./ParamTable.get('15NH3_ratio', np.inf), 
         }
+        all_CO2_ratios = {
+            'CO2': 1., 
+            '13CO2': 1./ParamTable.get('13CO2_ratio', np.inf), 
+            'CO(18)O': 1./ParamTable.get('CO(18)O_ratio', np.inf), 
+            'CO(17)O': 1./ParamTable.get('CO(17)O_ratio', np.inf), 
+        }
 
         VMRs_copy = self.VMRs.copy()
         for species_i in self.species:
@@ -169,13 +175,13 @@ class Chemistry:
                 # Already set
                 continue
 
-            if species_i not in [*all_CO_ratios, *all_H2O_ratios, *all_CH4_ratios, *all_NH3_ratios]:
+            if species_i not in [*all_CO_ratios, *all_H2O_ratios, *all_CH4_ratios, *all_NH3_ratios, *all_CO2_ratios]:
                 # Not a CO, H2O, CH4 or NH3 isotopologue
                 continue
             
             iterables = zip(
-                [all_CO_ratios, all_H2O_ratios, all_CH4_ratios, all_NH3_ratios], 
-                ['12CO', 'H2O', 'CH4', 'NH3']
+                [all_CO_ratios, all_H2O_ratios, all_CH4_ratios, all_NH3_ratios, all_CO2_ratios], 
+                ['12CO', 'H2O', 'CH4', 'NH3', 'CO2']
             )
             for all_ratios, main_iso_i in iterables:
 

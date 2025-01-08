@@ -152,7 +152,12 @@ class RetrievalSetup(Retrieval):
             # Load the model component from the module
             component[m_set] = module.get_class(m_set=m_set, **kwargs)
         
-        if component[m_set] is not None:
+        # Update the shared flag
+        if isinstance(component[m_set], list):
+            # Update the shared flag for each component in the list
+            for comp in component[m_set]:
+                comp.shared_between_m_set = shared_between_m_set
+        elif component[m_set] is not None:
             # Update the shared flag
             component[m_set].shared_between_m_set = shared_between_m_set
 

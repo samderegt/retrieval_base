@@ -72,6 +72,14 @@ class LineData:
         self.gamma_N       = 10**self.log_gamma_N / (4*np.pi*(sc.c*1e2))      # [cm^-1]
         self.gamma_N[mask] = 0.22 * self.nu_0[mask]**2 / (4*np.pi*(sc.c*1e2)) # [cm^-1]
 
+        print(f'\n--- {kwargs['line_species']} -------------')
+        print(f'Loaded {len(self.nu_0)} transitions, {self.is_onthefly.sum()} will be calculated on-the-fly')
+        if self.is_onthefly.any():
+            print('On-the-fly transitions:')
+            print('nu_0 (cm^-1):', (self.nu_0[self.is_onthefly]).round(3))
+            print('wave_0 (nm): ', (1e7/self.nu_0[self.is_onthefly]).round(3))
+        print()
+
     def get_partition_function(self, T):
         """
         Calculates the partition function.
@@ -335,10 +343,11 @@ class LineOpacity(LineData):
         # Define the wavenumber grid
         self.wave_ranges = m_spec.wave_ranges   # [nm]
         self.nu_ranges   = 1e7/self.wave_ranges # [cm^-1]
-        self.nu_grid     = [atm_i.freq/(sc.c*1e2) for atm_i in m_spec.atm] # [cm^-1]
+        self.nu_grid     = [atm_i._frequencies/(sc.c*1e2) for atm_i in m_spec.atm] # [cm^-1]
 
         # Define the PT grid (use pRT default temperatures)
         self.P_grid = m_spec.pressure
+        '''
         self.T_grid = np.array([
             81.14113604736988, 
             109.60677358237457, 
@@ -354,6 +363,11 @@ class LineOpacity(LineData):
             2217.17775249, 
             2995., 
             ])
+        '''
+        self.T_grid = np.array([
+            100,200,300,400,500,600,700,800,900,1000,1200,1400,
+            1600,1800,2000,2500,3000,3500,4000,4500,5000], dtype=np.float64
+            )
 
     def _get_gamma_vdW(self):
         """
