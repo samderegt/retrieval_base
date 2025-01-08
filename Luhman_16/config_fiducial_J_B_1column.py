@@ -62,7 +62,7 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (29.4,0.2), r'$\mathrm{M_p}$'], 
+    'M_p': ['G', (29.4,0.2), r'$\mathrm{M_p}$'], # (Bedin et al. 2024)
     'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
@@ -101,7 +101,8 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 496,  # +/- 37 mas
+    #'parallax': 496,  # +/- 37 mas
+    'distance': 1.9960, # pc +/- 50 AU (Bedin et al. 2024)
 
     # Custom line opacity
     'A_w_0_H2': 0.352609, 'b_w_0_H2': 0.385961, 
@@ -148,8 +149,8 @@ rotation_kwargs = dict(
     inclination   = 26, # Degreees
 )
 
-#custom_opacity_path = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
-custom_opacity_path = '/net/lem/data1/regt/retrieval_base/Luhman_16/custom_opacity_data/'
+custom_opacity_path = '/home/sdregt/retrieval_base/Luhman_16/custom_opacity_data/'
+#custom_opacity_path = '/net/lem/data1/regt/retrieval_base/Luhman_16/custom_opacity_data/'
 line_opacity_kwargs = {
     '39K__Kurucz': {
         'states_file': f'{custom_opacity_path}/K_I_states.txt',
@@ -179,8 +180,8 @@ pRT_Radtrans_kwargs = dict(
     line_by_line_opacity_sampling = 3, # Faster radiative transfer by down-sampling
     scattering_in_emission        = False, 
     
-    #pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
-    pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
+    pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
+    #pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )
 
 ####################################################################################
