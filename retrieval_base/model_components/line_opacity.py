@@ -23,6 +23,10 @@ def get_class(m_spec, line_opacity_kwargs, **kwargs):
     
     all_LineOpacity = []
     for line_species, line_opacity_kwargs_species in line_opacity_kwargs.items():
+        if not isinstance(line_opacity_kwargs_species, dict):
+            # Skip kwarg if not a dictionary (e.g. shared_between_m_set-flag)
+            continue
+
         LineOpacity_i = LineOpacity(
             m_spec=m_spec, line_species=line_species, **line_opacity_kwargs_species, **kwargs
             )
@@ -72,7 +76,7 @@ class LineData:
         self.gamma_N       = 10**self.log_gamma_N / (4*np.pi*(sc.c*1e2))      # [cm^-1]
         self.gamma_N[mask] = 0.22 * self.nu_0[mask]**2 / (4*np.pi*(sc.c*1e2)) # [cm^-1]
 
-        print(f'\n--- {kwargs['line_species']} -------------')
+        print(f'\n--- {kwargs["line_species"]} -------------')
         print(f'Loaded {len(self.nu_0)} transitions, {self.is_onthefly.sum()} will be calculated on-the-fly')
         if self.is_onthefly.any():
             print('On-the-fly transitions:')

@@ -17,7 +17,7 @@ class pRT:
     """
     Class for pRT model spectrum.
     """
-    def __init__(self, ParamTable, d_spec, m_set, pressure, evaluation=False):
+    def __init__(self, ParamTable, d_spec, m_set, pressure, evaluation=False, is_first_m_set=True):
         """
         Initialize the pRT class.
 
@@ -43,6 +43,13 @@ class pRT:
             'line_by_line_opacity_sampling', 1.
             )
         self.m_resolution = 1e6 / lbl_opacity_sampling
+
+        # Flags to determine if line opacities should be interpolated for each m_set
+        self.is_first_m_set = is_first_m_set
+        self.shared_line_opacities = ParamTable.pRT_Radtrans_kwargs[self.m_set].get(
+            'shared_line_opacities', False
+            )
+        ParamTable.pRT_Radtrans_kwargs[self.m_set].pop('shared_line_opacities', None)
 
         # Update the input data path
         ParamTable = self._setup_input_data_path(ParamTable)
@@ -107,7 +114,7 @@ class pRT:
                 self.wave.append(np.zeros_like(atm_i.frequencies))
                 self.flux.append(np.zeros_like(atm_i.frequencies))
                 continue
-            
+
             # Compute the emission spectrum
             wave_init_i, flux_i, additional_outputs = atm_i.calculate_flux(**pRT_call_kwargs)
 
@@ -143,6 +150,34 @@ class pRT:
         if self.evaluation:
             self.contr_per_wave   = np.array(self.contr_per_wave)
             self.integrated_contr = np.array(self.integrated_contr)
+
+    def read_line_opacities_from_other_m_spec(self, source_m_spec):
+        """
+        Read the line opacities from another model spectrum.
+
+        Args:
+            source_m_spec (object): Source model spectrum object.
+        """
+        if not hasattr(self.atm[0], '_interpolate_species_opacities_fast'):
+            # Shared opacities are not implemented in default pRT installations
+            return
+            
+        if not self.shared_line_opacities:
+            # Interpolate line opacities, no need to store
+            # (default in Radtrans._interpolate_species_opacities_fast)
+            return
+        
+        if self.is_first_m_set:
+            # Shared, but first model setting so store the interpolated line opacities
+            [setattr(atm_i, 'store_line_opacities_as_attr', True) for atm_i in self.atm]
+            return        
+        
+        # Line opacities are shared by source m_spec            
+        for i, source_atm_i in enumerate(source_m_spec.atm):
+            # Copy the line opacities
+            self.atm[i].line_opacities = source_atm_i.line_opacities
+            # No need to interpolate
+            setattr(self.atm[i], 'interpolate_line_opacities_flag', False)
 
     def combine_model_settings(self, *other_m_spec, sum_model_settings=False):
         """
@@ -252,6 +287,21 @@ class pRT:
                 **pRT_Radtrans_kwargs.copy()
                 )
             
+            if not self.shared_line_opacities:
+                self.atm.append(atm_i)
+                continue
+
+            # If shared, interpolate the line opacities onto 
+            # the new PT grid, but only for the first model setting
+            if self.is_first_m_set:
+                # Interpolate onto (new) PT grid
+                setattr(atm_i, 'store_line_opacities_as_attr', True)
+                setattr(atm_i, 'interpolate_line_opacities_flag', True)
+            else:
+                # Do not interpolate, but use the already interpolated opacities
+                #setattr(atm_i, 'store_line_opacities_as_attr', False)
+                setattr(atm_i, 'interpolate_line_opacities_flag', False)
+                
             self.atm.append(atm_i)
 
     def _setup_incidence_angles(self, Rotation):
@@ -266,12 +316,10 @@ class pRT:
             # Do not update
             return
         
-        for i, atm_i in enumerate(self.atm):
+        for i in range(len(self.atm)):
             # Update the incidence angles to compute
-            atm_i._emission_angle_grid['cos_angles'] = mu
-            atm_i._emission_angle_grid['weights'] = np.ones_like(mu) / len(mu)
-
-            self.atm[i] = atm_i
+            self.atm[i]._emission_angle_grid['cos_angles'] = mu
+            self.atm[i]._emission_angle_grid['weights'] = np.ones_like(mu) / len(mu)
             
     def _set_absorption_opacity(self, Cloud, LineOpacity=None):
         """

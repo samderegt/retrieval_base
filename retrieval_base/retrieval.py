@@ -58,13 +58,20 @@ class Retrieval:
                 # Skip non-dictionary attributes
                 warnings.warn(f'Attribute {name} is not a dictionary, not saving.')
                 continue
-
+            
             # Is a dictionary, loop over model settings
             for m_set, comp in component.items():
                 # Save the component
                 utils.save_pickle(comp, self.data_dir/f'{name}_{m_set}.pkl')
 
                 if getattr(comp, 'shared_between_m_set', False):
+                    # Only save the shared component once
+                    break
+                if name != 'LineOpacity':
+                    continue
+
+                # Special case for LineOpacity
+                if getattr(comp[0], 'shared_between_m_set', False):
                     # Only save the shared component once
                     break
 
@@ -99,6 +106,10 @@ class Retrieval:
                     
                     # Check if the component is shared between model settings
                     shared_between_m_set = getattr(component[m_set], 'shared_between_m_set', False)
+
+                    if name == 'LineOpacity':
+                        # Special case for LineOpacity
+                        shared_between_m_set = getattr(component[m_set][0], 'shared_between_m_set', False)
 
             if not component:
                 continue # No file found
@@ -144,6 +155,9 @@ class RetrievalSetup(Retrieval):
 
         # Check if model component is shared and not first model setting
         shared_between_m_set = kwargs.get('shared_between_m_set', False)
+        if name == 'LineOpacity':
+            # Special case for LineOpacity
+            shared_between_m_set = kwargs['line_opacity_kwargs'].get('shared_between_m_set', False)
 
         if shared_between_m_set and (m_set != self.model_settings[0]):
             # Refer to the first model setting
@@ -266,7 +280,8 @@ class RetrievalSetup(Retrieval):
             name='m_spec', module=model_spectrum, m_set=m_set, 
             ParamTable=self.ParamTable, 
             d_spec=self.d_spec[m_set], 
-            pressure=pressure
+            pressure=pressure, 
+            is_first_m_set=(m_set==self.model_settings[0])
         )
 
         self._read_component_from_module(
@@ -695,6 +710,10 @@ class RetrievalRun(RetrievalSetup, Retrieval):
         
         # Skip if the component is shared between model settings
         shared_between_m_set = getattr(component[m_set], 'shared_between_m_set', False)
+        if isinstance(component[m_set], list):
+            # Special case for LineOpacity
+            shared_between_m_set = getattr(component[m_set][0], 'shared_between_m_set', False)
+
         return shared_between_m_set
 
     def _update_pt_profile(self, m_set):
@@ -771,6 +790,9 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             evaluation (bool): Flag to indicate if it's for evaluation.
         """
         self.m_spec[m_set].evaluation = evaluation
+        self.m_spec[m_set].read_line_opacities_from_other_m_spec(
+            self.m_spec[self.model_settings[0]]
+            )
         self.m_spec[m_set](
             self.ParamTable, 
             Chem=self.Chem[m_set], 
@@ -781,23 +803,27 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             )
         self.m_spec[m_set].evaluation = False
 
-        if self.evaluation:
-            # Update the broadened model spectrum too
+        if not self.evaluation:
+            return
 
-            if not self._skip_update(m_set, self.LineOpacity_broad):
-                for LineOpacity_i in self.LineOpacity_broad[m_set]:
-                    LineOpacity_i(self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set])
-            
-            self.m_spec_broad[m_set].evaluation = evaluation
-            self.m_spec_broad[m_set](
-                self.ParamTable, 
-                Chem=self.Chem[m_set], 
-                PT=self.PT[m_set], 
-                Cloud=self.Cloud[m_set], 
-                Rotation=self.Rotation[m_set], 
-                LineOpacity=self.LineOpacity_broad[m_set], 
-                )
-            self.m_spec_broad[m_set].evaluation = False
+        # Update the broadened model spectrum too
+        if not self._skip_update(m_set, self.LineOpacity_broad):
+            for LineOpacity_i in self.LineOpacity_broad[m_set]:
+                LineOpacity_i(self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set])
+        
+        self.m_spec_broad[m_set].evaluation = evaluation
+        self.m_spec_broad[m_set].read_line_opacities_from_other_m_spec(
+            self.m_spec_broad[self.model_settings[0]]
+            )
+        self.m_spec_broad[m_set](
+            self.ParamTable, 
+            Chem=self.Chem[m_set], 
+            PT=self.PT[m_set], 
+            Cloud=self.Cloud[m_set], 
+            Rotation=self.Rotation[m_set], 
+            LineOpacity=self.LineOpacity_broad[m_set], 
+            )
+        self.m_spec_broad[m_set].evaluation = False
 
     def _combine_model_spectra(self):
         """
