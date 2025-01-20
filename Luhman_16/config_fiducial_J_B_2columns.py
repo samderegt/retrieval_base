@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'J_B_ret_59_2column_n1000'
+prefix = 'J_B_ret_60_2column_n1000'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -65,8 +65,9 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (29.4,0.2), r'$\mathrm{M_p}$'], # (Bedin et al. 2024)
-    'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    #'M_p': ['G', (29.4,0.2), r'$\mathrm{M_p}$'], # (Bedin et al. 2024)
+    #'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    'log_g': ['U', (3.5,6.0), r'$\log\ g$'],
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
@@ -209,7 +210,7 @@ pRT_Radtrans_kwargs = dict(
     #pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
     pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 
-    shared_line_opacities = True, # Share line opacities between same PT profiles
+    #shared_line_opacities = True, # Share line opacities between same PT profiles
 )
 
 ####################################################################################
@@ -217,7 +218,7 @@ pRT_Radtrans_kwargs = dict(
 ####################################################################################
 
 loglike_kwargs = dict(
-    scale_flux = True, scale_relative_to_chip = 19, 
+    scale_flux = True, #scale_relative_to_chip = 19, 
     scale_err = True, 
     sum_model_settings = True, 
 )

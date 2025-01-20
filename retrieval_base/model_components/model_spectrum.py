@@ -162,7 +162,8 @@ class pRT:
             # Shared opacities are not implemented in default pRT installations
             return
             
-        if not self.shared_line_opacities:
+        #if not self.shared_line_opacities:
+        if not getattr(self, 'shared_line_opacities', False):
             # Interpolate line opacities, no need to store
             # (default in Radtrans._interpolate_species_opacities_fast)
             return
@@ -287,7 +288,8 @@ class pRT:
                 **pRT_Radtrans_kwargs.copy()
                 )
             
-            if not self.shared_line_opacities:
+            #if not self.shared_line_opacities:
+            if not getattr(self, 'shared_line_opacities', False):
                 self.atm.append(atm_i)
                 continue
 

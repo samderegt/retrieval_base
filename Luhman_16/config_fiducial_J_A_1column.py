@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'J_A_ret_19_1column_n1000'
+prefix = 'J_A_ret_21_1column_n1000'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -149,8 +149,8 @@ rotation_kwargs = dict(
     inclination   = 26, # Degreees
 )
 
-custom_opacity_path = '/home/sdregt/retrieval_base/Luhman_16/custom_opacity_data/'
-#custom_opacity_path = '/net/lem/data1/regt/retrieval_base/Luhman_16/custom_opacity_data/'
+#custom_opacity_path = '/home/sdregt/retrieval_base/Luhman_16/custom_opacity_data/'
+custom_opacity_path = '/net/lem/data1/regt/retrieval_base/Luhman_16/custom_opacity_data/'
 line_opacity_kwargs = {
     '39K__Kurucz': {
         'states_file': f'{custom_opacity_path}/K_I_states.txt',
@@ -180,8 +180,8 @@ pRT_Radtrans_kwargs = dict(
     line_by_line_opacity_sampling = 3, # Faster radiative transfer by down-sampling
     scattering_in_emission        = False, 
     
-    pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
-    #pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
+    #pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
+    pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )
 
 ####################################################################################
