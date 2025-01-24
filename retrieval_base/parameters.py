@@ -403,30 +403,20 @@ class ParameterTable:
         Args:
             m_set (str): Model setting to update.
         """
-        if (self.get('coverage_fraction') is not None) and (m_set != 'all'):
-            # coverage_fraction is already set for all model settings
+        if self.get('coverage_fraction', key='idx_free') is None:
+            # coverage_fraction is not a free parameter, no need to update
             return
 
-        # Default assumes full coverage (e.g. binary)
+        # Check the given coverage_fraction
         cf = self.get('coverage_fraction', 1.)
-
-        if cf != 1.:
-            # Coverage fraction is set
-
-            if len(self.model_settings) != 2:
-                # Not 2 patches
-                return
-            if m_set != self.model_settings[0]:
-                # Not the first of 2 model settings
-                return
-            
-            # Add remainder of coverage fraction to the other model setting, 
-            # which is read next in the loop (see __call__())
-            self._add_param(name='coverage_fraction', m_set=self.model_settings[1], val=1.-cf)
+        if cf == 1.:
+            # Full coverage (default, e.g. binary)
             return
 
-        # Coverage fraction is not set, add it
-        self._add_param(name='coverage_fraction', m_set=m_set, val=cf)
+        # Partial coverage
+        if (m_set == self.model_settings[0]) and (len(self.model_settings) == 2):
+            # Add the remainder to the second model setting
+            self._add_param(name='coverage_fraction', m_set=self.model_settings[1], val=1.-cf)
 
     def _update_secondary_params(self, m_set):
         """

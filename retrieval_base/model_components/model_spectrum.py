@@ -403,7 +403,7 @@ class pRT:
             flux *= (ParamTable.get('R_p',1.)*sc.r_jup_mean / (ParamTable.get('distance')*sc.parsec))**2
 
             # Apply coverage fraction for this model setting
-            flux *= ParamTable.get('coverage_fraction')
+            flux *= ParamTable.get('coverage_fraction', 1.)
 
         # Apply instrumental broadening
         flux = self.instrumental_broadening(
