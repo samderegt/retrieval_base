@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'J_A_ret_20_2column_n1000'
+prefix = 'J_A_ret_23_2column_n1000'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -58,6 +58,13 @@ config_data['J1226_2'] = config_data['J1226_1'].copy()
 # Model parameters
 ####################################################################################
 
+from retrieval_base.utils import sc
+M_p, sigma_M_p = 35.4, 0.2
+R_p, sigma_R_p = 1.0, 0.1
+g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
+log_g = np.log10(g)
+sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
+
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
@@ -65,8 +72,9 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (35.4,0.2), r'$\mathrm{M_p}$'], # (Bedin et al. 2024)
-    'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    #'M_p': ['G', (35.4,0.2), r'$\mathrm{M_p}$'], # (Bedin et al. 2024)
+    #'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
@@ -91,8 +99,8 @@ free_params = {
     'd_log_P_phot+1': ['U', (0.5,3.), r'$\Delta P_\mathrm{+1}$'], 
     'd_log_P_phot-1': ['U', (0.5,2.), r'$\Delta P_\mathrm{-1}$'], 
 
-    'coverage_fraction': ['U', (0,1), 'cf'],
     'J1226_1': {
+        'coverage_fraction': ['U', (0,1), 'cf'], 
         # Cloud properties
         'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
         'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
@@ -215,7 +223,7 @@ pRT_Radtrans_kwargs = dict(
 ####################################################################################
 
 loglike_kwargs = dict(
-    scale_flux = True, scale_relative_to_chip = 19, 
+    scale_flux = True, #scale_relative_to_chip = 19, 
     scale_err = True, 
     sum_model_settings = True, 
 )

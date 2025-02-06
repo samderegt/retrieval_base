@@ -29,6 +29,8 @@ class Parameter:
         self.prior_params = prior_params
         self._set_prior()
 
+        print(f'{name}: {prior_type}({prior_params})')
+
         self.apply_prior = True
 
     def __call__(self, val_01):
