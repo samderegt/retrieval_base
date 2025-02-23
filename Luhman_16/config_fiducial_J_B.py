@@ -7,19 +7,12 @@ file_params = 'config_fiducial_J_B.py'
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'fiducial_J_B_ret_37_2column'
+prefix = 'fiducial_J_B_ret_47_1column'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     J1226_A = {
         'w_set': 'J1226', 'wave_range': (1115, 1338), 
-        #'w_set': 'J1226', 'wave_range': (1115, 1162.5), 
-        #'w_set': 'J1226', 'wave_range': (1240, 1267), 
-        #'w_set': 'J1226', 'wave_range': (1240, 1296), 
-        #'w_set': 'J1226', 'wave_range': (1297, 1326), 
-
-        #'wave_to_mask': np.array([[1241,1246], [1251,1255]]), # Mask K I lines
-        #'wave_to_mask': np.array([[1251,1255]]), # Mask K I lines
 
         'file_target': './data/Luhman_16B_J.dat', 
         'file_std': './data/Luhman_16_std_J.dat', 
@@ -49,7 +42,7 @@ config_data = dict(
         'sigma_clip_width': 5, # Remove outliers
         }, 
 )
-config_data['J1226_B'] = config_data['J1226_A'].copy()
+#config_data['J1226_B'] = config_data['J1226_A'].copy()
 
 magnitudes = {
     '2MASS/2MASS.J': (11.22, 0.04), # Burgasser et al. (2013)
@@ -69,43 +62,44 @@ free_params = {
 
     # General properties
     #'R_p': [(0.5,1.2), r'$R_\mathrm{p}$'], 
-    'log_g': [(4.0,6.0), r'$\log\ g$'], 
+    'log_g': [(3.5,6.0), r'$\log\ g$'], 
     'epsilon_limb': [(0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Velocities #km/s
     'vsini': [(10.,30.), r'$v\ \sin\ i$'], 
     'rv': [(10.,30.), r'$v_\mathrm{rad}$'], 
 
-    'cloud_fraction': [(0.,1.), r'cf'], 
+    #'cloud_fraction': [(0.,1.), r'cf'], 
+    #'J1226_A': {
+    #    # Cloud properties
+    #    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    #    'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    #    'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+    #    'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
+    #    'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    #}, 
+    #'J1226_B': {
+    #    # Cloud properties
+    #    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    #    'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    #    'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+    #    'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
+    #    'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    #}, 
 
-    'J1226_A': {
-        # Cloud properties
-        'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-        'log_P_base_gray_0': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-        'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
+    # Cloud properties
+    'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
+    'log_P_base_gray_0': [(0.0,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
+    'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
 
-        'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
-        'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
-    }, 
-    'J1226_B': {
-        # Cloud properties
-        'log_opa_base_gray_0': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,1}}$'], # Cloud slab
-        'log_P_base_gray_0': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,1}}$'], 
-        'f_sed_gray_0': [(1,20), r'$f_\mathrm{sed,1}$'], 
-
-        'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
-        'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
-    }, 
-
-    #'log_opa_base_gray_1': [(-10,3), r'$\log\ \kappa_{\mathrm{cl,0,2}}$'], # Cloud slab
-    #'log_P_base_gray_1': [(-0.5,2.5), r'$\log\ P_{\mathrm{cl,0,2}}$'], 
-    #'f_sed_gray_1': [(1,20), r'$f_\mathrm{sed,2}$'], 
+    'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 
+    'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
+    #'FeH_alpha': [(0,20), r'$\alpha_\mathrm{FeH}$'], 
 
     # Chemistry
     'log_H2O': [(-14,-2), r'$\log\ \mathrm{H_2O}$'], 
     'log_HF': [(-14,-2), r'$\log\ \mathrm{HF}$'], 
-    #'log_FeH': [(-14,-2), r'$\log\ \mathrm{FeH}$'], 'log_FeH_P': [(-5,3), r'$\log\ P_\mathrm{FeH}$'], 
-    'log_K': [(-14,-2), r'$\log\ \mathrm{K}$'], #'log_K_P': [(-5,3), r'$\log\ P_\mathrm{K}$'], 
+    'log_K': [(-14,-2), r'$\log\ \mathrm{K}$'], 
     'log_Na': [(-14,-2), r'$\log\ \mathrm{Na}$'], 
 
     # Impact shifts: d = A*T^b * n/n_ref
@@ -129,11 +123,11 @@ free_params = {
     # PT profile    
     'dlnT_dlnP_0': [(0.10,0.34), r'$\nabla_0$'], 
     'dlnT_dlnP_1': [(0.10,0.34), r'$\nabla_1$'], 
-    'dlnT_dlnP_2': [(0.03,0.34), r'$\nabla_2$'], 
+    'dlnT_dlnP_2': [(0.05,0.34), r'$\nabla_2$'], 
     'dlnT_dlnP_3': [(0.,0.34), r'$\nabla_3$'], 
     'dlnT_dlnP_4': [(0.,0.34), r'$\nabla_4$'], 
 
-    'T_phot': [(700.,2500.), r'$T_\mathrm{phot}$'], 
+    'T_phot': [(1200.,2200.), r'$T_\mathrm{phot}$'], 
     'log_P_phot': [(-1.,1.), r'$\log\ P_\mathrm{phot}$'], 
     'd_log_P_phot+1': [(0.5,3.), r'$\log\ P_\mathrm{up}$'], 
     'd_log_P_phot-1': [(0.5,2.), r'$\log\ P_\mathrm{low}$'], 
@@ -147,6 +141,9 @@ constant_params = {
 
     # Down-sample opacities for faster radiative transfer
     'lbl_opacity_sampling': 3, 
+
+    # Data resolution
+    'res': 65000, 
 
     # General properties
     'parallax': 496,  # +/- 37 mas
@@ -167,44 +164,52 @@ constant_params = {
 }
 
 #'''
-parent_dir = '/home/sdregt/retrieval_base/retrieval_base/custom_opacity_data/'
-old_result_dir = '/home/sdregt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_36/'
+parent_dir = '/net/lem/data1/regt/retrieval_base/retrieval_base/custom_opacity_data/'
+#old_result_dir = '/net/lem/data1/regt/retrieval_base/Luhman_16/retrieval_outputs/fiducial_J_B_ret_45_1column/'
 line_opacity_kwargs = [
     {
     # --- Potassium (K I) --------------------
     ###
-    'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
+    #'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
     ###
 
     'NIST_states_file': f'{parent_dir}/K_I_states.txt', 
-    'VALD_trans_file': f'{parent_dir}/K_I_transitions.txt', 
-    'pRT_name': 'K', 
+    #'VALD_trans_file': f'{parent_dir}/K_I_transitions.txt', 
+    'VALD_trans_file': f'{parent_dir}/K_I_transitions_Kurucz.txt', 
+    'pRT_name': 'K_wo_J_doublets', 
     'mass': 39.0983, 
     'is_alkali': True, 
-    #E_ion=35009.8140, Z=0, # Potassium (K I)
+    'E_ion': 35009.8140, #Z=0, # Potassium (K I)
     
     #'line_cutoff': 200, 
     'line_cutoff': 1000, 
     #n_density_ref=1e20, 
     'log_gf_threshold': -2.0, 
     'log_gf_threshold_exact': -0.5, 
-    'pre_compute': True, 
+    #'pre_compute': True, 
+    'pre_compute': False, 
 
-    'nu_0': [7983.67489, 8041.38112], 
-    'log_gf': [-0.139, -0.439], 
-    'E_low': [13042.876, 12985.170], 
-    'gamma_N': [7.790, 7.790], 
-    'gamma_vdW': [-7.021, -7.022], 
+    #'nu_0': [7983.67489, 8041.38112], 
+    #'log_gf': [-0.139, -0.439], 
+    #'E_low': [13042.876, 12985.170], 
+    #'gamma_N': [7.790, 7.790], 
+    #'gamma_vdW': [-7.021, -7.022], 
+    'nu_0': [7983.655, 8041.365], 
+    'log_gf': [-0.063, -0.361], 
+    'E_low': [13042.896, 12985.186], 
+    'gamma_N': [7.83, 7.83], 
+    'gamma_vdW': [-7.46, -7.46], 
     }, 
     {
     # --- Sodium (Na I) ----------------------
     ###
-    'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
+    #'exists_in_pRT_atm': f'{old_result_dir}test_data/pRT_atm_J1226_A.pkl', 
     ###
 
     'NIST_states_file': f'{parent_dir}/Na_I_states.txt', 
-    'VALD_trans_file': f'{parent_dir}/Na_I_transitions.txt', 
-    'pRT_name': 'Na_allard_recomputed', 
+    #'VALD_trans_file': f'{parent_dir}/Na_I_transitions.txt', 
+    'VALD_trans_file': f'{parent_dir}/Na_I_transitions_Kurucz.txt', 
+    'pRT_name': 'Na_wo_J_doublet', 
     'mass': 22.989769, 
     'is_alkali': True, 
     'E_ion': 41449.451, #Z=0, # Sodium (Na I)
@@ -214,7 +219,8 @@ line_opacity_kwargs = [
     #n_density_ref=1e20, 
     'log_gf_threshold': -2.0, 
     'log_gf_threshold_exact': -0.5, 
-    'pre_compute': True, 
+    #'pre_compute': True, 
+    'pre_compute': False, 
     }, 
 ]
 #'''
@@ -247,6 +253,8 @@ chem_kwargs = {
         'H2O_pokazatel_main_iso_Sam_new', 
         'HF_main_iso_new', 
         'FeH_main_iso_Sam', 
+        'K_wo_J_doublets', 
+        'Na_wo_J_doublet', 
         #'K', 'Na', # On-the-fly treatment
         #'K_param_shift', 'Na_Sam'
     ], 
@@ -297,4 +305,4 @@ const_efficiency_mode = True
 sampling_efficiency = 0.05
 evidence_tolerance = 0.5
 n_live_points = 100
-n_iter_before_update = 100
+n_iter_before_update = 200

@@ -63,6 +63,12 @@ class Chemistry:
             if line_species_i not in self.line_species:
                 continue
 
+            if species_i == 'H2_lines':
+                # Add H2 as a line_species separately
+                self.add_H2_line_species = line_species_i
+                self.line_species.remove(self.add_H2_line_species)
+                continue
+
             self.species.append(species_i)
             self.hill.append(hill_i)
 
@@ -290,6 +296,11 @@ class Chemistry:
 
         # Remove certain species
         self.remove_species()
+
+        if hasattr(self, 'add_H2_line_species'):
+            # Add H2 line opacity
+            self.VMRs['H2_lines'] = self.VMRs['H2']
+            self.mass_fractions[self.add_H2_line_species] = self.mass_fractions['H2']
 
         return self.mass_fractions
 

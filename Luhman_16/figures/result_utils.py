@@ -186,6 +186,23 @@ class RetrievalResults(RetrievalRun, Retrieval):
         
         return np.array(sigma)
 
+    def compare_evidence(self, other):
+
+        from scipy.special import lambertw, erfcinv
+        ln_B = self.ln_Z - other.ln_Z
+        B = np.exp(ln_B)
+        p = np.real(np.exp(lambertw((-1.0/(B*np.exp(1))),-1)))
+        sigma = np.sqrt(2)*erfcinv(p)
+
+        _ln_B = other.ln_Z - self.ln_Z
+        _B = np.exp(_ln_B)
+        _p = np.real(np.exp(lambertw((-1.0/(_B*np.exp(1))),-1)))
+        _sigma = np.sqrt(2)*erfcinv(_p)
+
+        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
+        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
+        return B, sigma
+
     @staticmethod
     def _load_config(prefix):
         """Load the config file from the data directory."""
@@ -228,6 +245,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         stats = analyzer.get_stats()
         bestfit_parameters = np.array(stats['modes'][0]['maximum a posterior'])
         
+        self.ln_Z = stats['nested importance sampling global log-evidence']
         return posterior, bestfit_parameters
 
 class HighPassFilter:

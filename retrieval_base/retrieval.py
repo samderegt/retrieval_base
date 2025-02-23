@@ -71,6 +71,8 @@ class Retrieval:
                     continue
 
                 # Special case for LineOpacity
+                if comp is None:
+                    continue
                 if getattr(comp[0], 'shared_between_m_set', False):
                     # Only save the shared component once
                     break
@@ -107,7 +109,7 @@ class Retrieval:
                     # Check if the component is shared between model settings
                     shared_between_m_set = getattr(component[m_set], 'shared_between_m_set', False)
 
-                    if name == 'LineOpacity':
+                    if name == 'LineOpacity' and component[m_set] is not None:
                         # Special case for LineOpacity
                         shared_between_m_set = getattr(component[m_set][0], 'shared_between_m_set', False)
 
@@ -215,6 +217,8 @@ class RetrievalSetup(Retrieval):
                 from .observation import crires as data
             elif config_data_m_set['instrument'] == 'JWST':
                 from .observation import jwst as data
+            elif config_data_m_set['instrument'] == 'IGRINS':
+                from .observation import igrins as data
             else:
                 raise ValueError('Instrument not recognised.')
 
