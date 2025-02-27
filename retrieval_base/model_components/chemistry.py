@@ -299,9 +299,9 @@ class Chemistry:
 
         if hasattr(self, 'add_H2_line_species'):
             # Add H2 line opacity
-            self.VMRs['H2_lines'] = self.VMRs['H2']
-            self.mass_fractions[self.add_H2_line_species] = self.mass_fractions['H2']
-
+            self.VMRs['H2_lines'] = self.VMRs['H2'].copy()
+            self.mass_fractions[self.add_H2_line_species] = self.mass_fractions['H2'].copy()
+        
         return self.mass_fractions
 
 

@@ -61,7 +61,7 @@ class SpectrumJWST(Spectrum):
         """
         # Read info from wavelength settings
         self.m_set = m_set
-        self.load_spectrum(file)
+        self.load_spectrum(file, min_SNR=kwargs.get('min_SNR', 0.))
         
         # Load a constant resolution
         self.resolution = resolution
@@ -109,12 +109,13 @@ class SpectrumJWST(Spectrum):
         self.flux = np.array(split_flux)
         self.err  = np.array(split_err)
     
-    def load_spectrum(self, file):
+    def load_spectrum(self, file, min_SNR=0.):
         """
         Load the spectrum data from a file.
 
         Args:
             file (str): File path to the spectrum data.
+            min_SNR (float): Minimum signal-to-noise ratio to keep.
         """
         # Load in the data of the target
         self.wave, self.flux, self.err = np.genfromtxt(file, delimiter=',').T
@@ -123,6 +124,11 @@ class SpectrumJWST(Spectrum):
         self.wave = self.wave[~mask_isnan]
         self.flux = self.flux[~mask_isnan]
         self.err  = self.err[~mask_isnan]
+
+        SNR = self.flux / self.err
+        mask_SNR = SNR > min_SNR
+        self.flux[~mask_SNR] = np.nan
+        self.err[~mask_SNR]  = np.nan
 
         # Convert from [um] to [nm]
         self.wave *= 1e3
@@ -151,6 +157,10 @@ class SpectrumJWST(Spectrum):
 
             gs = subfig_i.add_gridspec(nrows=1)
             ax_flux = subfig_i.add_subplot(gs[0])
+            ax_flux.fill_between(
+                self.wave[i], self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
+                fc='k', alpha=0.2, ec='none'
+                )
             ax_flux.plot(self.wave[i], self.flux[i], 'k-', lw=0.7)
 
             ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
@@ -172,6 +182,10 @@ class SpectrumJWST(Spectrum):
 
             gs = subfig_i.add_gridspec(nrows=1)
             ax_flux = subfig_i.add_subplot(gs[0])
+            ax_flux.fill_between(
+                self.wave[:].flatten(), self.flux[:].flatten()-self.err[:].flatten(), 
+                self.flux[:].flatten()+self.err[:].flatten(), fc='k', alpha=0.2, ec='none'
+                )
             ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.7)
 
             ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
@@ -205,11 +219,16 @@ class SpectrumJWST(Spectrum):
             ax_flux = subfig_i.add_subplot(gs[0])
             ax_res  = subfig_i.add_subplot(gs[1])
 
+            ax_flux.fill_between(
+                self.wave[i], self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
+                fc='k', alpha=0.2, ec='none'
+                )
             ax_flux.plot(self.wave[i], self.flux[i], 'k-', lw=0.5)
 
             idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
             ax_flux.plot(self.wave[i], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
 
+            ax_res.fill_between(self.wave[i], -self.err[i], +self.err[i], fc='k', alpha=0.2, ec='none')
             ax_res.plot(self.wave[i], self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
@@ -259,6 +278,10 @@ class SpectrumJWST(Spectrum):
             ax_flux = subfig_i.add_subplot(gs[0])
             ax_res  = subfig_i.add_subplot(gs[1])
 
+            ax_flux.fill_between(
+                self.wave[:].flatten(), self.flux[:].flatten()-self.err[:].flatten(), 
+                self.flux[:].flatten()+self.err[:].flatten(), fc='k', alpha=0.2, ec='none'
+                )
             ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.5)
 
             for j in range(self.n_chips):
@@ -267,6 +290,7 @@ class SpectrumJWST(Spectrum):
 
                 idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
                 ax_flux.plot(self.wave[j], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+                ax_res.fill_between(self.wave[j], -self.err[j], +self.err[j], fc='k', alpha=0.2, ec='none')
                 ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
                 
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)

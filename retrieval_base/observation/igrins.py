@@ -84,6 +84,8 @@ class SpectrumIGRINS(Spectrum):
         self.crop_spectrum(wave_range)
         self.reshape_spectrum(n_chunks=n_chunks)
 
+        self.remove_empty_chips(remove_empty_pixels=True)
+
         # Update the number of chips
         self.wave_ranges_chips = np.array([
             [wave.min(), wave.max()] for wave in self.wave
