@@ -49,26 +49,19 @@ class EddySed(Cloud):
     """
     Class for handling EddySed cloud models.
     """
-    def __init__(self, pressure, cloud_species=['MgSiO3(c)'], **kwargs):
+    def __init__(self, pressure, cloud_species=['Mg2SiO4(s)_crystalline__DHS'], **kwargs):
         """
         Initialize the EddySed class.
 
         Args:
             pressure (np.ndarray): Pressure levels.
-            cloud_species (list, optional): List of cloud species. Defaults to ['MgSiO3(c)'].
+            cloud_species (list, optional): List of cloud species. Defaults to ['Mg2SiO4(s)_crystalline__DHS'].
             **kwargs: Additional keyword arguments.
         """
         # Give arguments to parent class
         super().__init__(pressure)
 
-        self.cloud_species = []
-        for species_i in cloud_species:
-            # Remove crystalline-structure information
-            species_i = species_i.replace('_am','')
-            species_i = species_i.replace('_ad','')
-            species_i = species_i.replace('_cm','')
-            species_i = species_i.replace('_cd','')
-            self.cloud_species.append(species_i)
+        self.cloud_species = cloud_species
 
     def __call__(self, ParamTable, Chem, PT, **kwargs):
         """
@@ -85,8 +78,12 @@ class EddySed(Cloud):
         self.sigma_g = ParamTable.get('sigma_g')
         self.f_sed = {}
 
+        self.mass_fractions = {}
         for species in self.cloud_species:
-            self._get_mass_fraction_profile(ParamTable, Chem, PT, species)
+            self.mass_fractions[species] = \
+                self._get_mass_fraction_profile(ParamTable, Chem, PT, species)
+
+        self.total_opacity = 0 # Is updated in model_spectrum.pRT.__call__
 
     def _get_cloud_base(self, Chem, PT, species):
         """
@@ -100,19 +97,18 @@ class EddySed(Cloud):
         Returns:
             tuple: Base pressure and equilibrium mass fraction.
         """
-        from petitRADTRANS.retrieval import cloud_cond
+        from petitRADTRANS.chemistry import clouds
 
         # Intersection between condensation curve and PT profile
-        P_base = cloud_cond.simple_cdf(
-            name=species, 
-            press=self.pressure, temp=PT.temperature, 
-            FeH=Chem.FeH, CO=Chem.CO, 
-            MMW=Chem.mass_fractions['MMW'], 
+        P_base = clouds.simple_cdf(
+            name=species, press=self.pressure, temp=PT.temperature, 
+            metallicity=Chem.FeH, co_ratio=Chem.CO, 
+            mmw=np.nanmean(Chem.mass_fractions['MMW']), 
             )
 
         # Equilibrium-chemistry mass fraction
-        mf_eq = cloud_cond.return_cloud_mass_fraction(
-            name=species, FeH=Chem.FeH, CO=Chem.CO, 
+        mf_eq = clouds.return_cloud_mass_fraction(
+            name=species, metallicity=Chem.FeH, co_ratio=Chem.CO
             )
 
         return P_base, mf_eq
@@ -151,6 +147,8 @@ class EddySed(Cloud):
             X * mf_eq * (self.pressure[mask_above_base]/P_base)**f_sed
 
         self.f_sed[species] = f_sed
+
+        return Chem.mass_fractions[species].copy()
 
 class Gray(Cloud):
     """

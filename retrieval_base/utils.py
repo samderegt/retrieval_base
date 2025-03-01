@@ -117,10 +117,16 @@ def print_bestfit_params(ParamTable, LogLike):
         print(f'{name} ({m_set})'.ljust(30,' ') + f' = {val:.2f}')
 
     print('\nChi-squared (w/o covariance-scaling): {:.2f}'.format(LogLike.chi_squared_0_red))
-    if not LogLike.scale_flux:
-        return
-    print('\nOptimal flux-scaling parameters:')
-    print(LogLike.phi.round(2))
-    
-    print('R_p (R_Jup):')
-    print(np.sqrt(LogLike.phi).round(2))
+    if LogLike.scale_flux:
+        print('\nOptimal flux-scaling parameters (phi):')
+        print(LogLike.phi.round(2))
+        
+        print('R_p (R_Jup):')
+        print(np.sqrt(LogLike.phi).round(2))
+
+    if LogLike.scale_err:
+        print('\nOptimal covariance-scaling parameters (s^2):')
+        print(LogLike.s_squared.round(2))
+
+        print('s:')
+        print(np.sqrt(LogLike.s_squared).round(2))

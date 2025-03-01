@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g235h_ret_4'
+prefix = 'g235h_ret_6'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -48,39 +48,38 @@ free_params = {
     #'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
-    'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
+    #'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
+    #'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    #'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
+    #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
+    'log_K_zz':                          ['U', (5,13), r'$\log\ K_{zz,\mathrm{cl}}$'],
+    'sigma_g':                           ['U', (1.05,3), r'$\sigma_g$'],
+    'f_sed_Mg2SiO4(s)_crystalline__DHS': ['U', (1,20), r'$f_\mathrm{sed,Mg2SiO4}$'],
+    'f_sed_MgSiO3(s)_crystalline__DHS':  ['U', (1,20), r'$f_\mathrm{sed,MgSiO3}$'],
+    'f_sed_Fe(s)_crystalline__DHS':      ['U', (1,20), r'$f_\mathrm{sed,Fe}$'],
 
     # Chemistry
-    'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    #'log_H2(17)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{17}O}$'],
+    'C/O':               ['U', (0.1,1.0), r'$\mathrm{C/O}$'],
+    'Fe/H':              ['U', (-1.,1.), r'$\mathrm{Fe/H}$'],
+    'log_Kzz_chem':      ['U', (5,13), r'$\log\ K_{zz,\mathrm{chem}}$'],
+    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'],
+    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'],
 
-    'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    #'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    #'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
-
-    'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
-    #'log_13CO2':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO_2}$'],
-    #'log_CO(18)O': ['U', (-14,-2), r'$\log\ \mathrm{CO^{18}O}$'],
-    #'log_CO(17)O': ['U', (-14,-2), r'$\log\ \mathrm{CO^{17}O}$'],
-
-    'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
-    #'log_13CH4':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CH_4}$'],
-
-    'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
-    'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
-    'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
-    'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
-    'log_FeH':     ['U', (-14,-2), r'$\log\ \mathrm{FeH}$'],
-    
-    'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
-    'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na}$'],
-    'log_Ti':      ['U', (-14,-2), r'$\log\ \mathrm{Ti}$'],
-    'log_Fe':      ['U', (-14,-2), r'$\log\ \mathrm{Fe}$'],
+    #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
+    #'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
+    #'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
+    #'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
+    #'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
+    #'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
+    #'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
+    #'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
+    #'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
+    #'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
+    #'log_FeH':     ['U', (-14,-2), r'$\log\ \mathrm{FeH}$'],
+    #'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
+    #'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na}$'],
+    #'log_Ti':      ['U', (-14,-2), r'$\log\ \mathrm{Ti}$'],
+    #'log_Fe':      ['U', (-14,-2), r'$\log\ \mathrm{Fe}$'],
 
     # PT profile
     'dlnT_dlnP_0': ['U', (0.1,0.34), r'$\nabla_0$'], 
@@ -103,6 +102,7 @@ constant_params = {
     'parallax': 47.2733,  # +/- 37 mas
 
     'epsilon_limb': 0.6, # Limb-darkening
+    'N/O': 0.14, # Solar ratio
 }
 
 ####################################################################################
@@ -117,7 +117,6 @@ constant_params = {
 
 PT_kwargs = dict(
     shared_between_m_set = True,
-
     PT_mode = 'free_gradient', 
     n_knots = 5, 
     interp_mode = 'linear', 
@@ -128,15 +127,14 @@ PT_kwargs = dict(
 
 chem_kwargs = dict(
     shared_between_m_set = True,
-
-    chem_mode = 'free', 
-    #chem_mode = 'fastchem_table', 
-    ##path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
-    #path_fastchem_tables='/net/lem/data2/regt/fastchem_interpolation/fastchem_tables_NO_0.05_0.20/', 
-    #grid_ranges={
-    #    'P_grid': [10**PT_kwargs['log_P_range'][0], 10**PT_kwargs['log_P_range'][1]], 
-    #    'T_grid': [150,4000], 'CO_grid': [0.1,1.0], 'NO_grid': [0.05,0.2], 
-    #    },
+    #chem_mode = 'free', 
+    
+    chem_mode = 'fastchem_table', 
+    path_fastchem_tables='/net/lem/data2/regt/fastchem_interpolation/fastchem_tables_NO_0.05_0.20/', 
+    grid_ranges={
+        'P_grid': [10**PT_kwargs['log_P_range'][0], 10**PT_kwargs['log_P_range'][1]], 
+        'T_grid': [150,4000], 'CO_grid': [0.1,1.0], 'NO_grid': [0.05,0.2]
+        },
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
@@ -159,28 +157,25 @@ chem_kwargs = dict(
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
-        '56Fe-1H__MoLLIST', 
+        #'56Fe-1H__MoLLIST', 
         
         '39K__Kurucz', 
         '23Na__Kurucz', 
-        '48Ti__Kurucz', 
-        '56Fe__Kurucz',
+        #'48Ti__Kurucz', 
+        #'56Fe__Kurucz',
         '1H2__RACPPK', 
     ], 
 )
 
 cloud_kwargs = dict(
     shared_between_m_set = True,
-
     #cloud_mode = None, 
-    cloud_mode = 'gray', 
-    #wave_cloud_0 = 3.95, 
-    wave_cloud_0 = 1.0, 
+    #cloud_mode = 'gray', wave_cloud_0 = 1.0, 
+    cloud_mode = 'EddySed', cloud_species = ['Mg2SiO4(s)_crystalline__DHS', 'MgSiO3(s)_crystalline__DHS', 'Fe(s)_crystalline__DHS'], 
 )
 
 rotation_kwargs = dict(
     shared_between_m_set = True,
-
     rotation_mode = 'convolve', 
 )
 
@@ -192,7 +187,8 @@ pRT_Radtrans_kwargs = dict(
     
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
-    scattering_in_emission        = False, 
+    scattering_in_emission        = True, 
+    #scattering_in_emission        = False, 
 
     pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )

@@ -4,27 +4,27 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g395h_ret_3'
+prefix = 'g395h_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     #nirspec_g140h_1 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'wave_range':(900,1900), 'grating':'G140H', 'min_SNR':3}
     #), 
     #nirspec_g140h_2 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'wave_range':(900,1900), 'grating':'G140H', 'min_SNR':3}
     #), 
     #nirspec_g235h_1 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'n_chunks':4, 'min_SNR':3}
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'min_SNR':3}
     #),
     #nirspec_g235h_2 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'n_chunks':4, 'min_SNR':3}
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'min_SNR':3}
     #),
     nirspec_g395h_1 = dict(
-        instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4, 'min_SNR':3}
+        instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'min_SNR':3}
     ),
     nirspec_g395h_2 = dict(
-        instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4, 'min_SNR':3}
+        instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'min_SNR':3}
     ),
 )
 
@@ -35,8 +35,8 @@ config_data = dict(
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    #'log_a': ['U', (-0.7,0.3), r'$\log\ a$'], 
-    #'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
+    'log_a': ['U', (-0.5,0.5), r'$\log\ a$'], 
+    'log_l': ['U', (-2.0,0.5), r'$\log\ l$'], 
 
     # General properties
     'M_p': ['G', (19.0,5.0), r'$\mathrm{M_p}$'], 
@@ -44,47 +44,34 @@ free_params = {
     'rv':  ['U', (-10.,7.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
-    'vsini':        ['U', (0.,20.), r'$v\ \sin\ i$'], 
-    #'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
+    'vsini': ['U', (0.,20.), r'$v\ \sin\ i$'], 
 
     # Cloud properties
-    #'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    #'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    #'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
-    'log_K_zz':                          ['U', (5,13), r'$\log\ K_{zz,\mathrm{cl}}$'],
+    'log_K_zz':                          ['U', (5,13), r'$\log\ K_\mathrm{zz,cl}$'],
     'sigma_g':                           ['U', (1.05,3), r'$\sigma_g$'],
-    'f_sed_Mg2SiO4(s)_crystalline__DHS': ['U', (1,20), r'$f_\mathrm{sed,Mg2SiO4}$'],
-    'f_sed_MgSiO3(s)_crystalline__DHS':  ['U', (1,20), r'$f_\mathrm{sed,MgSiO3}$'],
-    'f_sed_Fe(s)_crystalline__DHS':      ['U', (1,20), r'$f_\mathrm{sed,Fe}$'],
+    'log_X_Mg2SiO4(s)_crystalline__DHS': ['U', (-2.3,1), r'$\log\ X_\mathrm{Mg2SiO4}$'],
+    'f_sed_Mg2SiO4(s)_crystalline__DHS': ['U', (0,10), r'$f_\mathrm{sed,Mg2SiO4}$'],
+    'log_X_MgSiO3(s)_crystalline__DHS':  ['U', (-2.3,1), r'$\log\ X_\mathrm{MgSiO3}$'],
+    'f_sed_MgSiO3(s)_crystalline__DHS':  ['U', (0,10), r'$f_\mathrm{sed,MgSiO3}$'],
+    'log_X_Fe(s)_crystalline__DHS':      ['U', (-2.3,1), r'$\log\ X_\mathrm{Fe}$'],
+    'f_sed_Fe(s)_crystalline__DHS':      ['U', (0,10), r'$f_\mathrm{sed,Fe}$'],
 
     # Chemistry
-    'C/O':               ['U', (0.1,1.0), r'$\mathrm{C/O}$'],
-    'Fe/H':              ['U', (-1.,1.), r'$\mathrm{Fe/H}$'],
-    'log_Kzz_chem':      ['U', (5,13), r'$\log\ K_{zz,\mathrm{chem}}$'],
-    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'],
-    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'],
-    'log_C17O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{17}O}$'],
-    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'],
-    'log_13CH4_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'],
-    'log_13CO2_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'],
-    'log_15NH3_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{14}/^{15}NH_3}$'],
-
-    #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    #'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    #'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    #'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    #'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
-    #'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
+    'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
+    'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
+    'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
     #'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
-    #'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
-    #'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
-    #'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
-    #'log_FeH':     ['U', (-14,-2), r'$\log\ \mathrm{FeH}$'],
+    'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
+    'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
+    'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
+    'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
+    'log_SiO':     ['U', (-14,-2), r'$\log\ \mathrm{SiO}$'],
     #'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
     #'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na}$'],
-    #'log_Ti':      ['U', (-14,-2), r'$\log\ \mathrm{Ti}$'],
-    #'log_Fe':      ['U', (-14,-2), r'$\log\ \mathrm{Fe}$'],
+
+    'log_12/13C_ratio': ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'],
+    'log_16/18O_ratio': ['U', (0,5), r'$\log\ \mathrm{^{16}/^{18}O}$'],
+    'log_16/17O_ratio': ['U', (0,5), r'$\log\ \mathrm{^{16}/^{17}O}$'],
 
     # PT profile
     'dlnT_dlnP_0': ['U', (0.1,0.34), r'$\nabla_0$'], 
@@ -92,12 +79,10 @@ free_params = {
     'dlnT_dlnP_2': ['U', (0.05,0.34), r'$\nabla_2$'], 
     'dlnT_dlnP_3': ['U', (0.,0.34), r'$\nabla_3$'], 
     'dlnT_dlnP_4': ['U', (-0.1,0.34), r'$\nabla_4$'], 
-    #'dlnT_dlnP_5': ['U', (0.,0.34), r'$\nabla_5$'], 
 
     'T_phot':         ['U', (500.,2500.), r'$T_\mathrm{phot}$'], 
-    'log_P_phot':     ['U', (-2.,1.5), r'$\log\ P_\mathrm{phot}$'], 
+    'log_P_phot':     ['U', (-2.,0.5), r'$\log\ P_\mathrm{phot}$'], 
     'd_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta P_\mathrm{+1}$'], 
-    #'d_log_P_phot+2': ['U', (0.5,3.), r'$\Delta P_\mathrm{+2}$'], 
     'd_log_P_phot-1': ['U', (0.5,1.5), r'$\Delta P_\mathrm{-1}$'], 
 }
 
@@ -107,14 +92,10 @@ constant_params = {
     'parallax': 47.2733,  # +/- 37 mas
 
     'epsilon_limb': 0.6, # Limb-darkening
-    'N/O': 0.14, # Solar ratio
+    'C/O': 0.59, # Solar ratios
+    'Fe/H': 0.0,
+    'N/O': 0.14,
 }
-
-####################################################################################
-#
-####################################################################################
-
-#apply_high_pass_filter = False
 
 ####################################################################################
 # Physical model keyword-arguments
@@ -132,18 +113,12 @@ PT_kwargs = dict(
 
 chem_kwargs = dict(
     shared_between_m_set = True,
-    #chem_mode = 'free', 
+    chem_mode = 'free', 
     
-    chem_mode = 'fastchem_table', 
-    path_fastchem_tables='/net/lem/data2/regt/fastchem_interpolation/fastchem_tables_NO_0.05_0.20/', 
-    grid_ranges={
-        'P_grid': [10**PT_kwargs['log_P_range'][0], 10**PT_kwargs['log_P_range'][1]], 
-        'T_grid': [150,4000], 'CO_grid': [0.1,1.0], 'NO_grid': [0.05,0.2]
-        },
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
-        #'1H2-17O__HotWat78', 
+        '1H2-17O__HotWat78', 
 
         '12C-16O__HITEMP', 
         '13C-16O__HITEMP', 
@@ -158,22 +133,16 @@ chem_kwargs = dict(
         #'12C-16O-18O__HITEMP', 
         #'12C-16O-17O__HITEMP', 
 
-        '14N-1H3__CoYuTe', 
-        '15N-1H3__CoYuTe-15', 
+        #'14N-1H3__CoYuTe', 
+        #'15N-1H3__CoYuTe-15', 
 
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
-        #'56Fe-1H__MoLLIST', 
-        #'52Cr-1H__MoLLIST', 
         '28Si-16O__SiOUVenIR', 
         
-        '39K__Kurucz', 
-        '23Na__Kurucz', 
-        #'27Al__Kurucz',
-        #'48Ti__Kurucz', 
-        #'56Fe__Kurucz',
-        #'1H2__RACPPK', 
+        #'39K__Kurucz', 
+        #'23Na__Kurucz',
     ], 
 )
 
@@ -197,8 +166,8 @@ pRT_Radtrans_kwargs = dict(
     
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
-    scattering_in_emission        = True, 
-    #scattering_in_emission        = False, 
+    #scattering_in_emission        = True, 
+    scattering_in_emission        = False, 
 
     pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )
@@ -216,7 +185,7 @@ loglike_kwargs = dict(
 cov_kwargs = dict(
     trunc_dist = 3, 
     scale_amp  = True, 
-    #max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
+    max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
 )
 
 all_model_kwargs = dict(
@@ -240,6 +209,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 100, 
+    n_live_points         = 200, 
     n_iter_before_update  = 100, 
 )

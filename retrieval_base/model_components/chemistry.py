@@ -146,43 +146,20 @@ class Chemistry:
         # If true, eq-chem abundances should be split into isotopologues
         conserve_tot_VMR = isinstance(self, EquilibriumChemistry)
 
-        # All isotope ratios per species
-        all_CO_ratios = {
-            '12CO': 1., 
-            '13CO': 1./ParamTable.get('13CO_ratio', np.inf), 
-            'C18O': 1./ParamTable.get('C18O_ratio', np.inf), 
-            'C17O': 1./ParamTable.get('C17O_ratio', np.inf), 
-        }
-        all_H2O_ratios = {
-            'H2O':     1., 
-            'H2(18)O': 1./ParamTable.get('H2(18)O_ratio', np.inf), 
-            'H2(17)O': 1./ParamTable.get('H2(17)O_ratio', np.inf), 
-            'HDO':     1./ParamTable.get('HDO_ratio', np.inf), 
-        }
-        all_CH4_ratios = {
-            'CH4':   1., 
-            '13CH4': 1./ParamTable.get('13CH4_ratio', np.inf), 
-        }
-        all_NH3_ratios = {
-            'NH3':   1., 
-            '15NH3': 1./ParamTable.get('15NH3_ratio', np.inf), 
-        }
-        all_CO2_ratios = {
-            'CO2': 1., 
-            '13CO2': 1./ParamTable.get('13CO2_ratio', np.inf), 
-            'CO(18)O': 1./ParamTable.get('CO(18)O_ratio', np.inf), 
-            'CO(17)O': 1./ParamTable.get('CO(17)O_ratio', np.inf), 
-        }
+        # Get all isotope ratios per species (possibly shared between molecules)
+        all_CO_ratios, all_H2O_ratios, all_CH4_ratios, all_NH3_ratios, all_CO2_ratios = \
+            self._share_isotope_ratios(ParamTable)
 
         VMRs_copy = self.VMRs.copy()
         for species_i in self.species:
 
-            if VMRs_copy.get(species_i) is not None:
+            VMR_i = VMRs_copy.get(species_i, np.zeros_like(self.pressure))
+            if (VMR_i != 0.).any():
                 # Already set
                 continue
 
             if species_i not in [*all_CO_ratios, *all_H2O_ratios, *all_CH4_ratios, *all_NH3_ratios, *all_CO2_ratios]:
-                # Not a CO, H2O, CH4 or NH3 isotopologue
+                # Not a CO, H2O, CH4, NH3, or CO2 isotopologue
                 continue
             
             iterables = zip(
@@ -195,7 +172,7 @@ class Chemistry:
                 minor_main_ratio_i = all_ratios.get(species_i)
 
                 # Read the VMR of the main isotopologue
-                main_iso_VMR_i = VMRs_copy[main_iso_i]
+                main_iso_VMR_i = VMRs_copy.get(main_iso_i)
 
                 sum_of_ratios = 1.
                 if conserve_tot_VMR:
@@ -206,6 +183,10 @@ class Chemistry:
                     # Matching isotope ratio found
                     break
             
+            if main_iso_VMR_i is None:
+                # Main isotopologue not set
+                continue
+
             # e.g. 13CO = CO_all * 13/12C / (12/12C+13/12C+18/16O+17/16O)
             self.VMRs[species_i] = main_iso_VMR_i * minor_main_ratio_i/sum_of_ratios
     
@@ -304,6 +285,42 @@ class Chemistry:
         
         return self.mass_fractions
 
+    def _share_isotope_ratios(self, ParamTable):
+        """
+        Share isotope ratios between molecules.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+        """
+
+        # First looks for isotopologue ratio, then for isotope ratio, otherwise sets abundance to 0
+        all_CO_ratios = {
+            '12CO': 1., 
+            '13CO': 1./ParamTable.get('13CO_ratio', ParamTable.get('12/13C_ratio', np.inf)), 
+            'C18O': 1./ParamTable.get('C18O_ratio', ParamTable.get('16/18O_ratio', np.inf)), 
+            'C17O': 1./ParamTable.get('C17O_ratio', ParamTable.get('16/17O_ratio', np.inf)), 
+        }
+        all_H2O_ratios = {
+            'H2O':     1., 
+            'H2(18)O': 1./ParamTable.get('H2(18)O_ratio', ParamTable.get('16/18O_ratio', np.inf)), 
+            'H2(17)O': 1./ParamTable.get('H2(17)O_ratio', ParamTable.get('16/17O_ratio', np.inf)), 
+            'HDO':     1./ParamTable.get('HDO_ratio', ParamTable.get('H/D_ratio', np.inf)), 
+        }
+        all_CH4_ratios = {
+            'CH4':   1., 
+            '13CH4': 1./ParamTable.get('13CH4_ratio', ParamTable.get('12/13C_ratio', np.inf)), 
+        }
+        all_NH3_ratios = {
+            'NH3':   1., 
+            '15NH3': 1./ParamTable.get('15NH3_ratio', ParamTable.get('14/15N_ratio', np.inf)), 
+        }
+        all_CO2_ratios = {
+            'CO2':     1., 
+            '13CO2':   1./ParamTable.get('13CO2_ratio', ParamTable.get('12/13C_ratio', np.inf)), 
+            'CO(18)O': 1./ParamTable.get('CO(18)O_ratio', ParamTable.get('16/18O_ratio', np.inf)), 
+            'CO(17)O': 1./ParamTable.get('CO(17)O_ratio', ParamTable.get('16/17O_ratio', np.inf)), 
+        }
+        return all_CO_ratios, all_H2O_ratios, all_CH4_ratios, all_NH3_ratios, all_CO2_ratios
 
 class FreeChemistry(Chemistry):
     """
@@ -373,6 +390,10 @@ class FreeChemistry(Chemistry):
                 param_VMR_i, P0=ParamTable.get(f'{species_i}_P'), 
                 alpha=ParamTable.get(f'{species_i}_alpha'), 
                 )
+
+        # Overwrite C/O ratio and Fe/H with constants (if given)
+        self.CO  = ParamTable.get('C/O', None)
+        self.FeH = ParamTable.get('Fe/H', None)
         
     def get_H2(self):
         """

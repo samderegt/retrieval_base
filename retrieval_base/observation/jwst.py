@@ -87,6 +87,12 @@ class SpectrumJWST(Spectrum):
 
     def reshape_spectrum(self, n_chunks=1):
         """Reshape the spectrum to a 2D array."""
+
+        # Remove the nan values
+        mask_isnan = np.isnan(self.flux) | np.isnan(self.err)
+        self.wave = self.wave[~mask_isnan]
+        self.flux = self.flux[~mask_isnan]
+        self.err  = self.err[~mask_isnan]
         
         # Split the spectrum into chunks
         split_wave = np.array_split(self.wave, n_chunks)
@@ -144,7 +150,8 @@ class SpectrumJWST(Spectrum):
             plots_dir (str): Directory to save the plots.
         """
         # Plot per chunk
-        fig, subfig = utils.get_subfigures_per_chip(self.n_chips)
+        n_chunks = 4 if self.n_chips==1 else self.n_chips
+        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
         for i, subfig_i in enumerate(subfig):
 
             xlabel, ylabel = None, None
@@ -153,7 +160,11 @@ class SpectrumJWST(Spectrum):
                 ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
 
             # Add some padding
-            xlim = (self.wave_ranges_chips[i].min()-2, self.wave_ranges_chips[i].max()+2)
+            if self.n_chips == 1:
+                xlim = np.linspace(self.wave_ranges_chips.min(), self.wave_ranges_chips.max(), n_chunks+1)[i:i+2]
+                i = 0
+            else:
+                xlim = (self.wave_ranges_chips[i].min(), self.wave_ranges_chips[i].max())
 
             gs = subfig_i.add_gridspec(nrows=1)
             ax_flux = subfig_i.add_subplot(gs[0])
@@ -202,7 +213,8 @@ class SpectrumJWST(Spectrum):
             LogLike (object): Log-likelihood object containing fit results.
         """
         # Plot per chunk
-        fig, subfig = utils.get_subfigures_per_chip(self.n_chips)
+        n_chunks = 4 if self.n_chips==1 else self.n_chips
+        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
         for i, subfig_i in enumerate(subfig):
 
             xlabel, ylabel = None, (None, None)
@@ -213,7 +225,11 @@ class SpectrumJWST(Spectrum):
                 label  = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
 
             # Add some padding
-            xlim = (self.wave_ranges_chips[i].min()-2, self.wave_ranges_chips[i].max()+2)
+            if self.n_chips == 1:
+                xlim = np.linspace(self.wave_ranges_chips.min(), self.wave_ranges_chips.max(), n_chunks+1)[i:i+2]
+                i = 0
+            else:
+                xlim = (self.wave_ranges_chips[i].min(), self.wave_ranges_chips[i].max())
             
             gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
             ax_flux = subfig_i.add_subplot(gs[0])

@@ -4,28 +4,28 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g395h_ret_3'
+prefix = 'g140h_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    #nirspec_g140h_1 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
-    #), 
-    #nirspec_g140h_2 = dict(
-    #    instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
-    #), 
+    nirspec_g140h_1 = dict(
+        instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
+    ), 
+    nirspec_g140h_2 = dict(
+        instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'wave_range':(900,1900), 'grating':'G140H', 'n_chunks':4, 'min_SNR':3}
+    ), 
     #nirspec_g235h_1 = dict(
     #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'n_chunks':4, 'min_SNR':3}
     #),
     #nirspec_g235h_2 = dict(
     #    instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'wave_range':(1600,3200), 'grating':'G235H', 'n_chunks':4, 'min_SNR':3}
     #),
-    nirspec_g395h_1 = dict(
-        instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4, 'min_SNR':3}
-    ),
-    nirspec_g395h_2 = dict(
-        instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4, 'min_SNR':3}
-    ),
+    #nirspec_g395h_1 = dict(
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4}
+    #),
+    #nirspec_g395h_2 = dict(
+    #    instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'wave_range':(2800,5400), 'grating':'G395H', 'n_chunks':4}
+    #),
 )
 
 ####################################################################################
@@ -62,13 +62,8 @@ free_params = {
     'C/O':               ['U', (0.1,1.0), r'$\mathrm{C/O}$'],
     'Fe/H':              ['U', (-1.,1.), r'$\mathrm{Fe/H}$'],
     'log_Kzz_chem':      ['U', (5,13), r'$\log\ K_{zz,\mathrm{chem}}$'],
-    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'],
-    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'],
-    'log_C17O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{17}O}$'],
+    #'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'],
     'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'],
-    'log_13CH4_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'],
-    'log_13CO2_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'],
-    'log_15NH3_ratio':   ['U', (0,5), r'$\log\ \mathrm{^{14}/^{15}NH_3}$'],
 
     #'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
     #'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
@@ -146,31 +141,28 @@ chem_kwargs = dict(
         #'1H2-17O__HotWat78', 
 
         '12C-16O__HITEMP', 
-        '13C-16O__HITEMP', 
-        '12C-18O__HITEMP', 
-        '12C-17O__HITEMP', 
+        #'13C-16O__HITEMP', 
+        #'12C-18O__HITEMP', 
+        #'12C-17O__HITEMP', 
 
         '12C-1H4__MM', 
-        '13C-1H4__HITRAN', 
+        #'13C-1H4__HITRAN', 
 
-        '12C-16O2__HITEMP', 
-        '13C-16O2__HITEMP', 
+        #'12C-16O2__HITEMP', 
+        #'13C-16O2__HITEMP', 
         #'12C-16O-18O__HITEMP', 
         #'12C-16O-17O__HITEMP', 
 
         '14N-1H3__CoYuTe', 
-        '15N-1H3__CoYuTe-15', 
-
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
-        #'56Fe-1H__MoLLIST', 
-        #'52Cr-1H__MoLLIST', 
-        '28Si-16O__SiOUVenIR', 
+        '56Fe-1H__MoLLIST', 
+        '52Cr-1H__MoLLIST', 
         
         '39K__Kurucz', 
         '23Na__Kurucz', 
-        #'27Al__Kurucz',
+        '27Al__Kurucz',
         #'48Ti__Kurucz', 
         #'56Fe__Kurucz',
         #'1H2__RACPPK', 

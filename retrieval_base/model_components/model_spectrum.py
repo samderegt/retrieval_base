@@ -95,6 +95,8 @@ class pRT:
             'cloud_f_sed': getattr(Cloud, 'f_sed', None),
             'cloud_particle_radius_distribution_std': getattr(Cloud, 'sigma_g', None),
 
+            'return_cloud_contribution': self.evaluation and hasattr(Cloud, 'cloud_species'),
+            'return_opacities': self.evaluation and hasattr(Cloud, 'cloud_species'),
             'return_contribution': self.evaluation, 
             'frequencies_to_wavelengths': True,
             'fast_opacity_interpolation': hasattr(self.atm[0], '_interpolate_species_opacities_fast'),
@@ -139,7 +141,15 @@ class pRT:
                     )
                 self.contr_per_wave.append(contr_per_wave_i)
                 self.integrated_contr.append(integrated_contr_i)
-                
+
+                # Store the cloud opacity
+                if 'cloud_opacities' in additional_outputs:
+                    _, integrated_cloud_opacity_i = self._get_cloud_opacities(
+                        wave_init_i.copy()[0], np.squeeze(additional_outputs['cloud_opacities']).T, 
+                        self.d_wave[i], flux_binned_i
+                        )
+                    Cloud.total_opacity += integrated_cloud_opacity_i
+                                
             # Store the model spectrum
             self.wave.append(wave_i)
             self.flux.append(flux_i)
@@ -448,3 +458,21 @@ class pRT:
             integrated_contr[i] = integrand1 / integrand2
 
         return contr_per_wave, integrated_contr
+
+    def _get_cloud_opacities(self, wave, cloud_opacities, d_wave, flux_binned):
+
+        opacity_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
+        integrated_opacity = np.nan * np.ones_like(self.pressure)
+
+        # Loop over each pressure level
+        for i, cloud_opacities_i in enumerate(cloud_opacities):
+            # Interpolate onto data wavelength grid
+            cloud_opacities_binned_i = np.interp(d_wave, xp=wave, fp=cloud_opacities_i)
+            opacity_per_wave[i] = cloud_opacities_binned_i
+
+            # Spectrally weighted integration
+            integrand1 = np.trapz(x=d_wave, y=d_wave*flux_binned*cloud_opacities_binned_i)
+            integrand2 = np.trapz(x=d_wave, y=d_wave*flux_binned)
+            integrated_opacity[i] = integrand1 / integrand2
+
+        return opacity_per_wave, integrated_opacity

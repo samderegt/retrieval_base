@@ -307,8 +307,25 @@ def plot_clouds(Cloud, ax=None, ls='-'):
             ax, y=Cloud.pressure, env_x=env, median_kwargs={'c':posterior_color, 'ls':ls}
             )
         
-    ax.plot(total_opacity, Cloud.pressure, c=bestfit_color, ls=ls)    
+    ax.plot(total_opacity, Cloud.pressure, c=bestfit_color, ls=ls)
 
+    if not hasattr(Cloud, 'mass_fractions'):
+        return
+
+    ax_mf = ax.twiny()
+    ax_mf.set(
+        xscale='log', xlim=(1e-1,1e-6), xlabel='MMR(cl)'
+        )
+    cloud_mass_fractions = getattr(Cloud, 'mass_fractions', {})
+    for species, mass_fraction in cloud_mass_fractions.items():
+        label = species.split('_')[0]
+        ax_mf.plot(mass_fraction, Cloud.pressure, ls=ls, alpha=0.3, label=label)
+
+    if ls == '-':
+        ax_mf.legend(
+            loc='upper right', bbox_to_anchor=(1,1), frameon=False, handletextpad=0.2, 
+            handlelength=0.3, labelcolor='linecolor', fontsize=9, markerfirst=False
+            )
 
 def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud, m_spec, evaluation=False):
     """
