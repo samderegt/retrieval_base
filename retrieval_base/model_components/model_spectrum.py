@@ -128,6 +128,7 @@ class pRT:
                 flux_i = flux_i[None,:] # [erg cm^{-2} s^{-1} cm^{-1}]
             flux_i *= 1e-7 # [erg cm^{-2} s^{-1} nm^{-1}]
 
+            # Convert to observation
             wave_i, flux_i, flux_binned_i = self._convert_to_observation(
                 ParamTable, Rotation, wave_init_i.copy(), flux_i, self.d_wave[i]
                 )
@@ -156,6 +157,9 @@ class pRT:
             self.flux_binned.append(flux_binned_i)
 
         self.flux_binned = np.array(self.flux_binned)
+
+        # Add a blackbody to the atmospheric emission
+        self._add_blackbody_emission(ParamTable)
 
         if self.evaluation:
             self.contr_per_wave   = np.array(self.contr_per_wave)
@@ -476,3 +480,36 @@ class pRT:
             integrated_opacity[i] = integrand1 / integrand2
 
         return opacity_per_wave, integrated_opacity
+
+    def _add_blackbody_emission(self, ParamTable):
+        """
+        Add emission from a blackbody.
+
+        Args:
+            ParamTable (dict): Parameter table.
+
+        Returns:
+            array: Blackbody emission.
+        """
+        # Check if blackbody should be added
+        T_BB = ParamTable.get('T_BB', None)
+        if T_BB is None:
+            return
+
+        # Area of emission, defaults to planet
+        R_BB = ParamTable.get('R_BB', ParamTable.get('R_p',1.))*sc.r_jup_mean
+
+        # Loop over all chips
+        self.flux_BB = []
+        for i, wave_i in enumerate(self.d_wave):
+
+            # Planck's law
+            flux_BB_i = 2*sc.h*sc.c**2/(wave_i*1e-9)**5 * 1/(np.exp(sc.h*sc.c/((wave_i*1e-9)*sc.k*T_BB))-1)
+            flux_BB_i *= np.pi*1e-6 # [J s^-1 m^-2 m^-1 sr^-1] -> [W m^-2 um^-1]=[erg s^-1 cm^-2 nm^-1]
+            
+            # Convert to observation
+            flux_BB_i *= (R_BB / (ParamTable.get('distance')*sc.parsec))**2
+
+            # Add to the model spectrum
+            self.flux_binned[i] += flux_BB_i
+            self.flux_BB.append(flux_BB_i)

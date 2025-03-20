@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+import re
 import pathlib
 directory_path = pathlib.Path(__file__).parent.resolve()
 
@@ -27,6 +28,8 @@ def get_class(pressure, line_species, chem_mode='free', **kwargs):
         return pRTChemistryTable(pressure, line_species, **kwargs)
     elif chem_mode == 'fastchem_table':
         return FastChemistryTable(pressure, line_species, **kwargs)
+    elif chem_mode == 'fastchem_table_enhancement':
+        return FastChemistryTableEnhancement(pressure, line_species, **kwargs)
     else:
         raise ValueError(f'Chemistry mode {chem_mode} not recognized.')
 
@@ -675,6 +678,56 @@ class FastChemistryTable(EquilibriumChemistry):
                 self.VMRs[species_i] = 10**arr_i # log10(VMR)
             else:
                 self.MMW = arr_i.copy() # Mean-molecular weight
+
+class FastChemistryTableEnhancement(FastChemistryTable):
+
+    def __init__(self, line_species, pressure, **kwargs):
+        """
+        Initialize the FastChemistryTableEnhancement class. 
+        (This class assumes that condensation is not 
+        affected by individual elemental abundances.)
+
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            **kwargs: Additional arguments.
+        """
+        # Give arguments to the parent class
+        super().__init__(line_species, pressure, **kwargs)
+
+    def get_VMRs(self, ParamTable):
+        """
+        Get volume mixing ratios (VMRs) using interpolation tables 
+        and enhance the elemental abundances.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+        """
+        # Read VMRs in parent class
+        super().get_VMRs(ParamTable)
+
+        # Enhance the abundances of all elements
+        for species_i, hill_i in zip(self.species, self.hill):
+            
+            if not isinstance(hill_i, str):
+                # Minor isotope
+                continue
+            
+            # Split the molecule into its elements
+            elements_i = re.findall(r'[A-Z][a-z]?\d*', hill_i)
+            for element_j in elements_i:
+
+                # Number of this element in molecule (or 1 if atom)
+                N_j = 1 if not element_j[-1].isdigit() else int(element_j[-1])
+                element_j = element_j.rstrip('0123456789')
+
+                # Read the alpha-enhancement factor
+                alpha_j = ParamTable.get(f'alpha_{element_j}', None)
+                if alpha_j is None:
+                    continue
+                
+                # Enhance the abundance of this element
+                self.VMRs[species_i] *= N_j * 10**alpha_j
 
 class pRTChemistryTable(EquilibriumChemistry):
     """

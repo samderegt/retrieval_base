@@ -119,8 +119,8 @@ class Covariance:
         Returns:
             np.ndarray: Solution x for the equation cov*x = b.
         """
-        if self.cov.ndim == 1:
-            return b / self.cov
+        if np.squeeze(self.cov).ndim == 1:
+            return b / np.squeeze(self.cov)
         
         return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
     
@@ -139,7 +139,7 @@ class Covariance:
 
         if mask_nonzero_diag.sum()==1:
             # Only the diagonal is non-zero
-            self.cov = self.cov[0]
+            self.cov = self.cov[[0],:]
             self.cov_cholesky = np.sqrt(self.cov)
 
             # Log determinant of the covariance matrix

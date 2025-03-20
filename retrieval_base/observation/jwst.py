@@ -46,7 +46,7 @@ class SpectrumJWST(Spectrum):
         flux_LSF = IB(res=self.resolution, kernel='gaussian')
         return flux_LSF
     
-    def __init__(self, file, wave_range, m_set, resolution=None, grating='G395H', n_chunks=1, **kwargs):
+    def __init__(self, file, m_set, wave_range=None, resolution=None, grating='G395H', n_chunks=1, **kwargs):
         """
         Initialize the SpectrumJWST instance.
 
@@ -65,17 +65,22 @@ class SpectrumJWST(Spectrum):
         
         # Load a constant resolution
         self.resolution = resolution
+        self.grating = grating
         if self.resolution is None:
+            if self.grating.lower() not in ['g140h', 'g235h', 'g395h']:
+                raise ValueError(f'Grating {self.grating} requires resolution to be specified.')
+
             # Load variable resolution profile
             from broadpy.utils import load_nirspec_resolution_profile
             self.resolution_wave_grid, self.resolution \
-                = load_nirspec_resolution_profile(grating=grating)
+                = load_nirspec_resolution_profile(grating=self.grating)
 
         # Mask user-specified wavelength ranges
         self.mask_wavelength_ranges(kwargs.get('wave_to_mask'), pad=0.)
         
         # Reshape and crop the spectrum
-        self.crop_spectrum(wave_range)
+        if wave_range is not None:
+            self.crop_spectrum(wave_range)
         self.reshape_spectrum(n_chunks=n_chunks)
 
         # Update the number of chips
@@ -149,35 +154,6 @@ class SpectrumJWST(Spectrum):
         Args:
             plots_dir (str): Directory to save the plots.
         """
-        # Plot per chunk
-        n_chunks = 4 if self.n_chips==1 else self.n_chips
-        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
-        for i, subfig_i in enumerate(subfig):
-
-            xlabel, ylabel = None, None
-            if i == 0:
-                xlabel = 'Wavelength (nm)'
-                ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
-
-            # Add some padding
-            if self.n_chips == 1:
-                xlim = np.linspace(self.wave_ranges_chips.min(), self.wave_ranges_chips.max(), n_chunks+1)[i:i+2]
-                i = 0
-            else:
-                xlim = (self.wave_ranges_chips[i].min(), self.wave_ranges_chips[i].max())
-
-            gs = subfig_i.add_gridspec(nrows=1)
-            ax_flux = subfig_i.add_subplot(gs[0])
-            ax_flux.fill_between(
-                self.wave[i], self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
-                fc='k', alpha=0.2, ec='none'
-                )
-            ax_flux.plot(self.wave[i], self.flux[i], 'k-', lw=0.7)
-
-            ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
-
-        fig.savefig(plots_dir / f'pre_processed_spectrum_per_chunk_{self.m_set}.pdf')
-        plt.close(fig)
 
         # Plot for full spectrum
         fig, subfig = utils.get_subfigures_per_chip(1)
@@ -185,23 +161,58 @@ class SpectrumJWST(Spectrum):
 
             xlabel, ylabel = None, None
             if i == 0:
-                xlabel = 'Wavelength (nm)'
-                ylabel = r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$'
+                xlabel = r'Wavelength ($\mathrm{\mu}$m)'
+                ylabel = r'$F_\lambda\ (\mathrm{W\ m^{-2}\ \mu m^{-1}})$'
 
             # Add some padding
-            xlim = (self.wave_ranges_chips[:].min()-2, self.wave_ranges_chips[:].max()+2)
+            xlim = ((self.wave_ranges_chips[:].min()-2)*1e-3, (self.wave_ranges_chips[:].max()+2)*1e-3)
 
             gs = subfig_i.add_gridspec(nrows=1)
             ax_flux = subfig_i.add_subplot(gs[0])
             ax_flux.fill_between(
-                self.wave[:].flatten(), self.flux[:].flatten()-self.err[:].flatten(), 
+                self.wave[:].flatten()*1e-3, self.flux[:].flatten()-self.err[:].flatten(), 
                 self.flux[:].flatten()+self.err[:].flatten(), fc='k', alpha=0.2, ec='none'
                 )
-            ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.7)
+            ax_flux.plot(self.wave[:].flatten()*1e-3, self.flux[:].flatten(), 'k-', lw=0.7)
 
             ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
 
         fig.savefig(plots_dir / f'pre_processed_spectrum_{self.m_set}.pdf')
+        plt.close(fig)
+
+        # Plot per chunk
+        n_chunks = self.n_chips
+        if (self.n_chips == 1) and (self.grating.lower() in ['g140h', 'g235h', 'g395h']):
+            n_chunks = 4
+        if n_chunks == 1:
+            return
+
+        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, None
+            if i == 0:
+                xlabel = r'Wavelength ($\mathrm{\mu}$m)'
+                ylabel = r'$F_\lambda\ (\mathrm{W\ m^{-2}\ \mu m^{-1}})$'
+
+            # Add some padding
+            if self.n_chips == 1:
+                xlim = np.linspace((self.wave_ranges_chips.min())*1e-3, (self.wave_ranges_chips.max())*1e-3, n_chunks+1)[i:i+2]
+                i = 0
+            else:
+                xlim = ((self.wave_ranges_chips[i].min())*1e-3, (self.wave_ranges_chips[i].max())*1e-3)
+
+            gs = subfig_i.add_gridspec(nrows=1)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_flux.fill_between(
+                self.wave[i]*1e-3, self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
+                fc='k', alpha=0.2, ec='none'
+                )
+            ax_flux.plot(self.wave[i]*1e-3, self.flux[i], 'k-', lw=0.7)
+
+            ax_flux.set(xlim=xlim, xlabel=xlabel, ylabel=ylabel)
+
+        fig.savefig(plots_dir / f'pre_processed_spectrum_per_chunk_{self.m_set}.pdf')
         plt.close(fig)
 
     def plot_bestfit(self, plots_dir, LogLike, Cov):
@@ -212,69 +223,6 @@ class SpectrumJWST(Spectrum):
             plots_dir (str): Directory to save the plots.
             LogLike (object): Log-likelihood object containing fit results.
         """
-        # Plot per chunk
-        n_chunks = 4 if self.n_chips==1 else self.n_chips
-        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
-        for i, subfig_i in enumerate(subfig):
-
-            xlabel, ylabel = None, (None, None)
-            label = None
-            if i == 0:
-                xlabel = 'Wavelength (nm)'
-                ylabel = (r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 'Res.')
-                label  = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
-
-            # Add some padding
-            if self.n_chips == 1:
-                xlim = np.linspace(self.wave_ranges_chips.min(), self.wave_ranges_chips.max(), n_chunks+1)[i:i+2]
-                i = 0
-            else:
-                xlim = (self.wave_ranges_chips[i].min(), self.wave_ranges_chips[i].max())
-            
-            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
-            ax_flux = subfig_i.add_subplot(gs[0])
-            ax_res  = subfig_i.add_subplot(gs[1])
-
-            ax_flux.fill_between(
-                self.wave[i], self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
-                fc='k', alpha=0.2, ec='none'
-                )
-            ax_flux.plot(self.wave[i], self.flux[i], 'k-', lw=0.5)
-
-            idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
-            ax_flux.plot(self.wave[i], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-
-            ax_res.fill_between(self.wave[i], -self.err[i], +self.err[i], fc='k', alpha=0.2, ec='none')
-            ax_res.plot(self.wave[i], self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
-            ax_res.axhline(0, c='C1', ls='-', lw=0.5)
-
-            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
-
-            # First column of banded covariance matrix is the diagonal
-            sigma_scaled = np.nanmean(np.sqrt(Cov[i].cov[idx_LogLike]*LogLike.s_squared[idx_LogLike]))
-            sigma_data   = np.nanmean(self.err[i])
-            err_kwargs = dict(clip_on=False, capsize=1.7, lw=1., capthick=1.)
-
-            # Plot an errorbar in the axes
-            ylim = ax_flux.get_ylim()
-            y = ylim[0] + 0.1*np.diff(ylim)[0]
-            for x, c, sigma in zip([1.01,1.02], ['C1','k'], [sigma_scaled,sigma_data]):
-                ax_flux.errorbar(x, y, yerr=sigma, c=c, transform=ax_flux.get_yaxis_transform(), **err_kwargs)
-                ax_res.errorbar(x, 0., yerr=sigma, c=c, transform=ax_res.get_yaxis_transform(), **err_kwargs)
-
-            ylim = ax_res.get_ylim()
-            ylim_max = np.max(np.abs(ylim))
-            ylim = (-ylim_max, +ylim_max)
-            ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
-
-            if i == 0:
-                ax_flux.legend()
-
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
-        plt.close(fig)
 
         # Plot for full spectrum
         fig, subfig = utils.get_subfigures_per_chip(1)
@@ -283,36 +231,45 @@ class SpectrumJWST(Spectrum):
             xlabel, ylabel = None, (None, None)
             label = None
             if i == 0:
-                xlabel = 'Wavelength (nm)'
-                ylabel = (r'$F_\lambda\ (\mathrm{erg\ s^{-1}\ cm^{-2}\ nm^{-1}})$', 'Res.')
+                xlabel = r'Wavelength ($\mathrm{\mu}$m)'
+                ylabel = (r'$F_\lambda\ (\mathrm{W\ m^{-2}\ \mu m^{-1}})$', 'Res.')
                 label  = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
 
             # Add some padding
-            xlim = (self.wave_ranges_chips[:].min()-2, self.wave_ranges_chips[:].max()+2)
+            xlim = ((self.wave_ranges_chips[:].min()-2)*1e-3, (self.wave_ranges_chips[:].max()+2)*1e-3)
             
             gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
             ax_flux = subfig_i.add_subplot(gs[0])
             ax_res  = subfig_i.add_subplot(gs[1])
 
             ax_flux.fill_between(
-                self.wave[:].flatten(), self.flux[:].flatten()-self.err[:].flatten(), 
-                self.flux[:].flatten()+self.err[:].flatten(), fc='k', alpha=0.2, ec='none'
+                self.wave[:].flatten()*1e-3, self.flux[:].flatten()-self.err[:].flatten(), 
+                self.flux[:].flatten()+self.err[:].flatten(), fc='k', alpha=0.2, ec='none', zorder=-1
                 )
-            ax_flux.plot(self.wave[:].flatten(), self.flux[:].flatten(), 'k-', lw=0.5)
+            ax_flux.plot(self.wave[:].flatten()*1e-3, self.flux[:].flatten(), 'k-', lw=0.5)
 
             for j in range(self.n_chips):
                 if j != 0:
                     label = None
-
+                # Plot the spectrum and residuals
                 idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
-                ax_flux.plot(self.wave[j], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-                ax_res.fill_between(self.wave[j], -self.err[j], +self.err[j], fc='k', alpha=0.2, ec='none')
-                ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                ax_flux.plot(self.wave[j]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+                ax_res.plot(self.wave[j]*1e-3, self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
                 
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
+            ylim = ax_res.get_ylim()
+            ylim_max = np.max(np.abs(ylim))
+            ylim = (-ylim_max, +ylim_max)
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
             ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
+
+            for j in range(self.n_chips):
+                # Plot the error envelope in the axes
+                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
+                sigma_scaled = np.sqrt(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
+                ax_res.fill_between(self.wave[j]*1e-3, -self.err[j], +self.err[j], fc='k', alpha=0.15, ec='none', zorder=-1)
+                ax_res.fill_between(self.wave[j]*1e-3, -sigma_scaled, +sigma_scaled, fc='C1', alpha=0.15, ec='none', zorder=-1)
 
             if i == 0:
                 ax_flux.legend()
@@ -321,4 +278,65 @@ class SpectrumJWST(Spectrum):
             fig.savefig(plots_dir / f'bestfit_spectrum.pdf')
         else:
             fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
+        plt.close(fig)
+
+        # Plot per chunk
+        n_chunks = self.n_chips
+        if (self.n_chips == 1) and (self.grating.lower() in ['g140h', 'g235h', 'g395h']):
+            n_chunks = 4
+        if n_chunks == 1:
+            return
+
+        fig, subfig = utils.get_subfigures_per_chip(n_chunks)
+        for i, subfig_i in enumerate(subfig):
+
+            xlabel, ylabel = None, (None, None)
+            label = None
+            if i == 0:
+                xlabel = r'Wavelength ($\mathrm{\mu}$m)'
+                ylabel = (r'$F_\lambda\ (\mathrm{W\ m^{-2}\ \mu m^{-1}})$', 'Res.')
+                label  = r'$\chi_\mathrm{red}^2=$'+'{:.2f}'.format(LogLike.chi_squared_0_red)
+
+            # Add some padding
+            if self.n_chips == 1:
+                xlim = np.linspace((self.wave_ranges_chips.min())*1e-3, (self.wave_ranges_chips.max())*1e-3, n_chunks+1)[i:i+2]
+                i = 0
+            else:
+                xlim = ((self.wave_ranges_chips[i].min())*1e-3, (self.wave_ranges_chips[i].max())*1e-3)
+            
+            gs = subfig_i.add_gridspec(nrows=2, height_ratios=[0.7,0.3], hspace=0.)
+            ax_flux = subfig_i.add_subplot(gs[0])
+            ax_res  = subfig_i.add_subplot(gs[1])
+
+            ax_flux.fill_between(
+                self.wave[i]*1e-3, self.flux[i]-self.err[i], self.flux[i]+self.err[i], 
+                fc='k', alpha=0.2, ec='none'
+                )
+            ax_flux.plot(self.wave[i]*1e-3, self.flux[i], 'k-', lw=0.5)
+
+            idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
+            ax_flux.plot(self.wave[i]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+
+            ax_res.plot(self.wave[i]*1e-3, self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+            ax_res.axhline(0, c='C1', ls='-', lw=0.5)
+
+            ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
+
+            ylim = ax_res.get_ylim()
+            ylim_max = np.max(np.abs(ylim))
+            ylim = (-ylim_max, +ylim_max)
+            ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
+
+            # Plot the error envelope in the axes
+            sigma_scaled = np.sqrt(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
+            ax_res.fill_between(self.wave[i]*1e-3, -self.err[i], +self.err[i], fc='k', alpha=0.15, ec='none', zorder=-1)
+            ax_res.fill_between(self.wave[i]*1e-3, -sigma_scaled, +sigma_scaled, fc='C1', alpha=0.15, ec='none', zorder=-1)
+
+            if (i == 0) and (ax_flux.get_legend_handles_labels() != ([], [])):
+                ax_flux.legend()
+
+        if LogLike.sum_model_settings:
+            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk.pdf')
+        else:
+            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
         plt.close(fig)

@@ -25,6 +25,9 @@ q = 0.5 + 1/2*np.array([-0.997, -0.95, -0.68, 0., 0.68, 0.95, 0.997])
 bestfit_color   = 'C1'
 posterior_color = 'C0'
 env_cmap, env_colors = get_env_colors(posterior_color)
+linestyles = [
+    '-', '--', ':', '-.', (0, (5, 10)), (0, (1, 5)), (0, (1, 1)), 
+    ]
 
 
 def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints=False):
@@ -205,7 +208,7 @@ def plot_gradient(PT, ax=None, ls='-'):
     dlnT_dlnP, y = PT.get_dlnT_dlnP(PT.temperature, PT.pressure)
     ax.plot(dlnT_dlnP, y, c=bestfit_color, ls=ls, alpha=0.5)
 
-def plot_contribution(m_spec, ax=None, ls='-'):
+def plot_contribution(m_spec, ax=None, ls='-', label=None):
     """
     Plots the contribution function.
 
@@ -213,6 +216,7 @@ def plot_contribution(m_spec, ax=None, ls='-'):
         m_spec (object): Spectral model object.
         ax (Axes, optional): Matplotlib axes. Defaults to None.
         ls (str, optional): Line style. Defaults to '-'.
+        label (str, optional): Label. Defaults to None.
     """
     ax.set(
         ylim=(m_spec.pressure.max(), m_spec.pressure.min()), 
@@ -223,10 +227,11 @@ def plot_contribution(m_spec, ax=None, ls='-'):
 
     integrated_contr = np.nansum(m_spec.integrated_contr, axis=0)
 
-    ax.plot(
+    handle = ax.plot(
         integrated_contr/integrated_contr.max(), m_spec.pressure, 
-        c=bestfit_color, ls=ls, alpha=0.5
+        c=bestfit_color, ls=ls, alpha=0.5, label=label
         )
+    return handle
 
 
 def plot_chemistry(Chem, ax=None, ls='-'):
@@ -323,8 +328,8 @@ def plot_clouds(Cloud, ax=None, ls='-'):
 
     if ls == '-':
         ax_mf.legend(
-            loc='upper right', bbox_to_anchor=(1,1), frameon=False, handletextpad=0.2, 
-            handlelength=0.3, labelcolor='linecolor', fontsize=9, markerfirst=False
+            loc='upper right', bbox_to_anchor=(1.1,1), labelcolor='linecolor', fontsize=9, 
+            markerfirst=False, frameon=False, handlelength=0, handleheight=0, handletextpad=0, 
             )
 
 def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Cloud, m_spec, evaluation=False):
@@ -358,13 +363,18 @@ def plot_summary(plots_dir, posterior, bestfit_parameters, labels, PT, Chem, Clo
     ax_gradient = fig.add_axes([right-widths[2]-widths[1],top-height,widths[1]/3,height])
     ax_contr    = fig.add_axes([right-widths[2]-widths[1]/3,top-height,widths[1]/3,height])
 
-    for m_set, ls in zip(PT.keys(), ['-', '--', ':', '-.']):
-        plot_contribution(m_spec[m_set], ax=ax_contr, ls=ls)
+    for m_set, ls in zip(PT.keys(), linestyles):
+        plot_contribution(m_spec[m_set], ax=ax_contr, ls=ls, label=m_set)
         plot_gradient(PT[m_set], ax=ax_gradient, ls=ls)
-        plot_PT(PT[m_set], ax=ax_PT, ls=ls)        
+        plot_PT(PT[m_set], ax=ax_PT, ls=ls)
 
         plot_chemistry(Chem[m_set], ax=ax_VMR, ls=ls)
         plot_clouds(Cloud[m_set], ax=ax_cl, ls=ls)
+
+    ax_contr.legend(
+        loc='upper right', bbox_to_anchor=(0.7,1), frameon=False, handletextpad=0.5, 
+        handlelength=1.0, labelcolor='linecolor', fontsize=11, markerfirst=False
+        )
 
     for i, ax_i in enumerate([ax_VMR, ax_cl, ax_PT]):
         ax_i.tick_params(right=True, bottom=True, left=True, direction='inout', which='both')
