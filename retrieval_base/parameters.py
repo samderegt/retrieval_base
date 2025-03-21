@@ -29,7 +29,7 @@ class Parameter:
         self.prior_params = prior_params
         self._set_prior()
 
-        print(f'{name}: {prior_type}({prior_params})')
+        print(f'{name}: {prior_type}({prior_params[0]:.2f},{prior_params[1]:.2f})')
 
         self.apply_prior = True
 
@@ -348,6 +348,9 @@ class ParameterTable:
             params (dict): Dictionary of parameters to add.
             is_free (bool): Whether the parameters are free parameters.
         """
+        if is_free:
+            print('\n'+'='*50+'\nFree parameters and priors')
+
         # Expand dictionary to have all model settings
         params_expanded = self._expand_dictionary_per_model_setting(params)
         for m_set, dictionary in params_expanded.items():

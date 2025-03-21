@@ -327,15 +327,16 @@ class pRT:
         Args:
             Rotation (object): Rotation object.
         """
-        mu = getattr(Rotation, 'unique_mu_included', None)
+        mu  = getattr(Rotation, 'unique_mu_included', None)
+        dmu = getattr(Rotation, 'unique_dmu_included', None)
         if mu is None:
             # Do not update
             return
         
-        for i in range(len(self.atm)):
+        for atm_i in self.atm:
             # Update the incidence angles to compute
-            self.atm[i]._emission_angle_grid['cos_angles'] = mu
-            self.atm[i]._emission_angle_grid['weights'] = np.ones_like(mu) / len(mu)
+            atm_i._emission_angle_grid['cos_angles'] = mu
+            atm_i._emission_angle_grid['weights']    = dmu
             
     def _set_absorption_opacity(self, Cloud, LineOpacity=None):
         """

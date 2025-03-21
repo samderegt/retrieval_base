@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_2'
+prefix = 'freechem_K_A_ret_4_int_rot'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -13,7 +13,7 @@ config_data = dict(
         
         target_kwargs={
             # Data filenames
-            'file':      './data/Luhman_16A_K.dat', 
+            'file':      './data/Luhman_16A_K_blend_corr.dat', 
             'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', 
             'file_molecfit_transm': './data/Luhman_16A_K_molecfit_transm.dat', 
 
@@ -24,7 +24,6 @@ config_data = dict(
             'ra': 162.297895, 'dec': -53.31703, 'mjd': 59946.32563173, 
 
             # Flux-calibration filter-name
-            #'filter_name': '2MASS/2MASS.J', 'magnitude': 11.68, # Faherty et al. (2014)
             'filter_name': '2MASS/2MASS.Ks', 'magnitude': 9.46, 
         }, 
 
@@ -56,6 +55,13 @@ config_data = dict(
 # Model parameters
 ####################################################################################
 
+from retrieval_base.utils import sc
+M_p, sigma_M_p = 35.4, 0.2
+R_p, sigma_R_p = 1.0, 0.1
+g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
+log_g = np.log10(g)
+sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
+
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
@@ -63,17 +69,16 @@ free_params = {
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
-    'M_p': ['G', (33.5,0.3), r'$\mathrm{M_p}$'], 
-    'R_p': ['G', (1.0,0.1), r'$\mathrm{R_p}$'], 
+    'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'], 
     'rv':  ['U', (10.,30.), r'$v_\mathrm{rad}$'], 
 
     # Broadening
     'vsini':        ['U', (10.,30.), r'$v\ \sin\ i$'], 
-    'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
+    #'epsilon_limb': ['U', (0,1), r'$\epsilon_\mathrm{limb}$'], 
 
     # Cloud properties
     'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    'log_P_base_gray':   ['U', (0.,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
     'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
     'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
@@ -116,14 +121,9 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 496,  # +/- 37 mas
+    #'parallax': 496,  # +/- 37 mas
+    'distance': 1.9960, # pc +/- 50 AU (Bedin et al. 2024)
 }
-
-####################################################################################
-#
-####################################################################################
-
-#apply_high_pass_filter = False
 
 ####################################################################################
 # Physical model keyword-arguments
@@ -140,8 +140,6 @@ PT_kwargs = dict(
 
 chem_kwargs = dict(
     chem_mode = 'free', 
-    #path_fastchem_tables='/net/lem/data2/regt/fastchem_tables/', 
-    #path_fastchem_tables='/projects/0/prjs1096/fastchem_tables/', 
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
@@ -158,7 +156,7 @@ chem_kwargs = dict(
         '14N-1H3__CoYuTe', 
         #'15N-1H3__CoYuTe-15', 
 
-        '12C-16O2__AMES', 
+        '12C-16O2__HITEMP', 
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
@@ -173,7 +171,8 @@ cloud_kwargs = dict(
 )
 
 rotation_kwargs = dict(
-    rotation_mode = 'convolve', 
+    #rotation_mode = 'convolve', 
+    rotation_mode = 'integrate', n_mu = 15, n_theta = 150, 
     inclination   = 18, # Degreees
 )
 
@@ -188,6 +187,7 @@ pRT_Radtrans_kwargs = dict(
     scattering_in_emission        = False, 
     
     pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data'
+    #pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )
 
 ####################################################################################
@@ -195,7 +195,7 @@ pRT_Radtrans_kwargs = dict(
 ####################################################################################
 
 loglike_kwargs = dict(
-    scale_flux = True, scale_relative_to_chip = 9, 
+    scale_flux = True, #scale_relative_to_chip = 9, 
     scale_err = True, 
     sum_model_settings = True, 
 )
@@ -227,6 +227,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 1000,
-    n_iter_before_update  = 200, 
+    n_live_points         = 100,
+    n_iter_before_update  = 400, 
 )

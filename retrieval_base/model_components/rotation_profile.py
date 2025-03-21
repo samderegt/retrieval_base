@@ -60,14 +60,13 @@ class ConvolveRotationProfile:
         """
         wave = wave[0]
         flux = flux[0]
+        if (self.vsini == 0.) or (self.epsilon_limb == 0.):
+            return wave, flux # Avoid interpolation
         
         # Evenly spaced wavelength grid
         wave_even = np.linspace(wave.min(), wave.max(), len(wave))
         flux_even = np.interp(wave_even, xp=wave, fp=flux)
 
-        if (self.vsini == 0.) or (self.epsilon_limb == 0.):
-            return wave_even, flux_even
-        
         # Rotational broadening
         flux_rot_broad = self.broad_func(
             wave_even, flux_even, vsini=self.vsini, 
@@ -79,13 +78,14 @@ class SurfaceMap:
     """
     Class for surface map.
     """
-    def __init__(self, inclination=0, lon_0=0, n_c=15, n_theta=150, is_inside_patch=False, is_outside_patch=False, **kwargs):
+    def __init__(self, inclination=0, lon_0=0, n_mu=3, n_c=None, n_theta=150, is_inside_patch=False, is_outside_patch=False, **kwargs):
         """
         Initialize the SurfaceMap class.
 
         Args:
             inclination (float): Inclination angle in degrees.
             lon_0 (float): Longitude in degrees.
+            n_mu (int): Number of incidence angle segments. If given, use Gaussian quadrature.
             n_c (int): Number of angular distance segments.
             n_theta (int): Number of angular segments.
             is_inside_patch (bool): Flag for inside patch.
@@ -96,7 +96,7 @@ class SurfaceMap:
         self.lon_0 = np.deg2rad(lon_0)
 
         # Define grid to integrate over
-        self._set_coords(n_c, n_theta)
+        self._set_coords(n_mu, n_c, n_theta)
 
         # Which segments to include for this model setting
         self.is_inside_patch  = is_inside_patch
@@ -116,26 +116,45 @@ class SurfaceMap:
         # Get the segments included in the current patch
         self._get_included_segments()
 
-    def _set_coords(self, n_c, n_theta):
+    def _set_coords(self, n_mu, n_c, n_theta):
         """
         Set the coordinates for the surface map.
 
         Args:
+            n_mu (int): Number of incidence angle segments.
             n_c (int): Number of angular distance segments.
             n_theta (int): Number of angular segments.
         """
-        # Equidistant grid in angular distance
-        self.dc = (np.pi/2)/n_c
-        self.unique_c = np.arange(self.dc/2, np.pi/2, self.dc)
+        if n_mu is not None:
+            # Gaussian quadrature over incidence angles
+            #self.integration_method = 'quadrature'
+            x, w = np.polynomial.legendre.leggauss(n_mu)
+            self.unique_mu = (1-0)/2*x + (1+0)/2 # Change integration limits
+            self.unique_dmu = (1-0)/2*w
 
-        # Incidence angle and radial distance
-        self.unique_mu = np.cos(self.unique_c)
-        self.unique_r  = np.sqrt(1-self.unique_mu**2)
+            # Angular distance grid
+            self.unique_c = np.arccos(self.unique_mu)
+
+        elif n_c is not None:
+            # Trapezoidal rule over angular distance
+            #self.integration_method = 'trapezoidal'
+            dc = (np.pi/2)/n_c
+            self.unique_c = np.arange(dc/2, np.pi/2, dc)
+            
+            # Incidence angle grid
+            self.unique_mu = np.cos(self.unique_c)
+            self.unique_dmu = np.sin(self.unique_c)*dc
+
+        else:
+            raise ValueError('Either n_mu or n_c must be given.')
+        
+        # Radial distance grid
+        self.unique_r = np.sqrt(1-self.unique_mu**2)
 
         self.r_grid, self.theta_grid = [], []
-        self.c_grid, self.mu_grid = [], []
-        self.area_grid = []
-        for r_i, c_i, mu_i in zip(self.unique_r, self.unique_c, self.unique_mu):
+        self.c_grid, self.mu_grid, self.dmu_grid = [], [], []
+        self.weight_grid = []
+        for r_i, c_i, mu_i, dmu_i in zip(self.unique_r, self.unique_c, self.unique_mu, self.unique_dmu):
             # Reduce number of angular segments close to centre
             n_theta_i = int(np.ceil(n_theta*r_i))
             d_theta_i = (2*np.pi)/n_theta_i
@@ -144,14 +163,14 @@ class SurfaceMap:
             theta_i = np.arange(d_theta_i/2, 2*np.pi, d_theta_i)
             self.theta_grid.append(theta_i)
 
-            # area_i = d_theta_i * mu_i * dmu
-            # area_i = d_theta_i * np.cos(c_i) * (-np.sin(c_i) * self.dc)
-            area_i = d_theta_i * np.sin(2*c_i)/2 * self.dc
-            self.area_grid.append(area_i*np.ones_like(theta_i))
-
+            # Integration weight over azimuthal angle and incidence angle
+            weight_i = d_theta_i * mu_i * dmu_i
+            self.weight_grid.append(weight_i*np.ones_like(theta_i))
+            
             self.r_grid.append(r_i*np.ones_like(theta_i))
             self.c_grid.append(c_i*np.ones_like(theta_i))
             self.mu_grid.append(mu_i*np.ones_like(theta_i))
+            self.dmu_grid.append(dmu_i*np.ones_like(theta_i))
 
         # Coordinate for each segment
         self.theta_grid = np.concatenate(self.theta_grid)
@@ -159,9 +178,10 @@ class SurfaceMap:
         self.r_grid  = np.concatenate(self.r_grid)
         self.c_grid  = np.concatenate(self.c_grid)
         self.mu_grid = np.concatenate(self.mu_grid)
+        self.dmu_grid = np.concatenate(self.dmu_grid)
 
-        self.area_grid = np.concatenate(self.area_grid)
-        self.integrated_area = np.sum(self.area_grid)
+        self.weight_grid = np.concatenate(self.weight_grid)
+        # self.integrated_area = np.sum(self.weight_grid)
 
         self._set_cartesian_coords()
         self._set_latlon_coords()
@@ -277,7 +297,7 @@ class SurfaceMap:
         
         # Set default velocity map
         self.vsini    = ParamTable.get('vsini', 0.)
-        self.velocity = self.vsini * np.sin(self.r_grid) * np.sin(self.theta_grid)
+        self.velocity = self.vsini * self.r_grid * np.sin(self.theta_grid)
 
         self.patch_mask = np.zeros_like(self.r_grid, dtype=bool)
 
@@ -307,7 +327,9 @@ class SurfaceMap:
             self.included_segments[self.patch_mask] = False
 
         # Update the incidence angles included in current patch
-        self.unique_mu_included = np.unique(self.mu_grid[self.included_segments])
+        self.unique_mu_included, indices = \
+            np.unique(self.mu_grid[self.included_segments], return_index=True)
+        self.unique_dmu_included = self.dmu_grid[indices]
 
 class IntegrateRotationProfile(SurfaceMap):
     """
@@ -347,8 +369,8 @@ class IntegrateRotationProfile(SurfaceMap):
             # Integrate over all velocities in annulus
             flux_rot_broad += self._integrate_over_velocity(wave[0], flux_mu, mu)
 
-        # Normalise to account for over/under-estimation of total flux
-        flux_rot_broad *= self.integrated_area / self.integrated_brightness
+        # Normalise to account for the number of segments
+        flux_rot_broad *= len(self.brightness) / self.integrated_brightness
 
         return wave[0], flux_rot_broad
     
@@ -405,7 +427,7 @@ class IntegrateRotationProfile(SurfaceMap):
         flux_shifted *= self.brightness[idx_segments][:,None]
 
         # Apply area weighting
-        flux_shifted *= self.area_grid[idx_segments][:,None]
+        flux_shifted *= self.weight_grid[idx_segments][:,None]
 
         if self.get_integrated_flux:
             self._integrate_over_wavelength(wave, flux_shifted, idx_segments)
