@@ -40,7 +40,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         # Load the posterior and best-fit parameters
         self.posterior, self.bestfit_parameters = self._load_posterior_and_bestfit()
 
-    def get_model_spectrum(self, line_species_to_exclude=None):
+    def get_model_spectrum(self, line_species_to_exclude=None, apply_rot_broad=True):
         """Get the model spectrum."""
 
         # Load the components
@@ -64,6 +64,13 @@ class RetrievalResults(RetrievalRun, Retrieval):
             for LineOpacity_i in self.LineOpacity_broad[m_set]:
                 LineOpacity_i(self.ParamTable, PT=self.PT[m_set], Chem=self.Chem[m_set])
 
+        if not apply_rot_broad:
+            # Set rotational velocity to 0
+            vsini_copy = np.copy(self.ParamTable.get('vsini'))
+            self.ParamTable._add_param(name='vsini', m_set='all', val=0.)
+            self.ParamTable.set_queried_m_set(['all',m_set]) # Update the queried table
+            self._update_rotation(m_set)
+
         # Update the broadened model spectrum
         self.m_spec_broad[m_set].evaluation = False
         self.m_spec_broad[m_set](
@@ -74,6 +81,12 @@ class RetrievalResults(RetrievalRun, Retrieval):
             Rotation=self.Rotation[m_set],
             LineOpacity=self.LineOpacity_broad[m_set],
             )
+
+        if not apply_rot_broad:
+            # Reset the rotational velocity
+            self.ParamTable._add_param(name='vsini', m_set='all', val=vsini_copy)
+            self.ParamTable.set_queried_m_set('all')
+            self._update_rotation(m_set)
 
         self.ParamTable.set_queried_m_set('all')
         del self.Chem, self.PT, self.Cloud, self.Rotation, self.LineOpacity_broad
@@ -140,7 +153,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
                 if j%3 == 0:
                     plt.figure(figsize=(10,3))
                 plt.plot(d_wave[j], d_res_j, c='k', lw=0.8)
-                plt.plot(d_wave[j], m_flux_binned_template_j, c='r', lw=1.2)
+                plt.plot(d_wave[j], m_flux_binned_template_j, c='r', lw=1.2, alpha=0.5)
                 
                 if j%3 == 2:
                     plt.show()
