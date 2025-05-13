@@ -9,6 +9,28 @@ from retrieval_base.retrieval import RetrievalRun, Retrieval
 
 q = 0.5 + np.array([-0.997, -0.95, -0.68, 0.0, +0.68, +0.95, +0.997])/2
 
+def latex_format(*posteriors, q=q[[4,2]], decimals=2):
+    """Format the parameters for LaTeX output."""
+    if decimals == 0:
+        style = '{:.0f}^+{:.0f}/{:.0f}'
+    elif decimals == 1:
+        style = '{:.1f}^+{:.1f}/{:.1f}'
+    elif decimals == 2:
+        style = '{:.2f}^+{:.2f}/{:.2f}'
+    elif decimals == 3:
+        style = '{:.3f}^+{:.3f}/{:.3f}'
+
+    full_str = []
+    for p in posteriors:
+        str_i = style.format(np.median(p), *np.quantile(p, q=q)-np.median(p))
+        str_i = str_i.replace('+', '{+')
+        str_i = str_i.replace('/', '}_{')
+        str_i += '}'
+
+        full_str.append('$'+str_i+'$')
+
+    print(' & '.join(full_str)+r' \\')
+
 def profile_quantiles(y, q=q, axis=0):
     """Compute quantiles of a profile."""
     return np.quantile(y, q=q, axis=axis)
@@ -259,6 +281,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         bestfit_parameters = np.array(stats['modes'][0]['maximum a posterior'])
         
         self.ln_Z = stats['nested importance sampling global log-evidence']
+        # self.ln_Z = stats['global evidence']
         return posterior, bestfit_parameters
 
 class HighPassFilter:
