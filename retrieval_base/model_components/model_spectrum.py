@@ -42,7 +42,11 @@ class pRT:
         lbl_opacity_sampling = ParamTable.pRT_Radtrans_kwargs[self.m_set].get(
             'line_by_line_opacity_sampling', 1.
             )
-        self.m_resolution = 1e6 / lbl_opacity_sampling
+        median_wave = np.nanmedian(self.d_wave)
+        if median_wave < 1e3:
+            self.m_resolution = 1e6 / lbl_opacity_sampling
+        else:
+            self.m_resolution = 1/(0.01*(median_wave*1e-7)) / lbl_opacity_sampling
 
         # Flags to determine if line opacities should be interpolated for each m_set
         self.is_first_m_set = is_first_m_set
