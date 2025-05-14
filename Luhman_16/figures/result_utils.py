@@ -11,6 +11,18 @@ q = 0.5 + np.array([-0.997, -0.95, -0.68, 0.0, +0.68, +0.95, +0.997])/2
 
 def latex_format(*posteriors, q=q[[4,2]], decimals=2):
     """Format the parameters for LaTeX output."""
+    q = np.atleast_1d(q)
+    full_str = []
+
+    if len(q) == 1:
+        # Lower/upper limit
+        for p in posteriors:
+            str_i = '{}'.format(np.round(np.quantile(p, q=q), decimals)[0])
+            full_str.append('$'+str_i+'$')
+
+        print(' & '.join(full_str)+r' \\')
+        return
+
     if decimals == 0:
         style = '{:.0f}^+{:.0f}/{:.0f}'
     elif decimals == 1:
@@ -20,7 +32,6 @@ def latex_format(*posteriors, q=q[[4,2]], decimals=2):
     elif decimals == 3:
         style = '{:.3f}^+{:.3f}/{:.3f}'
 
-    full_str = []
     for p in posteriors:
         str_i = style.format(np.median(p), *np.quantile(p, q=q)-np.median(p))
         str_i = str_i.replace('+', '{+')
