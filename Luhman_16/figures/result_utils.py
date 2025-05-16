@@ -134,6 +134,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         m_set = self.model_settings[0]
 
         CCF = np.nan * np.ones((len(rv), self.d_spec[m_set].n_chips))
+        ACF = np.nan * np.ones((len(rv), self.d_spec[m_set].n_chips))
 
         d_wave = np.copy(self.d_spec[m_set].wave)
         d_res  = np.copy(self.d_spec[m_set].flux)
@@ -147,7 +148,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
             d_res -= m_spec_to_subtract[m_set].flux_binned * self.LogLike.phi[:,None]
 
         from tqdm import tqdm
-        for i, rv_i in enumerate(tqdm(rv)):
+        for i, rv_i in enumerate(tqdm(rv, bar_format='{l_bar}{bar:20}{r_bar}{bar:-20b}')):
 
             # Loop over chips
             for j in range(d_res.shape[0]):
@@ -161,21 +162,30 @@ class RetrievalResults(RetrievalRun, Retrieval):
 
                 # Shift the model template
                 m_flux_template_j = np.copy(m_spec_template[m_set].flux[j])
-                m_wave_template_j = np.copy(m_spec_template[m_set].wave[j]) * (1 + rv_i/3e5)
+                m_wave_template_j = np.copy(m_spec_template[m_set].wave[j])
+
+                m_flux_binned_static_j = np.interp(d_wave[j], m_wave_template_j, m_flux_template_j)
+                m_flux_binned_static_j *= self.LogLike.phi[j] # Optimal scaling
+                m_flux_binned_static_j[~mask_j] = np.nan
 
                 m_flux_binned_template_j = np.interp(
-                    d_wave[j], m_wave_template_j, m_flux_template_j
+                    d_wave[j], m_wave_template_j*(1+rv_i/3e5), m_flux_template_j
                     )
                 m_flux_binned_template_j *= self.LogLike.phi[j] # Optimal scaling
                 m_flux_binned_template_j[~mask_j] = np.nan
 
                 if high_pass_filter.get('m_res') is not None:
                     # Apply a high-pass filter
+                    m_flux_binned_static_j   = high_pass_filter['m_res'](m_flux_binned_static_j)
                     m_flux_binned_template_j = high_pass_filter['m_res'](m_flux_binned_template_j)
 
                 # Compute the cross-correlation
                 CCF[i,j] = np.dot(
-                    m_flux_binned_template_j[mask_j], 1/self.LogLike.s_squared[j] * self.Cov[j].solve(d_res_j[mask_j])
+                    # m_flux_binned_template_j[mask_j], 1/self.LogLike.s_squared[j] * self.Cov[j].solve(d_res_j[mask_j])
+                    d_res_j[mask_j], 1/self.LogLike.s_squared[j] * self.Cov[j].solve(m_flux_binned_template_j[mask_j])
+                    )
+                ACF[i,j] = np.dot(
+                    m_flux_binned_static_j[mask_j], 1/self.LogLike.s_squared[j] * self.Cov[j].solve(m_flux_binned_template_j[mask_j])
                     )
 
                 if not plot:
@@ -192,7 +202,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
                     plt.show()
                     plt.close()
 
-        return rv, CCF
+        return rv, CCF, ACF
 
     def get_mean_scaled_uncertainty(self, mode='order', n_dets_per_order=3):
         """Get the mean scaled uncertainty for each order or chip."""
@@ -292,7 +302,8 @@ class RetrievalResults(RetrievalRun, Retrieval):
         bestfit_parameters = np.array(stats['modes'][0]['maximum a posterior'])
         
         self.ln_Z = stats['nested importance sampling global log-evidence']
-        # self.ln_Z = stats['global evidence']
+        # self.ln_Z = stats['nested sampling global log-evidence']
+
         return posterior, bestfit_parameters
 
 class HighPassFilter:
