@@ -46,14 +46,42 @@ def profile_quantiles(y, q=q, axis=0):
     """Compute quantiles of a profile."""
     return np.quantile(y, q=q, axis=axis)
 
-def convert_CCF_to_SNR(rv, CCF, rv_sep=100):
+def convert_CCF_to_SNR(rv, CCF, rv_sep=100, rv_0=0):
     """Convert the cross-correlation function (CCF) to a signal-to-noise ratio (SNR) function."""
-    rv_mask = np.abs(rv) > rv_sep
+    rv_mask = np.abs(rv-rv_0) > rv_sep
 
     mean_CCF = np.mean(CCF[rv_mask])
     std_CCF  = np.std(CCF[rv_mask])
 
     return (CCF - mean_CCF) / std_CCF
+
+def bootstrap_CCF_SNR(rv, CCF):
+
+    from astropy.modeling.models import Gaussian1D, Const1D
+    from astropy.modeling import fitting
+    
+    amplitude = CCF[rv==0]
+    m_init = (
+        Gaussian1D(amplitude=amplitude, stddev=10, fixed={'mean':True}) + Const1D(amplitude=0)
+    )
+    fit = fitting.LevMarLSQFitter()
+    m_fit = fit(m_init, rv, CCF)
+    m_fit.amplitude_1 = 0. # Remove vertical offset
+
+    CCF_residuals = CCF - m_fit(rv)
+    m_fit_shifted = m_fit.copy()
+
+    SNRs = np.zeros_like(rv, dtype=float)
+    for rv_i in rv:
+        # Inject peak at another velocity
+        m_fit_shifted.mean_0 = m_fit.mean_0 + rv_i
+        CCF_shifted = CCF_residuals + m_fit_shifted(rv)
+
+        # Calculate SNR
+        SNR_i = convert_CCF_to_SNR(rv, CCF_shifted, rv_sep=300, rv_0=rv_i)
+        SNRs[rv==rv_i] = SNR_i[rv==rv_i]
+
+    return SNRs
 
 class RetrievalResults(RetrievalRun, Retrieval):
 
