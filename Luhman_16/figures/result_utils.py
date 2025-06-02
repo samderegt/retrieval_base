@@ -101,6 +101,20 @@ class RetrievalResults(RetrievalRun, Retrieval):
         # Load the posterior and best-fit parameters
         self.posterior, self.bestfit_parameters = self._load_posterior_and_bestfit()
 
+    def get_contribution_function(self):
+        """Get the emission contribution functions."""
+        
+        # Load the components
+        self.load_components(['m_spec'])
+
+        integrated_contr = {
+            m_set: np.nansum(self.m_spec[m_set].integrated_contr, axis=0)
+            for m_set in self.model_settings
+        }
+        del self.m_spec
+
+        return integrated_contr
+
     def get_model_spectrum(self, line_species_to_exclude=None, apply_rot_broad=True):
         """Get the model spectrum."""
 
