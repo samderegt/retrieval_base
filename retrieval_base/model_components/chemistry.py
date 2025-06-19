@@ -473,6 +473,28 @@ class EquilibriumChemistry(Chemistry):
             ParamTable (dict): Parameters including Kzz.
             alpha (float, optional): Mixing length factor. Defaults to 1.
         """
+
+        def interpolate_for_P_quench(log_t_mix, log_t_chem):
+            """Interpolate the quench pressure based on mixing and chemical timescales."""
+            idx_well_mixed = np.argwhere(log_t_mix < log_t_chem).flatten()
+            if len(idx_well_mixed) == 0:
+                # All layers are in chemical equilibrium
+                return self.pressure.min()
+            
+            # Lowest layer that is well-mixed
+            idx_lowest_mixed_layer = idx_well_mixed[-1]
+            idx_highest_equilibrium_layer = idx_lowest_mixed_layer + 1
+
+            if idx_highest_equilibrium_layer >= len(self.pressure):
+                # All layers are well-mixed
+                return self.pressure.max()
+            
+            # Quenching happens between these two layers
+            indices = [idx_lowest_mixed_layer, idx_highest_equilibrium_layer]
+            return 10**np.interp(
+                0, xp=log_t_mix[indices]-log_t_chem[indices], fp=np.log10(self.pressure[indices])
+                )
+
         # Metallicity
         m = 10**self.FeH
 
@@ -484,57 +506,39 @@ class EquilibriumChemistry(Chemistry):
         # Mixing length/time-scales
         L = alpha * H
         t_mix = L**2 / ParamTable.get('Kzz_chem')
+        log_t_mix = np.log10(t_mix)
 
-        computed = {key_q: False for key_q in self.quench_settings}
+        # Ignore overflow warnings
+        with np.errstate(over='ignore'):
+            # Chemical timescales from Zahnle & Marley (2014)
 
-        # Loop from bottom to top of atmosphere
-        idx = np.argsort(self.pressure)[::-1]
-        iterables = zip(t_mix[idx], self.pressure[idx], self.temperature[idx])
-        for t_mix_i, P_i, T_i in iterables:
+            # CO-CH4
+            inv_t_q1 = 1.0e6/1.5 * self.pressure * m**0.7 * np.exp(-42000/self.temperature)
+            inv_t_q2 = 1/40 * self.pressure**2 * np.exp(-25000/self.temperature)
+            log_t_CO_CH4 = -1 * np.log10(inv_t_q1 + inv_t_q2)
+            self.quench_settings['CO_CH4'][-1] = interpolate_for_P_quench(log_t_mix, log_t_CO_CH4)
+            
+            # N2-NH3
+            # t_NH3 = 1.0e-7 * self.pressure**(-1) * np.exp(52000/self.temperature)
+            log_t_NH3 = (
+                -7.0 - np.log10(self.pressure) + 52000/self.temperature*np.log10(np.e)
+            )
+            self.quench_settings['N2_NH3'][-1] = interpolate_for_P_quench(log_t_mix, log_t_NH3)
 
-            if T_i < 500:
-                # Avoid exponent overflow
-                continue
+            # HCN-NH3-N2
+            # t_HCN = 1.5e-4 * self.pressure**(-1) * m**(-0.7) * np.exp(36000/self.temperature)
+            log_t_HCN = (
+                np.log10(1.5e-4) - np.log10(self.pressure*m**0.7) + 36000/self.temperature*np.log10(np.e)
+            )
+            self.quench_settings['HCN'][-1] = interpolate_for_P_quench(log_t_mix, log_t_HCN)
 
-            if all(computed.values()):
-                break
-
-            # Zahnle & Marley (2014)
-            if not computed.get('CO_CH4', True):
-                # Chemical timescale of CO-CH4
-                inv_t_q1 = 1e6/1.5 * P_i * m**0.7 * np.exp(-42000/T_i)
-                inv_t_q2 = 1/40 * P_i**2 * np.exp(-25000/T_i)
-                t_CO_CH4 = 1/(inv_t_q1 + inv_t_q2)
-
-                if t_mix_i < t_CO_CH4:
-                    # Mixing is more efficient than chemical reactions
-                    self.quench_settings['CO_CH4'][-1] = P_i
-                    computed['CO_CH4'] = True
-
-            if not computed.get('N2_NH3', True):
-                # Chemical timescale of N2-NH3
-                t_NH3 = 1.0e-7 * P_i**(-1) * np.exp(52000/T_i)
-
-                if t_mix_i < t_NH3:
-                    self.quench_settings['N2_NH3'][-1] = P_i
-                    computed['N2_NH3'] = True
-
-            if not computed.get('HCN', True):
-                # Chemical timescale of HCN-NH3-N2
-                t_HCN = 1.5e-4 * P_i**(-1) * m**(-0.7) * np.exp(36000/T_i)
-
-                if t_mix_i < t_HCN:
-                    self.quench_settings['HCN'][-1] = P_i
-                    computed['HCN'] = True
-
-            if not computed.get('CO2', True):
-                # Chemical timescale of HCN-NH3-N2
-                t_CO2 = 1.0e-10 * P_i**(-0.5) * np.exp(38000/T_i)
-
-                if t_mix_i < t_CO2:
-                    self.quench_settings['CO2'][-1] = P_i
-                    computed['CO2'] = True
-    
+            # CO2
+            # t_CO2 = 1.0e-10 * self.pressure**(-0.5) * np.exp(38000/self.temperature)
+            log_t_CO2 = (
+                -10.0 - 0.5*np.log10(self.pressure) + 38000/self.temperature*np.log10(np.e)
+            )
+            self.quench_settings['CO2'][-1] = interpolate_for_P_quench(log_t_mix, log_t_CO2)
+            
     def quench_VMRs(self, ParamTable):
         """
         Quench the volume mixing ratios (VMRs) based on the quench settings.
