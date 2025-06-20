@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.linalg import cholesky_banded, cho_solve_banded
 
+from ..utils import sc
+
 def get_class(d_spec, sum_model_settings=False, **kwargs):
     """
     Get a list of Covariance objects for each chip in the dataset.
@@ -64,7 +66,7 @@ class Covariance:
         # Convert to array for scipy
         return np.asarray(banded_array)
 
-    def __init__(self, d_wave, d_err, trunc_dist=5, max_wave_sep=None, scale_amp=False, **kwargs):
+    def __init__(self, d_wave, d_err, trunc_dist=5, scale_amp=False, **kwargs):
         """
         Initialize the Covariance object.
 
@@ -72,10 +74,13 @@ class Covariance:
             d_wave (np.ndarray): Wavelength data.
             d_err (np.ndarray): Error data.
             trunc_dist (int, optional): Truncation distance for the covariance matrix. Defaults to 5.
-            max_wave_sep (float, optional): Maximum wavelength separation. Defaults to None.
             scale_amp (bool, optional): If True, scale the amplitude. Defaults to False.
             **kwargs: Additional keyword arguments.
         """
+        # Which kernel to use (if any)
+        self.kernel_mode     = kwargs.get('kernel_mode')
+        self.separation_mode = kwargs.get('separation_mode', 'wave')
+
         # Set up the covariance matrix
         self.var = d_err**2
 
@@ -84,11 +89,22 @@ class Covariance:
             self.var_eff = np.median(self.var)
 
         # Convert wavelength separation to a banded matrix
-        self.wave_sep = np.abs(d_wave[None,:] - d_wave[:,None])
-        if max_wave_sep is None:
-            max_wave_sep = np.max(np.diff(d_wave))
+        self.separation = np.abs(d_wave[None,:]-d_wave[:,None])
+        
+        if self.separation_mode == 'velocity':
+            # Use velocity separation
+            self.separation = (sc.c*1e-3) * self.separation / (np.abs(d_wave[None,:]+d_wave[:,None])/2)
+        
+        max_separation = kwargs.get('max_wave_sep')
+        if max_separation is None:
+            max_separation = kwargs.get('max_separation')
 
-        self.wave_sep = self.get_banded(self.wave_sep, max_value=max_wave_sep, pad_value=1000)
+        if max_separation is None:
+            max_separation = np.max(self.separation)
+
+        self.separation = self.get_banded(
+            self.separation, max_value=max_separation, pad_value=1e6
+        )
 
         self._reset_cov()
 
@@ -101,11 +117,23 @@ class Covariance:
             **kwargs: Additional keyword arguments.
         """
         self._reset_cov()
+
+        b = ParamTable.get('b')
+        if b is not None:
+            # Multiply the error by a factor of 10^b
+            self._multiply_err(b)
         
-        amp    = ParamTable.get('a')
+        amp    = ParamTable.get('a', 1.)
         length = ParamTable.get('l')
-        if None not in [amp, length]:
+        if None in [length, self.kernel_mode]:
+            # If either parameter is None, do not add a kernel
+            self._get_cholesky()
+            return
+        
+        if self.kernel_mode == 'rbf':
             self._add_radial_basis_function_kernel(amp=amp, length=length)
+        elif self.kernel_mode == 'matern':
+            self._add_matern_kernel(amp=amp, length=length)
             
         self._get_cholesky()
 
@@ -128,7 +156,7 @@ class Covariance:
         """
         Reset the covariance matrix to its initial state.
         """
-        self.cov = np.zeros_like(self.wave_sep)
+        self.cov = np.zeros_like(self.separation, dtype=float)
         self.cov[0] = self.var.copy()
         
     def _get_cholesky(self):
@@ -153,6 +181,18 @@ class Covariance:
         # Log determinant of the covariance matrix
         self.logdet = 2*np.sum(np.log(self.cov_cholesky[0]))
 
+    def _multiply_err(self, b):
+        """
+        Multiply the error by a factor of 10^b. Or equivalently, 
+        inflate the (co)-variance by a factor of 10^(2*b).
+        
+        Args:
+            b (float): Factor to inflate the error.
+        """
+        self.cov *= 10**(2*b)
+        if hasattr(self, 'var_eff'):
+            self.var_eff *= 10**(2*b)
+
     def _add_radial_basis_function_kernel(self, amp, length):
         """
         Add a radial basis function kernel to the covariance matrix.
@@ -162,11 +202,46 @@ class Covariance:
             length (float): Length scale of the kernel.
         """
         # Hann window function to ensure sparsity
-        w_ij = (self.wave_sep < self.trunc_dist*length)
+        w_ij = (self.separation < self.trunc_dist*length)
+
+        # Normalised separation
+        norm_sep = self.separation[w_ij] / length
 
         # GP amplitude
         var_eff = getattr(self, 'var_eff', 1.)
         amp = amp**2 * var_eff
 
         # Gaussian radial-basis function kernel
-        self.cov[w_ij] += amp * np.exp(-(self.wave_sep[w_ij])**2/(2*length**2))
+        self.cov[w_ij] += amp * np.exp(-1/2*norm_sep**2)
+
+    def _add_matern_kernel(self, amp, length, nu=1.5):
+        """
+        Add a Matern kernel to the covariance matrix.
+
+        Args:
+            amp (float): Amplitude of the kernel.
+            length (float): Length scale of the kernel.
+            nu (float, optional): Smoothness parameter. Defaults to 1.5.
+        """
+        # Hann window function to ensure sparsity
+        w_ij = (self.separation < self.trunc_dist*length)
+        
+        # Normalised separation
+        norm_sep = self.separation[w_ij] / length
+
+        # GP amplitude
+        var_eff = getattr(self, 'var_eff', 1.)
+        amp = amp**2 * var_eff
+
+        # Matern kernel
+        if nu == 0.5:
+            self.cov[w_ij] += amp * np.exp(-norm_sep)
+        elif nu == 1.5:
+            self.cov[w_ij] += amp * (1 + np.sqrt(3)*norm_sep) * np.exp(-np.sqrt(3)*norm_sep)
+        elif nu == 2.5:
+            self.cov[w_ij] += (
+                amp * (1 + np.sqrt(5)*norm_sep + 5/3*norm_sep**2) * np.exp(-np.sqrt(5)*norm_sep)
+            )
+        else:
+            raise ValueError(f"Unsupported nu value: {nu}. Supported values are 0.5, 1.5, and 2.5.")
+        
