@@ -66,7 +66,7 @@ class Covariance:
         # Convert to array for scipy
         return np.asarray(banded_array)
 
-    def __init__(self, d_wave, d_err, trunc_dist=5, scale_amp=False, **kwargs):
+    def __init__(self, d_wave, d_err, trunc_dist=5, **kwargs):
         """
         Initialize the Covariance object.
 
@@ -74,7 +74,6 @@ class Covariance:
             d_wave (np.ndarray): Wavelength data.
             d_err (np.ndarray): Error data.
             trunc_dist (int, optional): Truncation distance for the covariance matrix. Defaults to 5.
-            scale_amp (bool, optional): If True, scale the amplitude. Defaults to False.
             **kwargs: Additional keyword arguments.
         """
         # Which kernel to use (if any)
@@ -83,10 +82,11 @@ class Covariance:
 
         # Set up the covariance matrix
         self.var = d_err**2
-
+        
+        # Scale the amplitude wrt the median variance
+        self.scale_amp = kwargs.get('scale_amp', False) 
+        # Truncation distance for the covariance matrix
         self.trunc_dist = trunc_dist
-        if scale_amp:
-            self.var_eff = np.median(self.var)
 
         # Convert wavelength separation to a banded matrix
         self.separation = np.abs(d_wave[None,:]-d_wave[:,None])
@@ -95,6 +95,7 @@ class Covariance:
             # Use velocity separation
             self.separation = (sc.c*1e-3) * self.separation / (np.abs(d_wave[None,:]+d_wave[:,None])/2)
         
+        # Maximum separation/diagonal to consider for the covariance matrix
         max_separation = kwargs.get('max_wave_sep')
         if max_separation is None:
             max_separation = kwargs.get('max_separation')
@@ -102,10 +103,12 @@ class Covariance:
         if max_separation is None:
             max_separation = np.max(self.separation)
 
+        # Convert the separation to a banded matrix
         self.separation = self.get_banded(
             self.separation, max_value=max_separation, pad_value=1e6
         )
 
+        # Initialize the covariance matrix
         self._reset_cov()
 
     def __call__(self, ParamTable, **kwargs):
@@ -158,6 +161,10 @@ class Covariance:
         """
         self.cov = np.zeros_like(self.separation, dtype=float)
         self.cov[0] = self.var.copy()
+
+        if self.scale_amp:
+            # Scale the amplitude wrt the median variance
+            self.var_eff = np.median(self.var)
         
     def _get_cholesky(self):
         """
