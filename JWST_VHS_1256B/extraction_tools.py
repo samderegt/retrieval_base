@@ -3,19 +3,16 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
 from astropy.io import fits
-from astropy.modeling import models, fitting
+from photutils.aperture import EllipticalAperture, aperture_photometry
 
-from photutils.aperture import EllipticalAperture
-from photutils.aperture import aperture_photometry
-
-from jwst.residual_fringe.utils import fit_residual_fringes_1d
+# from jwst.residual_fringe.utils import fit_residual_fringes_1d
 
 import os
 os.environ['STPSF_PATH'] = '/net/schenk/data2/regt/JWST_reductions/stpsf-data'
 
 class ApertureCorrection:
 
-    def __init__(self, wave, N=5, disperser=None, filter=None, band=None):
+    def __init__(self, wave, N=20, disperser=None, filter=None, band=None):
     
         import stpsf
 
@@ -88,6 +85,11 @@ class SpectralExtraction:
         self.cube     *= pixel_area*1e6 # Convert to flux [MJy/sr] -> [Jy]
         self.cube_err *= pixel_area*1e6
 
+        # Convert [Jy] to [W/m^2/micron]
+        self.cube, self.cube_err = convert_Jy_to_F_lam(
+            self.wave[:,None,None], self.cube, self.cube_err
+            )
+
     def _fit_gaussians(self, cube, *xy_to_mask, model=None):
 
         # Median-combine the cube along the wavelength axis
@@ -130,6 +132,9 @@ class SpectralExtraction:
             gaussian_i.x_stddev.bounds = (0.5, 6)
             gaussian_i.y_stddev.bounds = (0.5, 6)
             gaussian_i.y_stddev.tied = lambda m: m[i].x_stddev
+
+            gaussian_i.x_mean.bounds = (0, median_image.shape[1]-1)
+            gaussian_i.y_mean.bounds = (0, median_image.shape[0]-1)
 
             gaussian_i.theta.fixed = True
             gaussian_i.amplitude.bounds = (-1.5, 1.5)
@@ -257,8 +262,6 @@ class SpectralExtraction:
 def extract_per_channel(cube, cube_err=None, **aper_kwargs):
     """Extract the flux per channel from a spectral cube using aperture photometry."""
     
-    from photutils.aperture import EllipticalAperture, aperture_photometry
-
     flux = np.zeros(cube.shape[0])
     flux_err = np.zeros(cube.shape[0])
 
@@ -351,3 +354,24 @@ def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
         ax[1].set(ylim=ylim, ylabel='S/N', xlabel='Wavelength [micron]')
         plt.show()
 
+    # Remove pixels that are not valid in any dither
+    wave = wave[0][is_in_any_dither]
+    flux_mean = flux_mean[is_in_any_dither]
+    flux_err_mean = flux_err_mean[is_in_any_dither]
+    
+    return wave, flux_mean, flux_err_mean
+
+def convert_Jy_to_F_lam(wave, flux, flux_err):
+
+    from scipy.constants import c
+
+    wave_m = 1e-6 * wave # [micron] -> [m]
+
+    flux = 1e-26 * flux # [Jy] -> [W/m^2/Hz]
+    flux = flux * c / wave_m**2 # [W/m^2/Hz] -> [W/m^2/m]
+    flux = flux * 1e-6 # [W/m^2/m] -> [W/m^2/micron]
+
+    flux_err = 1e-26 * flux_err # [Jy] -> [W/m^2/Hz]
+    flux_err = flux_err * c / wave_m**2 # [W/m^2/Hz] -> [W/m^2/m]
+    flux_err = flux_err * 1e-6 # [W/m^2/m] -> [W/m^2/micron]
+    return flux, flux_err
