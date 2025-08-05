@@ -12,7 +12,7 @@ os.environ['STPSF_PATH'] = '/net/schenk/data2/regt/JWST_reductions/stpsf-data'
 
 class ApertureCorrection:
 
-    def __init__(self, wave, N=20, disperser=None, filter=None, band=None):
+    def __init__(self, wave, N=2, disperser=None, filter=None, band=None):
     
         import stpsf
 
@@ -175,7 +175,13 @@ class SpectralExtraction:
         horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
         horizontal_collapsed = np.nan_to_num(horizontal_collapsed, nan=0.0)
 
+        # horizontal_collapsed *= 0.
         cube_corrected = np.copy(self.cube) - horizontal_collapsed
+
+        # vmax = np.nanpercentile(horizontal_collapsed, 99)
+        # fig, ax = plt.subplots(figsize=(7,2.7))
+        # ax.imshow(np.squeeze(horizontal_collapsed).T, cmap='bwr', aspect='auto', vmin=-vmax, vmax=vmax)
+        # plt.show()
 
         if plot:
             # Plot the results

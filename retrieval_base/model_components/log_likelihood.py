@@ -83,6 +83,16 @@ class LogLikelihood:
             chi_squared_0 = np.dot(residuals[mask].T, Cov_i.solve(residuals[mask]))
             self.chi_squared_0 += chi_squared_0
 
+            # Get the log of the determinant
+            logdet_cov_0 = Cov_i.logdet
+            
+            if (not apply_scaling) and (not self.scale_err):
+                # No scaling, use simple log-likelihood
+                self.ln_L += -1/2*(
+                    N_d*np.log(2*np.pi) + logdet_cov_0 + chi_squared_0
+                )
+                continue
+
             logdet_MT_inv_cov_0_M = 0
             if apply_scaling:
                 # Covariance matrix of phi
@@ -95,9 +105,6 @@ class LogLikelihood:
             if self.scale_err:
                 # Scale the variance to maximise log-likelihood
                 self.s_squared[i] = self._get_err_scaling(chi_squared_0, N_d)
-
-            # Get the log of the determinant
-            logdet_cov_0 = Cov_i.logdet
 
             # Constant term for this order/detector
             self.ln_L += -1/2*(N_d-self.N_phi) * np.log(2*np.pi) + \

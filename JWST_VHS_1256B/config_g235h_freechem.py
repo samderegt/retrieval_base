@@ -4,42 +4,30 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g395h_ret_17'
+prefix = 'g235h_ret_8'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
+    #nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3}), 
+    #nirspec_g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'grating':'G140H', 'min_SNR':3}), 
+    #nirspec_g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'grating':'G235H', 'min_SNR':3}),
+    nirspec_g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'grating':'G235H', 'min_SNR':3}),
     #nirspec_g395h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'grating':'G395H', 'min_SNR':3}),
-    nirspec_g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'grating':'G395H', 'min_SNR':3, 'wave_range':(4200,5400)}), 
+    #nirspec_g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'grating':'G395H', 'min_SNR':3}), 
 )
-# config_data['nirspec_g395h_2_A'] = config_data['nirspec_g395h_2'].copy()
-# config_data['nirspec_g395h_2_B'] = config_data['nirspec_g395h_2'].copy()
-# config_data.pop('nirspec_g395h_2')
 
 ####################################################################################
 # Model parameters
 ####################################################################################
-from retrieval_base.utils import sc
-M_p, sigma_M_p = 19.0, 5.0
-R_p, sigma_R_p = 1.1, 0.2
-g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
-log_g = np.log10(g)
-sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    # 'log_a': ['U', (-2.5,1.0), r'$\log\ a$'], 
-    # 'log_l': ['U', (-2.0,0.5), r'$\log\ l$'], 
-    # 'log_l': ['U', (1.4,6.0), r'$\log\ l$'],
-    'b': ['U', (0.0,3.0), r'$b$'],
-    # 'a': ['U', (0.0,1.0), r'$a$'],
-
-    # 'T_BB': ['U', (100.,1000.), r'$T_\mathrm{BB}$'],
-    # 'R_BB': ['U', (0.,5.), r'$R_\mathrm{BB}$'],
+    #'log_a': ['U', (-0.5,0.5), r'$\log\ a$'], 
+    #'log_l': ['U', (-2.0,0.5), r'$\log\ l$'], 
 
     # General properties
-    # 'M_p': ['G', (19.0,5.0), r'$\mathrm{M_p}$'],
-    'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
+    'M_p': ['G', (19.0,5.0), r'$\mathrm{M_p}$'], 
     'R_p': ['G', (1.1,0.2), r'$\mathrm{R_p}$'], 
     'rv':  ['U', (-10.,7.), r'$v_\mathrm{rad}$'], 
 
@@ -47,45 +35,40 @@ free_params = {
     'vsini': ['U', (0.,20.), r'$v\ \sin\ i$'], 
 
     # Cloud properties
-    # 'coverage_fraction': ['U', (0.0,1.0), r'$f_\mathrm{colA}$'],
-    # 'nirspec_g395h_2_A': {
-    #     'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    #     'log_P_base_gray':   ['U', (-1,2), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    #     'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    #     'cloud_slope':       ['U', (-6,3), r'$\xi_\mathrm{cl}$'], 
-    # },
-    # 'nirspec_g395h_2_B': {
-    #     'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    #     'log_P_base_gray':   ['U', (-1,2), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    #     'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    #     'cloud_slope':       ['U', (-6,3), r'$\xi_\mathrm{cl}$'], 
-    # },
-    'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    'log_P_base_gray':   ['U', (-1,2), r'$\log\ P_{\mathrm{cl,0}}$'], 
-    'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    'cloud_slope':       ['U', (-6,3), r'$\xi_\mathrm{cl}$'], 
+    'log_K_zz': ['U', (5,13), r'$\log\ K_\mathrm{zz,cl}$'],
+    'sigma_g':  ['U', (1.05,3), r'$\sigma_g$'],
+    'log_X_Mg2SiO4(s)_amorphous__Mie': ['U', (-2.3,1), r'$\log\ X_\mathrm{Mg2SiO4}$'],
+    'f_sed_Mg2SiO4(s)_amorphous__Mie': ['U', (0,10), r'$f_\mathrm{sed,Mg2SiO4}$'],
+    'log_X_MgSiO3(s)_amorphous__Mie':  ['U', (-2.3,1), r'$\log\ X_\mathrm{MgSiO3}$'],
+    'f_sed_MgSiO3(s)_amorphous__Mie':  ['U', (0,10), r'$f_\mathrm{sed,MgSiO3}$'],
+    'log_X_Fe(s)_amorphous__Mie':      ['U', (-2.3,1), r'$\log\ X_\mathrm{Fe}$'],
+    'f_sed_Fe(s)_amorphous__Mie':      ['U', (0,10), r'$f_\mathrm{sed,Fe}$'],
 
     # Chemistry
     'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
     'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
+    'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
+    'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
     'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
     'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
-    'log_13CO2':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO_2}$'],
-    'log_SiO':     ['U', (-14,-2), r'$\log\ \mathrm{SiO}$'],
+    'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
+    'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
+    
+    'log_12/13C_ratio': ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}C}$'],
+    'log_16/18O_ratio': ['U', (0,5), r'$\log\ \mathrm{^{16}/^{18}O}$'],
 
     # PT profile
-    'dlnT_dlnP_0': ['U', (0.0,0.34), r'$\nabla_0$'], 
-    'dlnT_dlnP_1': ['U', (0.0,0.34), r'$\nabla_1$'], 
+    'dlnT_dlnP_0': ['U', (0.1,0.34), r'$\nabla_0$'], 
+    'dlnT_dlnP_1': ['U', (0.05,0.34), r'$\nabla_1$'], 
     'dlnT_dlnP_2': ['U', (0.0,0.34), r'$\nabla_2$'], 
     'dlnT_dlnP_3': ['U', (0.0,0.34), r'$\nabla_3$'], 
     'dlnT_dlnP_4': ['U', (0.0,0.34), r'$\nabla_4$'], 
     'dlnT_dlnP_5': ['U', (-0.1,0.34), r'$\nabla_5$'], 
 
     'T_phot':         ['U', (800.,2000.), r'$T_\mathrm{phot}$'], 
+    #'log_P_phot':     ['U', (-2.,0.5), r'$\log\ P_\mathrm{phot}$'], 
+    #'d_log_P_phot+1': ['U', (0.5,2.5), r'$\Delta P_\mathrm{+1}$'], 
+    #'d_log_P_phot-1': ['U', (0.5,1.5), r'$\Delta P_\mathrm{-1}$'], 
 }
 
 # Constants to use if prior is not given
@@ -116,32 +99,34 @@ PT_kwargs = dict(
 
     log_P_range = (-5.,2.), 
     n_atm_layers = 50,
+    #log_P_knots = np.array([-5.,-2.,-1.,0.,1.,2.]),
 )
 
 chem_kwargs = dict(
     shared_between_m_set = False,
     chem_mode = 'free', 
-
-    # nirspec_g395h_2 = dict(
+    nirspec_g235h_2 = dict(
         line_species = [
             '1H2-16O__POKAZATEL',
             '1H2-18O__HotWat78',
             '12C-16O__HITEMP',
             '13C-16O__HITEMP',
-            '12C-18O__HITEMP',
-            '12C-17O__HITEMP',
+            '12C-1H4__MM',
+            '13C-1H4__HITRAN',
+            '1H-19F__Coxon-Hajig',
             '1H2-32S__AYT2',
             '12C-16O2__HITEMP',
-            # '12C-16O2__AMES',
-            '13C-16O2__HITEMP',
-            '28Si-16O__SiOUVenIR', 
-        ],
-    # ),
+            '1H-12C-14N__Harris',
+            '14N-1H3__CoYuTe',
+        ], 
+    ), 
 )
 
 cloud_kwargs = dict(
     shared_between_m_set = False,
-    cloud_mode = 'gray', wave_cloud_0 = 4.2, 
+    #cloud_mode = None, 
+    #cloud_mode = 'gray', wave_cloud_0 = 1.0, 
+    cloud_mode = 'EddySed', cloud_species = ['Mg2SiO4(s)_amorphous__Mie', 'MgSiO3(s)_amorphous__Mie', 'Fe(s)_amorphous__Mie'], 
 )
 
 rotation_kwargs = dict(
@@ -150,8 +135,8 @@ rotation_kwargs = dict(
 )
 
 pRT_Radtrans_kwargs = dict(
-    # nirspec_g395h_2 = dict(line_species=chem_kwargs['nirspec_g395h_2']['line_species']),
-    line_species = chem_kwargs.get('line_species', []),
+    #line_species               = chem_kwargs['line_species'],
+    nirspec_g235h_2 = dict(line_species=chem_kwargs['nirspec_g235h_2']['line_species']),
 
     rayleigh_species           = ['H2','He'],
     gas_continuum_contributors = ['H2-H2','H2-He'],
@@ -159,7 +144,8 @@ pRT_Radtrans_kwargs = dict(
     
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
-    scattering_in_emission        = False, 
+    scattering_in_emission        = True, 
+    #scattering_in_emission        = False, 
 
     pRT_input_data_path = '/net/schenk/data2/regt/pRT3_input_data/input_data', 
 )
@@ -170,18 +156,14 @@ pRT_Radtrans_kwargs = dict(
 
 loglike_kwargs = dict(
     scale_flux = False, 
-    scale_err = False, 
-    # scale_err = True, 
+    scale_err = True, 
     sum_model_settings = False, 
-    # sum_model_settings = True, 
 )
 
 cov_kwargs = dict(
-    # trunc_dist = 5, # For Matern, 4.16 would be equivalent to 3*sigma
-    # scale_amp  = True,  
-    # max_separation = 5 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
-    # kernel_mode = 'matern', separation_mode = 'velocity', 
-    # kernel_mode = 'rbf', separation_mode = 'velocity', 
+    trunc_dist = 3, 
+    scale_amp  = True, 
+    #max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
 )
 
 all_model_kwargs = dict(
