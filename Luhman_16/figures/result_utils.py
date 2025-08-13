@@ -15,10 +15,14 @@ def latex_format(*posteriors, q=q[[4,2]], decimals=2):
     full_str = []
 
     if len(q) == 1:
-        # Lower/upper limit
+        if q[0] > 0.5:
+            prefix = '<' # Upper limit
+        elif q[0] < 0.5:
+            prefix = '>' # Lower limit
+
         for p in posteriors:
             str_i = '{}'.format(np.round(np.quantile(p, q=q), decimals)[0])
-            full_str.append('$'+str_i+'$')
+            full_str.append('$'+prefix+str_i+'$')
 
         print(' & '.join(full_str)+r' \\')
         return
