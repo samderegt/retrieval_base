@@ -820,30 +820,46 @@ class FastChemistry(EquilibriumChemistry):
         # Give arguments to the parent class
         super().__init__(line_species, pressure, LineOpacity)
 
+        # Complexity of reaction network
+        self.abundance_file = kwargs.get('abundance_file')
+        self.gas_data_file  = kwargs.get('gas_data_file')
+        self.cond_data_file = kwargs.get('cond_data_file', 'none')
+
+        # Use equilibrium (+rainout) condensation
+        self.use_eq_cond      = kwargs.get('use_eq_cond', True)
+        self.use_rainout_cond = kwargs.get('use_rainout_cond', False)
+
         # Create the FastChem object
+        self._get_fastchem_object()
+        self.gas_species_tot = self.fastchem.getGasSpeciesNumber()
+
+        self.min_temperature = kwargs.get('min_temperature', 500.)
+
+        # Get element and solar properties
+        self._get_element_indices()
+        self._get_solar()
+
+    def _get_fastchem_object(self):
+        """
+        Get the FastChem object.
+        """
+        if hasattr(self, 'fastchem'):
+            return
+        
         import pyfastchem as pyfc
         self.fastchem = pyfc.FastChem(
-            kwargs.get('abundance_file'),
-            kwargs.get('gas_data_file'), 
-            kwargs.get('cond_data_file', 'none'), 
-            1
+            self.abundance_file, self.gas_data_file, self.cond_data_file, 1
             )
-        self.gas_species_tot = self.fastchem.getGasSpeciesNumber()
+        
+        # Configure FastChem's internal parameters
+        self.fastchem.setParameter('accuracyChem', 1e-4)
 
         # Create in/out-put structures for FastChem
         self.input  = pyfc.FastChemInput()
         self.output = pyfc.FastChemOutput()
 
-        # Use equilibrium (+rainout) condensation
-        self.input.equilibrium_condensation = kwargs.get('use_eq_cond', True)
-        self.input.rainout_condensation     = kwargs.get('use_rainout_cond', False)
-
-        # Configure FastChem's internal parameters
-        self.fastchem.setParameter('accuracyChem', 1e-4)
-
-        # Get element and solar properties
-        self._get_element_indices()
-        self._get_solar()
+        self.input.equilibrium_condensation = self.use_eq_cond
+        self.input.rainout_condensation     = self.use_rainout_cond
 
     def _get_element_indices(self):
         """
@@ -851,8 +867,8 @@ class FastChemistry(EquilibriumChemistry):
         """
         # Get the indices of relevant species
         self.idx = {
-            el: int(self.fastchem.getElementIndex(el)) \
-            for el in ['H','He','C','N','O',]
+            self.fastchem.getElementSymbol(i): \
+            i for i in range(self.fastchem.getElementNumber())
         }
 
         # All but the H, He indices
@@ -904,6 +920,18 @@ class FastChemistry(EquilibriumChemistry):
         self.el_abund[self.idx['N']] *= tot_abund_ratio
         self.el_abund[self.idx['O']] *= tot_abund_ratio
 
+    def _set_elemental_abundances(self, ParamTable):
+        """
+        Set the abundances of each element separately.
+        """
+        for el, i in self.idx.items():
+            # Enhance the elemental abundance
+            alpha_i = ParamTable.get(f'alpha_{el}', None)
+            if alpha_i is None:
+                continue
+
+            self.el_abund[i] = 10**alpha_i * self.el_abund[i]
+
     def get_VMRs(self, ParamTable):
         """
         Get volume mixing ratios (VMRs) using the FastChem library.
@@ -911,24 +939,28 @@ class FastChemistry(EquilibriumChemistry):
         Args:
             ParamTable (dict): Parameters for the model.
         """
+        # Reinitialise the fastchem object if it doesn't exist
+        self._get_fastchem_object()
+
         # Flip to order by increasing altitude
         self.input.pressure = self.pressure[::-1]
 
         # Fastchem doesn't converge for low temperatures
         temperature = self.temperature[::-1].copy()
-        temperature[temperature<500.] = 500.
+        temperature[temperature<self.min_temperature] = self.min_temperature
         self.input.temperature = temperature
 
         # Update the parameters
-        self.CO  = ParamTable.get('C/O')
+        self.CO  = ParamTable.get('C/O', self.solar_CO)
         self.NO  = ParamTable.get('N/O', self.solar_NO)
-        self.FeH = ParamTable.get('Fe/H')
+        self.FeH = ParamTable.get('Fe/H', self.solar_FeH)
 
         # Modify the elemental abundances, initially solar
         self.el_abund = self.solar_abund.copy()
         self._set_CO()
         self._set_NO()
         self._set_metallicity()
+        self._set_elemental_abundances(ParamTable)
 
         # Update the element abundances
         self.fastchem.setElementAbundances(self.el_abund)

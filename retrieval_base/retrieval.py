@@ -51,6 +51,10 @@ class Retrieval:
         for name, component in vars(self).items():
 
             if name in non_dict_names:
+                if hasattr(component, 'fastchem'):
+                    del component.fastchem, component.input, component.output
+
+                # Save the model component
                 utils.save_pickle(component, self.data_dir/f'{name}.pkl')
                 continue
 
@@ -61,6 +65,9 @@ class Retrieval:
             
             # Is a dictionary, loop over model settings
             for m_set, comp in component.items():
+                if hasattr(comp, 'fastchem'):
+                    del comp.fastchem, comp.input, comp.output
+
                 # Save the component
                 utils.save_pickle(comp, self.data_dir/f'{name}_{m_set}.pkl')
 
