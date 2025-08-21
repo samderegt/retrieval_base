@@ -9,7 +9,7 @@ from retrieval_base.retrieval import RetrievalRun, Retrieval
 
 q = 0.5 + np.array([-0.997, -0.95, -0.68, 0.0, +0.68, +0.95, +0.997])/2
 
-def latex_format(*posteriors, q=q[[4,2]], decimals=2):
+def latex_format(*posteriors, q=q[[4,2]], decimals=2, as_p10=False):
     """Format the parameters for LaTeX output."""
     q = np.atleast_1d(q)
     full_str = []
@@ -27,14 +27,9 @@ def latex_format(*posteriors, q=q[[4,2]], decimals=2):
         print(' & '.join(full_str)+r' \\')
         return
 
-    if decimals == 0:
-        style = '{:.0f}^+{:.0f}/{:.0f}'
-    elif decimals == 1:
-        style = '{:.1f}^+{:.1f}/{:.1f}'
-    elif decimals == 2:
-        style = '{:.2f}^+{:.2f}/{:.2f}'
-    elif decimals == 3:
-        style = '{:.3f}^+{:.3f}/{:.3f}'
+    style = f'{{:.{decimals}f}}^+{{:.{decimals}f}}/{{:.{decimals}f}}'
+    if as_p10:
+        style = f'{{:.{decimals}e}}^+{{:.{decimals}e}}/{{:.{decimals}e}}'
 
     for p in posteriors:
         str_i = style.format(np.median(p), *np.quantile(p, q=q)-np.median(p))
