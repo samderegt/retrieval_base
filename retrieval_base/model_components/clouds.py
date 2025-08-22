@@ -191,8 +191,10 @@ class Gray(Cloud):
             opa_base_i   = ParamTable.get(f'opa_base_gray{suffix}') # Opacity at the base
             f_sed_gray_i = ParamTable.get(f'f_sed_gray{suffix}')    # Power-law drop-off
 
-            if (None in [P_base_i, opa_base_i, f_sed_gray_i]) and (i!=-1):
-                break
+            if (None in [P_base_i, opa_base_i, f_sed_gray_i]):
+                if i is not None:
+                    break
+                continue
 
             # Non-gray cloud slope
             cloud_slope_i = ParamTable.get(f'cloud_slope{suffix}', 0.)

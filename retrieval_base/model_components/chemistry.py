@@ -846,13 +846,18 @@ class FastChemistry(EquilibriumChemistry):
         if hasattr(self, 'fastchem'):
             return
         
+        verbose = 1
+        if hasattr(self, 'solar_abund'):
+            verbose = 0 # Suppress initialisation message during sampling
+
         import pyfastchem as pyfc
         self.fastchem = pyfc.FastChem(
-            self.abundance_file, self.gas_data_file, self.cond_data_file, 1
+            self.abundance_file, self.gas_data_file, self.cond_data_file, verbose
             )
         
         # Configure FastChem's internal parameters
         self.fastchem.setParameter('accuracyChem', 1e-4)
+        self.fastchem.setVerboseLevel(1)
 
         # Create in/out-put structures for FastChem
         self.input  = pyfc.FastChemInput()
@@ -926,8 +931,11 @@ class FastChemistry(EquilibriumChemistry):
         """
         for el, i in self.idx.items():
             # Enhance the elemental abundance
-            alpha_i = ParamTable.get(f'alpha_{el}', None)
+            alpha_i = ParamTable.get(f'alpha_{el}', ParamTable.get(f'[M/H]', None))
             if alpha_i is None:
+                continue
+
+            if el in ['e-', 'H', 'He']:
                 continue
 
             self.el_abund[i] = 10**alpha_i * self.el_abund[i]
@@ -993,4 +1001,4 @@ class FastChemistry(EquilibriumChemistry):
                 continue
 
             # Volume-mixing ratio, flip back to decreasing altitude
-            self.VMRs[species_i] = n[:,idx][::-1] / n_tot
+            self.VMRs[species_i] = (n[:,idx] / n_tot)[::-1]
