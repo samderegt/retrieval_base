@@ -183,7 +183,7 @@ class ParameterTable:
             # Parameter not found
             return value
             
-        return queried_table[key].values[0]
+        return queried_table[key].values[-1]
     
     def get_mathtext(self):
         """

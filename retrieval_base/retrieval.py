@@ -565,6 +565,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
                 plots_dir=self.plots_dir, 
                 LogLike=self.LogLike,
                 Cov=self.Cov, 
+                m_spec=self.m_spec, 
                 )
             if self.LogLike.sum_model_settings:
                 break

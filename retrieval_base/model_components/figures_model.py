@@ -298,7 +298,7 @@ def plot_clouds(Cloud, ax=None, ls='-'):
     ax.set(
         yscale='log', ylabel='P (bar)', ylim=(Cloud.pressure.max(), Cloud.pressure.min()), 
         xscale='log', xlabel=r'$\kappa_\mathrm{cl}\ (\mathrm{cm^2\ g^{-1}})$', 
-        xlim=(3e2,1e-4), xticks=[1e2,1e-1,1e-4], 
+        xlim=(3e2,1e-6), #xticks=[1e2,1e-1,1e-4], 
         )
 
     total_opacity = getattr(Cloud, 'total_opacity', None)

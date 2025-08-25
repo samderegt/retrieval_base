@@ -74,14 +74,22 @@ class EddySed(Cloud):
             **kwargs: Additional keyword arguments.
         """
         # Mixing and particle size
-        self.K_zz    = ParamTable.get('K_zz') * np.ones_like(self.pressure)
-        self.sigma_g = ParamTable.get('sigma_g')
+        self.K_zz = ParamTable.get('K_zz')
+        if self.K_zz is not None:
+            self.K_zz *= np.ones_like(self.pressure)
+        
         self.f_sed = {}
+        self.mean_radii = {}
+        self.std_radii  = 1 + 2*ParamTable.get('sigma_cl')
 
         self.mass_fractions = {}
         for species in self.cloud_species:
             self.mass_fractions[species] = \
                 self._get_mass_fraction_profile(ParamTable, Chem, PT, species)
+            
+            self.mean_radii[species] = (
+                ParamTable.get(f'radius_cl_{species}') * np.ones_like(self.pressure)
+            )
 
         self.total_opacity = 0 # Is updated in model_spectrum.pRT.__call__
 
@@ -124,7 +132,7 @@ class EddySed(Cloud):
             species (str): Cloud species.
         """
         P_base = ParamTable.get(f'P_base_{species}') # Base pressure
-        mf_eq  = ParamTable.get(f'X_base_{species}')  # Equilibrium mass fraction
+        mf_eq  = ParamTable.get(f'X_base_{species}') # Equilibrium mass fraction
 
         if None in [P_base, mf_eq]:
             # Get cloud base and equilibrium mass fraction

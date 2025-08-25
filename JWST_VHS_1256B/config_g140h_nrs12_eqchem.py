@@ -4,15 +4,13 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g140h_nrs1_eqchem_ret_6'
+prefix = 'g140h_nrs12_eqchem_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3, 'wave_range':(950,1100)}),  
+    nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3}),  
+    nirspec_g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'grating':'G140H', 'min_SNR':3}),  
 )
-config_data['nirspec_g140h_1A'] = config_data['nirspec_g140h_1'].copy()
-config_data['nirspec_g140h_1B'] = config_data['nirspec_g140h_1'].copy()
-config_data.pop('nirspec_g140h_1')
 
 ####################################################################################
 # Model parameters
@@ -27,9 +25,9 @@ sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    'a': ['U', (0.,2.), r'$\log\ a$'], 
+    'a':     ['U', (0.,2.), r'$\log\ a$'], 
     'log_l': ['U', (1.0,2.6), r'$\log\ l$'],
-    'b': ['U', (0.0,3.0), r'$b$'],
+    'b':     ['U', (0.0,3.0), r'$b$'],
 
     # General properties
     'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
@@ -40,39 +38,25 @@ free_params = {
     'vsini': ['U', (0.,40.), r'$v\ \sin\ i$'], 
 
     # Cloud properties
-    'coverage_fraction': ['U', (0,1), r'$f$'],
-    'nirspec_g140h_1A': {
-        'log_sigma_cl': ['U', (-2,0), r'$\Delta\log\sigma_\mathrm{A}$'], 
-        
-        'log_P_base_Fe(s)_amorphous__Mie': ['U', (-5,3), r'$\log P_\mathrm{Fe,A}$'], 
-        'log_X_base_Fe(s)_amorphous__Mie': ['U', (-10,-2), r'$\log X_\mathrm{Fe,A}$'], 
-        'f_sed_Fe(s)_amorphous__Mie': ['U', (0,10), r'$f_\mathrm{sed,Fe,A}$'], 
-        'log_radius_cl_Fe(s)_amorphous__Mie': ['U', (-6,0), r'$\log r_\mathrm{Fe,A}$'], 
-    }, 
-    'nirspec_g140h_1B': {
-        'log_sigma_cl': ['U', (-2,0), r'$\Delta\log\sigma_\mathrm{B}$'], 
+    'log_sigma_cl':                       ['U', (-2,0), r'$\Delta\log\sigma$'], 
+    'log_P_base_Fe(s)_amorphous__Mie':    ['U', (-5,3), r'$\log P_\mathrm{Fe}$'], 
+    'log_X_base_Fe(s)_amorphous__Mie':    ['U', (-10,-2), r'$\log X_\mathrm{Fe}$'], 
+    'f_sed_Fe(s)_amorphous__Mie':         ['U', (0,10), r'$f_\mathrm{sed,Fe}$'], 
+    'log_radius_cl_Fe(s)_amorphous__Mie': ['U', (-6,0), r'$\log r_\mathrm{Fe}$'], 
 
-        'log_P_base_Fe(s)_amorphous__Mie': ['U', (-5,3), r'$\log P_\mathrm{Fe,B}$'], 
-        'log_X_base_Fe(s)_amorphous__Mie': ['U', (-10,-2), r'$\log X_\mathrm{Fe,B}$'], 
-        'f_sed_Fe(s)_amorphous__Mie': ['U', (0,10), r'$f_\mathrm{sed,Fe,B}$'], 
-        'log_radius_cl_Fe(s)_amorphous__Mie': ['U', (-6,0), r'$\log r_\mathrm{Fe,B}$'], 
-
-        'log_P_base_Mg2SiO4(s)_amorphous__Mie': ['U', (-5,3), r'$\log P_\mathrm{Mg2SiO4,B}$'], 
-        'log_X_base_Mg2SiO4(s)_amorphous__Mie': ['U', (-10,-2), r'$\log X_\mathrm{Mg2SiO4,B}$'], 
-        'f_sed_Mg2SiO4(s)_amorphous__Mie': ['U', (0,10), r'$f_\mathrm{sed,Mg2SiO4,B}$'], 
-        'log_radius_cl_Mg2SiO4(s)_amorphous__Mie': ['U', (-6,0), r'$\log r_\mathrm{Mg2SiO4,B}$'], 
-    }, 
-
+    'log_P_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-5,3), r'$\log P_\mathrm{Mg2SiO4}$'], 
+    'log_X_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-10,-2), r'$\log X_\mathrm{Mg2SiO4}$'], 
+    'f_sed_Mg2SiO4(s)_amorphous__Mie':         ['U', (0,10), r'$f_\mathrm{sed,Mg2SiO4}$'], 
+    'log_radius_cl_Mg2SiO4(s)_amorphous__Mie': ['U', (-6,0), r'$\log r_\mathrm{Mg2SiO4}$'], 
+    
     # Chemistry
-    'alpha_C': ['U', (-1.0,1.0), '[C/H]'], 
-    'alpha_O': ['U', (-1.0,1.0), '[O/H]'], 
-    'alpha_S': ['U', (-1.0,1.0), '[S/H]'],
-    'alpha_F': ['U', (-1.0,1.0), '[F/H]'],
-    'alpha_K': ['U', (-1.0,1.0), '[K/H]'],
+    'alpha_C':  ['U', (-1.0,1.0), '[C/H]'], 
+    'alpha_O':  ['U', (-1.0,1.0), '[O/H]'], 
+    'alpha_N':  ['U', (-1.0,1.0), '[N/H]'], 
+    'alpha_S':  ['U', (-1.0,1.0), '[S/H]'],
+    'alpha_K':  ['U', (-1.0,1.0), '[K/H]'],
     'alpha_Na': ['U', (-1.0,1.0), '[Na/H]'],
-    'alpha_Fe': ['U', (-1.0,1.0), '[Fe/H]'],
-    'alpha_Cr': ['U', (-1.0,1.0), '[Cr/H]'],
-    '[M/H]': ['U', (-1.0,1.0), '[M/H]'],
+    '[M/H]':    ['U', (-1.0,1.0), '[M/H]'],
 
     'log_Kzz_chem': ['U', (3,15), r'$\log\ K_\mathrm{zz}$'],
 
@@ -81,11 +65,11 @@ free_params = {
     'dlnT_dlnP_1': ['U', (0.0,0.34), r'$\nabla_1$'], 
     'dlnT_dlnP_2': ['U', (0.0,0.34), r'$\nabla_2$'], 
     'dlnT_dlnP_3': ['U', (0.0,0.34), r'$\nabla_3$'], 
-    'dlnT_dlnP_4': ['U', (-0.1,0.34), r'$\nabla_4$'], 
-    'dlnT_dlnP_5': ['U', (-0.2,0.34), r'$\nabla_5$'], 
-    'dlnT_dlnP_6': ['U', (-0.2,0.34), r'$\nabla_6$'], 
-    'dlnT_dlnP_7': ['U', (-0.2,0.34), r'$\nabla_7$'], 
-    'T_phot':      ['U', (800.,2000.), r'$T_\mathrm{phot}$'], 
+    'dlnT_dlnP_4': ['U', (0.0,0.34), r'$\nabla_4$'], 
+    'dlnT_dlnP_5': ['U', (0.0,0.34), r'$\nabla_5$'], 
+    'dlnT_dlnP_6': ['U', (0.0,0.34), r'$\nabla_6$'], 
+    'dlnT_dlnP_7': ['U', (0.0,0.34), r'$\nabla_7$'], 
+    'T_phot':      ['U', (1000.,2600.), r'$T_\mathrm{phot}$'], 
 }
 
 # Constants to use if prior is not given
@@ -113,29 +97,43 @@ PT_kwargs = dict(
     n_knots = 7, 
     interp_mode = 'linear', 
 
-    log_P_range = (-5.,3.), 
+    log_P_range = (-5.,2.), 
     n_atm_layers = 70,
 )
 
+line_species_g140h_1 = [
+    '1H2-16O__POKAZATEL', 
+    '12C-1H4__MM', 
+    '1H2-32S__AYT2', 
+    '1H-19F__Coxon-Hajig',
+    '39K__Kurucz', 
+    '23Na__Kurucz', 
+    '56Fe__Kurucz',
+    '56Fe-1H__MoLLIST', 
+    '52Cr-1H__MoLLIST',
+    '51V-16O__HyVO', 
+    '48Ti-16O__Toto', 
+    '40Ca__Kurucz', 
+    '27Al__Kurucz', 
+    '1H-12C-14N__Harris', 
+    '14N-1H3__CoYuTe', 
+]
+line_species_g140h_2 = [
+    '1H2-16O__POKAZATEL', 
+    '12C-1H4__MM', 
+    '1H2-32S__AYT2', 
+    '1H-19F__Coxon-Hajig',
+    '23Na__Kurucz', 
+    '56Fe-1H__MoLLIST', 
+    '48Ti__Kurucz', 
+    '12C-16O__HITEMP', 
+    '1H-12C-14N__Harris', 
+    '14N-1H3__CoYuTe', 
+]
 chem_kwargs = dict(
     shared_between_m_set = True,
     chem_mode = 'fastchem', 
-    line_species = [
-        '1H2-16O__POKAZATEL', 
-        '12C-1H4__MM', 
-        '1H2-32S__AYT2', 
-        '1H-19F__Coxon-Hajig',
-        '39K__Kurucz', 
-        '23Na__Kurucz', 
-        '56Fe__Kurucz',
-        '56Fe-1H__MoLLIST', 
-        '52Cr-1H__MoLLIST',
-        '23Na-1H__Rivlin', 
-        '51V-16O__HyVO', 
-        '48Ti-16O__Toto', 
-        '40Ca-1H__XAB', 
-        '40Ca__Kurucz', 
-    ], 
+    line_species = list(np.unique(line_species_g140h_1+line_species_g140h_2)), 
 
     abundance_file='/home/sdregt/FastChem/input/element_abundances/bergemann_2025_protosolar_simplified.dat', 
     gas_data_file='/home/sdregt/FastChem/input/logK/logK_simplified.dat', 
@@ -145,16 +143,11 @@ chem_kwargs = dict(
 )
 
 cloud_kwargs = dict(
-    shared_between_m_set = False,
+    shared_between_m_set = True,
     cloud_mode = 'EddySed', 
-    nirspec_g140h_1A = dict(
-        cloud_species = ['Fe(s)_amorphous__Mie'], 
-    ), 
-    nirspec_g140h_1B = dict(
-        cloud_species = [
-            'Fe(s)_amorphous__Mie', 'Mg2SiO4(s)_amorphous__Mie'
-        ], 
-    ), 
+    cloud_species = [
+        'Fe(s)_amorphous__Mie', 'Mg2SiO4(s)_amorphous__Mie'
+    ], 
 )
 
 rotation_kwargs = dict(
@@ -163,14 +156,16 @@ rotation_kwargs = dict(
 )
 
 pRT_Radtrans_kwargs = dict(
-    line_species = chem_kwargs.get('line_species', []),
+    # line_species = chem_kwargs.get('line_species', []),
+    nirspec_g140h_1 = dict(line_species=line_species_g140h_1),
+    nirspec_g140h_2 = dict(line_species=line_species_g140h_2),
 
     rayleigh_species           = ['H2','He'],
     gas_continuum_contributors = ['H2-H2','H2-He'],
-    # cloud_species              = cloud_kwargs.get('cloud_species'), 
-    nirspec_g140h_1A = dict(cloud_species=cloud_kwargs['nirspec_g140h_1A']['cloud_species']), 
-    nirspec_g140h_1B = dict(cloud_species=cloud_kwargs['nirspec_g140h_1B']['cloud_species']), 
-    
+    cloud_species              = cloud_kwargs.get('cloud_species'), 
+    # nirspec_g140h_1 = dict(cloud_species=cloud_kwargs['nirspec_g140h_1']['cloud_species']), 
+    # nirspec_g140h_2 = dict(cloud_species=cloud_kwargs['nirspec_g140h_2']['cloud_species']), 
+
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
     scattering_in_emission        = True, 
@@ -185,7 +180,7 @@ pRT_Radtrans_kwargs = dict(
 loglike_kwargs = dict(
     scale_flux = False, 
     scale_err = False, 
-    sum_model_settings = True, 
+    sum_model_settings = False, 
 )
 
 cov_kwargs = dict(

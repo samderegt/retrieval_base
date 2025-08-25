@@ -215,13 +215,15 @@ class SpectrumJWST(Spectrum):
         fig.savefig(plots_dir / f'pre_processed_spectrum_per_chunk_{self.m_set}.pdf')
         plt.close(fig)
 
-    def plot_bestfit(self, plots_dir, LogLike, Cov):
+    def plot_bestfit(self, plots_dir, LogLike, Cov, m_spec):
         """
         Plot the best-fit spectrum.
 
         Args:
             plots_dir (str): Directory to save the plots.
             LogLike (object): Log-likelihood object containing fit results.
+            Cov (object): Covariance object containing uncertainties.
+            m_spec (dict): Dictionary of model spectra.
         """
 
         # Plot for full spectrum
@@ -255,7 +257,12 @@ class SpectrumJWST(Spectrum):
                 idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
                 ax_flux.plot(self.wave[j]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
                 ax_res.plot(self.wave[j]*1e-3, self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
-                
+
+                if LogLike.sum_model_settings and (len(m_spec) > 1):
+                    # Plot the summed model settings separately
+                    for k, m_spec_k in enumerate(m_spec.values()):
+                        ax_flux.plot(self.wave[j]*1e-3, m_spec_k.flux_binned[j], f'C{k+2}-', lw=0.8)
+
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
             ylim = ax_res.get_ylim()
@@ -316,6 +323,11 @@ class SpectrumJWST(Spectrum):
 
             idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
             ax_flux.plot(self.wave[i]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+
+            if LogLike.sum_model_settings and (len(m_spec) > 1):
+                # Plot the summed model settings separately
+                for k, m_spec_k in enumerate(m_spec.values()):
+                    ax_flux.plot(self.wave[i]*1e-3, m_spec_k.flux_binned[i], f'C{k+2}-', lw=0.8)
 
             ax_res.plot(self.wave[i]*1e-3, self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)

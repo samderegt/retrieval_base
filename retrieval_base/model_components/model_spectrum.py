@@ -97,7 +97,8 @@ class pRT:
 
             'eddy_diffusion_coefficients': getattr(Cloud, 'K_zz', None),
             'cloud_f_sed': getattr(Cloud, 'f_sed', None),
-            'cloud_particle_radius_distribution_std': getattr(Cloud, 'sigma_g', None),
+            'cloud_particles_mean_radii': getattr(Cloud, 'mean_radii', None),
+            'cloud_particle_radius_distribution_std': getattr(Cloud, 'std_radii', None),
 
             'return_cloud_contribution': self.evaluation and hasattr(Cloud, 'cloud_species'),
             'return_opacities': self.evaluation and hasattr(Cloud, 'cloud_species'),

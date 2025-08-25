@@ -226,13 +226,14 @@ class SpectrumIGRINS(Spectrum):
         fig.savefig(plots_dir / f'pre_processed_spectrum_{self.m_set}.pdf')
         plt.close(fig)
 
-    def plot_bestfit(self, plots_dir, LogLike, Cov):
+    def plot_bestfit(self, plots_dir, LogLike, Cov, **kwargs):
         """
         Plot the best-fit spectrum.
 
         Args:
             plots_dir (str): Directory to save the plots.
             LogLike (object): Log-likelihood object containing fit results.
+            Cov (object): Covariance object containing uncertainties.
         """
         # Plot per chunk
         fig, subfig = utils.get_subfigures_per_chip(self.n_chips)
