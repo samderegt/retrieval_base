@@ -62,6 +62,8 @@ class Parameter:
 
         if self.prior_type in ['U', 'uniform']:
             # Uniform prior
+            if self.prior_params[1] < self.prior_params[0]:
+                raise ValueError('Uniform priors should be defined as (min, max)')
             scale = self.prior_params[1] - self.prior_params[0]
             self.prior = stats.uniform(loc=loc, scale=scale)
         elif self.prior_type in ['N', 'G', 'normal', 'gaussian']:
@@ -155,7 +157,7 @@ class ParameterTable:
         # Update secondary parameters, consider shared parameters initially
         for m_set in ['all', *self.model_settings]:
             # Query parameters specific to or shared between model settings
-            self.set_queried_m_set([m_set,'all'])
+            self.set_queried_m_set(m_set,'all')
             self._update_secondary_params(m_set)
         self.set_queried_m_set('all')
 
@@ -218,17 +220,14 @@ class ParameterTable:
             Param = self.table.loc[idx]['Param']
             Param.apply_prior = apply_prior
 
-    def set_queried_m_set(self, m_set):
+    def set_queried_m_set(self, *m_set):
         """
         Sets the model setting to query parameters for.
 
         Args:
             m_set (str): Model setting to query.
         """
-        self.queried_m_set = m_set
-        if isinstance(self.queried_m_set, str):
-            self.queried_m_set = [self.queried_m_set]
-
+        self.queried_m_set = list(m_set)
         self.queried_table = self.table.loc[
             self.table.m_set.isin(self.queried_m_set)
             ]

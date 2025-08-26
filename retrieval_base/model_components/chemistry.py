@@ -325,24 +325,6 @@ class Chemistry:
         }
         return all_CO_ratios, all_H2O_ratios, all_CH4_ratios, all_NH3_ratios, all_CO2_ratios
 
-class FreeChemistry(Chemistry):
-    """
-    Class for handling free chemistry models.
-    """
-
-    def __init__(self, line_species, pressure, LineOpacity=None, **kwargs):
-        """
-        Initialize the FreeChemistry class.
-
-        Args:
-            line_species (list): List of line species.
-            pressure (np.ndarray): Pressure levels.
-            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
-            **kwargs: Additional arguments.
-        """
-        # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
-
     def _power_law_drop_off(self, VMR, P0, alpha):
         """
         Apply a power-law drop-off to the volume mixing ratio (VMR).
@@ -367,6 +349,24 @@ class FreeChemistry(Chemistry):
         # Power-law drop-off
         VMR[mask_TOA] *= (self.pressure[mask_TOA]/P0)**alpha
         return VMR
+    
+class FreeChemistry(Chemistry):
+    """
+    Class for handling free chemistry models.
+    """
+
+    def __init__(self, line_species, pressure, LineOpacity=None, **kwargs):
+        """
+        Initialize the FreeChemistry class.
+
+        Args:
+            line_species (list): List of line species.
+            pressure (np.ndarray): Pressure levels.
+            LineOpacity (list, optional): Custom opacity objects. Defaults to None.
+            **kwargs: Additional arguments.
+        """
+        # Give arguments to the parent class
+        super().__init__(line_species, pressure, LineOpacity)
 
     def get_VMRs(self, ParamTable):
         """
@@ -992,6 +992,19 @@ class FastChemistry(EquilibriumChemistry):
             if not isinstance(hill_i, str):
                 # Minor isotope
                 continue
+
+            # Read retrieved VMR (if available)
+            param_VMR_i = ParamTable.get(species_i)
+            if param_VMR_i is not None:
+                # Expand to all layers
+                param_VMR_i *= np.ones(self.n_atm_layers)
+
+                # Parameterise a power-law drop-off
+                self.VMRs[species_i] = self._power_law_drop_off(
+                    param_VMR_i, P0=ParamTable.get(f'{species_i}_P'), 
+                    alpha=ParamTable.get(f'{species_i}_alpha'), 
+                    )
+                continue # Ignore FastChem abundance
 
             # Species' index in gas-density array
             idx = self.fastchem.getGasSpeciesIndex(hill_i)

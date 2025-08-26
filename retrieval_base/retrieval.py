@@ -33,6 +33,7 @@ class Retrieval:
         
         self.config = config
         self.model_settings = list(self.config.config_data.keys())
+        self.model_settings_linked = getattr(self.config, 'model_settings_linked', {})
 
         self.data_dir  = Path(f'{self.config.prefix}data')
         self.plots_dir = Path(f'{self.config.prefix}plots')
@@ -49,6 +50,9 @@ class Retrieval:
             non_dict_names (list): List of non-dictionary attribute names to save.
         """
         for name, component in vars(self).items():
+
+            if name == 'model_settings_linked':
+                continue
 
             if name in non_dict_names:
                 if hasattr(component, 'fastchem'):
@@ -265,7 +269,7 @@ class RetrievalSetup(Retrieval):
         Generate model components for the retrieval.
         """
         for m_set in self.model_settings:
-            self.ParamTable.set_queried_m_set(['all',m_set])
+            self.ParamTable.set_queried_m_set('all',m_set)
             self._setup_physical_model_components(m_set)
 
         self.ParamTable.set_queried_m_set('all')
@@ -349,7 +353,7 @@ class RetrievalSetup(Retrieval):
         from .model_components import model_spectrum, line_opacity
 
         for m_set in self.model_settings:
-            self.ParamTable.set_queried_m_set(['all',m_set])
+            self.ParamTable.set_queried_m_set('all',m_set)
 
             # Generate broadened model spectrum and save as pickle
             self._read_component_from_module(
@@ -488,7 +492,11 @@ class RetrievalRun(RetrievalSetup, Retrieval):
         time_start = time.time()
         
         for m_set in self.model_settings:
-            self.ParamTable.set_queried_m_set(['all',m_set])
+            m_set_linked = self.model_settings_linked.get(m_set)
+            if m_set_linked is not None:
+                self.ParamTable.set_queried_m_set('all',m_set_linked,m_set)
+            else:
+                self.ParamTable.set_queried_m_set('all',m_set)
             
             # Update all model components
             if self._update_pt_profile(m_set) == -np.inf:

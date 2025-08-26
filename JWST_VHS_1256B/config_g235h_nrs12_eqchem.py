@@ -4,12 +4,12 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'g140h_nrs12_eqchem_ret_2'
+prefix = 'g235h_nrs12_eqchem_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3}),  
-    nirspec_g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'grating':'G140H', 'min_SNR':3}),  
+    nirspec_g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'grating':'G235h', 'min_SNR':3}),  
+    nirspec_g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'grating':'G235h', 'min_SNR':3}),  
 )
 
 ####################################################################################
@@ -62,6 +62,9 @@ free_params = {
 
     'log_Kzz_chem': ['U', (3,15), r'$\log\ K_\mathrm{zz}$'],
 
+    'log_13CO_ratio': ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
+    'log_C18O_ratio': ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+
     # PT profile
     'dlnT_dlnP_0': ['G', (0.15,0.03), r'$\nabla_0$'], 
     'dlnT_dlnP_1': ['G', (0.18,0.045), r'$\nabla_1$'], 
@@ -103,45 +106,47 @@ PT_kwargs = dict(
     n_atm_layers = 70,
 )
 
-line_species_g140h_1 = [
+line_species_g235h_1 = [
     '1H2-16O__POKAZATEL', 
     '12C-1H4__MM', 
     '1H2-32S__AYT2', 
     '1H-19F__Coxon-Hajig',
     '1H-12C-14N__Harris', 
-    '14N-1H3__CoYuTe',
+    '14N-1H3__CoYuTe', 
+    '12C-16O__HITEMP', 
+    '13C-16O__HITEMP', 
+    '12C-18O__HITEMP', 
+    '12C-16O2__HITEMP', 
 
     '56Fe-1H__MoLLIST', 
-    '52Cr-1H__MoLLIST',
-    '51V-16O__HyVO', 
-    '48Ti-16O__Toto', 
 
-    # '40Ca__Kurucz', 
-    # '27Al__Kurucz',  
+    '40Ca__Kurucz', 
     '39K__Kurucz', 
     '23Na__Kurucz', 
-    '56Fe__Kurucz',
     '52Cr__Kurucz',
 ]
-line_species_g140h_2 = [
+
+line_species_g235h_2 = [
     '1H2-16O__POKAZATEL', 
     '12C-1H4__MM', 
     '1H2-32S__AYT2', 
-    # '1H-19F__Coxon-Hajig',
+    '1H-19F__Coxon-Hajig',
     '1H-12C-14N__Harris', 
     '14N-1H3__CoYuTe', 
     '12C-16O__HITEMP', 
+    '13C-16O__HITEMP', 
+    '12C-18O__HITEMP', 
+    '12C-16O2__HITEMP', 
+    '16O-1H__MYTHOS',
 
-    '56Fe-1H__MoLLIST', 
-
-    # '48Ti__Kurucz', 
+    '39K__Kurucz', 
     '23Na__Kurucz', 
-    '52Cr__Kurucz', 
 ]
+
 chem_kwargs = dict(
     shared_between_m_set = True,
     chem_mode = 'fastchem', 
-    line_species = list(np.unique(line_species_g140h_1+line_species_g140h_2)), 
+    line_species = list(np.unique(line_species_g235h_1+line_species_g235h_2)), 
 
     abundance_file='/home/sdregt/FastChem/input/element_abundances/bergemann_2025_protosolar_simplified.dat', 
     gas_data_file='/home/sdregt/FastChem/input/logK/logK_simplified.dat', 
@@ -165,14 +170,14 @@ rotation_kwargs = dict(
 
 pRT_Radtrans_kwargs = dict(
     # line_species = chem_kwargs.get('line_species', []),
-    nirspec_g140h_1 = dict(line_species=line_species_g140h_1),
-    nirspec_g140h_2 = dict(line_species=line_species_g140h_2),
+    nirspec_g235h_1 = dict(line_species=line_species_g235h_1),
+    nirspec_g235h_2 = dict(line_species=line_species_g235h_2),
 
     rayleigh_species           = ['H2','He'],
     gas_continuum_contributors = ['H2-H2','H2-He'],
     cloud_species              = cloud_kwargs.get('cloud_species'), 
-    # nirspec_g140h_1 = dict(cloud_species=cloud_kwargs['nirspec_g140h_1']['cloud_species']), 
-    # nirspec_g140h_2 = dict(cloud_species=cloud_kwargs['nirspec_g140h_2']['cloud_species']), 
+    # nirspec_g235h_1 = dict(cloud_species=cloud_kwargs['nirspec_g235h_1']['cloud_species']), 
+    # nirspec_g235h_2 = dict(cloud_species=cloud_kwargs['nirspec_g235h_2']['cloud_species']), 
 
     line_opacity_mode             = 'lbl',
     line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
