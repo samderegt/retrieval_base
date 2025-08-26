@@ -292,6 +292,8 @@ all_model_kwargs = dict(
 
     cov_kwargs=cov_kwargs, 
     loglike_kwargs=loglike_kwargs,
+
+    model_settings_linked=model_settings_linked
 )
 
 ####################################################################################

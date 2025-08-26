@@ -20,7 +20,7 @@ def get_class(d_spec, sum_model_settings=False, **kwargs):
         # Loop over each chip
         for d_wave, d_err in zip(d_spec[m_set].wave, d_spec[m_set].err):
             mask = np.isfinite(d_err)
-            Cov.append(Covariance(d_wave[mask], d_err[mask], **kwargs))
+            Cov.append(Covariance(d_wave[mask], d_err[mask], m_set, **kwargs))
 
         if sum_model_settings:
             # Only compare to one model setting
@@ -66,16 +66,20 @@ class Covariance:
         # Convert to array for scipy
         return np.asarray(banded_array)
 
-    def __init__(self, d_wave, d_err, trunc_dist=5, **kwargs):
+    def __init__(self, d_wave, d_err, m_set='all', trunc_dist=5, **kwargs):
         """
         Initialize the Covariance object.
 
         Args:
             d_wave (np.ndarray): Wavelength data.
             d_err (np.ndarray): Error data.
+            m_set (str): Model setting identifier.
             trunc_dist (int, optional): Truncation distance for the covariance matrix. Defaults to 5.
             **kwargs: Additional keyword arguments.
         """
+        # Model setting
+        self.m_set = m_set
+
         # Which kernel to use (if any)
         self.kernel_mode     = kwargs.get('kernel_mode')
         self.separation_mode = kwargs.get('separation_mode', 'wave')
@@ -121,6 +125,10 @@ class Covariance:
         """
         self._reset_cov()
 
+        ParamTable.set_queried_m_set(
+            'all', self.m_set, add_linked_m_set=True
+            )
+
         b = ParamTable.get('b')
         if b is not None:
             # Multiply the error by a factor of 10^b
@@ -137,7 +145,9 @@ class Covariance:
             self._add_radial_basis_function_kernel(amp=amp, length=length)
         elif self.kernel_mode == 'matern':
             self._add_matern_kernel(amp=amp, length=length)
-            
+        
+        ParamTable.set_queried_m_set('all')
+
         self._get_cholesky()
 
     def solve(self, b):

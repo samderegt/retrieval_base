@@ -86,6 +86,7 @@ class ParameterTable:
             all_model_kwargs (dict): Dictionary of model keyword arguments.
         """
         self.model_settings = model_settings
+        self.model_settings_linked = all_model_kwargs.get('model_settings_linked', {})
 
         # Create the table
         cols = ['name', 'm_set', 'Param', 'val']
@@ -220,14 +221,22 @@ class ParameterTable:
             Param = self.table.loc[idx]['Param']
             Param.apply_prior = apply_prior
 
-    def set_queried_m_set(self, *m_set):
+    def set_queried_m_set(self, *m_set, add_linked_m_set=False):
         """
         Sets the model setting to query parameters for.
 
         Args:
             m_set (str): Model setting to query.
+            add_linked_m_set (bool): Whether to add linked model settings.
         """
         self.queried_m_set = list(m_set)
+        if add_linked_m_set:
+            for m_set_i in m_set:
+                m_set_linked_i = np.atleast_1d(
+                    self.model_settings_linked.get(m_set_i, [])
+                )
+                self.queried_m_set += list(m_set_linked_i)
+
         self.queried_table = self.table.loc[
             self.table.m_set.isin(self.queried_m_set)
             ]

@@ -33,7 +33,6 @@ class Retrieval:
         
         self.config = config
         self.model_settings = list(self.config.config_data.keys())
-        self.model_settings_linked = getattr(self.config, 'model_settings_linked', {})
 
         self.data_dir  = Path(f'{self.config.prefix}data')
         self.plots_dir = Path(f'{self.config.prefix}plots')
@@ -50,9 +49,6 @@ class Retrieval:
             non_dict_names (list): List of non-dictionary attribute names to save.
         """
         for name, component in vars(self).items():
-
-            if name == 'model_settings_linked':
-                continue
 
             if name in non_dict_names:
                 if hasattr(component, 'fastchem'):
@@ -492,11 +488,7 @@ class RetrievalRun(RetrievalSetup, Retrieval):
         time_start = time.time()
         
         for m_set in self.model_settings:
-            m_set_linked = self.model_settings_linked.get(m_set)
-            if m_set_linked is not None:
-                self.ParamTable.set_queried_m_set('all',m_set_linked,m_set)
-            else:
-                self.ParamTable.set_queried_m_set('all',m_set)
+            self.ParamTable.set_queried_m_set('all', m_set, add_linked_m_set=True)
             
             # Update all model components
             if self._update_pt_profile(m_set) == -np.inf:
