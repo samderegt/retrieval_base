@@ -62,10 +62,7 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints
         labelpad=0.018*n_params, 
         max_n_ticks=3,
         
-        show_titles=True, 
-        use_math_text=True,
-        title_fmt='.2f', 
-        title_quantiles=[0.16,0.5,0.84], 
+        show_titles=False, 
         linewidths=0.5, 
 
         color=posterior_color, 
@@ -88,16 +85,21 @@ def plot_corner(fig, posterior, bestfit_parameters, labels=None, plot_datapoints
 
     for i in range(n_params):
         # Change linestyle of 16/84th percentile in histograms
-        ax[i,i].get_lines()[0].set(linewidth=0.5, linestyle=(5,(5,5)))
-        ax[i,i].get_lines()[1].set(linewidth=0.5, linestyle=(5,(5,5)))
+        ax[i,i].get_lines()[0].set(linewidth=0.5)
+        ax[i,i].get_lines()[1].set(linewidth=0.5)
 
-        ax[i,i].set_title(ax[i,i].get_title().replace('=','=\n'), fontsize=9)
+        p = posterior[:,i]
+        str_i = f'{np.median(p):.2f}'
+        str_i += '^{+'+f'{np.quantile(p,0.84)-np.median(p):.2f}'+'}'
+        str_i += '_{'+f'{np.quantile(p,0.16)-np.median(p):.2f}'+'}'
+        title = labels[i] + r'$=' + str_i + r'$'
+
+        ax[i,i].set_title(title, loc='left', fontsize=9, pad=2.0)
 
         # Show the best-fit value
         ax[i,i].annotate(
-            r'$'+'{:.2f}'.format(bestfit_parameters[i])+'$', 
-            xy=(0.95,0.95), xycoords='axes fraction', 
-            ha='right', va='top', fontsize=9, color=bestfit_color
+            r'$'+'{:.2f}'.format(bestfit_parameters[i])+'$', xy=(0.05,0.95), xycoords='axes fraction', 
+            ha='left', va='top', fontsize=6, color=bestfit_color, clip_on=False
             )
         
         for j in range(n_params):
@@ -248,7 +250,7 @@ def plot_chemistry(Chem, ax=None, ls='-'):
 
     ax.set(
         yscale='log', ylabel='P (bar)', ylim=(Chem.pressure.max(), Chem.pressure.min()), 
-        xscale='log', xlabel='VMR', xlim=(1e-10,1e-2)
+        xscale='log', xlabel='VMR', xlim=(1e-11,10**(-2.5))
         )
 
     _, labels = ax.get_legend_handles_labels()
@@ -279,7 +281,7 @@ def plot_chemistry(Chem, ax=None, ls='-'):
     ax.legend(
         loc='upper right', bbox_to_anchor=(-0.3,1), frameon=False, 
         ncols=ncols, handletextpad=0.5, handlelength=0.8, 
-        labelcolor='linecolor', fontsize=11, markerfirst=False
+        labelcolor='linecolor', fontsize=9, markerfirst=False
         )
 
 

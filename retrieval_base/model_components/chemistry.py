@@ -534,9 +534,12 @@ class EquilibriumChemistry(Chemistry):
 
             # CO2
             # t_CO2 = 1.0e-10 * self.pressure**(-0.5) * np.exp(38000/self.temperature)
-            log_t_CO2 = (
-                -10.0 - 0.5*np.log10(self.pressure) + 38000/self.temperature*np.log10(np.e)
-            )
+            # log_t_CO2 = (
+            #     -10.0 - 0.5*np.log10(self.pressure) + 38000/self.temperature*np.log10(np.e)
+            # )
+            # Approximate CO2 quenching as the same level as CO-CH4, since CO2 remains in equilibrium 
+            # with the quenched (i.e. not decreasing) CO abundance
+            log_t_CO2 = log_t_CO_CH4
             self.quench_settings['CO2'][-1] = interpolate_for_P_quench(log_t_mix, log_t_CO2)
             
     def quench_VMRs(self, ParamTable):
@@ -570,7 +573,9 @@ class EquilibriumChemistry(Chemistry):
                     continue
                 
                 # Quench the VMRs of specific species
-                log_VMR_i = np.log10(self.VMRs[species_i])
+                VMR_i = np.clip(self.VMRs[species_i], 1e-100, None)
+                log_VMR_i = np.log10(VMR_i)
+                
                 log_VMR_i[mask_TOA] = np.interp(
                     np.log10(P_q), xp=log_P, fp=log_VMR_i
                     )

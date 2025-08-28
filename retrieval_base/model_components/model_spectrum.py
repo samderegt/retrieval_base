@@ -104,8 +104,8 @@ class pRT:
             'return_opacities': self.evaluation and hasattr(Cloud, 'cloud_species'),
             'return_contribution': self.evaluation, 
             'frequencies_to_wavelengths': True,
-            'fast_opacity_interpolation': hasattr(self.atm[0], '_interpolate_species_opacities_fast'),
-            #'fast_opacity_interpolation': False,
+            # 'fast_opacity_interpolation': hasattr(self.atm[0], '_interpolate_species_opacities_fast'),
+            'fast_opacity_interpolation': False,
         }
         if hasattr(Rotation, 'unique_mu_included'):
             pRT_call_kwargs['return_per_mu'] = True
