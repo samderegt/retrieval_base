@@ -7,6 +7,7 @@ from photutils.aperture import EllipticalAperture, aperture_photometry
 
 # from jwst.residual_fringe.utils import fit_residual_fringes_1d
 
+import warnings
 import os
 os.environ['STPSF_PATH'] = '/net/schenk/data2/regt/JWST_reductions/stpsf-data'
 
@@ -69,6 +70,7 @@ class SpectralExtraction:
 
         # Create an ApertureCorrection instance
         if AC is None:
+            return
             self.AC = ApertureCorrection(self.wave, **AC_kwargs)
         else:
             self.AC = AC # Adopt from previous extraction
@@ -149,7 +151,7 @@ class SpectralExtraction:
         fit = fitter(model, x_pix, y_pix, median_image)
         return fit, idx_to_extract
 
-    def correct_horizontal_stripes(self, *xy_to_mask, radius_inflation=5, plot=True):
+    def correct_horizontal_background(self, *xy_to_mask, radius_inflation=5, plot=True):
         """Correct horizontal stripes in the spectral cube."""
 
         # Fit the Gaussians to the provided positions
@@ -172,16 +174,13 @@ class SpectralExtraction:
         masked_cube[:,mask] = np.nan
 
         # Remove the horizontal stripes
-        horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=RuntimeWarning)
+            horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
         horizontal_collapsed = np.nan_to_num(horizontal_collapsed, nan=0.0)
 
         # horizontal_collapsed *= 0.
         cube_corrected = np.copy(self.cube) - horizontal_collapsed
-
-        # vmax = np.nanpercentile(horizontal_collapsed, 99)
-        # fig, ax = plt.subplots(figsize=(7,2.7))
-        # ax.imshow(np.squeeze(horizontal_collapsed).T, cmap='bwr', aspect='auto', vmin=-vmax, vmax=vmax)
-        # plt.show()
 
         if plot:
             # Plot the results
@@ -221,12 +220,43 @@ class SpectralExtraction:
         self.model_to_extract = fit[idx_to_extract]
         self.cube_corrected = cube_corrected
 
+    def plot_radius_inflation(self, radii=np.arange(1,10,1)):
+        # Fit a single Gaussian to the median image
+        self.model_to_extract.y_stddev.tied = lambda m: m.x_stddev
+        self.model_to_extract, _ = self._fit_gaussians(
+            self.cube_corrected, None, model=self.model_to_extract
+        )
+
+        flux_per_inflation = np.zeros_like(radii, dtype=float)
+        for i, radius_inflation_i in enumerate(radii):
+            aper_kwargs = dict(
+                positions=(self.model_to_extract.x_mean.value, self.model_to_extract.y_mean.value), 
+                theta=self.model_to_extract.theta.value, 
+                a=self.model_to_extract.x_stddev.value*radius_inflation_i, 
+                b=self.model_to_extract.y_stddev.value*radius_inflation_i
+            )
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', category=RuntimeWarning)
+                median_image = np.nanmedian(self.cube_corrected, axis=0, keepdims=True)
+                median_image[np.isnan(median_image)] = 0.
+            flux_per_inflation[i], _ = extract_per_channel(median_image, **aper_kwargs)
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(4,2.5))
+        ax.plot(self.model_to_extract.x_stddev.value*radii, flux_per_inflation, 'o')
+        ax.set(xlabel='Aperture [pixels]', ylabel='Flux', xlim=(0,(radii.max()+1)*self.model_to_extract.x_stddev.value))
+        plt.show()
+
     def extract_1d(self, radius_inflation=5, plot=True):
 
         # Fit a single Gaussian to the median image
         self.model_to_extract.y_stddev.tied = lambda m: m.x_stddev
         self.model_to_extract, _ = self._fit_gaussians(
             self.cube_corrected, None, model=self.model_to_extract
+        )
+
+        median_wave = np.nanmedian(
+            self.wave[~np.all(np.isnan(self.cube_corrected), axis=(1,2))]
         )
 
         # Extract the 1D spectrum using aperture photometry per channel
@@ -237,11 +267,17 @@ class SpectralExtraction:
             b=self.model_to_extract.y_stddev.value*radius_inflation
         )
         self.flux, self.flux_err = extract_per_channel(
-            self.cube_corrected, self.cube_err, **aper_kwargs
+            self.cube_corrected, self.cube_err, 
+            positions=aper_kwargs['positions'], theta=aper_kwargs['theta'], 
+            a=aper_kwargs['a'], 
+            b=aper_kwargs['b'],
         )
 
         # Correct for the missing flux due to the aperture size
-        self.correction_factor = self.AC.get_correction_factor(aper_kwargs)
+        self.correction_factor = np.ones_like(self.flux)
+        if hasattr(self, 'AC'):
+            self.correction_factor = self.AC.get_correction_factor(aper_kwargs)
+            
         self.flux     *= self.correction_factor
         self.flux_err *= self.correction_factor
 
@@ -253,7 +289,7 @@ class SpectralExtraction:
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(figsize=(7,8), nrows=4, gridspec_kw={'height_ratios': [1,1,0.15,0.6], 'hspace':0.05})
             ax[0].plot(self.wave, self.flux, 'k', lw=1)
-            ax[0].set(xlim=xlim, ylim=ylim, ylabel='Flux [Jy]', xticklabels=[])
+            ax[0].set(xlim=xlim, ylim=ylim, ylabel='Flux [W/m^2/micron]', xticklabels=[])
 
             ylim = (np.nanpercentile(self.flux/self.flux_err, 1)*1/1.2, np.nanpercentile(self.flux/self.flux_err, 99)*1.2)
             ax[1].plot(self.wave, self.flux/self.flux_err, 'k', lw=1)
@@ -274,11 +310,15 @@ def extract_per_channel(cube, cube_err=None, **aper_kwargs):
     if cube_err is None:
         cube_err = [None] * cube.shape[0]
 
-    # Create an aperture
-    aperture = EllipticalAperture(**aper_kwargs)
+    a = np.atleast_1d(aper_kwargs['a']) * np.ones_like(flux)
+    b = np.atleast_1d(aper_kwargs['b']) * np.ones_like(flux)
 
     # Loop over all spectral channels and extract the flux
     for i, (image, image_err) in enumerate(zip(cube, cube_err)):
+        # Create an aperture
+        aperture = EllipticalAperture(
+            positions=aper_kwargs['positions'], theta=aper_kwargs['theta'], a=a[i], b=b[i]
+        )
         phot_table = aperture_photometry(image, aperture, error=image_err)
 
         flux[i] = phot_table['aperture_sum'].data[0]
@@ -342,10 +382,13 @@ def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
         fig, ax = plt.subplots(figsize=(10,6), nrows=2, sharex=True)
         for flux_i, flux_err_i, is_clipped_i in zip(flux, flux_err, is_clipped):
             
-            ax[0].plot(wave[0], flux_i, lw=0.8)
-            ax[1].plot(wave[0], flux_i/flux_err_i, lw=0.8)
+            flux_masked_i = flux_i.copy()
+            flux_masked_i[is_clipped_i] = np.nan
+            line = ax[0].plot(wave[0], flux_i, lw=0.5, alpha=0.3)
+            ax[0].plot(wave[0], flux_masked_i, lw=0.8, c=line[0].get_color())
+            ax[1].plot(wave[0], flux_i/flux_err_i, lw=0.8, c=line[0].get_color())
 
-            ax[0].plot(wave[0][is_clipped_i], flux_i[is_clipped_i], 'rx')
+            ax[0].plot(wave[0][is_clipped_i], flux_i[is_clipped_i], 'C6x', zorder=10, ms=5)
 
         ax[0].plot(wave[0], flux_mean, lw=1.2, c='k')
         ax[1].plot(wave[0], flux_mean/flux_err_mean, lw=1.2, c='k')
@@ -354,7 +397,7 @@ def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
             xlim = (wave[0][np.isfinite(flux_mean)][0]-0.02, wave[0][np.isfinite(flux_mean)][-1]+0.02)
 
         ylim = (np.nanpercentile(flux, 1)*1/1.2, np.nanpercentile(flux_mean, 99)*1.2)
-        ax[0].set(xlim=xlim, ylim=ylim, ylabel='Flux [Jy]')
+        ax[0].set(xlim=xlim, ylim=ylim, ylabel='Flux [W/m^2/micron]')
 
         ylim = (np.nanpercentile(flux/flux_err, 1)*1/1.2, np.nanpercentile(flux_mean/flux_err_mean, 99)*1.2)
         ax[1].set(ylim=ylim, ylabel='S/N', xlabel='Wavelength [micron]')
@@ -364,6 +407,11 @@ def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
     wave = wave[0][is_in_any_dither]
     flux_mean = flux_mean[is_in_any_dither]
     flux_err_mean = flux_err_mean[is_in_any_dither]
+
+    # Remove first and last pixels
+    wave = wave[1:-1]
+    flux_mean = flux_mean[1:-1]
+    flux_err_mean = flux_err_mean[1:-1]
     
     return wave, flux_mean, flux_err_mean
 
