@@ -95,12 +95,17 @@ class pRT:
             'additional_absorption_opacities_function': abs_opacity, 
             'additional_scattering_opacities_function': scat_opacity, 
 
+            'cloud_fraction': ParamTable.get('cloud_fraction', 1.), 
+            'complete_coverage_clouds': getattr(Cloud, 'complete_coverage_clouds', None), 
+
             'eddy_diffusion_coefficients': getattr(Cloud, 'K_zz', None),
             'cloud_f_sed': getattr(Cloud, 'f_sed', None),
             'cloud_particles_mean_radii': getattr(Cloud, 'mean_radii', None),
             'cloud_particle_radius_distribution_std': getattr(Cloud, 'std_radii', None),
 
-            'return_cloud_contribution': self.evaluation and hasattr(Cloud, 'cloud_species'),
+            'return_cloud_contribution': (
+                self.evaluation and hasattr(Cloud, 'cloud_species') and (not hasattr(Cloud, 'complete_coverage_clouds'))
+            ),
             'return_opacities': self.evaluation and hasattr(Cloud, 'cloud_species'),
             'return_contribution': self.evaluation, 
             'frequencies_to_wavelengths': True,
@@ -198,48 +203,6 @@ class pRT:
             self.atm[i].line_opacities = source_atm_i.line_opacities
             # No need to interpolate
             setattr(self.atm[i], 'interpolate_line_opacities_flag', False)
-
-    def combine_model_settings(self, *other_m_spec, sum_model_settings=False):
-        """
-        Combine the model settings.
-
-        Args:
-            *other_m_spec: Other model spectrum objects.
-            sum_model_settings (bool): Flag to sum model settings.
-
-        Returns:
-            tuple: Combined wavelength, flux, and binned flux arrays.
-        """
-        if sum_model_settings:
-            # Combine the fluxes of all model settings
-            wave = self.wave.copy()
-            flux = self.flux.copy()
-            flux_binned = self.flux_binned.copy()
-
-            for m_spec in list(other_m_spec):
-                
-                # Loop over all chips (flux is a list)
-                for i, (wave_other_i, flux_other_i) in enumerate(zip(m_spec.wave, m_spec.flux)):
-                    # Interpolate to the same wavelengths (flux_binned already is)
-                    flux_other_i = np.interp(wave[i], xp=wave_other_i, fp=flux_other_i)
-                    flux[i] += flux_other_i
-
-                # flux_binned is an array
-                flux_binned += m_spec.flux_binned
-
-            return wave, flux, flux_binned
-        
-        # Consider all model settings separately
-        wave = []
-        flux = []
-        flux_binned = []
-        for m_spec in [self, *other_m_spec]:
-            # Loop over all chips
-            for i in range(len(m_spec.wave)):
-                wave.append(m_spec.wave[i])
-                flux.append(m_spec.flux[i])
-                flux_binned.append(m_spec.flux_binned[i])
-        return wave, flux, flux_binned
     
     def _set_wave_ranges(self, ParamTable):
         """
@@ -473,6 +436,9 @@ class pRT:
 
         opacity_per_wave   = np.nan * np.ones((len(self.pressure), len(d_wave)))
         integrated_opacity = np.nan * np.ones_like(self.pressure)
+
+        if cloud_opacities.size < integrated_opacity.size:
+            return opacity_per_wave, integrated_opacity
 
         # Loop over each pressure level
         for i, cloud_opacities_i in enumerate(cloud_opacities):

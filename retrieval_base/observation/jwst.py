@@ -253,15 +253,24 @@ class SpectrumJWST(Spectrum):
             for j in range(self.n_chips):
                 if j != 0:
                     label = None
-                # Plot the spectrum and residuals
-                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
-                ax_flux.plot(self.wave[j]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-                ax_res.plot(self.wave[j]*1e-3, self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                if self.m_set not in LogLike.m_flux_phi:
+                    return
+                m_flux_j = LogLike.m_flux_phi[self.m_set][j]
 
+                # Plot the spectrum and residuals
+                ax_flux.plot(self.wave[j]*1e-3, m_flux_j, 'C1-', lw=0.8, label=label)
+                ax_res.plot(self.wave[j]*1e-3, self.flux[j]-m_flux_j, 'k-', lw=0.8)
+                
                 if LogLike.sum_model_settings and (len(m_spec) > 1):
                     # Plot the summed model settings separately
                     for k, m_spec_k in enumerate(m_spec.values()):
-                        ax_flux.plot(self.wave[j]*1e-3, m_spec_k.flux_binned[j], f'C{k+2}-', lw=0.8)
+                        if label is not None:
+                            label = m_spec_k.m_set
+
+                        m_flux_k = m_spec_k.flux_binned[j]
+                        if len(m_flux_k) != len(self.wave[j]):
+                            continue
+                        ax_flux.plot(self.wave[j]*1e-3, m_flux_k, f'C{k+2}-', lw=0.8, alpha=0.5, label=label)
 
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
@@ -273,18 +282,16 @@ class SpectrumJWST(Spectrum):
 
             for j in range(self.n_chips):
                 # Plot the error envelope in the axes
-                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
-                sigma_scaled = np.sqrt(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
-                ax_res.fill_between(self.wave[j]*1e-3, -self.err[j], +self.err[j], fc='k', alpha=0.15, ec='none', zorder=-1)
+                Cov_j = Cov[self.m_set][j]
+                s_squared_j = LogLike.s_squared[self.m_set][j]
+                sigma_scaled = np.sqrt(Cov_j.cov[0]*s_squared_j)
                 ax_res.fill_between(self.wave[j]*1e-3, -sigma_scaled, +sigma_scaled, fc='C1', alpha=0.15, ec='none', zorder=-1)
+                ax_res.fill_between(self.wave[j]*1e-3, -self.err[j], +self.err[j], fc='k', alpha=0.15, ec='none', zorder=-1)
 
             if i == 0:
                 ax_flux.legend()
 
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
+        fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
         plt.close(fig)
 
         # Plot per chunk
@@ -321,15 +328,21 @@ class SpectrumJWST(Spectrum):
                 )
             ax_flux.plot(self.wave[i]*1e-3, self.flux[i], 'k-', lw=0.5)
 
-            idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
-            ax_flux.plot(self.wave[i]*1e-3, LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
+            if self.m_set not in LogLike.m_flux_phi:
+                return
+            # Plot the spectrum and residuals
+            m_flux_i = LogLike.m_flux_phi[self.m_set][i]
+            ax_flux.plot(self.wave[i]*1e-3, m_flux_i, 'C1-', lw=0.8, label=label)
+            ax_res.plot(self.wave[i]*1e-3, self.flux[i]-m_flux_i, 'k-', lw=0.8)
 
             if LogLike.sum_model_settings and (len(m_spec) > 1):
                 # Plot the summed model settings separately
                 for k, m_spec_k in enumerate(m_spec.values()):
-                    ax_flux.plot(self.wave[i]*1e-3, m_spec_k.flux_binned[i], f'C{k+2}-', lw=0.8)
+                    m_flux_k = m_spec_k.flux_binned[i]
+                    if len(m_flux_k) != len(self.wave[i]):
+                        continue
+                    ax_flux.plot(self.wave[i]*1e-3, m_flux_k, f'C{k+2}-', lw=0.8)
 
-            ax_res.plot(self.wave[i]*1e-3, self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
@@ -340,15 +353,14 @@ class SpectrumJWST(Spectrum):
             ax_res.set(xlim=xlim, xlabel=xlabel, ylim=ylim, ylabel=ylabel[1])
 
             # Plot the error envelope in the axes
-            sigma_scaled = np.sqrt(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
-            ax_res.fill_between(self.wave[i]*1e-3, -self.err[i], +self.err[i], fc='k', alpha=0.15, ec='none', zorder=-1)
+            Cov_i = Cov[self.m_set][i]
+            s_squared_i = LogLike.s_squared[self.m_set][i]
+            sigma_scaled = np.sqrt(Cov_i.cov[0]*s_squared_i)
             ax_res.fill_between(self.wave[i]*1e-3, -sigma_scaled, +sigma_scaled, fc='C1', alpha=0.15, ec='none', zorder=-1)
+            ax_res.fill_between(self.wave[i]*1e-3, -self.err[i], +self.err[i], fc='k', alpha=0.15, ec='none', zorder=-1)
 
             if (i == 0) and (ax_flux.get_legend_handles_labels() != ([], [])):
                 ax_flux.legend()
 
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
+        fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
         plt.close(fig)

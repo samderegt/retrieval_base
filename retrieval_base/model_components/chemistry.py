@@ -355,18 +355,18 @@ class FreeChemistry(Chemistry):
     Class for handling free chemistry models.
     """
 
-    def __init__(self, line_species, pressure, LineOpacity=None, **kwargs):
+    def __init__(self, pressure, line_species, LineOpacity=None, **kwargs):
         """
         Initialize the FreeChemistry class.
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
+        super().__init__(pressure, line_species, LineOpacity)
 
     def get_VMRs(self, ParamTable):
         """
@@ -445,17 +445,17 @@ class EquilibriumChemistry(Chemistry):
     Class for handling equilibrium chemistry models.
     """
     
-    def __init__(self, line_species, pressure, LineOpacity=None):
+    def __init__(self, pressure, line_species, LineOpacity=None):
         """
         Initialize the EquilibriumChemistry class.
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
+        super().__init__(pressure, line_species, LineOpacity)
 
         # Species to quench per system
         self.quench_settings = {
@@ -586,20 +586,20 @@ class FastChemistryTable(EquilibriumChemistry):
     Class for handling fast chemistry models using interpolation tables.
     """
 
-    def __init__(self, line_species, pressure, LineOpacity=None, path_fastchem_tables='./fastchem_tables', grid_ranges={}, **kwargs):
+    def __init__(self, pressure, line_species, LineOpacity=None, path_fastchem_tables='./fastchem_tables', grid_ranges={}, **kwargs):
         """
         Initialize the FastChemistryTable class.
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
             path_fastchem_tables (str, optional): Path to the fast chemistry tables. Defaults to './fastchem_tables'.
             grid_ranges (dict, optional): Custom ranges for the interpolation grid. Defaults to {}.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
+        super().__init__(pressure, line_species, LineOpacity)
 
         # Load the interpolation tables
         self._load_interp_tables(pathlib.Path(path_fastchem_tables), grid_ranges)
@@ -690,19 +690,19 @@ class FastChemistryTable(EquilibriumChemistry):
 
 class FastChemistryTableEnhancement(FastChemistryTable):
 
-    def __init__(self, line_species, pressure, **kwargs):
+    def __init__(self, pressure, line_species, **kwargs):
         """
         Initialize the FastChemistryTableEnhancement class. 
         (This class assumes that condensation is not 
         affected by individual elemental abundances.)
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, **kwargs)
+        super().__init__(pressure, line_species, **kwargs)
 
     def get_VMRs(self, ParamTable):
         """
@@ -743,18 +743,18 @@ class pRTChemistryTable(EquilibriumChemistry):
     Class for handling pRT chemistry models using interpolation tables.
     """
 
-    def __init__(self, line_species, pressure, LineOpacity=None, **kwargs):
+    def __init__(self, pressure, line_species, LineOpacity=None, **kwargs):
         """
         Initialize the pRTChemistryTable class.
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
+        super().__init__(pressure, line_species, LineOpacity)
 
         # Load the interpolation tables
         import petitRADTRANS.poor_mans_nonequ_chem as pm
@@ -812,18 +812,18 @@ class FastChemistry(EquilibriumChemistry):
     Class for handling fast chemistry models using the FastChem library.
     """
 
-    def __init__(self, line_species, pressure, LineOpacity=None, **kwargs):
+    def __init__(self, pressure, line_species, LineOpacity=None, **kwargs):
         """
         Initialize the FastChemistry class.
 
         Args:
-            line_species (list): List of line species.
             pressure (np.ndarray): Pressure levels.
+            line_species (list): List of line species.
             LineOpacity (list, optional): Custom opacity objects. Defaults to None.
             **kwargs: Additional arguments.
         """
         # Give arguments to the parent class
-        super().__init__(line_species, pressure, LineOpacity)
+        super().__init__(pressure, line_species, LineOpacity)
 
         # Complexity of reaction network
         self.abundance_file = kwargs.get('abundance_file')

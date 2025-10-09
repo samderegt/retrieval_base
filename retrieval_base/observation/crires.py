@@ -632,13 +632,11 @@ class SpectrumCRIRES(Spectrum):
 
                 ax_flux.plot(self.wave[idx], self.flux[idx], 'k-', lw=0.5)
 
-                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][idx]
-                ax_flux.plot(self.wave[idx], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-
-                ax_res.plot(self.wave[idx], self.flux[idx]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                ax_flux.plot(self.wave[idx], LogLike.m_flux_phi[self.m_set][idx], 'C1-', lw=0.8, label=label)
+                ax_res.plot(self.wave[idx], self.flux[idx]-LogLike.m_flux_phi[self.m_set][idx], 'k-', lw=0.8)
                 ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
-                diagonal_i.append(Cov[idx_LogLike].cov[0]*LogLike.s_squared[idx_LogLike])
+                diagonal_i.append(Cov[self.m_set][idx].cov[0]*LogLike.s_squared[self.m_set][idx])
                 err_i.append(self.err[idx])
 
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
@@ -662,8 +660,5 @@ class SpectrumCRIRES(Spectrum):
             if i == 0:
                 ax_flux.legend()
 
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
+        fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
         plt.close(fig)

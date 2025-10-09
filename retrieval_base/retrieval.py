@@ -266,20 +266,21 @@ class RetrievalSetup(Retrieval):
         """
         for m_set in self.model_settings:
             self.ParamTable.set_queried_m_set('all',m_set)
-            self._setup_physical_model_components(m_set)
+            self._setup_model_components(m_set)
 
         self.ParamTable.set_queried_m_set('all')
 
-        self._setup_observation_model_components()
+        from .model_components import log_likelihood
+        self.LogLike = log_likelihood.get_class(**self.ParamTable.loglike_kwargs)
 
-    def _setup_physical_model_components(self, m_set):
+    def _setup_model_components(self, m_set):
         """
         Set the physical model components for a given model setting.
 
         Args:
             m_set (str): Model setting identifier.
         """
-        from .model_components import pt_profile, model_spectrum, line_opacity, chemistry, clouds, rotation_profile
+        from .model_components import pt_profile, model_spectrum, line_opacity, chemistry, clouds, rotation_profile, covariance
 
         self._read_component_from_module(
             name='PT', module=pt_profile, m_set=m_set, 
@@ -321,26 +322,11 @@ class RetrievalSetup(Retrieval):
             **self.ParamTable.rotation_kwargs[m_set]
         )
 
-    def _setup_observation_model_components(self):
-        """
-        Set the observation model components.
-        """
-        from .model_components import covariance, log_likelihood
-
-        sum_model_settings = self.ParamTable.loglike_kwargs.get('sum_model_settings', False)
-
-        self.Cov = covariance.get_class(
-            d_spec=self.d_spec, 
-            sum_model_settings=sum_model_settings, 
-            **self.ParamTable.cov_kwargs
+        self._read_component_from_module(
+            name='Cov', module=covariance, m_set=m_set, 
+            d_spec=self.d_spec[m_set], 
+            **self.ParamTable.cov_kwargs[m_set]
         )
-
-        self.LogLike = log_likelihood.get_class(
-            d_spec=self.d_spec, 
-            **self.ParamTable.loglike_kwargs
-        )
-
-        self.ParamTable.set_queried_m_set('all')
 
     def setup_evaluation_model_components(self):
         """
@@ -503,26 +489,32 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             self._update_rotation(m_set)
             self._update_line_opacities(m_set)
             self._update_model_spectrum(m_set, evaluation)
+            self._update_covariance(m_set)
             
         self.ParamTable.set_queried_m_set('all')
 
         if skip_radtrans:
             return # Skip radiative transfer calculations
 
-        # Combine the spectra of multiple model settings
-        flux_binned = self._combine_model_spectra()
-        
-        # Update the covariance
-        for Cov_i in self.Cov:
-            Cov_i(self.ParamTable)
-
         # Compute the log-likelihood
-        self.LogLike(m_flux=flux_binned, Cov=self.Cov)
+        self.LogLike(d_spec=self.d_spec, m_spec=self.m_spec, Cov=self.Cov)
 
         time_end = time.time()
         self.elapsed_times.append(time_end - time_start)
         
         return self.LogLike.ln_L
+
+    def _update_covariance(self, m_set):
+        """
+        Update the covariance matrix for a given model setting.
+
+        Args:
+            m_set (str): Model setting identifier.
+        """
+        if self._skip_update(m_set, self.Cov):
+            return
+        return self.Cov[m_set](self.ParamTable)
+
 
     def callback(self, n_samples, n_live, n_params, live_points, posterior, stats, max_ln_L, ln_Z, ln_Z_err, nullcontext):
         """
@@ -567,8 +559,8 @@ class RetrievalRun(RetrievalSetup, Retrieval):
                 Cov=self.Cov, 
                 m_spec=self.m_spec, 
                 )
-            if self.LogLike.sum_model_settings:
-                break
+            # if self.LogLike.sum_model_settings:
+            #     break
         
         if self.evaluation:
             # Get the vertical profile posteriors
@@ -836,19 +828,6 @@ class RetrievalRun(RetrievalSetup, Retrieval):
             LineOpacity=self.LineOpacity_broad[m_set], 
             )
         self.m_spec_broad[m_set].evaluation = False
-
-    def _combine_model_spectra(self):
-        """
-        Combine the model spectra.
-        """
-        sum_model_settings = self.ParamTable.loglike_kwargs.get('sum_model_settings', False)
-        m_set_first, *m_set_others = self.model_settings
-
-        other_m_spec = [self.m_spec[m_set] for m_set in m_set_others]
-        wave, flux, flux_binned = self.m_spec[m_set_first].combine_model_settings(
-            *other_m_spec, sum_model_settings=sum_model_settings
-            )
-        return flux_binned
 
     def _evaluate_sample(self, sample, **kwargs):
         """

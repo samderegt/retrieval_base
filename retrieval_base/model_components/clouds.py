@@ -49,7 +49,7 @@ class EddySed(Cloud):
     """
     Class for handling EddySed cloud models.
     """
-    def __init__(self, pressure, cloud_species=['Mg2SiO4(s)_crystalline__DHS'], **kwargs):
+    def __init__(self, pressure, cloud_species=['Mg2SiO4(s)_crystalline__DHS'], complete_coverage_clouds=None, **kwargs):
         """
         Initialize the EddySed class.
 
@@ -62,6 +62,7 @@ class EddySed(Cloud):
         super().__init__(pressure)
 
         self.cloud_species = cloud_species
+        self.complete_coverage_clouds = complete_coverage_clouds
 
     def __call__(self, ParamTable, Chem, PT, **kwargs):
         """
@@ -80,16 +81,23 @@ class EddySed(Cloud):
         
         self.f_sed = {}
         self.mean_radii = {}
-        self.std_radii  = 1 + 2*ParamTable.get('sigma_cl')
+        
+        self.std_radii = ParamTable.get('sigma_g')
+        if self.std_radii is None:
+            self.std_radii = 1 + 2*ParamTable.get('sigma_cl')
 
         self.mass_fractions = {}
         for species in self.cloud_species:
             self.mass_fractions[species] = \
                 self._get_mass_fraction_profile(ParamTable, Chem, PT, species)
             
-            self.mean_radii[species] = (
-                ParamTable.get(f'radius_cl_{species}') * np.ones_like(self.pressure)
-            )
+            radius_species = ParamTable.get(f'radius_cl_{species}')
+            if radius_species is None:
+                continue
+            self.mean_radii[species] = radius_species * np.ones_like(self.pressure)
+
+        if len(self.mean_radii) == 0:
+            self.mean_radii = None
 
         self.total_opacity = 0 # Is updated in model_spectrum.pRT.__call__
 
@@ -133,16 +141,16 @@ class EddySed(Cloud):
         """
         P_base = ParamTable.get(f'P_base_{species}') # Base pressure
         mf_eq  = ParamTable.get(f'X_base_{species}') # Equilibrium mass fraction
-
+        
         if None in [P_base, mf_eq]:
             # Get cloud base and equilibrium mass fraction
-            P_base, mf_eq = self._get_cloud_base(Chem, PT, species)
+            P_base, _ = self._get_cloud_base(Chem, PT, species)
 
         # Scaling factor for mass fraction profile
         X = ParamTable.get(f'X_{species}', 1.)
         
         # Power-law drop-off
-        f_sed = ParamTable.get(f'f_sed_{species}')
+        f_sed = ParamTable.get(f'f_sed_{species}', ParamTable.get('f_sed'))
         if f_sed is None:
             raise ValueError(f'f_sed_{species} not found in ParamTable.')
 

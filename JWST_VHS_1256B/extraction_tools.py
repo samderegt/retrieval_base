@@ -9,57 +9,343 @@ from photutils.aperture import EllipticalAperture, aperture_photometry
 
 import warnings
 import os
-os.environ['STPSF_PATH'] = '/net/schenk/data2/regt/JWST_reductions/stpsf-data'
 
-class ApertureCorrection:
+class NIRSpecExtraction:
 
-    def __init__(self, wave, N=2, disperser=None, filter=None, band=None):
+    def __init__(self, file_combined, files_dither, grating, detector):
+
+        self.grating = grating
+        self.detector = detector
+
+        self.data_combined = {}
+        self.data_combined['wave'], self.data_combined['cube'], self.data_combined['cube_err'] = self._load_data(file_combined)
+
+        self.data_dither = [{} for _ in range(len(files_dither))]
+        for i, file_dither in enumerate(files_dither):
+            self.data_dither[i]['wave'], self.data_dither[i]['cube'], self.data_dither[i]['cube_err'] = self._load_data(file_dither)
+
+    @classmethod
+    def _load_data(cls, filename):
+
+        # Get the wavelength array
+        file_x1d = filename.replace('s3d', 'x1d')
+        wave = fits.getdata(file_x1d)['WAVELENGTH']
+
+        # 3D spectral cube
+        hdu = fits.open(filename)
+        cube = hdu['SCI'].data
+        cube_err = hdu['ERR'].data
+
+        # Convert flux [MJy/sr] -> [Jy]
+        pixel_area = hdu['SCI'].header['PIXAR_SR']
+        cube     *= pixel_area*1e6 
+        cube_err *= pixel_area*1e6
+
+        # Convert [Jy] to [W/m^2/micron]
+        cube, cube_err = convert_Jy_to_F_lam(wave[:,None,None], cube, cube_err)
+
+        return wave, cube, cube_err
     
-        import stpsf
-
-        if None not in [disperser, filter]:
-            instr = stpsf.NIRSpec()
-            instr.mode = 'IFU'
-            instr.disperser = disperser
-            instr.filter = filter
-        elif band is not None:
-            instr = stpsf.MIRI()
-            instr.mode = 'IFU'
-            instr.band = band
-        else:
-            raise ValueError('Provide either disperser and filter or band')
-
-        self.instr = instr
-
-        # Reduce the wavelength resolution
-        self.wave        = wave
-        self.wave_binned = np.linspace(wave.min(), wave.max(), N)
-
-        # Calculate the PSF cube upon initialization
-        self._get_psf()
-
-    def _get_psf(self):
+    def _get_gaussian_model(cls, im, xy_guess):
         
-        import astropy.units as u
+        from astropy.modeling import models
 
-        # Calculate the PSF cube
-        self.psf      = self.instr.calc_datacube(self.wave_binned*1e-6*u.meter)
-        self.psf_cube = self.psf['DET_DIST'].data
+        y_pix, x_pix = np.mgrid[:im.shape[0], :im.shape[1]]
 
-    def get_correction_factor(self, aper_kwargs):
+        # Search a 5x5 box around xy_guess for a better initial guess
+        x_min = max(0, int(xy_guess[0])-2); x_max = min(im.shape[1], int(xy_guess[0])+3)
+        y_min = max(0, int(xy_guess[1])-2); y_max = min(im.shape[0], int(xy_guess[1])+3)
+        sub_image = np.abs(im[y_min:y_max, x_min:x_max])
+        local_max_idx = np.unravel_index(np.argmax(sub_image), sub_image.shape)
 
-        # Extract the intensity within the aperture
-        xcen, ycen = (self.psf_cube.shape[1]-1)/2, (self.psf_cube.shape[2]-1)/2
-        aper_kwargs['positions'] = (xcen, ycen)
+        xy_guess = (x_min + local_max_idx[1], y_min + local_max_idx[0])
+        amp_guess = im[int(xy_guess[1]), int(xy_guess[0])]
 
-        self.flux_binned_in_aper, _ = extract_per_channel(self.psf_cube, None, **aper_kwargs)
+        # Create a Gaussian model
+        gaussian = models.Gaussian2D(
+            amplitude=amp_guess, x_mean=xy_guess[0], y_mean=xy_guess[1], x_stddev=1., y_stddev=1., theta=0.
+        )
+        # Set the bounds for the parameters
+        gaussian.x_stddev.bounds = (0.3, 10)
+        gaussian.y_stddev.bounds = (0.3, 10)
+        gaussian.y_stddev.tied = lambda m: m.x_stddev
+
+        gaussian.x_mean.bounds = (0, im.shape[1]-1)
+        gaussian.y_mean.bounds = (0, im.shape[0]-1)
+        gaussian.theta.fixed = True
+
+        return gaussian, y_pix, x_pix
+
+    def _extract_per_channel(cls, cube, cube_err=None, **aper_kwargs):
+        """Extract the flux per channel from a spectral cube using aperture photometry."""
         
-        # Interpolate to the original wavelength grid
-        self.flux_in_aper = np.interp(self.wave, self.wave_binned, self.flux_binned_in_aper)
-        self.correction_factor = 1 / self.flux_in_aper
+        flux = np.zeros(cube.shape[0])
+        flux_err = np.zeros(cube.shape[0])
 
-        return self.correction_factor
+        if cube_err is None:
+            cube_err = [None] * cube.shape[0]
+
+        # Loop over all spectral channels and extract the flux
+        for i, (image, image_err) in enumerate(zip(cube, cube_err)):
+            # Create an aperture
+            aperture = EllipticalAperture(**aper_kwargs)
+            mask = np.isnan(image)
+            if mask.all():
+                flux[i] = np.nan; flux_err[i] = np.nan
+                continue
+            phot_table = aperture_photometry(image, aperture, error=image_err)
+
+            flux[i] = phot_table['aperture_sum'].data[0]
+            if image_err is not None:
+                flux_err[i] = phot_table['aperture_sum_err'].data[0]
+
+        return flux, flux_err
     
+    def fit_aperture_on_combined(self, xy_guess):
+
+        # Median-combine the cube along the wavelength axis
+        median_image = np.nanmedian(self.data_combined['cube'], axis=0)
+        median_image -= np.nanmedian(median_image) # Remove background
+        median_image /= np.nanmax(median_image[4:-4,4:-4]) # Normalize
+        median_image = np.nan_to_num(median_image, nan=0.0)
+
+        gaussian, y_pix, x_pix = self._get_gaussian_model(median_image, xy_guess)
+        
+        from astropy.modeling import fitting
+        fitter = fitting.LevMarLSQFitter()
+        fit = fitter(gaussian, x_pix, y_pix, median_image)
+
+        self.sigma = fit.x_stddev.value
+        self.xy_combined = (fit.x_mean.value, fit.y_mean.value)
+
+    def fit_aperture_on_dithers(self, *xy_guesses):
+
+        self.xy_dithers = []
+        for i, (data_dither_i, xy_guess_i) in enumerate(zip(self.data_dither, xy_guesses)):
+
+            # Median-combine the cube along the wavelength axis
+            median_image = np.nanmedian(data_dither_i['cube'], axis=0)
+            median_image -= np.nanmedian(median_image) # Remove background
+            median_image /= np.nanmax(median_image[4:-4,4:-4]) # Normalize
+            median_image = np.nan_to_num(median_image, nan=0.0)
+
+            gaussian, y_pix, x_pix = self._get_gaussian_model(median_image, xy_guess_i)
+
+            # Fix the sigma to that from the combined image
+            gaussian.x_stddev.value = self.sigma
+            gaussian.y_stddev.value = self.sigma
+            gaussian.x_stddev.fixed = True
+            gaussian.y_stddev.fixed = True
+
+            from astropy.modeling import fitting
+            fitter = fitting.LevMarLSQFitter()
+            fit = fitter(gaussian, x_pix, y_pix, median_image)
+
+            self.xy_dithers.append((fit.x_mean.value, fit.y_mean.value))
+
+    def correct_dithers(self, radius_inflation=6, plot=True):
+        
+        for i, data_dither_i in enumerate(self.data_dither):
+
+            # Mask the fitted Gaussians
+            mask = np.zeros_like(data_dither_i['cube'][0])
+            for xy_j in self.xy_dithers:
+                aperture_j = EllipticalAperture(
+                    positions=xy_j, 
+                    theta=0., 
+                    a=self.sigma*radius_inflation, 
+                    b=self.sigma*radius_inflation
+                    )
+                mask += aperture_j.to_mask().to_image(mask.shape)
+
+            mask = (mask!=0.)
+            masked_cube = np.copy(data_dither_i['cube'])
+            masked_cube[:,mask] = np.nan
+            
+            # Remove the horizontal stripes
+            horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
+            horizontal_collapsed = np.nan_to_num(horizontal_collapsed, nan=0.0)
+            # horizontal_collapsed *= 0.
+            data_dither_i['cube_corrected'] = np.copy(data_dither_i['cube']) - horizontal_collapsed
+
+            if plot:
+                # Plot the results
+                median_image = np.nanmedian(data_dither_i['cube'], axis=0)
+                median_image_corrected = np.nanmedian(data_dither_i['cube_corrected'], axis=0)
+                
+                vmax = np.nanpercentile(median_image, 97)
+
+                fig, ax = plt.subplots(figsize=(7,2.7), ncols=3, gridspec_kw={'width_ratios': [1,1,0.05]})
+                ax[0].imshow(median_image, origin='lower', cmap='bwr', vmin=-vmax, vmax=vmax)
+                ax[0].set_title('Median image')
+                im = ax[1].imshow(median_image_corrected, origin='lower', cmap='bwr', vmin=-vmax, vmax=vmax)
+                ax[1].set_title('After correction')
+
+                # Plot the fitted Gaussians
+                for ax_i in ax[:2]:
+                    for xy_j in self.xy_dithers:
+                        ellipse = Ellipse(
+                            xy=xy_j,
+                            width=2*self.sigma*radius_inflation,
+                            height=2*self.sigma*radius_inflation,
+                            angle=0.,
+                            edgecolor='k', facecolor='none', lw=1.5
+                        )
+                        ax_i.add_patch(ellipse)
+                        ax_i.scatter(
+                            xy_j[0], xy_j[1], 
+                            marker='+', color='k', s=50, lw=2
+                        )
+
+                # Add a colorbar to the right of the plots
+                plt.colorbar(im, cax=ax[-1], orientation='vertical')
+
+                plt.show()
+
+    def extract_1d_dithers(self, radius=4):
+
+        for i, data_dither_i in enumerate(self.data_dither):
+
+            aper_kwargs = dict(
+                positions=self.xy_dithers[i], theta=0., a=self.sigma*radius, b=self.sigma*radius
+            )
+            data_dither_i['flux'], data_dither_i['flux_err'] = extract_per_channel(
+                data_dither_i['cube_corrected'], data_dither_i['cube_err'], **aper_kwargs
+            )
+
+    def combine_dithers(self, sigma_clip=20, plot=True, **axis_kwargs):
+        
+        wave = np.array([data_dither_i['wave'] for data_dither_i in self.data_dither])
+        flux = np.array([data_dither_i['flux'] for data_dither_i in self.data_dither])
+        flux_err = np.array([data_dither_i['flux_err'] for data_dither_i in self.data_dither])
+
+        if (wave != wave[[0],:]).any():
+            raise ValueError('Wavelength grids do not match!')
+        
+        weight = 1/flux_err**2
+
+        flux_mean = np.ones_like(wave[0]) * np.nan
+        flux_err_mean = np.ones_like(wave[0]) * np.nan
+        
+        is_in_any_dither = np.zeros_like(wave[0], dtype=bool)
+        is_clipped = np.zeros_like(wave, dtype=bool)
+
+        # Loop over all spectral channels
+        for i, (flux_i, flux_err_i, weight_i) in enumerate(zip(flux.T, flux_err.T, weight.T)):
+
+            # Only include valid values
+            is_in_dither_i = np.isfinite(flux_i) & np.isfinite(flux_err_i)
+            if not is_in_dither_i.any():
+                # No spectrum has valid values in this channel
+                continue
+            is_in_any_dither[i] = True
+
+            if sigma_clip is not None:
+                # Sigma-clip outliers wrt median spectrum, removing pixels
+                # with mistaken similar weights as other spectra/dithers
+                median_flux     = np.nanmedian(flux_i[is_in_dither_i])
+                median_flux_err = np.nanmedian(flux_err_i[is_in_dither_i])
+
+                is_in_dither_i = is_in_dither_i & (
+                    np.abs(flux_i-median_flux) < sigma_clip*median_flux_err
+                )
+
+            # Update the clipped values
+            is_clipped[~is_in_dither_i,i] = True
+
+            if not is_in_dither_i.any():
+                # No valid values left after clipping
+                continue
+
+            # Calculate the weighted mean and error
+            flux_mean[i] = np.average(flux_i[is_in_dither_i], weights=weight_i[is_in_dither_i])
+            flux_err_mean[i] = np.sqrt(
+                np.sum((weight_i[is_in_dither_i]*flux_err_i[is_in_dither_i])**2) / (np.sum(weight_i[is_in_dither_i])**2)
+            )
+
+        if plot:
+            
+            fig, ax = plt.subplots(figsize=(10,6), nrows=2, sharex=True, gridspec_kw={'height_ratios':[1,0.5]})
+            for flux_i, flux_err_i, is_clipped_i in zip(flux, flux_err, is_clipped):
+                
+                flux_masked_i = flux_i.copy()
+                flux_masked_i[is_clipped_i] = np.nan
+                line = ax[0].plot(wave[0], flux_i, lw=0.5, alpha=0.3)
+                ax[0].plot(wave[0], flux_masked_i, lw=0.8, c=line[0].get_color())
+                ax[1].plot(wave[0], flux_i/flux_err_i, lw=0.8, c=line[0].get_color())
+
+                ax[0].plot(wave[0][is_clipped_i], flux_i[is_clipped_i], 'C6x', zorder=10, ms=5)
+
+            ax[0].plot(wave[0], flux_mean, lw=1.2, c='k')
+            ax[1].plot(wave[0], flux_mean/flux_err_mean, lw=1.2, c='k')
+
+            if 'xlim' in axis_kwargs:
+                xlim = axis_kwargs.pop('xlim')
+            else:
+                xlim = (wave[0][np.isfinite(flux_mean)][0]-0.02, wave[0][np.isfinite(flux_mean)][-1]+0.02)
+            ax[0].set(xlim=xlim)
+
+            if 'ylim' in axis_kwargs:
+                ylim = axis_kwargs.pop('ylim')
+            else:
+                ylim = (np.nanpercentile(flux, 1)*1/1.2, np.nanpercentile(flux_mean, 99)*1.2)
+            ax[0].set(ylim=ylim, ylabel='Flux [W/m^2/micron]', **axis_kwargs)
+
+            ylim = (np.nanpercentile(flux/flux_err, 1)*1/1.2, np.nanpercentile(flux_mean/flux_err_mean, 99)*1.2)
+            ax[1].set(ylim=ylim, ylabel='S/N', xlabel='Wavelength [micron]', **axis_kwargs)
+            plt.show()
+
+        # Remove pixels that are not valid in any dither
+        self.wave = wave[0][is_in_any_dither]
+        self.flux = flux_mean[is_in_any_dither]
+        self.flux_err = flux_err_mean[is_in_any_dither]
+
+        # Remove first and last pixels
+        self.wave = self.wave[1:-1]
+        self.flux = self.flux[1:-1]
+        self.flux_err = self.flux_err[1:-1]
+
+    def aperture_correction_from_combined(self, radius=4, radius_tot=10, plot=True):
+        
+        aper_kwargs = dict(
+            positions=self.xy_combined, theta=0., a=self.sigma*radius, b=self.sigma*radius
+        )
+        aper_kwargs_tot = dict(
+            positions=self.xy_combined, theta=0., a=self.sigma*radius_tot, b=self.sigma*radius_tot
+        )
+
+        flux_measured, flux_err_measured = extract_per_channel(
+            self.data_combined['cube'], self.data_combined['cube_err'], **aper_kwargs
+        )
+        flux_tot, flux_err_tot = extract_per_channel(
+            self.data_combined['cube'], self.data_combined['cube_err'], **aper_kwargs_tot
+        )
+
+        ratio = flux_tot / flux_measured
+        ratio_err = np.sqrt((flux_tot/flux_measured**2*flux_err_measured)**2 + (1/flux_measured*flux_err_tot)**2)
+        mask = np.isfinite(ratio)
+        polynomial = np.polyfit(self.data_combined['wave'][mask], ratio[mask], w=1/ratio_err[mask]**2, deg=1)
+        self.correction_factor = np.polyval(polynomial, self.wave)
+
+        self.flux *= self.correction_factor
+        self.flux_err *= self.correction_factor
+
+        if plot: 
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots(figsize=(10,2))
+            ax.plot(self.data_combined['wave'], ratio)
+            ax.plot(self.wave, self.correction_factor)
+            ax.set(xlabel='Wavelength [micron]', ylabel=f'[{radius_tot}*sigma] / [{radius}*sigma]', ylim=(1,1.2), title='Aperture correction')
+            plt.show()
+
+    def save_spectrum(self, filename):
+        
+        np.savetxt(
+            filename, np.array([self.wave, self.flux, self.flux_err]).T, delimiter=',', 
+            header='Wavelength (microns), Flux(W/m^2/microns), Flux Error(W/m^2/microns)', 
+            )
+        
 class SpectralExtraction:
 
     def __init__(self, file_s3d, file_wave, AC=None, **AC_kwargs):
@@ -319,6 +605,10 @@ def extract_per_channel(cube, cube_err=None, **aper_kwargs):
         aperture = EllipticalAperture(
             positions=aper_kwargs['positions'], theta=aper_kwargs['theta'], a=a[i], b=b[i]
         )
+        mask = np.isnan(image)
+        if mask.all():
+            flux[i] = np.nan; flux_err[i] = np.nan
+            continue
         phot_table = aperture_photometry(image, aperture, error=image_err)
 
         flux[i] = phot_table['aperture_sum'].data[0]
@@ -327,6 +617,7 @@ def extract_per_channel(cube, cube_err=None, **aper_kwargs):
 
     return flux, flux_err
 
+"""
 def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
 
     wave = np.array([SE.wave for SE in SEs])
@@ -414,7 +705,7 @@ def combine_extractions(*SEs, sigma_clip=20, plot=True, xlim=None):
     flux_err_mean = flux_err_mean[1:-1]
     
     return wave, flux_mean, flux_err_mean
-
+"""
 def convert_Jy_to_F_lam(wave, flux, flux_err):
 
     from scipy.constants import c

@@ -304,17 +304,16 @@ def plot_clouds(Cloud, ax=None, ls='-'):
         )
 
     total_opacity = getattr(Cloud, 'total_opacity', None)
-    if total_opacity is None:
-        return
+    if total_opacity is not None:
     
-    total_opacity_posterior = getattr(Cloud, 'total_opacity_posterior', None)
-    if total_opacity_posterior is not None:
-        env = np.quantile(total_opacity_posterior, q=q, axis=0)
-        plot_envelopes(
-            ax, y=Cloud.pressure, env_x=env, median_kwargs={'c':posterior_color, 'ls':ls}
-            )
-        
-    ax.plot(total_opacity, Cloud.pressure, c=bestfit_color, ls=ls)
+        total_opacity_posterior = getattr(Cloud, 'total_opacity_posterior', None)
+        if total_opacity_posterior is not None:
+            env = np.quantile(total_opacity_posterior, q=q, axis=0)
+            plot_envelopes(
+                ax, y=Cloud.pressure, env_x=env, median_kwargs={'c':posterior_color, 'ls':ls}
+                )
+            
+        ax.plot(total_opacity, Cloud.pressure, c=bestfit_color, ls=ls)
 
     if not hasattr(Cloud, 'mass_fractions'):
         return

@@ -3,36 +3,20 @@ from scipy.linalg import cholesky_banded, cho_solve_banded
 
 from ..utils import sc
 
-def get_class(d_spec, sum_model_settings=False, **kwargs):
+def get_class(**kwargs):
     """
-    Get a list of Covariance objects for each chip in the dataset.
+    Returns an instance of Covariance class.
 
     Args:
-        d_spec (dict): Dictionary containing spectral data.
-        sum_model_settings (bool, optional): If True, only compare to one model setting. Defaults to False.
-        **kwargs: Additional keyword arguments for Covariance initialization.
+        **kwargs: Arbitrary keyword arguments.
 
     Returns:
-        list: List of Covariance objects.
+        Covariance: An instance of Covariance class.
     """
-    Cov = []
-    for m_set in d_spec.keys():
-        # Loop over each chip
-        for d_wave, d_err in zip(d_spec[m_set].wave, d_spec[m_set].err):
-            mask = np.isfinite(d_err)
-            Cov.append(Covariance(d_wave[mask], d_err[mask], m_set, **kwargs))
+    return Covariance(**kwargs)
 
-        if sum_model_settings:
-            # Only compare to one model setting
-            break
+class CovarianceMatrix:
 
-    return Cov
-
-class Covariance:
-    """
-    Class to handle covariance matrix operations.
-    """
-    
     @staticmethod
     def get_banded(array, max_value=np.inf, pad_value=0):
         """
@@ -65,90 +49,41 @@ class Covariance:
 
         # Convert to array for scipy
         return np.asarray(banded_array)
-
-    def __init__(self, d_wave, d_err, m_set='all', trunc_dist=5, **kwargs):
+    
+    def __init__(self, d_wave, d_err, trunc_dist=5, separation_mode='wave', scale_amp=False, **kwargs):
         """
-        Initialize the Covariance object.
-
+        Initialize the CovarianceMatrix object.
+        
         Args:
-            d_wave (np.ndarray): Wavelength data.
-            d_err (np.ndarray): Error data.
-            m_set (str): Model setting identifier.
-            trunc_dist (int, optional): Truncation distance for the covariance matrix. Defaults to 5.
+            d_wave (list of np.ndarray): List of wavelength arrays for each chip.
+            d_err (list of np.ndarray): List of error arrays for each chip.
+            trunc_dist (float, optional): Truncation distance for kernels. Defaults to 5.
+            separation_mode (str, optional): Mode of separation ('wave' or 'velocity'). Defaults to 'wave'.
+            scale_amp (bool, optional): Whether to scale the amplitude wrt the median variance. Defaults to False.
             **kwargs: Additional keyword arguments.
         """
-        # Model setting
-        self.m_set = m_set
 
-        # Which kernel to use (if any)
-        self.kernel_mode     = kwargs.get('kernel_mode')
-        self.separation_mode = kwargs.get('separation_mode', 'wave')
+        # Maximum separation/diagonal to consider for the covariance matrix
+        max_separation = kwargs.get('max_wave_sep', kwargs.get('max_separation', np.inf))
 
-        # Set up the covariance matrix
-        self.var = d_err**2
-        
-        # Scale the amplitude wrt the median variance
-        self.scale_amp = kwargs.get('scale_amp', False) 
-        # Truncation distance for the covariance matrix
+        self.separation_mode = separation_mode
+        self.scale_amp  = scale_amp   # Scale the amplitude wrt the median variance
         self.trunc_dist = trunc_dist
 
-        # Convert wavelength separation to a banded matrix
-        self.separation = np.abs(d_wave[None,:]-d_wave[:,None])
-        
-        if self.separation_mode == 'velocity':
-            # Use velocity separation
-            self.separation = (sc.c*1e-3) * self.separation / (np.abs(d_wave[None,:]+d_wave[:,None])/2)
-        
-        # Maximum separation/diagonal to consider for the covariance matrix
-        max_separation = kwargs.get('max_wave_sep')
-        if max_separation is None:
-            max_separation = kwargs.get('max_separation')
+        # Set up covariance matrix
+        mask = np.isfinite(d_err)
+        self.var = d_err[mask]**2
 
-        if max_separation is None:
-            max_separation = np.max(self.separation)
+        self.separation = np.abs(d_wave[mask][None,:]-d_wave[mask][:,None])
+        if separation_mode == 'velocity':
+            # Use velocity separation
+            self.separation = (sc.c*1e-3) * self.separation / (np.abs(d_wave[mask][None,:]+d_wave[mask][:,None])/2)
 
         # Convert the separation to a banded matrix
-        self.separation = self.get_banded(
-            self.separation, max_value=max_separation, pad_value=1e6
-        )
+        self.separation = self.get_banded(self.separation, max_value=max_separation, pad_value=1e6)
 
         # Initialize the covariance matrix
         self._reset_cov()
-
-    def __call__(self, ParamTable, **kwargs):
-        """
-        Evaluate the covariance matrix with given parameters.
-
-        Args:
-            ParamTable (dict): Parameters for the model.
-            **kwargs: Additional keyword arguments.
-        """
-        self._reset_cov()
-
-        ParamTable.set_queried_m_set(
-            'all', self.m_set, add_linked_m_set=True
-            )
-
-        b = ParamTable.get('b')
-        if b is not None:
-            # Multiply the error by a factor of 10^b
-            self._multiply_err(b)
-        
-        amp    = ParamTable.get('a', 1.)
-        length = ParamTable.get('l')
-        if None in [length, self.kernel_mode]:
-            # If either parameter is None, do not add a kernel
-            self._get_cholesky()
-            return
-        
-        if self.kernel_mode == 'rbf':
-            self._add_radial_basis_function_kernel(amp=amp, length=length)
-        elif self.kernel_mode == 'matern':
-            self._add_matern_kernel(amp=amp, length=length)
-        
-        ParamTable.set_queried_m_set('all')
-
-        self._get_cholesky()
 
     def solve(self, b):
         """
@@ -164,7 +99,7 @@ class Covariance:
             return b / np.squeeze(self.cov)
         
         return cho_solve_banded((self.cov_cholesky, True), b, check_finite=False)
-    
+
     def _reset_cov(self):
         """
         Reset the covariance matrix to its initial state.
@@ -178,7 +113,7 @@ class Covariance:
         
     def _get_cholesky(self):
         """
-        Compute the Cholesky decomposition of the covariance matrix.
+        Compute the Cholesky decomposition of the covariance matrices.
         """
         mask_nonzero_diag = (self.cov != 0).any(axis=1)
 
@@ -261,4 +196,99 @@ class Covariance:
             )
         else:
             raise ValueError(f"Unsupported nu value: {nu}. Supported values are 0.5, 1.5, and 2.5.")
+
+class Covariance:
+    """
+    Class to handle covariance matrix operations.
+    """
+
+    def __init__(self, d_spec, m_set, kernel_mode=None, **kwargs):
+        """
+        Initialize the Covariance object.
+
+        Args:
+            d_spec (object): Data spectrum object containing wavelength and error arrays.
+            m_set (str): Model setting identifier.
+            kernel_mode (str, optional): Type of kernel to use ('rbf' or 'matern'). Defaults to None.
+            **kwargs: Additional keyword arguments.
+            
+        """
+        # Model setting
+        self.m_set = m_set
+
+        # Set up the covariance matrices for each chip
+        self.CovMats = [
+            CovarianceMatrix(d_wave=d_wave_i, d_err=d_err_i, **kwargs)
+            for d_wave_i, d_err_i in zip(d_spec.wave, d_spec.err)
+        ]
+
+        self.kernel_mode = kernel_mode
+
+    def __call__(self, ParamTable):
+        """
+        Evaluate the covariance matrix with given parameters.
+
+        Args:
+            ParamTable (dict): Parameters for the model.
+        """
+        # Reset the covariance matrices
+        [CM._reset_cov() for CM in self.CovMats]
+
+        # Read the parameters
+        b, amp, length = self._read_params(ParamTable)
+
+        if b is not None:
+            # Multiply the error by a factor of 10^b
+            [CM._multiply_err(b) for CM in self.CovMats]
+
+        if None in [length, self.kernel_mode]:
+            # If either parameter is None, do not add a kernel
+            [CM._get_cholesky() for CM in self.CovMats]
+            return
         
+        if self.kernel_mode == 'rbf':
+            [CM._add_radial_basis_function_kernel(amp=amp, length=length) for CM in self.CovMats]
+        elif self.kernel_mode == 'matern':
+            [CM._add_matern_kernel(amp=amp, length=length) for CM in self.CovMats]
+
+        # Compute the Cholesky decomposition
+        [CM._get_cholesky() for CM in self.CovMats]
+
+    def __iter__(self):
+        return iter(self.CovMats)
+    
+    def __len__(self):
+        return len(self.CovMats)
+    
+    def __getitem__(self, index):
+        return self.CovMats[index]
+
+    def _read_params(self, ParamTable):
+        """
+        Get the parameters from the ParamTable.
+
+        Args:
+            ParamTable (dict): Parameter table.
+        """
+        ParamTable.set_queried_m_set(
+            'all', self.m_set, add_linked_m_set=False
+            )
+        b = ParamTable.get('b')
+        
+        amp    = ParamTable.get('a', 1.)
+        length = ParamTable.get('l')
+
+        # Also check the linked model settings
+        ParamTable.set_queried_m_set(
+            'all', self.m_set, add_linked_m_set=True
+            )
+        if b is None:
+            b = ParamTable.get('b')
+        if amp == 1.:
+            amp = ParamTable.get('a', 1.)
+        if length is None:
+            length = ParamTable.get('l')
+        
+        ParamTable.set_queried_m_set('all')
+        return b, amp, length
+    

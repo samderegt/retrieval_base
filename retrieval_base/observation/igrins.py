@@ -255,16 +255,14 @@ class SpectrumIGRINS(Spectrum):
 
             ax_flux.plot(self.wave[i], self.flux[i], 'k-', lw=0.5)
 
-            idx_LogLike = LogLike.indices_per_model_setting[self.m_set][i]
-            ax_flux.plot(self.wave[i], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-
-            ax_res.plot(self.wave[i], self.flux[i]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+            ax_flux.plot(self.wave[i], LogLike.m_flux_phi[self.m_set][i], 'C1-', lw=0.8, label=label)
+            ax_res.plot(self.wave[i], self.flux[i]-LogLike.m_flux_phi[self.m_set][i], 'k-', lw=0.8)
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
             ax_flux.set(xlim=xlim, xticks=[], ylabel=ylabel[0])
 
             # First column of banded covariance matrix is the diagonal
-            sigma_scaled = np.nanmean(np.sqrt(Cov[i].cov[idx_LogLike]*LogLike.s_squared[idx_LogLike]))
+            sigma_scaled = np.nanmean(np.sqrt(Cov[self.m_set][i].cov[0]*LogLike.s_squared[self.m_set][i]))
             sigma_data   = np.nanmean(self.err[i])
             err_kwargs = dict(clip_on=False, capsize=1.7, lw=1., capthick=1.)
 
@@ -283,10 +281,7 @@ class SpectrumIGRINS(Spectrum):
             if i == 0:
                 ax_flux.legend()
 
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
+        fig.savefig(plots_dir / f'bestfit_spectrum_per_chunk_{self.m_set}.pdf')
         plt.close(fig)
 
         # Plot for full spectrum
@@ -313,9 +308,8 @@ class SpectrumIGRINS(Spectrum):
                 if j != 0:
                     label = None
 
-                idx_LogLike = LogLike.indices_per_model_setting[self.m_set][j]
-                ax_flux.plot(self.wave[j], LogLike.m_flux_phi[idx_LogLike], 'C1-', lw=0.8, label=label)
-                ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[idx_LogLike], 'k-', lw=0.8)
+                ax_flux.plot(self.wave[j], LogLike.m_flux_phi[self.m_set][j], 'C1-', lw=0.8, label=label)
+                ax_res.plot(self.wave[j], self.flux[j]-LogLike.m_flux_phi[self.m_set][j], 'k-', lw=0.8)
                 
             ax_res.axhline(0, c='C1', ls='-', lw=0.5)
 
@@ -325,8 +319,5 @@ class SpectrumIGRINS(Spectrum):
             if i == 0:
                 ax_flux.legend()
 
-        if LogLike.sum_model_settings:
-            fig.savefig(plots_dir / f'bestfit_spectrum.pdf')
-        else:
-            fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
+        fig.savefig(plots_dir / f'bestfit_spectrum_{self.m_set}.pdf')
         plt.close(fig)

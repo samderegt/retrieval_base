@@ -58,7 +58,7 @@ class Parameter:
     def _set_prior(self):
         """Sets the prior distribution based on the prior type and parameters."""
         # Prior range or loc/scale
-        loc, scale = self.prior_params
+        loc, scale = self.prior_params[:2]
 
         if self.prior_type in ['U', 'uniform']:
             # Uniform prior
@@ -69,6 +69,10 @@ class Parameter:
         elif self.prior_type in ['N', 'G', 'normal', 'gaussian']:
             # Gaussian prior
             self.prior = stats.norm(loc=loc, scale=scale)
+        elif self.prior_type in ['TN', 'TG', 'truncnormal', 'truncgaussian']:
+            # Truncated Gaussian prior
+            a, b = self.prior_params[2:]
+            self.prior = stats.truncnorm(loc=loc, scale=scale, a=a, b=b)
         else:
             raise ValueError(f'prior_type={self.prior_type} not recognized')
     
@@ -87,6 +91,7 @@ class ParameterTable:
         """
         self.model_settings = model_settings
         self.model_settings_linked = all_model_kwargs.get('model_settings_linked', {})
+        self.model_settings_to_sum = all_model_kwargs.get('model_settings_to_sum', [])
 
         # Create the table
         cols = ['name', 'm_set', 'Param', 'val']
@@ -302,7 +307,7 @@ class ParameterTable:
             if len(model_kwargs) == 0:
                 warnings.warn(f'{key} not found in all_model_kwargs')
             
-            if key not in ['cov_kwargs', 'loglike_kwargs']:
+            if key not in ['loglike_kwargs']:
                 # Expand the kwargs to each model setting
                 model_kwargs = self._expand_dictionary_per_model_setting(model_kwargs, is_kwargs=True)
                 
@@ -426,6 +431,12 @@ class ParameterTable:
             # Full coverage (default, e.g. binary)
             return
 
+        # Partial coverage
+        for m_set_main, m_set_second in self.model_settings_to_sum:
+            self._add_param(name='coverage_fraction', m_set=m_set_main, val=cf)
+            self._add_param(name='coverage_fraction', m_set=m_set_second, val=1.-cf)
+        return
+    
         # Partial coverage
         if (m_set == self.model_settings[0]) and (len(self.model_settings) == 2):
             # Add the remainder to the second model setting
