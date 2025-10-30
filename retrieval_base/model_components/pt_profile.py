@@ -209,6 +209,21 @@ class PT_profile_free_gradient(PT_profile):
         # Ascending in pressure
         self.dlnT_dlnP = interp_func(self.log_pressure)
 
+        # Temperature excursion (similar to Molliere et al. 2025)
+        if ParamTable.queried_m_set[1].endswith('_cld'):
+            return
+
+        f_exc = ParamTable.get('f_exc', 0.)
+        log_P_exc  = ParamTable.get('log_P_exc')
+        dlog_P_exc = ParamTable.get('dlog_P_exc')
+
+        if None in [log_P_exc, dlog_P_exc]:
+            return
+
+        factor = f_exc * (1-2*np.abs(self.log_pressure-log_P_exc)/dlog_P_exc)
+        factor[2*np.abs(self.log_pressure-log_P_exc) > dlog_P_exc] = 0.
+        self.dlnT_dlnP += factor
+
     def _get_temperature(self, ParamTable):
         """
         Get the temperature profile.

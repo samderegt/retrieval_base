@@ -106,7 +106,7 @@ class pRT:
             'return_cloud_contribution': (
                 self.evaluation and hasattr(Cloud, 'cloud_species') and (not hasattr(Cloud, 'complete_coverage_clouds'))
             ),
-            'return_opacities': self.evaluation and hasattr(Cloud, 'cloud_species'),
+            'return_opacities': self.evaluation,
             'return_contribution': self.evaluation, 
             'frequencies_to_wavelengths': True,
             # 'fast_opacity_interpolation': hasattr(self.atm[0], '_interpolate_species_opacities_fast'),
@@ -117,6 +117,7 @@ class pRT:
         
         self.wave, self.flux, self.flux_binned = [], [], []
         self.contr_per_wave, self.integrated_contr = [], []
+        self.optical_depths = []
 
         # Loop over all chips
         for i, atm_i in enumerate(self.atm):
@@ -153,6 +154,14 @@ class pRT:
                 self.contr_per_wave.append(contr_per_wave_i)
                 self.integrated_contr.append(integrated_contr_i)
 
+                # Store the optical depths
+                optical_depths_per_wave_i = self._get_optical_depths(
+                    ParamTable, Rotation, wave_init_i.copy(), 
+                    additional_outputs['optical_depths'][0,:,0,:].T,
+                    self.d_wave[i]
+                )
+                self.optical_depths.append(optical_depths_per_wave_i)
+
                 # Store the cloud opacity
                 if 'cloud_opacities' in additional_outputs:
                     _, integrated_cloud_opacity_i = self._get_cloud_opacities(
@@ -160,7 +169,7 @@ class pRT:
                         self.d_wave[i], flux_binned_i
                         )
                     Cloud.total_opacity += integrated_cloud_opacity_i
-                                
+
             # Store the model spectrum
             self.wave.append(wave_i)
             self.flux.append(flux_i)
@@ -174,6 +183,7 @@ class pRT:
         if self.evaluation:
             self.contr_per_wave   = np.array(self.contr_per_wave)
             self.integrated_contr = np.array(self.integrated_contr)
+            self.optical_depths   = np.array(self.optical_depths)
 
     def read_line_opacities_from_other_m_spec(self, source_m_spec):
         """
@@ -431,6 +441,21 @@ class pRT:
             integrated_contr[i] = integrand1 / integrand2
 
         return contr_per_wave, integrated_contr
+    
+    def _get_optical_depths(self, ParamTable, Rotation, wave, optical_depths, d_wave):
+
+        optical_depths_per_wave = np.nan * np.ones((len(self.pressure), len(d_wave)))
+
+        # Loop over each pressure level
+        for i, optical_depths_i in enumerate(optical_depths):
+
+            # Apply rv-shift and broadening to optical depths
+            wave_i, _, optical_depths_binned_i = self._convert_to_observation(
+                ParamTable, Rotation, wave.copy(), optical_depths_i[None,:], d_wave, apply_scaling=False, 
+                )
+            optical_depths_per_wave[i] = optical_depths_binned_i
+
+        return optical_depths_per_wave
 
     def _get_cloud_opacities(self, wave, cloud_opacities, d_wave, flux_binned):
 

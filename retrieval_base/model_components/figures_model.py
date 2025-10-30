@@ -27,6 +27,7 @@ posterior_color = 'C0'
 env_cmap, env_colors = get_env_colors(posterior_color)
 linestyles = [
     '-', '--', ':', '-.', (0, (5, 10)), (0, (1, 5)), (0, (1, 1)), 
+    '-', '--', ':', '-.', (0, (5, 10)), (0, (1, 5)), (0, (1, 1)), 
     ]
 
 

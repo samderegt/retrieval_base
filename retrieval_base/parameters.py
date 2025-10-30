@@ -435,6 +435,14 @@ class ParameterTable:
         for m_set_main, m_set_second in self.model_settings_to_sum:
             self._add_param(name='coverage_fraction', m_set=m_set_main, val=cf)
             self._add_param(name='coverage_fraction', m_set=m_set_second, val=1.-cf)
+
+            queried_m_set = self.queried_m_set.copy()
+            self.set_queried_m_set(m_set_main)
+            b = self.get('b')
+            if b is not None:
+                # Add b parameter to second model setting too
+                self._add_param(name='b', m_set=m_set_second, val=b)
+            self.set_queried_m_set(*queried_m_set)
         return
     
         # Partial coverage

@@ -1020,3 +1020,9 @@ class FastChemistry(EquilibriumChemistry):
 
             # Volume-mixing ratio, flip back to decreasing altitude
             self.VMRs[species_i] = (n[:,idx] / n_tot)[::-1]
+
+        for species_i, VMR_i in self.VMRs.items():
+            if (VMR_i==0.).any():
+                print(f'FastChem failed for species {species_i}.')
+                self.VMRs = -np.inf
+                return
