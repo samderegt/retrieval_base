@@ -161,12 +161,17 @@ class NIRSpecExtraction:
             mask = (mask!=0.)
             masked_cube = np.copy(data_dither_i['cube'])
             masked_cube[:,mask] = np.nan
+            # masked_cube[:,:,:2] = np.nan; masked_cube[:,:,-2:] = np.nan
             
             # Remove the horizontal stripes
             horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
             horizontal_collapsed = np.nan_to_num(horizontal_collapsed, nan=0.0)
             # horizontal_collapsed *= 0.
             data_dither_i['cube_corrected'] = np.copy(data_dither_i['cube']) - horizontal_collapsed
+            
+            # vertical_collapsed = np.nanmedian(masked_cube, axis=1, keepdims=True)
+            # vertical_collapsed = np.nan_to_num(vertical_collapsed, nan=0.0)
+            # data_dither_i['cube_corrected'] -= vertical_collapsed
 
             if plot:
                 # Plot the results

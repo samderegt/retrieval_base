@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+import sys
 from pathlib import Path
 
 from retrieval_base.retrieval import RetrievalRun, Retrieval
@@ -304,11 +305,60 @@ class RetrievalResults(RetrievalRun, Retrieval):
         print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
         return B, sigma
 
+    def compare_AIC_BIC(self, other):
+
+        self.load_components(['LogLike', 'ParamTable'])
+        other.load_components(['LogLike', 'ParamTable'])
+
+        k_self  = self.ParamTable.n_free_params
+        k_other = other.ParamTable.n_free_params
+
+        n_self  = self.LogLike.N_d
+        n_other = other.LogLike.N_d
+
+        AIC_self  = 2*k_self - 2*self.LogLike.ln_L
+        AIC_other = 2*k_other - 2*other.LogLike.ln_L
+
+        BIC_self  = k_self*np.log(n_self) - 2*self.LogLike.ln_L
+        BIC_other = k_other*np.log(n_other) - 2*other.LogLike.ln_L
+
+        print('Current vs. given: AIC={:.2f}'.format(AIC_self-AIC_other))
+        print('Current vs. given: BIC={:.2f}'.format(BIC_self-BIC_other))
+        
     @staticmethod
     def _load_config(prefix):
         """Load the config file from the data directory."""
 
         import importlib
+
+        # Remove any existing tmp_config.py and related cached files/modules
+        tmp_file = Path('./tmp_config.py')
+        if tmp_file.exists():
+            try:
+                tmp_file.unlink()
+            except Exception as e:
+                print(f'Warning: could not remove existing tmp_config.py: {e}')
+
+        tmp_pyc = Path('./tmp_config.pyc')
+        if tmp_pyc.exists():
+            try:
+                tmp_pyc.unlink()
+            except Exception:
+                pass
+
+        cache_dir = Path('./__pycache__')
+        if cache_dir.exists():
+            for f in cache_dir.glob('tmp_config*.pyc'):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+
+        if 'tmp_config' in sys.modules:
+            try:
+                del sys.modules['tmp_config']
+            except Exception:
+                pass
 
         # Find the file with .py suffix
         data_dir = Path(f'{prefix}data')
@@ -390,6 +440,7 @@ class HighPassFilter:
         #from scipy.ndimage import generic_filter
         #lp_flux = generic_filter(flux, np.nanmedian, **self.kwargs)
         from scipy.ndimage import median_filter
+
         lp_flux = median_filter(flux, **self.kwargs)
         
         return flux - lp_flux

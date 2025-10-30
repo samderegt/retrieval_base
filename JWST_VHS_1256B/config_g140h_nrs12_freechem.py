@@ -4,21 +4,21 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'all_gratings_freechem_ret_3_1column'
+prefix = 'g140h_nrs12_freechem_ret_1'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
     nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3}),  
-    nirspec_g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'grating':'G235H', 'min_SNR':3}),  
-    nirspec_g395h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'grating':'G395H', 'min_SNR':3}),  
+    # nirspec_g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'grating':'G235H', 'min_SNR':3}),  
+    # nirspec_g395h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'grating':'G395H', 'min_SNR':3}),  
     nirspec_g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'grating':'G140H', 'min_SNR':3}),  
-    nirspec_g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'grating':'G235H', 'min_SNR':3}),  
-    nirspec_g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'grating':'G395H', 'min_SNR':3}),  
+    # nirspec_g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'grating':'G235H', 'min_SNR':3}),  
+    # nirspec_g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'grating':'G395H', 'min_SNR':3}),  
 )
 model_settings_linked = {
     'nirspec_g140h_1': ('nirspec_g140h_2'), 'nirspec_g140h_2': ('nirspec_g140h_1'), 
-    'nirspec_g235h_1': ('nirspec_g235h_2'), 'nirspec_g235h_2': ('nirspec_g235h_1'),
-    'nirspec_g395h_1': ('nirspec_g395h_2'), 'nirspec_g395h_2': ('nirspec_g395h_1'),
+    # 'nirspec_g235h_1': ('nirspec_g235h_2'), 'nirspec_g235h_2': ('nirspec_g235h_1'),
+    # 'nirspec_g395h_1': ('nirspec_g395h_2'), 'nirspec_g395h_2': ('nirspec_g395h_1'),
 }
 
 ####################################################################################
@@ -35,8 +35,8 @@ sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 free_params = {
     # Covariance parameters
     'nirspec_g140h_1': {'b': ['U', (0.0,1.0), r'$b_{140}$']}, 
-    'nirspec_g235h_1': {'b': ['U', (0.0,1.0), r'$b_{235}$']}, 
-    'nirspec_g395h_1': {'b': ['U', (0.0,1.0), r'$b_{395}$']}, 
+    # 'nirspec_g235h_1': {'b': ['U', (0.0,1.0), r'$b_{235}$']}, 
+    # 'nirspec_g395h_1': {'b': ['U', (0.0,1.0), r'$b_{395}$']}, 
     'log_l': ['U', (1.4,2.6), r'$\log\ l$'],
 
     # General properties
@@ -51,13 +51,12 @@ free_params = {
     'log_H2O':  ['U', (-4.5,-2.5), r'$\log\ \mathrm{H_2O}$'],
     'log_CH4':  ['U', (-7.0,-4.0), r'$\log\ \mathrm{CH_4}$'], 
     'log_12CO': ['U', (-4.5,-2.5), r'$\log\ \mathrm{CO}$'], 
-    'log_CO2':  ['U', (-14.0,-4.0), r'$\log\ \mathrm{CO_2}$'], 
+    # 'log_CO2':  ['U', (-14.0,-4.0), r'$\log\ \mathrm{CO_2}$'], 
     
     'log_NH3': ['U', (-8.0,-4.0), r'$\log\ \mathrm{NH_3}$'], 
     'log_HCN': ['U', (-14.0,-4.0), r'$\log\ \mathrm{HCN}$'], 
     'log_H2S': ['U', (-6.0,-3.0), r'$\log\ \mathrm{H_2S}$'],
     'log_HF':  ['U', (-10.0,-6.0), r'$\log\ \mathrm{HF}$'],
-    # 'log_HCl': ['U', (-14.0,-6.0), r'$\log\ \mathrm{HCl}$'],
 
     'log_FeH':   ['U', (-14.0,-4.0), r'$\log\ \mathrm{FeH}$'], 
     'log_FeH_P': ['U', (-1.0,1.0), r'$\log\ \mathrm{FeH_P}$'],
@@ -66,20 +65,14 @@ free_params = {
     'log_CrH_P': ['U', (-1.0,1.0), r'$\log\ \mathrm{CrH_P}$'],
     'CrH_alpha': ['U', (0.0,10.0), r'$\alpha_\mathrm{CrH}$'],
     
-    'log_VO':  ['U', (-14.0,-6.0), r'$\log\ \mathrm{VO}$'],
-    'log_TiO': ['U', (-14.0,-6.0), r'$\log\ \mathrm{TiO}$'],
-    # 'log_SiO': ['U', (-14.0,-4.0), r'$\log\ \mathrm{SiO}$'],
-
     'log_K':   ['U', (-8.0,-4.0), r'$\log\ \mathrm{K}$'],
     'log_Na':  ['U', (-8.0,-4.0), r'$\log\ \mathrm{Na}$'],
-    # 'log_Fe':  ['U', (-14.0,-4.0), r'$\log\ \mathrm{Fe}$'],
-    # 'log_Ca':  ['U', (-14.0,-4.0), r'$\log\ \mathrm{Ca}$'],
 
     'log_13CO_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
-    'log_C18O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
-    'log_C17O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
-    'log_13CH4_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'], 
-    'log_13CO2_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'], 
+    # 'log_C18O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+    # 'log_C17O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
+    # 'log_13CH4_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'], 
+    # 'log_13CO2_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'], 
     'log_H2(18)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
     'log_H2(17)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{17}O}$'], 
 
@@ -102,11 +95,13 @@ free_params = {
     'f_sed_Fe(s)_amorphous__Mie':      ['U', (0.0,10.0), r'$f_\mathrm{sed,Fe}$'], 
     'log_P_base_Fe(s)_amorphous__Mie': ['U', (-1.0,2.0), r'$\log P_\mathrm{Fe}$'], 
 
+    # 'log_X_base_MgSiO3(s)_amorphous__Mie':    ['U', (-10.0,0.0), r'$\log X_\mathrm{MgSiO3}$'], 
+    # 'f_sed_MgSiO3(s)_amorphous__Mie':         ['U', (0.0,10.0), r'$f_\mathrm{sed,MgSiO3}$'], 
     'log_X_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-10.0,0.0), r'$\log X_\mathrm{Mg2SiO4}$'], 
     'f_sed_Mg2SiO4(s)_amorphous__Mie':         ['U', (0.0,10.0), r'$f_\mathrm{sed,Mg2SiO4}$'], 
     'log_P_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-1.0,2.0), r'$\log P_\mathrm{Mg2SiO4}$'], 
     
-    # 'cloud_fraction': ['U', (0.0,1.0), r'$f_\mathrm{cloud}$'],
+    'cloud_fraction': ['U', (0.0,1.0), r'$f_\mathrm{cloud}$'],
 }
 
 # Constants to use if prior is not given
@@ -156,12 +151,9 @@ line_species_g140h_1 = [
     
     '56Fe-1H__MoLLIST', 
     '52Cr-1H__MoLLIST',
-    '51V-16O__HyVO', 
-    '48Ti-16O__Toto', 
 
     '39K__Kurucz', 
     '23Na__Kurucz', 
-    # '56Fe__Kurucz',
 ]
 line_species_g140h_2 = [
     '1H2-16O__POKAZATEL', '1H2-18O__HotWat78', '1H2-17O__HotWat78', 
@@ -223,8 +215,9 @@ line_species_g395h_2 = [
 ]
 
 line_species = list(np.unique(
-    line_species_g140h_1 + line_species_g235h_1 + line_species_g395h_1 +
-    line_species_g140h_2 + line_species_g235h_2 + line_species_g395h_2
+    line_species_g140h_1 + line_species_g140h_2 #+ \
+    # line_species_g235h_1 + line_species_g235h_2 #+ \
+    # line_species_g395h_1 + line_species_g395h_2
 ))
 chem_kwargs = dict(
     shared_between_m_set = True,
@@ -236,7 +229,7 @@ cloud_kwargs = dict(
     shared_between_m_set = True,
     cloud_mode = 'EddySed', 
     cloud_species = ['Fe(s)_amorphous__Mie', 'Mg2SiO4(s)_amorphous__Mie'], 
-    # complete_coverage_clouds = ['Fe(s)_amorphous__Mie'],
+    complete_coverage_clouds = ['Fe(s)_amorphous__Mie'],
 )
 
 rotation_kwargs = dict(
@@ -247,10 +240,10 @@ rotation_kwargs = dict(
 pRT_Radtrans_kwargs = dict(
     nirspec_g140h_1 = dict(line_species=line_species_g140h_1, line_by_line_opacity_sampling=15), 
     nirspec_g140h_2 = dict(line_species=line_species_g140h_2, line_by_line_opacity_sampling=14), 
-    nirspec_g235h_1 = dict(line_species=line_species_g235h_1, line_by_line_opacity_sampling=13), 
-    nirspec_g235h_2 = dict(line_species=line_species_g235h_2, line_by_line_opacity_sampling=12), 
-    nirspec_g395h_1 = dict(line_species=line_species_g395h_1, line_by_line_opacity_sampling=11), 
-    nirspec_g395h_2 = dict(line_species=line_species_g395h_2, line_by_line_opacity_sampling=10), 
+    # nirspec_g235h_1 = dict(line_species=line_species_g235h_1, line_by_line_opacity_sampling=13), 
+    # nirspec_g235h_2 = dict(line_species=line_species_g235h_2, line_by_line_opacity_sampling=12), 
+    # nirspec_g395h_1 = dict(line_species=line_species_g395h_1, line_by_line_opacity_sampling=11), 
+    # nirspec_g395h_2 = dict(line_species=line_species_g395h_2, line_by_line_opacity_sampling=10), 
 
     cloud_species = cloud_kwargs.get('cloud_species', None),
     rayleigh_species           = ['H2','He'],
@@ -309,6 +302,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 200, 
+    n_live_points         = 100, 
     n_iter_before_update  = 100, 
 )
