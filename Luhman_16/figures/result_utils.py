@@ -9,10 +9,12 @@ from retrieval_base.retrieval import RetrievalRun, Retrieval
 
 q = 0.5 + np.array([-0.997, -0.95, -0.68, 0.0, +0.68, +0.95, +0.997])/2
 
-def latex_format(*posteriors, q=q[[4,2]], decimals=2, as_p10=False):
+def latex_format(*posteriors, q=q[[4,2]], decimals=2, as_p10=False, preamble=None):
     """Format the parameters for LaTeX output."""
     q = np.atleast_1d(q)
     full_str = []
+    if preamble is not None:
+        full_str.append(preamble)
 
     if len(q) == 1:
         if q[0] > 0.5:
@@ -21,7 +23,8 @@ def latex_format(*posteriors, q=q[[4,2]], decimals=2, as_p10=False):
             prefix = '>' # Lower limit
 
         for p in posteriors:
-            str_i = '{}'.format(np.round(np.quantile(p, q=q), decimals)[0])
+            style = f'{{:.{decimals}f}}'
+            str_i = style.format(np.quantile(p, q=q[0]))
             full_str.append('$'+prefix+str_i+'$')
 
         print(' & '.join(full_str)+r' \\')
@@ -98,7 +101,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         self.load_components(['ParamTable'])
 
         # Load the posterior and best-fit parameters
-        self.posterior, self.bestfit_parameters = self._load_posterior_and_bestfit()
+        self.posterior, self.ln_L_posterior, self.bestfit_parameters = self._load_posterior_and_bestfit()
 
     def get_contribution_function(self):
         """Get the emission contribution functions."""
@@ -121,7 +124,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         self.load_components(['m_spec_broad', 'Chem', 'PT', 'Cloud', 'Rotation', 'LineOpacity_broad'])
 
         m_set = self.model_settings[0]
-        self.ParamTable.set_queried_m_set(['all',m_set])
+        self.ParamTable.set_queried_m_set('all',m_set)
 
         # Update the mass fractions
         for key_i in self.Chem[m_set].mass_fractions:
@@ -142,7 +145,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
             # Set rotational velocity to 0
             vsini_copy = np.copy(self.ParamTable.get('vsini'))
             self.ParamTable._add_param(name='vsini', m_set='all', val=0.)
-            self.ParamTable.set_queried_m_set(['all',m_set]) # Update the queried table
+            self.ParamTable.set_queried_m_set('all',m_set) # Update the queried table
             self._update_rotation(m_set)
 
         # Update the broadened model spectrum
@@ -283,22 +286,46 @@ class RetrievalResults(RetrievalRun, Retrieval):
         
         return np.array(sigma)
 
-    def compare_evidence(self, other):
+    def compare_evidence(self, other, names=('self','other')):
 
+        # Evidences
         from scipy.special import lambertw, erfcinv
         ln_B = self.ln_Z - other.ln_Z
         B = np.exp(ln_B)
         p = np.real(np.exp(lambertw((-1.0/(B*np.exp(1))),-1)))
         sigma = np.sqrt(2)*erfcinv(p)
 
-        _ln_B = other.ln_Z - self.ln_Z
-        _B = np.exp(_ln_B)
-        _p = np.real(np.exp(lambertw((-1.0/(_B*np.exp(1))),-1)))
-        _sigma = np.sqrt(2)*erfcinv(_p)
+        print('{} vs. {}: B={:.2e}, "sigma"={:.2f}, ln(B)={:.2f}, log10(B)={:.2f}'.format(
+            *names, B, sigma, ln_B, np.log10(B)
+        ))
 
-        print('Current vs. given: ln(B)={:.2f} | sigma={:.2f}'.format(ln_B, sigma))
-        print('Given vs. current: ln(B)={:.2f} | sigma={:.2f}'.format(_ln_B, _sigma))
-        return B, sigma
+        # Information criteria
+        self.load_components(['LogLike', 'ParamTable'])
+        other.load_components(['LogLike', 'ParamTable'])
+
+        def AIC(ln_L, k):
+            return 2*k - 2*ln_L
+        
+        def BIC(ln_L, k, N_d):
+            return k*np.log(N_d) - 2*ln_L
+        
+        def BPICS(ln_L_posterior, k):
+            # Assuming equal weights
+            mean_ln_L = np.average(ln_L_posterior)
+            return 2*k -2*mean_ln_L
+
+        AIC_self  = AIC(self.LogLike.ln_L, self.ParamTable.n_free_params)
+        AIC_other = AIC(other.LogLike.ln_L, other.ParamTable.n_free_params)
+
+        BIC_self  = BIC(self.LogLike.ln_L, self.ParamTable.n_free_params, self.LogLike.N_d)
+        BIC_other = BIC(other.LogLike.ln_L, other.ParamTable.n_free_params, other.LogLike.N_d)
+
+        BPICS_self  = BPICS(self.ln_L_posterior, self.ParamTable.n_free_params)
+        BPICS_other = BPICS(other.ln_L_posterior, other.ParamTable.n_free_params)
+
+        print('{} vs. {}: AIC={:.2f}, BIC={:.2f}, BPICS={:.2f}\n'.format(
+            *names, AIC_self-AIC_other, BIC_self-BIC_other, BPICS_self-BPICS_other
+            ))
 
     @staticmethod
     def _load_config(prefix):
@@ -336,6 +363,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
             outputfiles_basename=self.config.prefix
             )
         posterior = analyzer.get_equal_weighted_posterior()
+        ln_L_posterior = posterior[:,-1]
         posterior = posterior[:,:-1]
         
         # Read best-fit parameters
@@ -345,7 +373,7 @@ class RetrievalResults(RetrievalRun, Retrieval):
         self.ln_Z = stats['nested importance sampling global log-evidence']
         # self.ln_Z = stats['nested sampling global log-evidence']
 
-        return posterior, bestfit_parameters
+        return posterior, ln_L_posterior, bestfit_parameters
 
 class HighPassFilter:
 
