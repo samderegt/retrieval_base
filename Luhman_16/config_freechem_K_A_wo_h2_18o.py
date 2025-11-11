@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_8'
+prefix = 'freechem_K_A_ret_7_wo_h2_18o'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -83,7 +83,7 @@ free_params = {
 
     # Chemistry
     'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
+    # 'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
     'log_H2(17)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{17}O}$'],
     
     'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
@@ -141,7 +141,7 @@ chem_kwargs = dict(
     chem_mode = 'free', 
     line_species = [
         '1H2-16O__POKAZATEL', 
-        '1H2-18O__HotWat78', 
+        # '1H2-18O__HotWat78', 
         '1H2-17O__HotWat78', 
 
         '12C-16O__HITEMP', 

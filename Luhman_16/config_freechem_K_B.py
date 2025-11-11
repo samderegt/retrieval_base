@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_B_ret_4_int_rot'
+prefix = 'freechem_K_B_ret_8'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -42,7 +42,6 @@ config_data = dict(
         kwargs={
             # Observation info
             'wave_range': (1900, 2500), 'w_set': 'K2166', 
-            #'wave_range': (2300, 2400), 'w_set': 'K2166', 
             'slit': 'w_0.4', 'resolution': 60000,
 
             # Outlier clipping
@@ -65,7 +64,7 @@ sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    'log_a': ['U', (-0.7,0.3), r'$\log\ a$'], 
+    'log_a': ['U', (-0.7,0.5), r'$\log\ a$'], 
     'log_l': ['U', (-3.0,-1.0), r'$\log\ l$'], 
 
     # General properties
@@ -78,9 +77,9 @@ free_params = {
 
     # Cloud properties
     'log_opa_base_gray': ['U', (-10,3), r'$\log\ \kappa_{\mathrm{cl,0}}$'], # Cloud slab
-    'log_P_base_gray':   ['U', (-0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
+    'log_P_base_gray':   ['U', (0.5,2.5), r'$\log\ P_{\mathrm{cl,0}}$'], 
     'f_sed_gray':        ['U', (1,20), r'$f_\mathrm{sed}$'], 
-    'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
+    #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
     'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
@@ -102,8 +101,8 @@ free_params = {
     'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
     'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
     'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
-    'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na}$'],
-    'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
+    # 'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na.}$'],
+    # 'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
     
     # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
@@ -160,20 +159,19 @@ chem_kwargs = dict(
         '1H-12C-14N__Harris', 
         '1H-19F__Coxon-Hajig', 
         '1H2-32S__AYT2', 
-        '23Na__Kurucz', 
-        '39K__Kurucz',
+        # '23Na__Kurucz', 
+        # '39K__Kurucz',
     ], 
 )
 
 cloud_kwargs = dict(
     cloud_mode = 'gray', 
-    wave_cloud_0 = 2.0, 
+    #wave_cloud_0 = 2.0, 
 )
 
 rotation_kwargs = dict(
+    rotation_mode='integrate', n_mu=9, n_theta=150, inclination=26,
     #rotation_mode = 'convolve', 
-    rotation_mode = 'integrate', n_mu = 15, n_theta = 150, 
-    inclination = 26, # Degrees
 )
 
 pRT_Radtrans_kwargs = dict(
@@ -183,7 +181,7 @@ pRT_Radtrans_kwargs = dict(
     cloud_species              = cloud_kwargs.get('cloud_species'), 
     
     line_opacity_mode             = 'lbl',
-    line_by_line_opacity_sampling = 3, # Faster radiative transfer by down-sampling
+    line_by_line_opacity_sampling = 2, # Faster radiative transfer by down-sampling
     scattering_in_emission        = False, 
     
     pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
@@ -204,6 +202,7 @@ cov_kwargs = dict(
     trunc_dist = 3, 
     scale_amp  = True, 
     max_wave_sep = 3 * 10**free_params.get('log_l', [None,[None,np.inf]])[1][1], 
+    kernel_mode = 'rbf', separation_mode = 'wave', 
 )
 
 all_model_kwargs = dict(
@@ -227,6 +226,6 @@ pymultinest_kwargs = dict(
     const_efficiency_mode = True, 
     sampling_efficiency   = 0.05, 
     evidence_tolerance    = 0.5, 
-    n_live_points         = 100,
-    n_iter_before_update  = 100, 
+    n_live_points         = 1000,
+    n_iter_before_update  = 400, 
 )

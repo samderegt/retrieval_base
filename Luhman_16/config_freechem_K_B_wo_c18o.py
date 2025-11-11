@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_8'
+prefix = 'freechem_K_B_ret_8_wo_c18o'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -13,9 +13,9 @@ config_data = dict(
         
         target_kwargs={
             # Data filenames
-            'file':      './data/Luhman_16A_K_blend_corr.dat', 
+            'file':      './data/Luhman_16B_K_blend_corr.dat', 
             'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', 
-            'file_molecfit_transm': './data/Luhman_16A_K_molecfit_transm.dat', 
+            'file_molecfit_transm': './data/Luhman_16B_K_molecfit_transm.dat', 
 
             # Mask pixels with lower telluric transmission
             'telluric_threshold': 0.8, 
@@ -24,14 +24,14 @@ config_data = dict(
             'ra': 162.297895, 'dec': -53.31703, 'mjd': 59946.32563173, 
 
             # Flux-calibration filter-name
-            'filter_name': '2MASS/2MASS.Ks', 'magnitude': 9.46, 
+            'filter_name': '2MASS/2MASS.Ks', 'magnitude': 9.71, 
         }, 
 
         std_kwargs={
             # Data filenames
             'file':      './data/Luhman_16_std_K.dat',
             'file_wave': './data/Luhman_16_std_K_molecfit_transm.dat', 
-            'file_molecfit_transm':    './data/Luhman_16A_K_molecfit_transm.dat', 
+            'file_molecfit_transm':    './data/Luhman_16B_K_molecfit_transm.dat', 
             'file_molecfit_continuum': './data/Luhman_16_std_K_molecfit_continuum.dat',
             'T_BB': 15000., # Blackbody temperature of the standard-star
 
@@ -55,7 +55,7 @@ config_data = dict(
 ####################################################################################
 
 from retrieval_base.utils import sc
-M_p, sigma_M_p = 35.4, 0.2
+M_p, sigma_M_p = 29.4, 0.2
 R_p, sigma_R_p = 1.0, 0.1
 g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
 log_g = np.log10(g)
@@ -88,7 +88,7 @@ free_params = {
     
     'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
     'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
+    # 'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
     'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
 
     'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
@@ -146,7 +146,7 @@ chem_kwargs = dict(
 
         '12C-16O__HITEMP', 
         '13C-16O__HITEMP', 
-        '12C-18O__HITEMP', 
+        # '12C-18O__HITEMP', 
         '12C-17O__HITEMP', 
         
         '12C-1H4__MM', 
@@ -170,7 +170,7 @@ cloud_kwargs = dict(
 )
 
 rotation_kwargs = dict(
-    rotation_mode='integrate', n_mu=9, n_theta=150, inclination=18,
+    rotation_mode='integrate', n_mu=9, n_theta=150, inclination=26,
     #rotation_mode = 'convolve', 
 )
 

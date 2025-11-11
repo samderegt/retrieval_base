@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_8'
+prefix = 'freechem_K_A_ret_7_wo_c18o'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -88,7 +88,7 @@ free_params = {
     
     'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
     'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
+    # 'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
     'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
 
     'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
@@ -146,7 +146,7 @@ chem_kwargs = dict(
 
         '12C-16O__HITEMP', 
         '13C-16O__HITEMP', 
-        '12C-18O__HITEMP', 
+        # '12C-18O__HITEMP', 
         '12C-17O__HITEMP', 
         
         '12C-1H4__MM', 

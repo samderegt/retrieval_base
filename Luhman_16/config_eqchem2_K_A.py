@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'freechem_K_A_ret_8'
+prefix = 'eqchem_K_A_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -82,28 +82,21 @@ free_params = {
     #'cloud_slope':       ['U', (-6,1), r'$\xi_\mathrm{cl}$'], 
 
     # Chemistry
-    'log_H2O':     ['U', (-14,-2), r'$\log\ \mathrm{H_2O}$'],
-    'log_H2(18)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{18}O}$'],
-    'log_H2(17)O': ['U', (-14,-2), r'$\log\ \mathrm{H_2^{17}O}$'],
-    
-    'log_12CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{12}CO}$'],
-    'log_13CO':    ['U', (-14,-2), r'$\log\ \mathrm{^{13}CO}$'],
-    'log_C18O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{18}O}$'],
-    'log_C17O':    ['U', (-14,-2), r'$\log\ \mathrm{C^{17}O}$'],
+    'alpha_C': ['U', (-1.0,2.0), '[C/H]'], 
+    'alpha_O': ['U', (-1.0,2.0), '[O/H]'], 
+    'alpha_N': ['U', (-1.0,2.0), '[N/H]'],
+    'alpha_S': ['U', (-1.0,2.0), '[S/H]'],
+    'alpha_F': ['U', (-1.0,2.0), '[F/H]'],
+    # '[M/H]':   ['U', (-1.0,1.0), r'[M/H]$_\mathrm{cl}$'],
 
-    'log_CH4':     ['U', (-14,-2), r'$\log\ \mathrm{CH_4}$'],
-    #'log_13CH4':   ['U', (-14,-2), r'$\log\ \mathrm{^{13}CH_4}$'],
+    'log_Kzz_chem':      ['U', (5,15), r'$\log\ K_\mathrm{zz}$'], 
 
-    'log_NH3':     ['U', (-14,-2), r'$\log\ \mathrm{NH_3}$'],
-    #'log_15NH3':   ['U', (-14,-2), r'$\log\ \mathrm{^{15}NH_3}$'],
+    'log_13CO_ratio':    ['U', (0,5), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
+    'log_C18O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+    'log_C17O_ratio':    ['U', (0,5), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
+    'log_H2(18)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
+    'log_H2(17)O_ratio': ['U', (0,5), r'$\log\ \mathrm{H_2^{16}/^{17}O}$'], 
 
-    'log_CO2':     ['U', (-14,-2), r'$\log\ \mathrm{CO_2}$'],
-    'log_HCN':     ['U', (-14,-2), r'$\log\ \mathrm{HCN}$'],
-    'log_HF':      ['U', (-14,-2), r'$\log\ \mathrm{HF}$'],
-    'log_H2S':     ['U', (-14,-2), r'$\log\ \mathrm{H_2S}$'],
-    # 'log_Na':      ['U', (-14,-2), r'$\log\ \mathrm{Na.}$'],
-    # 'log_K':       ['U', (-14,-2), r'$\log\ \mathrm{K}$'],
-    
     # PT profile
     'dlnT_dlnP_0': ['U', (0.10,0.34), r'$\nabla_0$'], 
     'dlnT_dlnP_1': ['U', (0.10,0.34), r'$\nabla_1$'], 
@@ -138,7 +131,7 @@ PT_kwargs = dict(
 )
 
 chem_kwargs = dict(
-    chem_mode = 'free', 
+    chem_mode = 'fastchem', 
     line_species = [
         '1H2-16O__POKAZATEL', 
         '1H2-18O__HotWat78', 
@@ -162,6 +155,12 @@ chem_kwargs = dict(
         # '23Na__Kurucz', 
         # '39K__Kurucz',
     ], 
+
+    abundance_file='/home/sdregt/FastChem/input/element_abundances/asplund_2020_simplified.dat', 
+    gas_data_file='/home/sdregt/FastChem/input/logK/logK_simplified.dat', 
+    cond_data_file='/home/sdregt/FastChem/input/logK/logK_condensates_simplified.dat', 
+    use_rainout_cond=True, 
+    min_temperature=200.,
 )
 
 cloud_kwargs = dict(
