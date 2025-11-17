@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'all_gratings_freechem_ret_3_1column'
+prefix = 'all_gratings_freechem_ret_3'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -24,12 +24,12 @@ model_settings_linked = {
 ####################################################################################
 # Model parameters
 ####################################################################################
-from retrieval_base.utils import sc
-M_p, sigma_M_p = 19.0, 5.0
-R_p, sigma_R_p = 1.1, 0.2
-g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
-log_g = np.log10(g)
-sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
+# from retrieval_base.utils import sc
+# M_p, sigma_M_p = 19.0, 5.0
+# R_p, sigma_R_p = 1.1, 0.2
+# g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
+# log_g = np.log10(g)
+# sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 
 # Define the priors of the parameters
 free_params = {
@@ -40,8 +40,10 @@ free_params = {
     'log_l': ['U', (1.4,2.6), r'$\log\ l$'],
 
     # General properties
-    'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
-    'R_p':   ['G', (1.1,0.2), r'$\mathrm{R_p}$'], 
+    # 'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
+    # 'R_p':   ['G', (1.1,0.2), r'$\mathrm{R_p}$'], 
+    'M_p':   ['U', (10,20), r'$\mathrm{M_p}$'],
+    'R_p':   ['U', (1.0,1.5), r'$\mathrm{R_p}$'], 
     'rv':    ['U', (-10.0,0.0), r'$v_\mathrm{rad}$'], 
 
     # Broadening
@@ -102,11 +104,13 @@ free_params = {
     'f_sed_Fe(s)_amorphous__Mie':      ['U', (0.0,10.0), r'$f_\mathrm{sed,Fe}$'], 
     'log_P_base_Fe(s)_amorphous__Mie': ['U', (-1.0,2.0), r'$\log P_\mathrm{Fe}$'], 
 
+    # 'log_X_base_MgSiO3(s)_amorphous__Mie':    ['U', (-10.0,0.0), r'$\log X_\mathrm{MgSiO3}$'], 
+    # 'f_sed_MgSiO3(s)_amorphous__Mie':         ['U', (0.0,10.0), r'$f_\mathrm{sed,MgSiO3}$'], 
     'log_X_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-10.0,0.0), r'$\log X_\mathrm{Mg2SiO4}$'], 
     'f_sed_Mg2SiO4(s)_amorphous__Mie':         ['U', (0.0,10.0), r'$f_\mathrm{sed,Mg2SiO4}$'], 
     'log_P_base_Mg2SiO4(s)_amorphous__Mie':    ['U', (-1.0,2.0), r'$\log P_\mathrm{Mg2SiO4}$'], 
     
-    # 'cloud_fraction': ['U', (0.0,1.0), r'$f_\mathrm{cloud}$'],
+    'cloud_fraction': ['U', (0.0,1.0), r'$f_\mathrm{cloud}$'],
 }
 
 # Constants to use if prior is not given
@@ -236,7 +240,7 @@ cloud_kwargs = dict(
     shared_between_m_set = True,
     cloud_mode = 'EddySed', 
     cloud_species = ['Fe(s)_amorphous__Mie', 'Mg2SiO4(s)_amorphous__Mie'], 
-    # complete_coverage_clouds = ['Fe(s)_amorphous__Mie'],
+    complete_coverage_clouds = ['Fe(s)_amorphous__Mie'],
 )
 
 rotation_kwargs = dict(

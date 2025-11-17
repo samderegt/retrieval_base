@@ -935,6 +935,8 @@ class FastChemistry(EquilibriumChemistry):
         Set the abundances of each element separately.
         """
         for el, i in self.idx.items():
+            if (el in ['K', 'Na']) and (ParamTable.get(f'alpha_{el}') is None):
+                el = 'K+Na'
             # Enhance the elemental abundance
             alpha_i = ParamTable.get(f'alpha_{el}', ParamTable.get(f'[M/H]', None))
             if alpha_i is None:

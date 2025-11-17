@@ -4,7 +4,7 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'all_gratings_eqchem_ret_3'
+prefix = 'all_gratings_eqchem_ret_4'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
@@ -24,12 +24,12 @@ model_settings_linked = {
 ####################################################################################
 # Model parameters
 ####################################################################################
-from retrieval_base.utils import sc
-M_p, sigma_M_p = 19.0, 5.0
-R_p, sigma_R_p = 1.1, 0.2
-g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
-log_g = np.log10(g)
-sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
+# from retrieval_base.utils import sc
+# M_p, sigma_M_p = 19.0, 5.0
+# R_p, sigma_R_p = 1.1, 0.2
+# g     = (sc.G*1e3) * (M_p*sc.m_jup*1e3) / (R_p*sc.r_jup_mean*1e2)**2
+# log_g = np.log10(g)
+# sigma_log_g = np.sqrt((sigma_M_p/M_p)**2 + (2*sigma_R_p/R_p)**2) / np.log(10)
 
 # Define the priors of the parameters
 free_params = {
@@ -40,8 +40,10 @@ free_params = {
     'log_l': ['U', (1.4,2.6), r'$\log\ l$'],
 
     # General properties
-    'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
-    'R_p':   ['G', (1.1,0.2), r'$\mathrm{R_p}$'], 
+    # 'log_g': ['G', (log_g,sigma_log_g), r'$\log\ g$'],
+    # 'R_p':   ['G', (1.1,0.2), r'$\mathrm{R_p}$'], 
+    'M_p':   ['U', (10,20), r'$\mathrm{M_p}$'],
+    'R_p':   ['U', (1.0,1.5), r'$\mathrm{R_p}$'], 
     'rv':    ['U', (-10.0,0.0), r'$v_\mathrm{rad}$'], 
 
     # Broadening
@@ -53,8 +55,9 @@ free_params = {
     'alpha_N':  ['TG', (0.0,0.1,-5,+10), '[N/H]'],  #['U', (-1.0,1.0), '[N/H]'], 
     'alpha_S':  ['TG', (0.0,0.1,-5,+10), '[S/H]'], #['U', (-1.0,1.0), '[S/H]'],
     'alpha_F':  ['TG', (0.0,0.1,-5,+10), '[F/H]'], #['U', (-1.0,1.0), '[F/H]'],
-    'alpha_K':  ['TG', (0.0,0.1,-5,+10), '[K/H]'], #['U', (-1.0,1.0), '[K/H]'],
-    'alpha_Na': ['TG', (0.0,0.1,-5,+10), '[Na/H]'], #['U', (-1.0,1.0), '[Na/H]'],
+    'alpha_K+Na': ['TG', (0.0,0.1,-5,+10), '[(K+Na)/H]'], #['U', (-1.0,1.0), '[K+Na/H]'],
+    # 'alpha_K':  ['TG', (0.0,0.1,-5,+10), '[K/H]'], #['U', (-1.0,1.0), '[K/H]'],
+    # 'alpha_Na': ['TG', (0.0,0.1,-5,+10), '[Na/H]'], #['U', (-1.0,1.0), '[Na/H]'],
     '[M/H]':    ['TG', (0.0,0.1,-5,+10), '[M/H]'], #['U', (-1.0,1.0), '[M/H]'],
 
     # 'log_FeH':   ['U', (-14.0,-4.0), r'$\log\ \mathrm{FeH}$'], # Retrieve as free abundances
@@ -64,15 +67,21 @@ free_params = {
     # 'log_CrH_P': ['U', (-1.0,1.0), r'$\log\ \mathrm{CrH_P}$'],
     # 'CrH_alpha': ['U', (0.0,10.0), r'$\alpha_\mathrm{CrH}$'],
 
-    'log_Kzz_chem': ['U', (3.0,15.0), r'$\log\ K_\mathrm{zz}$'],
+    'log_Kzz_chem': ['U', (5.0,12.0), r'$\log\ K_\mathrm{zz}$'],
 
-    'log_13CO_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
-    'log_C18O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
-    'log_C17O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
-    'log_13CH4_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'], 
-    'log_13CO2_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'], 
-    'log_H2(18)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
-    'log_H2(17)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{17}O}$'], 
+    # 'log_13CO_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
+    # 'log_C18O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
+    # 'log_C17O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{17}O}$'], 
+    # 'log_13CH4_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CH_4}$'], 
+    # 'log_13CO2_ratio':   ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO_2}$'], 
+    # 'log_H2(18)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{18}O}$'], 
+    # 'log_H2(17)O_ratio': ['U', (1.0,4.0), r'$\log\ \mathrm{H_2^{16}/^{17}O}$'], 
+    
+    'log_12/13C_ratio':    ['U', (1.0,5.0), r'$\log\ \mathrm{^{12}/^{13}C}$'], 
+    'log_16/18O_ratio':    ['U', (1.0,5.0), r'$\log\ \mathrm{^{16}/^{18}O}$'], 
+    'log_16/17O_ratio':    ['U', (1.0,5.0), r'$\log\ \mathrm{^{16}/^{17}O}$'], 
+    # 'log_14/15N_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{14}/^{15}N}$'],
+    'log_H/D_ratio':       ['U', (1.0,5.0), r'$\log\ \mathrm{H/D}$'],
 
     # PT profile 
     'dlnT_dlnP_0': ['TG', (0.15,0.01,-5,+5), r'$\nabla_0$'], 

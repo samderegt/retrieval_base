@@ -141,6 +141,11 @@ class NIRSpecExtraction:
             fitter = fitting.LevMarLSQFitter()
             fit = fitter(gaussian, x_pix, y_pix, median_image)
 
+            # Ignore fits with low amplitude
+            # print(fit.amplitude.value, 0.2*np.nanmax(median_image))
+            # if np.abs(fit.amplitude.value) < 0.2*np.nanmax(median_image):
+            #     continue
+
             self.xy_dithers.append((fit.x_mean.value, fit.y_mean.value))
 
     def correct_dithers(self, radius_inflation=6, plot=True):
@@ -161,7 +166,7 @@ class NIRSpecExtraction:
             mask = (mask!=0.)
             masked_cube = np.copy(data_dither_i['cube'])
             masked_cube[:,mask] = np.nan
-            # masked_cube[:,:,:2] = np.nan; masked_cube[:,:,-2:] = np.nan
+            masked_cube[:,:,:2] = np.nan; masked_cube[:,:,-2:] = np.nan
             
             # Remove the horizontal stripes
             horizontal_collapsed = np.nanmedian(masked_cube, axis=2, keepdims=True)
@@ -270,7 +275,7 @@ class NIRSpecExtraction:
 
         if plot:
             
-            fig, ax = plt.subplots(figsize=(10,6), nrows=2, sharex=True, gridspec_kw={'height_ratios':[1,0.5]})
+            fig, ax = plt.subplots(figsize=(10,6), nrows=2, sharex=True, gridspec_kw={'height_ratios':[1,0.3]})
             for flux_i, flux_err_i, is_clipped_i in zip(flux, flux_err, is_clipped):
                 
                 flux_masked_i = flux_i.copy()
@@ -310,6 +315,44 @@ class NIRSpecExtraction:
         self.flux = self.flux[1:-1]
         self.flux_err = self.flux_err[1:-1]
 
+    def aperture_correction_from_dithers(self, radius_tot=10, plot=True):
+
+        if plot:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10,2))
+
+        for i, data_dither_i in enumerate(self.data_dither):
+
+            aper_kwargs_tot = dict(
+                positions=self.xy_dithers[i], theta=0., a=self.sigma*radius_tot, b=self.sigma*radius_tot
+            )
+            flux_tot, flux_err_tot = extract_per_channel(
+                data_dither_i['cube_corrected'], data_dither_i['cube_err'], **aper_kwargs_tot
+            )
+
+            flux_measured, flux_err_measured = data_dither_i['flux'], data_dither_i['flux_err']
+
+            ratio = flux_tot / flux_measured
+            ratio_err = np.sqrt((flux_tot/flux_measured**2*flux_err_measured)**2 + (1/flux_measured*flux_err_tot)**2)
+            mask = np.isfinite(ratio)
+            print(mask.sum(), 'valid points for dither', i)
+            print(ratio[mask][-1], data_dither_i['wave'][mask][-1], 'last point for dither', i)
+            polynomial = np.polyfit(data_dither_i['wave'][mask], ratio[mask], w=1/ratio_err[mask]**2, deg=1)
+            correction_factor = np.polyval(polynomial, data_dither_i['wave'])
+
+            if plot:
+                ax.plot(data_dither_i['wave'][mask], ratio[mask], alpha=0.3, c=f'C{i}')
+                ax.plot(data_dither_i['wave'][mask], correction_factor[mask], c=f'C{i}', zorder=10)
+                # ax.set(xlabel='Wavelength [micron]', ylabel=f'[{radius_tot}*sigma] / [4*sigma]', ylim=(1,1.2), title=f'Aperture correction for dither {i+1}')
+
+            self.data_dither[i]['flux'] *= correction_factor
+            self.data_dither[i]['flux_err'] *= correction_factor
+
+        if plot:
+            ax.set(ylim=(1,1.2))
+            plt.show()
+            plt.close()
+
     def aperture_correction_from_combined(self, radius=4, radius_tot=10, plot=True):
         
         aper_kwargs = dict(
@@ -334,6 +377,9 @@ class NIRSpecExtraction:
 
         self.flux *= self.correction_factor
         self.flux_err *= self.correction_factor
+
+        self.flux_combined = np.interp(self.wave, self.data_combined['wave'][mask], flux_measured[mask]) * self.correction_factor
+        self.flux_err_combined = np.interp(self.wave, self.data_combined['wave'][mask], flux_err_measured[mask]) * self.correction_factor
 
         if plot: 
             import matplotlib.pyplot as plt
@@ -472,6 +518,13 @@ class SpectralExtraction:
 
         # horizontal_collapsed *= 0.
         cube_corrected = np.copy(self.cube) - horizontal_collapsed
+
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter('ignore', category=RuntimeWarning)
+        #     vertical_collapsed = np.nanmedian(cube_corrected, axis=1, keepdims=True)
+        # vertical_collapsed = np.nan_to_num(vertical_collapsed, nan=0.0)
+
+        # cube_corrected -= vertical_collapsed
 
         if plot:
             # Plot the results
