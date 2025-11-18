@@ -4,21 +4,21 @@ import numpy as np
 # Files and physical parameters
 ####################################################################################
 
-prefix = 'all_gratings_eqchem_ret_4'
+prefix = 'all_gratings_eqchem_ret_5'
 prefix = f'./retrieval_outputs/{prefix}/test_'
 
 config_data = dict(
-    nirspec_g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1.dat', 'grating':'G140H', 'min_SNR':3}),  
-    nirspec_g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1.dat', 'grating':'G235H', 'min_SNR':3}),  
-    nirspec_g395h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_1.dat', 'grating':'G395H', 'min_SNR':3}),  
-    nirspec_g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2.dat', 'grating':'G140H', 'min_SNR':3}),  
-    nirspec_g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2.dat', 'grating':'G235H', 'min_SNR':3}),  
-    nirspec_g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2.dat', 'grating':'G395H', 'min_SNR':3}),  
+    g140h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_1_17_11_2025.dat', 'grating':'G140H', 'min_SNR':3}),  
+    g235h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_1_17_11_2025.dat', 'grating':'G235H', 'min_SNR':3}),  
+    g395h_1 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_1_17_11_2025.dat', 'grating':'G395H', 'min_SNR':3}),  
+    g140h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_140h_2_17_11_2025.dat', 'grating':'G140H', 'min_SNR':3}),  
+    g235h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_235h_2_17_11_2025.dat', 'grating':'G235H', 'min_SNR':3}),  
+    g395h_2 = dict(instrument='JWST', kwargs={'file':'./data/nirspec_395h_2_17_11_2025.dat', 'grating':'G395H', 'min_SNR':3}),  
 )
 model_settings_linked = {
-    'nirspec_g140h_1': ('nirspec_g140h_2'), 'nirspec_g140h_2': ('nirspec_g140h_1'), 
-    'nirspec_g235h_1': ('nirspec_g235h_2'), 'nirspec_g235h_2': ('nirspec_g235h_1'),
-    'nirspec_g395h_1': ('nirspec_g395h_2'), 'nirspec_g395h_2': ('nirspec_g395h_1'),
+    'g140h_1': ('g140h_2'), 'g140h_2': ('g140h_1'), 
+    'g235h_1': ('g235h_2'), 'g235h_2': ('g235h_1'),
+    'g395h_1': ('g395h_2'), 'g395h_2': ('g395h_1'),
 }
 
 ####################################################################################
@@ -34,9 +34,9 @@ model_settings_linked = {
 # Define the priors of the parameters
 free_params = {
     # Covariance parameters
-    'nirspec_g140h_1': {'b': ['U', (0.0,1.0), r'$b_{140}$']}, 
-    'nirspec_g235h_1': {'b': ['U', (0.0,1.0), r'$b_{235}$']}, 
-    'nirspec_g395h_1': {'b': ['U', (0.0,1.0), r'$b_{395}$']}, 
+    'g140h_1': {'b': ['U', (0.0,1.0), r'$b_{140}$']}, 
+    'g235h_1': {'b': ['U', (0.0,1.0), r'$b_{235}$'], 'flux_scaling': ['G', (1.0,0.02), r'$f_{235}$']}, 
+    'g395h_1': {'b': ['U', (0.0,1.0), r'$b_{395}$'], 'flux_scaling': ['G', (1.0,0.02), r'$f_{395}$']}, 
     'log_l': ['U', (1.4,2.6), r'$\log\ l$'],
 
     # General properties
@@ -67,7 +67,7 @@ free_params = {
     # 'log_CrH_P': ['U', (-1.0,1.0), r'$\log\ \mathrm{CrH_P}$'],
     # 'CrH_alpha': ['U', (0.0,10.0), r'$\alpha_\mathrm{CrH}$'],
 
-    'log_Kzz_chem': ['U', (5.0,12.0), r'$\log\ K_\mathrm{zz}$'],
+    'log_Kzz_chem': ['U', (5.0,12.0), r'$\log\ K_\mathrm{zz,chem}$'],
 
     # 'log_13CO_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{12}/^{13}CO}$'], 
     # 'log_C18O_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{C^{16}/^{18}O}$'], 
@@ -81,7 +81,7 @@ free_params = {
     'log_16/18O_ratio':    ['U', (1.0,5.0), r'$\log\ \mathrm{^{16}/^{18}O}$'], 
     'log_16/17O_ratio':    ['U', (1.0,5.0), r'$\log\ \mathrm{^{16}/^{17}O}$'], 
     # 'log_14/15N_ratio':    ['U', (1.0,4.0), r'$\log\ \mathrm{^{14}/^{15}N}$'],
-    'log_H/D_ratio':       ['U', (1.0,5.0), r'$\log\ \mathrm{H/D}$'],
+    # 'log_H/D_ratio':       ['U', (1.0,5.0), r'$\log\ \mathrm{H/D}$'],
 
     # PT profile 
     'dlnT_dlnP_0': ['TG', (0.15,0.01,-5,+5), r'$\nabla_0$'], 
@@ -96,7 +96,7 @@ free_params = {
 
     # Clouds
     'sigma_g': ['U', (1.02,3), r'$\sigma_g$'], 
-    'log_K_zz': ['U', (5,13), r'$\log\ K_\mathrm{zz}$'], 
+    'log_K_zz': ['U', (5.0,12.0), r'$\log\ K_\mathrm{zz,cl}$'], 
 
     'log_X_base_Fe(s)_amorphous__Mie': ['U', (-10.0,0.0), r'$\log X_\mathrm{Fe}$'], # Fe in both columns
     'f_sed_Fe(s)_amorphous__Mie':      ['U', (0.0,10.0), r'$f_\mathrm{sed,Fe}$'], 
@@ -112,7 +112,7 @@ free_params = {
 # Constants to use if prior is not given
 constant_params = {
     # General properties
-    'parallax': 47.2733,  # +/- 37 mas
+    'parallax': 47.2733,  # +/- 0.47 mas
 
     'epsilon_limb': 0.6, # Limb-darkening
 
@@ -222,9 +222,9 @@ chem_kwargs = dict(
     chem_mode = 'fastchem', 
     line_species = line_species, 
 
-    abundance_file='/net/lem/data1/regt/fastchem/input/element_abundances/asplund_2020_simplified.dat', 
-    gas_data_file='/net/lem/data1/regt/fastchem/input/logK/logK_simplified.dat', 
-    cond_data_file='/net/lem/data1/regt/fastchem/input/logK/logK_condensates_simplified.dat', 
+    abundance_file='/home/sdregt/FastChem/input/element_abundances/asplund_2020_simplified.dat', 
+    gas_data_file='/home/sdregt/FastChem/input/logK/logK_simplified.dat', 
+    cond_data_file='/home/sdregt/FastChem/input/logK/logK_condensates_simplified.dat', 
     use_rainout_cond=True, 
     min_temperature=200.,
 )
@@ -242,12 +242,12 @@ rotation_kwargs = dict(
 )
 
 pRT_Radtrans_kwargs = dict(
-    nirspec_g140h_1 = dict(line_species=line_species_g140h_1, line_by_line_opacity_sampling=12), 
-    nirspec_g140h_2 = dict(line_species=line_species_g140h_2, line_by_line_opacity_sampling=12), 
-    nirspec_g235h_1 = dict(line_species=line_species_g235h_1, line_by_line_opacity_sampling=11), 
-    nirspec_g235h_2 = dict(line_species=line_species_g235h_2, line_by_line_opacity_sampling=11), 
-    nirspec_g395h_1 = dict(line_species=line_species_g395h_1, line_by_line_opacity_sampling=10), 
-    nirspec_g395h_2 = dict(line_species=line_species_g395h_2, line_by_line_opacity_sampling=10), 
+    g140h_1 = dict(line_species=line_species_g140h_1, line_by_line_opacity_sampling=12), 
+    g140h_2 = dict(line_species=line_species_g140h_2, line_by_line_opacity_sampling=12), 
+    g235h_1 = dict(line_species=line_species_g235h_1, line_by_line_opacity_sampling=11), 
+    g235h_2 = dict(line_species=line_species_g235h_2, line_by_line_opacity_sampling=11), 
+    g395h_1 = dict(line_species=line_species_g395h_1, line_by_line_opacity_sampling=10), 
+    g395h_2 = dict(line_species=line_species_g395h_2, line_by_line_opacity_sampling=10), 
 
     cloud_species = cloud_kwargs.get('cloud_species', None),
     rayleigh_species           = ['H2','He'],
@@ -257,8 +257,8 @@ pRT_Radtrans_kwargs = dict(
     # line_by_line_opacity_sampling = 10, # Faster radiative transfer by down-sampling
     scattering_in_emission        = True, 
 
-    # pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
-    pRT_input_data_path = '/net/lem/data2/pRT3_formatted/input_data', 
+    pRT_input_data_path = '/projects/0/prjs1096/pRT3/input_data', 
+    # pRT_input_data_path = '/net/lem/data2/pRT3_formatted/input_data', 
 )
 
 ####################################################################################
@@ -289,11 +289,6 @@ all_model_kwargs = dict(
     loglike_kwargs=loglike_kwargs,
 
     model_settings_linked=model_settings_linked, 
-    # model_settings_to_sum = [ # Sum the A and B columns
-    #     ('nirspec_g140h_12_A', 'nirspec_g140h_12_B'), 
-    #     ('nirspec_g235h_12_A', 'nirspec_g235h_12_B'), 
-    #     ('nirspec_g395h_12_A', 'nirspec_g395h_12_B')
-    #     ],
 )
 
 ####################################################################################

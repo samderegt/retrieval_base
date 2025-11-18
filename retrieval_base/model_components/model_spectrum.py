@@ -398,6 +398,9 @@ class pRT:
             # Apply coverage fraction for this model setting
             flux *= ParamTable.get('coverage_fraction', 1.)
 
+            # Apply flux scaling
+            flux *= ParamTable.get('flux_scaling', 1.)
+
         # Apply instrumental broadening
         flux = self.instrumental_broadening(
             wave, flux, resolution=self.d_resolution, initial_resolution=self.m_resolution
